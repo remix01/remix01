@@ -39,7 +39,7 @@ export default function Page() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -52,10 +52,27 @@ export default function Page() {
           },
         },
       })
-      if (error) throw error
-      router.push('/partner-auth/sign-up-success')
+      
+      if (error) {
+        // Specifični error handling
+        if (error.message.includes('already registered')) {
+          throw new Error('Ta e-poštni naslov je že registriran')
+        } else if (error.message.includes('Password should be')) {
+          throw new Error('Geslo mora vsebovati vsaj 6 znakov')
+        } else if (error.message.includes('valid email')) {
+          throw new Error('Neveljaven e-poštni naslov')
+        } else {
+          throw error
+        }
+      }
+      
+      // Uspešna registracija
+      if (data.user) {
+        router.push('/partner-auth/sign-up-success')
+      }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Napaka pri registraciji')
+      console.error('[v0] Signup error:', error)
+      setError(error instanceof Error ? error.message : 'Napaka pri registraciji. Poskusite znova.')
     } finally {
       setIsLoading(false)
     }

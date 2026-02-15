@@ -19,62 +19,95 @@ export default function TermsPage() {
               Pogoji uporabe
             </h1>
             <p className="mt-4 text-muted-foreground">
-              Zadnja posodobitev: februar 2026
+              Zadnja posodobitev: 15. februar 2026
             </p>
 
             <div className="prose prose-sm mt-12 max-w-none space-y-8 text-muted-foreground dark:prose-invert">
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">1. Sprejemanje pogojev</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">1. Splošne določbe</h2>
                 <p>
-                  Z uporabo LiftGO platforme soglašate s temi pogoji. Če se ne strinjate, prosimo, 
-                  ne uporabljajte naše storitve.
+                  Ti splošni pogoji uporabe urejajo dostop in uporabo spletne platforme LiftGO, ki jo upravlja:
+                </p>
+                <div className="mt-4 rounded-lg bg-muted p-4 text-sm">
+                  <p className="font-semibold text-foreground">Liftgo d.o.o.</p>
+                  <p>Kuraltova ulica 12, 4208 Šenčur, Slovenija</p>
+                  <p>Matična številka: 9724346000</p>
+                  <p>ID za DDV: SI24728381</p>
+                  <p>E-pošta: info@liftgo.net</p>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">2. Storitve platforme</h2>
+                <p>
+                  LiftGO je platforma, ki povezuje stranke z verificiranimi obrtniki v Sloveniji. Omogočamo 
+                  oddajo brezplačnega povpraševanja, prejemanje ponudb preverjenikov obrtnikov, komunikacijo 
+                  in ocenjevanje opravljenih storitev.
                 </p>
               </div>
 
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">2. Uporaba storitve</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">3. Obveznosti uporabnikov</h2>
+                <p className="font-medium text-foreground">Za stranke:</p>
+                <ul className="mt-2 list-inside list-disc space-y-1">
+                  <li>Posredovanje resničnih in točnih podatkov pri oddaji povpraševanj</li>
+                  <li>Spoštovanje dogovorjenih terminov in plačilnih obveznosti</li>
+                  <li>Pošteno ocenjevanje opravljenih storitev</li>
+                </ul>
+                <p className="mt-4 font-medium text-foreground">Za obrtnike:</p>
+                <ul className="mt-2 list-inside list-disc space-y-1">
+                  <li>Posredovanje realnih ponudb in spoštovanje ponujenih cen</li>
+                  <li>Strokovno opravljanje storitev v dogovorjenem roku</li>
+                  <li>Posedovanje ustreznih dovoljenj in zavarovanja</li>
+                  <li>Spoštovanje Zakona o varstvu potrošnikov in drugih predpisov</li>
+                </ul>
+              </div>
+
+              <div>
+                <h2 className="font-display text-2xl font-bold text-foreground">4. Plačila in provizija</h2>
                 <p>
-                  LiftGO je namenjena le zakoniti uporabi. Ne smete je uporabljati za nezakonite 
-                  namene ali kršiti pravice tretjih oseb.
+                  Za stranke je uporaba platforme popolnoma brezplačna. Obrtniki plačujejo provizijo od 
+                  zaključenih del skladno s cenovnim načrtom na <Link href="/cenik" className="text-primary underline">liftgo.net/cenik</Link>.
                 </p>
               </div>
 
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">3. Varnost računa</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">5. Omejitev odgovornosti</h2>
                 <p>
-                  Odgovarjate za varnost svojega računa in gesla. Vse dejavnosti na vašem računu 
-                  so vaša odgovornost.
+                  LiftGO nastopa kot posrednik med strankami in obrtniki. Nismo odgovorni za kakovost 
+                  opravljenih storitev, spore med stranko in obrtinkom ali škodo nastalo med izvedbo. 
+                  Vsi obrtniki morajo imeti veljavno zavarovanje odgovornosti.
                 </p>
               </div>
 
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">4. Odgovornosti</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">6. Intelektualna lastnina</h2>
                 <p>
-                  LiftGO je sredstvo za povezovanje. Nismo odgovorni za kakovost dela obrtnika, 
-                  vendar si prizadevamo za najpopolnejšo zaščito.
+                  Vse vsebine na platformi LiftGO so last Liftgo d.o.o. ali licenčno uporabljene. 
+                  Prepovedano je kopiranje ali distribucija brez pisnega soglasja.
                 </p>
               </div>
 
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">5. Plačila</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">7. Spremembe pogojev</h2>
                 <p>
-                  Vsa plačila so končna, razen v primeru vraćanja denarja skladno s to politiko. 
-                  Garantiramo zaščito vašega denarni.
+                  Pridržujemo si pravico do spremembe teh pogojev. Vse spremembe bodo objavljene na tej strani 
+                  z navedbo datuma posodobitve. Nadaljnja uporaba platforme pomeni sprejemanje novih pogojev.
                 </p>
               </div>
 
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">6. Spremembe pogojev</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">8. Veljavna zakonodaja</h2>
                 <p>
-                  Правimo si pravico spremeniti te pogoje brez opozorila. Nadaljna uporaba služi 
-                  kot soglasje k novim pogojem.
+                  Ti pogoji se urejajo po pravu Republike Slovenije. Vsi spori se rešujejo pred pristojnim 
+                  sodiščem v Ljubljani, Slovenija.
                 </p>
               </div>
 
               <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">7. Kontakt</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">9. Kontakt</h2>
                 <p>
-                  Če imate vprašanja o teh pogojih, nas kontaktirajte na{" "}
+                  Za vprašanja glede teh pogojev nas kontaktirajte na{" "}
                   <Link href="mailto:info@liftgo.net" className="font-semibold text-primary hover:underline">
                     info@liftgo.net
                   </Link>
