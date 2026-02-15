@@ -11,51 +11,118 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
   const renderIllustration = () => {
     switch (category) {
       case 'Gradnja':
-        // Bathroom renovation theme with blue tiles and steam
+        // Bathroom (kopalnica) with bathtub, water, steam, and tiles
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
             <defs>
               <style>{`
-                @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
-                @keyframes steam { 0% { opacity: 0.3; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-30px); } }
-                .tile { fill: #1e3a8a; }
-                .tile-grout { fill: #0c0e14; }
-                .water { fill: #3b82f6; animation: float 3s ease-in-out infinite; }
-                .steam { fill: #60a5fa; animation: steam 2.5s ease-out infinite; }
+                @keyframes steamFloat1 { 
+                  0% { opacity: 0; transform: translateY(0); } 
+                  40% { opacity: 0.4; } 
+                  100% { opacity: 0; transform: translateY(-20px); } 
+                }
+                @keyframes steamFloat2 { 
+                  0% { opacity: 0; transform: translateY(0); } 
+                  40% { opacity: 0.4; } 
+                  100% { opacity: 0; transform: translateY(-20px); } 
+                }
+                @keyframes steamFloat3 { 
+                  0% { opacity: 0; transform: translateY(0); } 
+                  40% { opacity: 0.4; } 
+                  100% { opacity: 0; transform: translateY(-20px); } 
+                }
+                @keyframes drip { 
+                  0% { opacity: 1; transform: translateY(0); } 
+                  100% { opacity: 0; transform: translateY(15px); } 
+                }
+                @keyframes wave {
+                  0%, 100% { d: path('M 80,135 Q 120,130 160,135 T 240,135 T 320,135'); }
+                  50% { d: path('M 80,135 Q 120,140 160,135 T 240,135 T 320,135'); }
+                }
+                .steam1 { fill: #bfdbfe; opacity: 0.3; animation: steamFloat1 3s ease-in-out infinite; }
+                .steam2 { fill: #bfdbfe; opacity: 0.3; animation: steamFloat2 3s ease-in-out infinite 1s; }
+                .steam3 { fill: #bfdbfe; opacity: 0.3; animation: steamFloat3 3s ease-in-out infinite 2s; }
+                .droplet { fill: #93c5fd; animation: drip 1.5s ease-in infinite 0.5s; }
               `}</style>
+              
+              {/* Tile grid pattern */}
+              <pattern id="tileGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <rect width="24" height="24" fill="#0d1b2e"/>
+                <rect x="0.5" y="0.5" width="23" height="23" fill="none" stroke="#1e3a5f" strokeWidth="0.5" opacity="0.1"/>
+              </pattern>
             </defs>
-            <rect width="400" height="225" fill="#0c0e14"/>
             
-            {/* Tiles background */}
-            {[...Array(6)].map((_, row) => 
-              [...Array(8)].map((_, col) => (
-                <g key={`${row}-${col}`}>
-                  <rect className="tile" x={col * 50 + 2} y={row * 37.5 + 2} width="46" height="33.5" rx="2"/>
-                  <rect className="tile-grout" x={col * 50} y={row * 37.5} width="50" height="37.5" rx="2" fillOpacity="0.15"/>
-                </g>
-              ))
-            )}
+            {/* Background with tile pattern */}
+            <rect width="400" height="225" fill="url(#tileGrid)"/>
             
-            {/* Shower head */}
-            <rect fill="#94a3b8" x="160" y="30" width="80" height="8" rx="4"/>
-            <circle fill="#94a3b8" cx="200" cy="60" r="25"/>
-            {[...Array(9)].map((_, i) => (
-              <circle key={i} fill="#1e293b" cx={180 + (i % 3) * 20} cy={52 + Math.floor(i / 3) * 8} r="2"/>
-            ))}
+            {/* Bathtub */}
+            <path 
+              d="M 80,150 Q 80,180 100,190 L 300,190 Q 320,180 320,150 L 320,140 L 80,140 Z" 
+              fill="none" 
+              stroke="rgba(99,179,237,0.4)" 
+              strokeWidth="3"
+            />
+            <ellipse cx="200" cy="140" rx="120" ry="8" fill="rgba(99,179,237,0.2)"/>
             
-            {/* Water drops */}
-            {[...Array(7)].map((_, i) => (
-              <ellipse key={i} className="water" cx={185 + i * 5} cy={100 + i * 15} rx="3" ry="6" opacity="0.7" style={{ animationDelay: `${i * 0.2}s` }}/>
-            ))}
+            {/* Water in tub with wavy top */}
+            <path 
+              d="M 80,135 Q 120,133 160,135 T 240,135 T 320,135 L 320,185 Q 310,188 300,188 L 100,188 Q 90,188 80,185 Z" 
+              fill="#3b82f6" 
+              fillOpacity="0.4"
+            >
+              <animate 
+                attributeName="d" 
+                dur="3s" 
+                repeatCount="indefinite"
+                values="
+                  M 80,135 Q 120,133 160,135 T 240,135 T 320,135 L 320,185 Q 310,188 300,188 L 100,188 Q 90,188 80,185 Z;
+                  M 80,135 Q 120,137 160,135 T 240,135 T 320,135 L 320,185 Q 310,188 300,188 L 100,188 Q 90,188 80,185 Z;
+                  M 80,135 Q 120,133 160,135 T 240,135 T 320,135 L 320,185 Q 310,188 300,188 L 100,188 Q 90,188 80,185 Z
+                "
+              />
+            </path>
             
-            {/* Steam effects */}
-            {[...Array(4)].map((_, i) => (
-              <ellipse key={i} className="steam" cx={150 + i * 30} cy={180} rx="20" ry="10" style={{ animationDelay: `${i * 0.6}s` }}/>
-            ))}
+            {/* Steam/mist curves */}
+            <path className="steam1" d="M 100,120 Q 120,110 140,120 T 180,120" fill="none" stroke="#bfdbfe" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
+            <path className="steam2" d="M 160,115 Q 180,105 200,115 T 240,115" fill="none" stroke="#bfdbfe" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
+            <path className="steam3" d="M 220,118 Q 240,108 260,118 T 300,118" fill="none" stroke="#bfdbfe" strokeWidth="4" strokeLinecap="round" opacity="0.3"/>
+            
+            {/* Wall shelf */}
+            <rect x="280" y="60" width="80" height="4" rx="2" fill="#475569"/>
+            <rect x="278" y="64" width="2" height="10" fill="#334155"/>
+            <rect x="360" y="64" width="2" height="10" fill="#334155"/>
+            
+            {/* Bottles on shelf */}
+            <g transform="translate(295, 40)">
+              <rect x="0" y="0" width="12" height="20" rx="2" fill="#93c5fd" opacity="0.6"/>
+              <circle cx="6" cy="-2" r="4" fill="#60a5fa" opacity="0.8"/>
+            </g>
+            <g transform="translate(315, 35)">
+              <rect x="0" y="0" width="14" height="25" rx="2" fill="#3b82f6" opacity="0.5"/>
+              <circle cx="7" cy="-2" r="5" fill="#2563eb" opacity="0.7"/>
+            </g>
+            <g transform="translate(337, 42)">
+              <rect x="0" y="0" width="10" height="18" rx="2" fill="#60a5fa" opacity="0.7"/>
+              <circle cx="5" cy="-2" r="3.5" fill="#3b82f6" opacity="0.8"/>
+            </g>
+            
+            {/* Faucet */}
+            <g transform="translate(200, 80)">
+              {/* Faucet pipe */}
+              <rect x="-3" y="-30" width="6" height="30" rx="3" fill="#cbd5e1"/>
+              {/* Faucet spout */}
+              <ellipse cx="0" cy="-30" rx="8" ry="4" fill="#cbd5e1"/>
+              <path d="M -8,-30 Q -12,-20 -10,0" fill="none" stroke="#cbd5e1" strokeWidth="4"/>
+              <path d="M 8,-30 Q 12,-20 10,0" fill="none" stroke="#cbd5e1" strokeWidth="4"/>
+              <ellipse cx="0" cy="0" rx="12" ry="6" fill="#94a3b8"/>
+              
+              {/* Water droplet */}
+              <ellipse className="droplet" cx="0" cy="8" rx="3" ry="5"/>
+            </g>
             
             {/* Category badge */}
-            <rect x="20" y="185" width="100" height="24" rx="12" fill="#3b82f6" opacity="0.9"/>
-            <text x="70" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Kopalnica</text>
+            <rect x="20" y="185" width="85" height="24" rx="12" fill="#3b82f6" opacity="0.8"/>
+            <text x="62.5" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Gradnja</text>
           </svg>
         )
 
