@@ -2,6 +2,7 @@ import React from "react"
 import type { Metadata, Viewport } from 'next'
 import { Inter, DM_Sans } from 'next/font/google'
 import { JsonLd } from './components/JsonLd'
+import { CookieConsent } from '@/components/cookie-consent'
 
 import './globals.css'
 
@@ -113,7 +114,10 @@ export default function RootLayout({
         <link rel="preload" as="image" href="/images/hero-craftsman.jpg" />
         <JsonLd data={organizationSchema} />
       </head>
-      <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   )
 }

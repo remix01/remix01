@@ -175,6 +175,7 @@ export function Testimonials() {
                     &quot;{review.content}&quot;
                   </p>
                   <p className="mt-2 text-xs font-medium text-primary">{review.service}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground/60">Primer izkušnje</p>
                   <div className="mt-4 flex items-center gap-3 border-t pt-4">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                       {review.name.split(" ").map(n => n[0]).join("")}
@@ -239,6 +240,7 @@ export function Testimonials() {
                   &quot;{review.content}&quot;
                 </p>
                 <p className="mt-2 text-xs font-medium text-primary">{review.service}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground/60">Primer izkušnje</p>
                 <div className="mt-4 flex items-center gap-3 border-t pt-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                     {review.name.split(" ").map(n => n[0]).join("")}

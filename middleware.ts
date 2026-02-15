@@ -6,6 +6,29 @@ export async function middleware(request: NextRequest) {
   // First, update the session
   const response = await updateSession(request)
   
+  // Protected partner routes - require authentication
+  if (request.nextUrl.pathname.startsWith('/partner-dashboard')) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Not logged in → redirect to login
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/partner-auth/login'
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+      return NextResponse.redirect(url)
+    }
+    
+    // Check if user has partner/craftworker role
+    const userRole = user.user_metadata?.user_type
+    if (userRole !== 'partner' && userRole !== 'craftworker') {
+      // Not a partner → redirect to homepage
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+  }
+  
   // Skip ToS check for public routes
   const publicRoutes = ['/terms', '/api', '/_next', '/auth', '/partner-auth']
   const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))

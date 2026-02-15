@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, CheckCircle, Star, Phone, Mail, MapPin, X, Clock, Shield, Wrench } from "lucide-react"
+import { ArrowRight, CheckCircle, Star, Phone, Mail, MapPin, X, Clock, Shield, Wrench, Loader2 } from "lucide-react"
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -138,13 +138,35 @@ export function Hero() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
+    
     setIsLoading(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    setIsLoading(false)
-    setSubmitted(true)
+    setErrors({})
+    
+    try {
+      const response = await fetch('/api/povprasevanje', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Napaka pri oddaji povpraševanja')
+      }
+      
+      setSubmitted(true)
+    } catch (error) {
+      console.error('[v0] Form submission error:', error)
+      setErrors({ 
+        submit: error instanceof Error ? error.message : 'Napaka pri pošiljanju. Poskusite znova.' 
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const resetForm = () => {
@@ -584,6 +606,12 @@ export function Hero() {
                   </Label>
                 </div>
                 {errors.gdpr && <p className="-mt-2 text-xs text-destructive">{errors.gdpr}</p>}
+                
+                {errors.submit && (
+                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    {errors.submit}
+                  </div>
+                )}
 
                 <Button 
                   type="submit" 
