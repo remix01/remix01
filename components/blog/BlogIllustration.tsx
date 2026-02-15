@@ -127,54 +127,114 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
         )
 
       case 'Elektrika':
-        // Electrical theme with lightbulb and circuits
+        // Electrical theme with lightbulb, PCB traces, and lightning bolt
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
             <defs>
               <style>{`
-                @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-                @keyframes glow { 0%, 100% { filter: drop-shadow(0 0 5px #f59e0b); } 50% { filter: drop-shadow(0 0 15px #fbbf24); } }
-                .circuit { stroke: #78350f; stroke-width: 2; fill: none; }
-                .circuit-active { stroke: #f59e0b; stroke-width: 3; animation: pulse 2s ease-in-out infinite; }
-                .bulb { fill: #fbbf24; animation: glow 2s ease-in-out infinite; }
+                @keyframes glowPulse { 
+                  0%, 100% { opacity: 0.8; } 
+                  50% { opacity: 0.3; } 
+                }
+                @keyframes filamentFlicker { 
+                  0% { opacity: 0.9; } 
+                  33% { opacity: 0.6; } 
+                  66% { opacity: 0.9; } 
+                  100% { opacity: 0.6; } 
+                }
+                @keyframes pcbFlow1 { 
+                  0% { stroke-dashoffset: 40; } 
+                  100% { stroke-dashoffset: 0; } 
+                }
+                @keyframes pcbFlow2 { 
+                  0% { stroke-dashoffset: 60; } 
+                  100% { stroke-dashoffset: 0; } 
+                }
+                @keyframes pcbFlow3 { 
+                  0% { stroke-dashoffset: 50; } 
+                  100% { stroke-dashoffset: 0; } 
+                }
+                .glow-circle { fill: #fef08a; }
+                .filament { stroke: #fbbf24; stroke-width: 2.5; fill: none; animation: filamentFlicker 0.15s steps(3) infinite; }
+                .pcb-trace { stroke: #92400e; stroke-width: 2; fill: none; opacity: 0.15; }
+                .pcb-active1 { stroke: #f59e0b; stroke-width: 2; fill: none; stroke-dasharray: 8 4; animation: pcbFlow1 4s linear infinite; }
+                .pcb-active2 { stroke: #f59e0b; stroke-width: 2; fill: none; stroke-dasharray: 8 4; animation: pcbFlow2 4s linear infinite 1.3s; }
+                .pcb-active3 { stroke: #f59e0b; stroke-width: 2; fill: none; stroke-dasharray: 8 4; animation: pcbFlow3 4s linear infinite 2.6s; }
+                .solder-point { fill: #92400e; opacity: 0.2; }
               `}</style>
+              
+              <radialGradient id="bulbGlow" cx="50%" cy="50%">
+                <stop offset="0%" stopColor="#fef08a" stopOpacity="0.8">
+                  <animate attributeName="stop-opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="30%" stopColor="#fbbf24" stopOpacity="0.5">
+                  <animate attributeName="stop-opacity" values="0.5;0.2;0.5" dur="2s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="70%" stopColor="#f59e0b" stopOpacity="0.2">
+                  <animate attributeName="stop-opacity" values="0.2;0.05;0.2" dur="2s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="100%" stopColor="#09090e" stopOpacity="0"/>
+              </radialGradient>
             </defs>
-            <rect width="400" height="225" fill="#0c0e14"/>
             
-            {/* Circuit board pattern */}
-            <g className="circuit">
-              <path d="M50,50 L150,50 L150,100 L250,100" opacity="0.3"/>
-              <path d="M100,30 L100,80 L200,80 L200,150" opacity="0.3"/>
-              <path d="M300,60 L250,60 L250,120 L150,120" opacity="0.3"/>
+            {/* Background */}
+            <rect width="400" height="225" fill="#09090e"/>
+            
+            {/* PCB traces - horizontal and vertical lines */}
+            <g className="pcb-trace">
+              <path d="M 40,60 L 180,60"/>
+              <path d="M 220,60 L 360,60"/>
+              <path d="M 60,40 L 60,100"/>
+              <path d="M 340,40 L 340,120"/>
+              <path d="M 100,140 L 300,140"/>
+              <path d="M 150,100 L 150,180"/>
+              <path d="M 250,90 L 250,160"/>
             </g>
             
-            {/* Active circuits with animation */}
-            <g className="circuit-active">
-              <path d="M50,150 L100,150 L100,180 L200,180"/>
-              <circle cx="50" cy="150" r="4" fill="#f59e0b"/>
-              <circle cx="100" cy="180" r="4" fill="#f59e0b"/>
-              <circle cx="200" cy="180" r="4" fill="#f59e0b"/>
-            </g>
+            {/* Solder points */}
+            <circle className="solder-point" cx="60" cy="60" r="3"/>
+            <circle className="solder-point" cx="180" cy="60" r="3"/>
+            <circle className="solder-point" cx="60" cy="100" r="3"/>
+            <circle className="solder-point" cx="340" cy="60" r="3"/>
+            <circle className="solder-point" cx="100" cy="140" r="3"/>
+            <circle className="solder-point" cx="300" cy="140" r="3"/>
+            <circle className="solder-point" cx="150" cy="180" r="3"/>
             
-            {/* Light bulb */}
-            <g transform="translate(200, 50)">
-              <ellipse className="bulb" cx="0" cy="0" rx="40" ry="45"/>
-              <path d="M-20,40 L-15,55 L15,55 L20,40" fill="#92400e"/>
-              <rect x="-8" y="55" width="16" height="15" fill="#78350f" rx="2"/>
-              <line x1="-25" y1="-10" x2="-40" y2="-15" stroke="#fbbf24" strokeWidth="2" opacity="0.6"/>
-              <line x1="25" y1="-10" x2="40" y2="-15" stroke="#fbbf24" strokeWidth="2" opacity="0.6"/>
-              <line x1="-20" y1="15" x2="-35" y2="25" stroke="#fbbf24" strokeWidth="2" opacity="0.6"/>
-              <line x1="20" y1="15" x2="35" y2="25" stroke="#fbbf24" strokeWidth="2" opacity="0.6"/>
-            </g>
+            {/* Active PCB traces with animation */}
+            <path className="pcb-active1" d="M 30,170 L 120,170 L 120,200"/>
+            <path className="pcb-active2" d="M 280,180 L 350,180 L 350,120"/>
+            <path className="pcb-active3" d="M 80,30 L 80,90 L 140,90"/>
             
-            {/* Electrical symbols */}
-            <circle cx="320" cy="140" r="20" stroke="#f59e0b" strokeWidth="2" fill="none"/>
-            <line x1="305" y1="140" x2="335" y2="140" stroke="#f59e0b" strokeWidth="2"/>
-            <line x1="320" y1="125" x2="320" y2="155" stroke="#f59e0b" strokeWidth="2"/>
+            {/* Radial glow background */}
+            <circle cx="200" cy="100" r="80" fill="url(#bulbGlow)"/>
+            
+            {/* Light bulb - glass envelope */}
+            <ellipse cx="200" cy="95" rx="38" ry="43" fill="none" stroke="#f59e0b" strokeWidth="3"/>
+            
+            {/* Filament - M-shape */}
+            <path className="filament" d="M 185,90 L 192,105 L 200,85 L 208,105 L 215,90"/>
+            
+            {/* Bulb base - screw threads */}
+            <rect x="188" y="135" width="24" height="18" fill="#92400e" rx="2"/>
+            <line x1="188" y1="140" x2="212" y2="140" stroke="#78350f" strokeWidth="1.5"/>
+            <line x1="188" y1="145" x2="212" y2="145" stroke="#78350f" strokeWidth="1.5"/>
+            <line x1="188" y1="150" x2="212" y2="150" stroke="#78350f" strokeWidth="1.5"/>
+            
+            {/* Bulb cap */}
+            <ellipse cx="200" cy="135" rx="14" ry="5" fill="#78350f"/>
+            
+            {/* Lightning bolt - left side */}
+            <polygon points="90,80 105,110 95,110 110,140 75,105 85,105" fill="#fbbf24" opacity="0.7"/>
+            
+            {/* Electrical symbols in corners */}
+            <text x="30" y="30" fill="#92400e" fontSize="20" fontWeight="bold" opacity="0.2">Ω</text>
+            <text x="360" y="35" fill="#92400e" fontSize="18" fontWeight="bold" opacity="0.2">V</text>
+            <text x="370" y="210" fill="#92400e" fontSize="18" fontWeight="bold" opacity="0.2">A</text>
+            <text x="25" y="215" fill="#92400e" fontSize="16" fontWeight="bold" opacity="0.2">~</text>
             
             {/* Category badge */}
-            <rect x="20" y="185" width="100" height="24" rx="12" fill="#f59e0b" opacity="0.9"/>
-            <text x="70" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Elektrika</text>
+            <rect x="20" y="185" width="90" height="24" rx="12" fill="#f59e0b" opacity="0.85"/>
+            <text x="65" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Elektrika</text>
           </svg>
         )
 
