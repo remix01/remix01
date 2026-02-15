@@ -1,0 +1,286 @@
+// This is your Prisma schema file for LiftGO Anti-Bypass System
+// Learn more about Prisma: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ══════════════════════════════════════════════════════════════
+// ENUMS
+// ══════════════════════════════════════════════════════════════
+
+enum UserRole {
+  CUSTOMER
+  CRAFTWORKER
+  ADMIN
+}
+
+enum JobStatus {
+  PENDING              // Job created, waiting for craftworker match
+  MATCHED              // Craftworker assigned, conversation started
+  IN_PROGRESS          // Work has begun
+  AWAITING_CONFIRMATION // Work completed, awaiting customer confirmation
+  COMPLETED            // Job finished and confirmed
+  DISPUTED             // Dispute raised
+  CANCELLED            // Job cancelled
+}
+
+enum PaymentStatus {
+  UNPAID     // Payment not yet made
+  HELD       // Payment held in escrow
+  RELEASED   // Payment released to craftworker
+  REFUNDED   // Payment refunded to customer
+  DISPUTED   // Payment under dispute
+}
+
+enum ConversationStatus {
+  ACTIVE     // Conversation is ongoing
+  CLOSED     // Conversation ended
+  SUSPENDED  // Conversation suspended due to violation
+}
+
+enum ViolationSeverity {
+  LOW       // Minor warning
+  MEDIUM    // Serious warning
+  HIGH      // Multiple violations
+  CRITICAL  // Immediate suspension
+}
+
+enum ViolationType {
+  PHONE_DETECTED      // Phone number detected in message
+  EMAIL_DETECTED      // Email address detected in message
+  BYPASS_ATTEMPT      // Attempted to share contact info
+  SUSPICIOUS_PATTERN  // Pattern matching suspicious behavior
+}
+
+enum PackageType {
+  START  // Basic package with higher commission
+  PRO    // Premium package with lower commission
+}
+
+// ══════════════════════════════════════════════════════════════
+// MODELS
+// ══════════════════════════════════════════════════════════════
+
+/// User account - can be customer, craftworker, or admin
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  phone     String?  // Encrypted at application level
+  name      String
+  role      UserRole @default(CUSTOMER)
+  
+  // Stripe integration
+  stripeCustomerId String? @unique
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  jobs                Job[]              @relation("CustomerJobs")
+  assignedJobs        Job[]              @relation("CraftworkerJobs")
+  craftworkerProfile  CraftworkerProfile?
+  sentMessages        Message[]
+  violations          Violation[]
+  
+  @@index([email])
+  @@index([role])
+}
+
+/// Craftworker profile with package info and metrics
+model CraftworkerProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Package and commission
+  packageType    PackageType @default(START)
+  commissionRate Decimal     @default(0.15) @db.Decimal(4, 2) // 15% for START, 10% for PRO
+  
+  // Stripe Connect integration
+  stripeAccountId          String?  @unique
+  stripeOnboardingComplete Boolean  @default(false)
+  
+  // Performance metrics
+  totalJobsCompleted Int     @default(0)
+  avgRating          Decimal @default(0) @db.Decimal(3, 2) // 0-5.00
+  
+  // Verification
+  isVerified Boolean   @default(false)
+  verifiedAt DateTime?
+  
+  // Loyalty & risk management
+  loyaltyPoints   Int     @default(0)
+  bypassWarnings  Int     @default(0)
+  isSuspended     Boolean @default(false)
+  suspendedAt     DateTime?
+  suspendedReason String?
+  
+  @@index([userId])
+  @@index([packageType])
+}
+
+/// Job/project posted by customer
+model Job {
+  id              String    @id @default(cuid())
+  title           String
+  description     String    @db.Text
+  category        String // e.g., "vodoinstalater", "elektrikar"
+  city            String
+  estimatedValue  Decimal?  @db.Decimal(10, 2)
+  status          JobStatus @default(PENDING)
+  
+  // Customer and craftworker
+  customerId    String
+  customer      User    @relation("CustomerJobs", fields: [customerId], references: [id], onDelete: Cascade)
+  craftworkerId String?
+  craftworker   User?   @relation("CraftworkerJobs", fields: [craftworkerId], references: [id])
+  
+  // Twilio conversation
+  twilioConversationSid String? @unique
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  
+  // Relations
+  payment      Payment?
+  conversation Conversation?
+  violations   Violation[]
+  riskScore    RiskScore?
+  
+  @@index([customerId])
+  @@index([craftworkerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Payment held in escrow until job completion
+model Payment {
+  id    String @id @default(cuid())
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  // Payment breakdown
+  amount             Decimal       @db.Decimal(10, 2) // Total amount paid by customer
+  platformFee        Decimal       @db.Decimal(10, 2) // LiftGO commission
+  craftworkerPayout  Decimal       @db.Decimal(10, 2) // Amount to craftworker
+  status             PaymentStatus @default(UNPAID)
+  
+  // Stripe integration
+  stripePaymentIntentId String?  @unique
+  stripeTransferId      String?  @unique
+  
+  // Timestamps for payment lifecycle
+  heldAt      DateTime?
+  releasedAt  DateTime?
+  refundedAt  DateTime?
+  disputeReason String?
+  
+  @@index([status])
+  @@index([stripePaymentIntentId])
+}
+
+/// Twilio-backed conversation between customer and craftworker
+model Conversation {
+  id    String @id @default(cuid())
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  // Twilio conversation
+  twilioConversationSid String             @unique
+  status                ConversationStatus @default(ACTIVE)
+  
+  // Participants
+  participantCustomerSid    String?
+  participantCraftworkerSid String?
+  
+  // Contact reveal
+  contactRevealedAt DateTime? // Timestamp when contact info was unlocked after payment
+  
+  // Timestamps
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  closedAt      DateTime?
+  
+  // Relations
+  messages Message[]
+  
+  @@index([twilioConversationSid])
+  @@index([status])
+}
+
+/// Individual message in a conversation
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  senderUserId String
+  sender       User   @relation(fields: [senderUserId], references: [id])
+  
+  body           String  @db.Text
+  isBlocked      Boolean @default(false)
+  blockedReason  String?
+  
+  sentAt            DateTime  @default(now())
+  twilioMessageSid  String?   @unique
+  
+  // Relations
+  violations Violation[]
+  
+  @@index([conversationId, sentAt])
+  @@index([senderUserId])
+}
+
+/// Detected violations of anti-bypass rules
+model Violation {
+  id     String @id @default(cuid())
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  userId String // Who committed the violation
+  user   User   @relation(fields: [userId], references: [id])
+  
+  type     ViolationType
+  severity ViolationSeverity
+  
+  // What was detected
+  detectedContent String  @db.Text // Redacted after review for privacy
+  messageId       String?
+  message         Message? @relation(fields: [messageId], references: [id])
+  
+  // Review
+  isReviewed   Boolean   @default(false)
+  reviewedBy   String?   // Admin user ID
+  reviewedAt   DateTime?
+  actionTaken  String?   // What action was taken
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([jobId])
+  @@index([type])
+}
+
+/// Risk scoring for jobs to detect suspicious patterns
+model RiskScore {
+  id    String @id @default(cuid())
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  score           Int     // 0-100
+  flags           Json    // Array of flags like ["rapid_messaging", "contact_attempt"]
+  calculatedAt    DateTime @default(now())
+  triggeredAlert  Boolean @default(false)
+  
+  @@index([score])
+}
