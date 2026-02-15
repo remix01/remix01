@@ -593,45 +593,147 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
         )
 
       case 'vzdrzevanje':
-        // Maintenance theme with tools and checklist
+        // Maintenance split view - tools left, checklist right
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
             <defs>
               <style>{`
-                @keyframes checkmark { 0% { stroke-dashoffset: 50; } 100% { stroke-dashoffset: 0; } }
-                @keyframes wrench { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
-                .check { stroke: #10b981; stroke-width: 3; fill: none; stroke-dasharray: 50; animation: checkmark 1.5s ease-in-out infinite; }
-                .tool { fill: #6b7280; animation: wrench 2s ease-in-out infinite; transform-origin: center; }
+                @keyframes checkDraw1 { 
+                  0% { stroke-dashoffset: 20; } 
+                  100% { stroke-dashoffset: 0; } 
+                }
+                @keyframes checkDraw2 { 
+                  0% { stroke-dashoffset: 20; } 
+                  100% { stroke-dashoffset: 0; } 
+                }
+                @keyframes checkDraw3 { 
+                  0% { stroke-dashoffset: 20; } 
+                  100% { stroke-dashoffset: 0; } 
+                }
+                @keyframes progressFill { 
+                  0% { width: 0; } 
+                  100% { width: 60%; } 
+                }
+                @keyframes toolShimmer { 
+                  0% { stop-offset: -100%; } 
+                  100% { stop-offset: 200%; } 
+                }
+                .check1 { stroke-dasharray: 20; stroke-dashoffset: 20; animation: checkDraw1 0.6s ease forwards; }
+                .check2 { stroke-dasharray: 20; stroke-dashoffset: 20; animation: checkDraw2 0.6s ease forwards 0.3s; }
+                .check3 { stroke-dasharray: 20; stroke-dashoffset: 20; animation: checkDraw3 0.6s ease forwards 0.6s; }
+                .progress-bar { animation: progressFill 1.5s ease-out forwards; }
               `}</style>
+              
+              {/* Diamond/dot pattern */}
+              <pattern id="dotPattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                <circle cx="5" cy="5" r="0.8" fill="#10b981" opacity="0.05"/>
+              </pattern>
+              
+              {/* Tool shimmer gradient */}
+              <linearGradient id="toolShimmer" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="-50%" stopColor="transparent"/>
+                <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.4">
+                  <animate attributeName="offset" values="-0.5;2" dur="4s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="50%" stopColor="transparent"/>
+              </linearGradient>
             </defs>
-            <rect width="400" height="225" fill="#0c0e14"/>
             
-            {/* Clipboard/Checklist */}
-            <rect x="50" y="40" width="160" height="150" fill="#1f2937" rx="8"/>
-            <rect x="50" y="30" width="160" height="20" fill="#374151" rx="8"/>
-            <rect x="110" y="25" width="40" height="10" fill="#4b5563" rx="5"/>
+            {/* Background */}
+            <rect width="400" height="225" fill="#070e0b"/>
+            <rect width="400" height="225" fill="url(#dotPattern)"/>
             
-            {/* Checklist items */}
-            {[0, 1, 2, 3].map(i => (
-              <g key={i} transform={`translate(70, ${65 + i * 30})`}>
-                <rect x="0" y="0" width="20" height="20" fill="#10b981" rx="4" opacity={i < 2 ? 1 : 0.3}/>
-                {i < 2 && (
-                  <path className="check" d="M5,10 L9,14 L15,6" style={{ animationDelay: `${i * 0.5}s` }}/>
-                )}
-                <rect x="30" y="5" width="90" height="4" fill="#4b5563" rx="2"/>
-                <rect x="30" y="11" width="70" height="3" fill="#374151" rx="1.5"/>
-              </g>
-            ))}
+            {/* LEFT SIDE - TOOLS */}
             
-            {/* Wrench */}
-            <g transform="translate(280, 100)">
-              <rect className="tool" x="-10" y="-60" width="20" height="80" fill="#9ca3af" rx="3"/>
-              <circle cx="0" cy="-65" r="18" fill="#6b7280"/>
-              <circle cx="0" cy="-65" r="12" fill="#4b5563"/>
-              <rect x="-8" y="10" width="16" height="30" fill="#9ca3af" rx="8"/>
+            {/* French wrench (diagonal) */}
+            <g transform="translate(90, 80) rotate(-25)">
+              <rect x="-8" y="-50" width="16" height="100" rx="3" fill="#6b7280"/>
+              <rect x="-8" y="-50" width="16" height="100" rx="3" fill="url(#toolShimmer)"/>
+              {/* Wrench head */}
+              <path d="M -12,-55 L -8,-50 L 8,-50 L 12,-55 L 8,-60 L -8,-60 Z" fill="#6b7280"/>
+              <circle cx="0" cy="-55" r="6" fill="#374151"/>
             </g>
             
-            {/* Screwdriver */}
+            {/* Screwdriver (crossing the wrench) */}
+            <g transform="translate(70, 120) rotate(35)">
+              {/* Handle - red */}
+              <rect x="-6" y="0" width="12" height="40" rx="6" fill="#ef4444"/>
+              <rect x="-6" y="0" width="12" height="40" rx="6" fill="url(#toolShimmer)"/>
+              {/* Shaft - gray */}
+              <rect x="-2" y="40" width="4" height="50" fill="#6b7280"/>
+              {/* Tip */}
+              <rect x="-3" y="88" width="6" height="8" fill="#475569"/>
+            </g>
+            
+            {/* Hammer (bottom, diagonal) */}
+            <g transform="translate(100, 160) rotate(-15)">
+              {/* Handle */}
+              <rect x="-3" y="0" width="6" height="50" fill="#6b7280"/>
+              <rect x="-3" y="0" width="6" height="50" fill="url(#toolShimmer)"/>
+              {/* Hammer head */}
+              <rect x="-15" y="-12" width="30" height="12" rx="2" fill="#6b7280"/>
+              <rect x="10" y="-8" width="8" height="4" fill="#475569"/>
+            </g>
+            
+            {/* RIGHT SIDE - CHECKLIST */}
+            
+            {/* Clipboard background */}
+            <rect x="220" y="45" width="150" height="140" rx="8" fill="#0d1f17"/>
+            {/* Clip at top */}
+            <rect x="280" y="40" width="30" height="8" rx="4" fill="#374151"/>
+            <circle cx="295" cy="44" r="3" fill="#6b7280"/>
+            
+            {/* Checklist items */}
+            
+            {/* Item 1 - DONE (green check) */}
+            <g transform="translate(235, 65)">
+              <rect x="0" y="0" width="16" height="16" rx="3" stroke="#10b981" strokeWidth="2" fill="none"/>
+              <path className="check1" d="M 3,8 L 6,11 L 13,4" stroke="#10b981" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              <rect x="25" y="4" width="90" height="3" rx="1.5" fill="#475569"/>
+              <rect x="25" y="9" width="70" height="2" rx="1" fill="#374151"/>
+            </g>
+            
+            {/* Item 2 - DONE (green check) */}
+            <g transform="translate(235, 90)">
+              <rect x="0" y="0" width="16" height="16" rx="3" stroke="#10b981" strokeWidth="2" fill="none"/>
+              <path className="check2" d="M 3,8 L 6,11 L 13,4" stroke="#10b981" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              <rect x="25" y="4" width="85" height="3" rx="1.5" fill="#475569"/>
+              <rect x="25" y="9" width="65" height="2" rx="1" fill="#374151"/>
+            </g>
+            
+            {/* Item 3 - DONE (green check) */}
+            <g transform="translate(235, 115)">
+              <rect x="0" y="0" width="16" height="16" rx="3" stroke="#10b981" strokeWidth="2" fill="none"/>
+              <path className="check3" d="M 3,8 L 6,11 L 13,4" stroke="#10b981" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+              <rect x="25" y="4" width="80" height="3" rx="1.5" fill="#475569"/>
+              <rect x="25" y="9" width="75" height="2" rx="1" fill="#374151"/>
+            </g>
+            
+            {/* Item 4 - IN PROGRESS (amber, partial) */}
+            <g transform="translate(235, 140)">
+              <rect x="0" y="0" width="16" height="16" rx="3" stroke="#f59e0b" strokeWidth="2" fill="none"/>
+              <path d="M 3,8 L 8,8" stroke="#f59e0b" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+              <rect x="25" y="4" width="88" height="3" rx="1.5" fill="#475569"/>
+              <rect x="25" y="9" width="60" height="2" rx="1" fill="#374151"/>
+            </g>
+            
+            {/* Item 5 - NOT DONE (red, empty) */}
+            <g transform="translate(235, 165)">
+              <rect x="0" y="0" width="16" height="16" rx="3" stroke="#f43f5e" strokeWidth="2" fill="none"/>
+              <rect x="25" y="4" width="95" height="3" rx="1.5" fill="#475569"/>
+              <rect x="25" y="9" width="55" height="2" rx="1" fill="#374151"/>
+            </g>
+            
+            {/* Progress bar container */}
+            <rect x="235" y="195" width="110" height="8" rx="4" fill="#1e293b"/>
+            {/* Progress bar fill - 60% */}
+            <rect className="progress-bar" x="235" y="195" width="0" height="8" rx="4" fill="#10b981"/>
+            
+            {/* Category badge */}
+            <rect x="20" y="185" width="115" height="24" rx="12" fill="#10b981" opacity="0.85"/>
+            <text x="77.5" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Vzdrževanje</text>
+          </svg>
+        )
             <g transform="translate(320, 140) rotate(30)">
               <rect x="-3" y="-40" width="6" height="50" fill="#fbbf24"/>
               <polygon points="0,-40 -4,-48 4,-48" fill="#9ca3af"/>
