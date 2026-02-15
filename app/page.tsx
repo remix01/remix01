@@ -1,6 +1,8 @@
 import { Navbar } from '@/components/navbar'
 import { Hero } from '@/components/hero'
 import { Stats } from '@/components/stats'
+import { OfferPreview } from '@/components/offer-preview'
+import { CaseStudies } from '@/components/case-studies'
 import { Categories } from '@/components/categories'
 import { BlogPreview } from '@/components/blog-preview'
 import { HowItWorks } from '@/components/how-it-works'
@@ -128,6 +130,8 @@ export default function Page() {
         <main className="flex-1">
           <Hero />
           <Stats />
+          <OfferPreview />
+          <CaseStudies />
           <Categories />
           <BlogPreview />
           <HowItWorks />

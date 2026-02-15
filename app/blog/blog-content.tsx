@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Clock, Search } from 'lucide-react'
 import { blogPosts, blogCategories, type BlogCategory } from '@/lib/blog-data'
+import { BlogIllustration } from '@/components/blog/BlogIllustration'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -103,17 +104,10 @@ export default function BlogContent() {
                 >
                   <Link href={`/blog/${post.slug}`}>
                     <div className="aspect-[16/10] overflow-hidden bg-muted">
-                      {post.image ? (
-                        <img
-                          src={post.image}
-                          alt={post.title}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-primary/10">
-                          <span className="text-4xl text-primary/40">{post.category[0]}</span>
-                        </div>
-                      )}
+                      <BlogIllustration 
+                        category={post.category} 
+                        className="h-full w-full transition-transform duration-300 group-hover:scale-105"
+                      />
                     </div>
                     <div className="flex flex-1 flex-col p-6">
                       <div className="flex items-center gap-3 text-sm">
