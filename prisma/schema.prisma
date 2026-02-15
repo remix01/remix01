@@ -79,6 +79,11 @@ model User {
   // Stripe integration
   stripeCustomerId String? @unique
   
+  // Legal agreements
+  tosAcceptedAt                   DateTime? // When user accepted Terms of Service
+  tosVersion                      String?   // Version of ToS accepted (e.g., "2026-02-v1")
+  craftworkerAgreementAcceptedAt  DateTime? // When craftworker accepted anti-bypass agreement
+  
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

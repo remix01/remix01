@@ -1,8 +1,50 @@
 import { updateSession } from '@/lib/supabase/proxy'
-import { type NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request)
+  // First, update the session
+  const response = await updateSession(request)
+  
+  // Skip ToS check for public routes
+  const publicRoutes = ['/terms', '/api', '/_next', '/auth', '/partner-auth']
+  const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+  
+  if (isPublicRoute) {
+    return response
+  }
+
+  // Check if user is authenticated and is a craftworker
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    return response
+  }
+
+  // For craftworker-specific routes, check ToS acceptance
+  const craftworkerRoutes = ['/partner-dashboard', '/registracija-mojster']
+  const isCraftworkerRoute = craftworkerRoutes.some(route => request.nextUrl.pathname.startsWith(route))
+  
+  if (isCraftworkerRoute) {
+    try {
+      // Check if user has accepted terms (would need database lookup)
+      // For now, we'll redirect if the query param isn't set
+      const hasAcceptedTerms = request.cookies.get('tos_accepted')
+      
+      if (!hasAcceptedTerms && !request.nextUrl.pathname.includes('/terms/craftworker')) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/terms/craftworker'
+        url.searchParams.set('required', 'true')
+        url.searchParams.set('redirect', request.nextUrl.pathname)
+        return NextResponse.redirect(url)
+      }
+    } catch (error) {
+      console.error('[middleware] Error checking ToS:', error)
+    }
+  }
+  
+  return response
 }
 
 export const config = {
