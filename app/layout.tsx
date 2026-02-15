@@ -1,5 +1,5 @@
 import React from "react"
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, DM_Sans } from 'next/font/google'
 import { JsonLd } from './components/JsonLd'
 
@@ -7,6 +7,12 @@ import './globals.css'
 
 const inter = Inter({ subsets: ['latin', 'latin-ext'], variable: '--font-inter' })
 const dmSans = DM_Sans({ subsets: ['latin', 'latin-ext'], variable: '--font-dm-sans' })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.liftgo.net'),
@@ -22,11 +28,6 @@ export const metadata: Metadata = {
   authors: [{ name: 'LiftGO', url: 'https://www.liftgo.net' }],
   creator: 'LiftGO',
   publisher: 'Liftgo d.o.o.',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-  },
   openGraph: {
     title: 'LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah',
     description: 'Oddajte brezplačno povpraševanje in prejmite ponudbo preverjenega obrtnika v manj kot 2 urah.',

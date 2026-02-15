@@ -75,13 +75,13 @@ export function Footer() {
             <div className="mt-6 flex flex-col gap-2.5">
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span>
-                  Liftgo d.o.o.<br />
-                  Kuraltova ulica 12<br />
-                  4208 Šenčur<br />
-                  Matična št.: 9724346000<br />
-                  ID za DDV: SI24728381
-                </span>
+                <div className="flex flex-col">
+                  <span>Liftgo d.o.o.</span>
+                  <span>Kuraltova ulica 12</span>
+                  <span>4208 Šenčur</span>
+                  <span>Matična št.: 9724346000</span>
+                  <span>ID za DDV: SI24728381</span>
+                </div>
               </div>
               <a
                 href="mailto:info@liftgo.net"
