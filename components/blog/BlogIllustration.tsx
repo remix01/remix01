@@ -239,59 +239,118 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
         )
 
       case 'Vodovod':
-        // Plumbing theme with pipes and water flow
+        // Isometric plumbing system with pipes, valves, and leaks
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
             <defs>
               <style>{`
-                @keyframes flow { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
-                @keyframes drip { 0%, 100% { cy: 180; opacity: 1; } 50% { cy: 210; opacity: 0; } }
-                .pipe { fill: #155e75; stroke: #0e7490; stroke-width: 2; }
-                .water-flow { fill: #06b6d4; animation: flow 3s linear infinite; }
-                .droplet { fill: #22d3ee; animation: drip 1.5s ease-in infinite; }
+                @keyframes drop1 { 
+                  0% { opacity: 1; transform: translateY(0); } 
+                  100% { opacity: 0; transform: translateY(25px); } 
+                }
+                @keyframes drop2 { 
+                  0% { opacity: 1; transform: translateY(0); } 
+                  100% { opacity: 0; transform: translateY(25px); } 
+                }
+                @keyframes drop3 { 
+                  0% { opacity: 1; transform: translateY(0); } 
+                  100% { opacity: 0; transform: translateY(25px); } 
+                }
+                @keyframes gaugeTremor { 
+                  0%, 100% { transform: rotate(-3deg); } 
+                  50% { transform: rotate(3deg); } 
+                }
+                @keyframes shimmer { 
+                  0% { offset: 0%; } 
+                  100% { offset: 100%; } 
+                }
+                .drop1 { fill: #67e8f9; animation: drop1 1.2s ease-in infinite; }
+                .drop2 { fill: #67e8f9; animation: drop2 1.5s ease-in infinite 0.4s; }
+                .drop3 { fill: #67e8f9; animation: drop3 1.8s ease-in infinite 0.8s; }
+                .gauge-needle { animation: gaugeTremor 0.5s ease-in-out infinite alternate; transform-origin: 330px 130px; }
               `}</style>
-              <linearGradient id="waterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/>
-                <stop offset="100%" stopColor="#0891b2" stopOpacity="0.4"/>
+              
+              {/* Hexagon pattern */}
+              <pattern id="hexPattern" width="20" height="17.32" patternUnits="userSpaceOnUse">
+                <path d="M10,0 L15,8.66 L10,17.32 L5,8.66 Z" fill="none" stroke="#164e63" strokeWidth="0.5" opacity="0.06"/>
+              </pattern>
+              
+              {/* Water shimmer gradient */}
+              <linearGradient id="waterShimmer" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#164e63" stopOpacity="0.6"/>
+                <stop offset="50%" stopColor="#0e7490" stopOpacity="0.9">
+                  <animate attributeName="offset" values="0;1;0" dur="3s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="100%" stopColor="#164e63" stopOpacity="0.6"/>
               </linearGradient>
             </defs>
-            <rect width="400" height="225" fill="#0c0e14"/>
             
-            {/* Pipe system */}
-            <rect className="pipe" x="80" y="40" width="30" height="140" rx="4"/>
-            <rect className="pipe" x="80" y="160" width="200" height="30" rx="4"/>
-            <rect className="pipe" x="260" y="80" width="30" height="110" rx="4"/>
+            {/* Background with hexagon pattern */}
+            <rect width="400" height="225" fill="#060f14"/>
+            <rect width="400" height="225" fill="url(#hexPattern)"/>
             
-            {/* Pipe joints */}
-            <circle cx="95" cy="175" r="20" fill="#0e7490"/>
-            <circle cx="275" cy="175" r="20" fill="#0e7490"/>
+            {/* Main horizontal pipe across width */}
+            <rect x="30" y="90" width="340" height="24" rx="12" fill="#164e63" stroke="#0e7490" strokeWidth="3"/>
+            <rect x="35" y="95" width="330" height="14" rx="7" fill="url(#waterShimmer)"/>
             
-            {/* Water flow inside pipes */}
-            <rect x="90" y="50" width="10" height="40" fill="url(#waterGradient)" opacity="0.8"/>
-            <rect x="90" y="168" width="180" height="14" fill="url(#waterGradient)" opacity="0.8"/>
-            <rect x="268" y="90" width="14" height="90" fill="url(#waterGradient)" opacity="0.8"/>
+            {/* Left branching pipe - down */}
+            <rect x="88" y="102" width="24" height="80" rx="12" fill="#164e63" stroke="#0e7490" strokeWidth="3"/>
+            <rect x="93" y="107" width="14" height="70" rx="7" fill="url(#waterShimmer)"/>
             
-            {/* Valve */}
-            <g transform="translate(145, 175)">
-              <rect x="-15" y="-25" width="30" height="50" fill="#334155" rx="3"/>
-              <circle cx="0" cy="0" r="18" fill="#475569"/>
-              <circle cx="0" cy="0" r="12" fill="#64748b"/>
-              <line x1="-8" y1="0" x2="8" y2="0" stroke="#0c0e14" strokeWidth="3"/>
-              <line x1="0" y1="-8" x2="0" y2="8" stroke="#0c0e14" strokeWidth="3"/>
+            {/* Left T-junction with rust */}
+            <circle cx="100" cy="102" r="18" fill="#92400e" opacity="0.7"/>
+            <circle cx="100" cy="102" r="16" fill="#164e63" stroke="#0e7490" strokeWidth="2"/>
+            
+            {/* Right branching pipe - down (different height) */}
+            <rect x="288" y="102" width="24" height="60" rx="12" fill="#164e63" stroke="#0e7490" strokeWidth="3"/>
+            <rect x="293" y="107" width="14" height="50" rx="7" fill="url(#waterShimmer)"/>
+            
+            {/* Right T-junction */}
+            <circle cx="300" cy="102" r="18" fill="#164e63" stroke="#0e7490" strokeWidth="3"/>
+            
+            {/* Valve on left pipe - OPEN (green indicator) */}
+            <g transform="translate(100, 145)">
+              <circle cx="0" cy="0" r="14" fill="#334155" stroke="#0e7490" strokeWidth="2"/>
+              <circle cx="0" cy="0" r="10" fill="#475569"/>
+              <rect x="-1" y="-12" width="2" height="10" fill="#0e7490" rx="1"/>
+              <circle cx="0" cy="-12" r="3" fill="#10b981"/>
             </g>
             
-            {/* Water droplets */}
-            {[0, 1, 2].map(i => (
-              <circle key={i} className="droplet" cx={90 + i * 15} cy="180" r="4" style={{ animationDelay: `${i * 0.5}s` }}/>
-            ))}
+            {/* Valve on right pipe - CLOSED (red indicator) */}
+            <g transform="translate(300, 135)">
+              <circle cx="0" cy="0" r="14" fill="#334155" stroke="#0e7490" strokeWidth="2"/>
+              <circle cx="0" cy="0" r="10" fill="#475569"/>
+              <rect x="-10" y="-1" width="20" height="2" fill="#f43f5e" rx="1"/>
+              <circle cx="-10" cy="0" r="3" fill="#f43f5e"/>
+            </g>
             
             {/* Pressure gauge */}
-            <circle cx="330" cy="130" r="30" fill="#1e293b" stroke="#06b6d4" strokeWidth="3"/>
-            <path d="M330,130 L345,115" stroke="#06b6d4" strokeWidth="2"/>
-            <text x="330" y="165" textAnchor="middle" fill="#06b6d4" fontSize="10">PSI</text>
+            <g transform="translate(330, 130)">
+              <circle cx="0" cy="0" r="28" fill="#1e293b" stroke="#0e7490" strokeWidth="3"/>
+              {/* Gauge scale arc */}
+              <path d="M -20,-15 A 25 25 0 0 1 20,-15" fill="none" stroke="#334155" strokeWidth="2"/>
+              {/* Red zone */}
+              <path d="M 12,-20 A 25 25 0 0 1 20,-15" fill="none" stroke="#f43f5e" strokeWidth="3"/>
+              {/* Scale markers */}
+              <line x1="-22" y1="-12" x2="-18" y2="-10" stroke="#64748b" strokeWidth="1"/>
+              <line x1="-15" y1="-20" x2="-13" y2="-16" stroke="#64748b" strokeWidth="1"/>
+              <line x1="0" y1="-24" x2="0" y2="-20" stroke="#64748b" strokeWidth="1"/>
+              <line x1="15" y1="-20" x2="13" y2="-16" stroke="#64748b" strokeWidth="1"/>
+              <line x1="22" y1="-12" x2="18" y2="-10" stroke="#64748b" strokeWidth="1"/>
+              {/* Needle in red zone - trembling */}
+              <line className="gauge-needle" x1="0" y1="0" x2="15" y2="-18" stroke="#f43f5e" strokeWidth="2.5" strokeLinecap="round"/>
+              <circle cx="0" cy="0" r="3" fill="#f43f5e"/>
+              {/* Bar label */}
+              <text x="0" y="20" textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="600">bar</text>
+            </g>
+            
+            {/* Water drops falling from rusty T-junction */}
+            <ellipse className="drop1" cx="100" cy="125" rx="3" ry="5"/>
+            <ellipse className="drop2" cx="95" cy="128" rx="2.5" ry="4"/>
+            <ellipse className="drop3" cx="105" cy="130" rx="3.5" ry="5.5"/>
             
             {/* Category badge */}
-            <rect x="20" y="185" width="90" height="24" rx="12" fill="#06b6d4" opacity="0.9"/>
+            <rect x="20" y="185" width="90" height="24" rx="12" fill="#0e7490" opacity="0.85"/>
             <text x="65" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Vodovod</text>
           </svg>
         )
