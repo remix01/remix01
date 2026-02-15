@@ -106,8 +106,9 @@ model CraftworkerProfile {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Package and commission
-  packageType    PackageType @default(START)
-  commissionRate Decimal     @default(0.15) @db.Decimal(4, 2) // 15% for START, 10% for PRO
+  packageType       PackageType @default(START)
+  commissionRate    Decimal     @default(0.15) @db.Decimal(4, 2) // 15% for START, 10% for PRO
+  commissionOverride Decimal?   @db.Decimal(4, 2) // Admin manual override
   
   // Stripe Connect integration
   stripeAccountId          String?  @unique
@@ -128,8 +129,13 @@ model CraftworkerProfile {
   suspendedAt     DateTime?
   suspendedReason String?
   
+  // Referral system
+  referralCode String @unique @default(cuid())
+  referredBy   String? // referralCode of who referred them
+  
   @@index([userId])
   @@index([packageType])
+  @@index([referralCode])
 }
 
 /// Job/project posted by customer

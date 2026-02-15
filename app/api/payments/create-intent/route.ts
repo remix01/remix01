@@ -64,8 +64,12 @@ export async function POST(request: NextRequest) {
         throw new Error('Payment already exists for this job')
       }
 
-      const commissionRate = job.craftworker.craftworkerProfile.commissionRate.toNumber()
-      const platformFee = amount * (commissionRate / 100)
+      // Calculate effective commission using loyalty calculator
+      const { getEffectiveCommission } = await import('@/lib/loyalty/commissionCalculator')
+      const commissionResult = getEffectiveCommission(job.craftworker.craftworkerProfile)
+      const effectiveCommissionRate = commissionResult.rate
+      
+      const platformFee = amount * (effectiveCommissionRate / 100)
       const craftworkerPayout = amount - platformFee
 
       // Create Stripe PaymentIntent with application fee
