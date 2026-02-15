@@ -734,26 +734,6 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
             <text x="77.5" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Vzdrževanje</text>
           </svg>
         )
-            <g transform="translate(320, 140) rotate(30)">
-              <rect x="-3" y="-40" width="6" height="50" fill="#fbbf24"/>
-              <polygon points="0,-40 -4,-48 4,-48" fill="#9ca3af"/>
-            </g>
-            
-            {/* Gears */}
-            <g transform="translate(300, 60)">
-              <circle cx="0" cy="0" r="20" fill="none" stroke="#10b981" strokeWidth="3"/>
-              {[...Array(8)].map((_, i) => (
-                <rect key={i} x="-3" y="-24" width="6" height="8" fill="#10b981" 
-                  transform={`rotate(${i * 45})`} transformOrigin="0 0"/>
-              ))}
-              <circle cx="0" cy="0" r="8" fill="#065f46"/>
-            </g>
-            
-            {/* Category badge */}
-            <rect x="20" y="185" width="110" height="24" rx="12" fill="#10b981" opacity="0.9"/>
-            <text x="75" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Vzdrževanje</text>
-          </svg>
-        )
 
       default:
         return null
