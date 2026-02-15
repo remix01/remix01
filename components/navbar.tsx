@@ -57,6 +57,9 @@ export function Navbar() {
             <Link href="/kako-deluje" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
               Kako deluje
             </Link>
+            <Link href="/blog" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
+              Vodiči
+            </Link>
             <Link href="/orodja" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
               Orodja
             </Link>
@@ -115,6 +118,13 @@ export function Navbar() {
               className="text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center"
             >
               Kako deluje
+            </Link>
+            <Link 
+              href="/blog" 
+              onClick={() => setIsOpen(false)} 
+              className="text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center"
+            >
+              Vodiči
             </Link>
             <Link 
               href="/orodja" 
