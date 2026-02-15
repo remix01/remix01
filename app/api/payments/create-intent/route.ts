@@ -5,132 +5,125 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
 const createIntentSchema = z.object({
-  jobId: z.string().cuid(),
-  amount: z.number().positive().max(100000), // Max 100k EUR
+  jobId: z.string(),
+  amount: z.number().min(1)
 })
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate user
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse and validate request body
     const body = await request.json()
-    const validation = createIntentSchema.safeParse(body)
-    
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: validation.error.errors },
-        { status: 400 }
-      )
-    }
+    const { jobId, amount } = createIntentSchema.parse(body)
 
-    const { jobId, amount } = validation.data
-
-    // 3. Fetch job with all necessary relations
-    const job = await prisma.job.findUnique({
-      where: { id: jobId },
-      include: {
-        customer: true,
-        craftworker: {
-          include: {
-            craftworkerProfile: true,
+    // Fetch job with all relations in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const job = await tx.job.findUnique({
+        where: { id: jobId },
+        include: {
+          customer: true,
+          craftworker: {
+            include: {
+              craftworkerProfile: true
+            }
           },
+          payment: true
+        }
+      })
+
+      if (!job) {
+        throw new Error('Job not found')
+      }
+
+      // Validation: user must be customer of this job
+      if (job.customerId !== user.id) {
+        throw new Error('Not authorized for this job')
+      }
+
+      // Validation: job status must be MATCHED
+      if (job.status !== 'MATCHED') {
+        throw new Error('Job must be in MATCHED status to create payment')
+      }
+
+      // Validation: craftworker must have completed Stripe onboarding
+      if (!job.craftworker?.craftworkerProfile?.stripeAccountId) {
+        throw new Error('Craftworker has not completed Stripe onboarding')
+      }
+
+      if (!job.craftworker.craftworkerProfile.stripeOnboardingComplete) {
+        throw new Error('Craftworker Stripe onboarding incomplete')
+      }
+
+      // Check if payment already exists
+      if (job.payment) {
+        throw new Error('Payment already exists for this job')
+      }
+
+      const commissionRate = job.craftworker.craftworkerProfile.commissionRate.toNumber()
+      const platformFee = amount * (commissionRate / 100)
+      const craftworkerPayout = amount - platformFee
+
+      // Create Stripe PaymentIntent with application fee
+      const idempotencyKey = `job_${jobId}_${Date.now()}`
+      
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: 'eur',
+        application_fee_amount: Math.round(platformFee * 100),
+        transfer_data: {
+          destination: job.craftworker.craftworkerProfile.stripeAccountId
         },
-        payment: true,
-      },
+        transfer_group: `job_${jobId}`,
+        metadata: {
+          jobId,
+          customerId: job.customerId,
+          craftworkerId: job.craftworkerId!,
+          platformFee: platformFee.toString(),
+          craftworkerPayout: craftworkerPayout.toString()
+        }
+      }, {
+        idempotencyKey
+      })
+
+      // Create Payment record
+      const payment = await tx.payment.create({
+        data: {
+          jobId,
+          amount,
+          platformFee,
+          craftworkerPayout,
+          status: 'UNPAID',
+          stripePaymentIntentId: paymentIntent.id
+        }
+      })
+
+      return {
+        clientSecret: paymentIntent.client_secret,
+        payment
+      }
     })
 
-    // 4. Validate job exists and belongs to authenticated user
-    if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
-    }
-
-    if (job.customerId !== user.id) {
-      return NextResponse.json({ error: 'Not authorized for this job' }, { status: 403 })
-    }
-
-    // 5. Validate job status is MATCHED
-    if (job.status !== 'MATCHED') {
-      return NextResponse.json(
-        { error: 'Job must be in MATCHED status to create payment', currentStatus: job.status },
-        { status: 400 }
-      )
-    }
-
-    // 6. Check if payment already exists
-    if (job.payment) {
-      return NextResponse.json(
-        { error: 'Payment already exists for this job', paymentId: job.payment.id },
-        { status: 400 }
-      )
-    }
-
-    // 7. Validate craftworker has Stripe account set up
-    if (!job.craftworker?.craftworkerProfile?.stripeAccountId) {
-      return NextResponse.json(
-        { error: 'Craftworker has not completed Stripe onboarding' },
-        { status: 400 }
-      )
-    }
-
-    // 8. Calculate platform fee and craftworker payout
-    const commissionRate = job.craftworker.craftworkerProfile.commissionRate.toNumber()
-    const platformFee = amount * (commissionRate / 100)
-    const craftworkerPayout = amount - platformFee
-
-    // 9. Create Stripe PaymentIntent with application fee
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: 'eur',
-      application_fee_amount: Math.round(platformFee * 100),
-      transfer_data: {
-        destination: job.craftworker.craftworkerProfile.stripeAccountId,
-      },
-      transfer_group: `job_${jobId}`,
-      metadata: {
-        jobId,
-        customerId: user.id,
-        craftworkerId: job.craftworkerId!,
-        platformFee: platformFee.toFixed(2),
-        craftworkerPayout: craftworkerPayout.toFixed(2),
-      },
-      description: `Payment for job: ${job.title}`,
-    }, {
-      idempotencyKey: `create-intent-${jobId}`, // Prevent duplicate charges
-    })
-
-    // 10. Save Payment record in database
-    const payment = await prisma.payment.create({
-      data: {
-        jobId,
-        amount,
-        platformFee,
-        craftworkerPayout,
-        status: 'UNPAID',
-        stripePaymentIntentId: paymentIntent.id,
-      },
-    })
-
-    // 11. Return client secret for Stripe Elements
     return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentId: payment.id,
-      amount,
-      platformFee,
-      craftworkerPayout,
+      clientSecret: result.clientSecret,
+      paymentId: result.payment.id
     })
 
   } catch (error) {
     console.error('[create-intent] Error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create payment intent', message: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 })
+    }
+
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
