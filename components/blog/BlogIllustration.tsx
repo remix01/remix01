@@ -1,6 +1,6 @@
 import React from 'react'
 
-type IllustrationCategory = 'Vodovod' | 'Elektrika' | 'Gradnja' | 'Zaključna dela' | 'Vzdrževanje'
+type IllustrationCategory = 'kopalnica' | 'elektrikar' | 'vodovod' | 'fasada' | 'parket' | 'vzdrzevanje'
 
 interface BlogIllustrationProps {
   category: IllustrationCategory
@@ -10,7 +10,7 @@ interface BlogIllustrationProps {
 export function BlogIllustration({ category, className = '' }: BlogIllustrationProps) {
   const renderIllustration = () => {
     switch (category) {
-      case 'Gradnja':
+      case 'kopalnica':
         // Bathroom (kopalnica) with bathtub, water, steam, and tiles
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -126,7 +126,7 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
           </svg>
         )
 
-      case 'Elektrika':
+      case 'elektrikar':
         // Electrical theme with lightbulb, PCB traces, and lightning bolt
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -238,7 +238,7 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
           </svg>
         )
 
-      case 'Vodovod':
+      case 'vodovod':
         // Isometric plumbing system with pipes, valves, and leaks
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -355,7 +355,125 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
           </svg>
         )
 
-      case 'Zaključna dela':
+      case 'fasada':
+        // House facade cross-section with insulation layers
+        return (
+          <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <style>{`
+                @keyframes arrowPulse { 
+                  0%, 100% { transform: scale(1); } 
+                  50% { transform: scale(1.15); } 
+                }
+                @keyframes crackDraw { 
+                  0% { stroke-dashoffset: 80; } 
+                  100% { stroke-dashoffset: 0; } 
+                }
+                @keyframes windowGlow { 
+                  0%, 100% { opacity: 0.4; } 
+                  50% { opacity: 0.7; } 
+                }
+                .warning-arrow { animation: arrowPulse 1.5s ease-in-out infinite; transform-origin: center; }
+                .crack-line { stroke-dasharray: 80; stroke-dashoffset: 80; animation: crackDraw 2s ease forwards; }
+                .window-light { animation: windowGlow 2s ease-in-out alternate infinite; }
+              `}</style>
+              
+              {/* Brick texture pattern */}
+              <pattern id="brickPattern" width="20" height="10" patternUnits="userSpaceOnUse">
+                <rect width="20" height="10" fill="#2d2d35"/>
+                <rect x="0" y="0" width="9" height="4" fill="#3a3a42" stroke="#2d2d35" strokeWidth="0.5"/>
+                <rect x="10" y="0" width="9" height="4" fill="#3a3a42" stroke="#2d2d35" strokeWidth="0.5"/>
+                <rect x="5" y="5" width="9" height="4" fill="#3a3a42" stroke="#2d2d35" strokeWidth="0.5"/>
+              </pattern>
+            </defs>
+            
+            {/* Night sky background */}
+            <rect width="400" height="225" fill="#0d111a"/>
+            
+            {/* Stars */}
+            <circle cx="50" cy="30" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="350" cy="50" r="1" fill="white" opacity="0.6"/>
+            <circle cx="320" cy="25" r="1.2" fill="white" opacity="0.7"/>
+            
+            {/* House silhouette */}
+            <g opacity="0.4">
+              {/* House body */}
+              <rect x="80" y="100" width="160" height="100" fill="none" stroke="#f97316" strokeWidth="2"/>
+              {/* Roof */}
+              <polygon points="80,100 160,50 240,100" fill="none" stroke="#f97316" strokeWidth="2"/>
+            </g>
+            
+            {/* Window with glow */}
+            <g>
+              <rect x="130" y="130" width="30" height="35" fill="#1a1a2e" stroke="#f97316" strokeWidth="1.5" opacity="0.5"/>
+              <rect x="144" y="130" width="2" height="35" fill="#f97316" opacity="0.3"/>
+              <rect x="130" y="147" width="30" height="2" fill="#f97316" opacity="0.3"/>
+              {/* Window glow */}
+              <rect className="window-light" x="132" y="132" width="26" height="31" fill="#fbbf24" opacity="0.4"/>
+            </g>
+            
+            {/* Facade cross-section (exploded view) - right side */}
+            <g transform="translate(260, 90)">
+              {/* Wall with brick texture */}
+              <rect x="0" y="0" width="20" height="100" fill="url(#brickPattern)" stroke="#2d2d35" strokeWidth="1"/>
+              <text x="10" y="115" textAnchor="middle" fill="#64748b" fontSize="8">Zid</text>
+              
+              {/* Adhesive layer */}
+              <rect x="25" y="0" width="3" height="100" fill="#64748b"/>
+              
+              {/* Insulation board */}
+              <rect x="33" y="0" width="15" height="100" fill="#fbbf24" opacity="0.3" stroke="#f97316" strokeWidth="1"/>
+              <text x="40.5" y="50" textAnchor="middle" fill="#fbbf24" fontSize="7" fontWeight="600" transform="rotate(-90 40.5 50)">EPS 12cm</text>
+              
+              {/* Outer facade paint */}
+              <rect x="53" y="0" width="3" height="100" fill="#f97316"/>
+              
+              {/* Layer labels */}
+              <line x1="56" y1="20" x2="75" y2="15" stroke="#64748b" strokeWidth="0.5" opacity="0.5"/>
+              <text x="77" y="17" fill="#64748b" fontSize="7">Fasada</text>
+              
+              <line x1="40" y1="30" x2="75" y2="30" stroke="#64748b" strokeWidth="0.5" opacity="0.5"/>
+              <text x="77" y="32" fill="#64748b" fontSize="7">Izolacija</text>
+            </g>
+            
+            {/* Crack in facade */}
+            <path 
+              className="crack-line"
+              d="M 200,120 L 205,130 L 198,145 L 203,160 L 200,175" 
+              fill="none" 
+              stroke="#f43f5e" 
+              strokeWidth="2"
+            />
+            
+            {/* Warning arrow pointing to crack */}
+            <g className="warning-arrow" transform="translate(220, 145)">
+              <polygon points="0,-8 8,0 0,8 2,0" fill="#f43f5e"/>
+              <line x1="8" y1="0" x2="16" y2="0" stroke="#f43f5e" strokeWidth="2"/>
+            </g>
+            
+            {/* Thermometer icon */}
+            <g transform="translate(40, 150)">
+              {/* Thermometer body */}
+              <rect x="0" y="0" width="8" height="40" rx="4" fill="#334155" stroke="#64748b" strokeWidth="1"/>
+              <rect x="2" y="2" width="4" height="36" rx="2" fill="#1e293b"/>
+              {/* Mercury - cold */}
+              <rect x="2.5" y="30" width="3" height="6" rx="1.5" fill="#3b82f6"/>
+              {/* Bulb */}
+              <circle cx="4" cy="42" r="5" fill="#334155" stroke="#64748b" strokeWidth="1"/>
+              <circle cx="4" cy="42" r="3.5" fill="#3b82f6"/>
+              {/* Temperature labels */}
+              <text x="15" y="15" fill="#f43f5e" fontSize="9" fontWeight="600">50°F</text>
+              <text x="15" y="38" fill="#3b82f6" fontSize="9" fontWeight="600">20°F</text>
+              <text x="4" y="60" textAnchor="middle" fill="#64748b" fontSize="7">Zunaj</text>
+            </g>
+            
+            {/* Category badge */}
+            <rect x="20" y="185" width="85" height="24" rx="12" fill="#f97316" opacity="0.85"/>
+            <text x="62.5" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Gradnja</text>
+          </svg>
+        )
+
+      case 'parket':
         // Parquet/flooring theme with wooden planks
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -415,7 +533,7 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
           </svg>
         )
 
-      case 'Vzdrževanje':
+      case 'vzdrzevanje':
         // Maintenance theme with tools and checklist
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
