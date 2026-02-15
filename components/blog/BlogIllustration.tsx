@@ -474,62 +474,121 @@ export function BlogIllustration({ category, className = '' }: BlogIllustrationP
         )
 
       case 'parket':
-        // Parquet/flooring theme with wooden planks
+        // Parquet flooring top-down view with offset brick pattern
         return (
           <svg viewBox="0 0 400 225" className={className} xmlns="http://www.w3.org/2000/svg">
             <defs>
               <style>{`
-                @keyframes rotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                .plank { fill: #92400e; }
-                .plank-light { fill: #b45309; }
-                .grain { stroke: #78350f; stroke-width: 1; opacity: 0.3; }
-                .sander { animation: rotate 4s linear infinite; transform-origin: center; }
+                @keyframes liftPlank { 
+                  0%, 100% { transform: translateY(0); } 
+                  50% { transform: translateY(-2px); } 
+                }
+                @keyframes sanderVibrate { 
+                  0%, 100% { transform: translateX(0); } 
+                  50% { transform: translateX(1px); } 
+                }
+                @keyframes grainShimmer { 
+                  0%, 100% { stop-opacity: 0.3; } 
+                  50% { stop-opacity: 0.6; } 
+                }
+                .lifted-plank { animation: liftPlank 2s ease-in-out infinite alternate; }
+                .sander-tool { animation: sanderVibrate 0.1s linear infinite; }
               `}</style>
-              <pattern id="woodGrain" width="100" height="30" patternUnits="userSpaceOnUse">
-                <path className="grain" d="M0,15 Q25,10 50,15 T100,15"/>
-                <path className="grain" d="M0,20 Q30,18 60,20 T100,20"/>
-              </pattern>
+              
+              {/* Background gradient */}
+              <linearGradient id="woodBg" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#0d0905"/>
+                <stop offset="100%" stopColor="#130d07"/>
+              </linearGradient>
+              
+              {/* Wood grain gradients for planks */}
+              <linearGradient id="grain1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#78350f"/>
+                <stop offset="50%" stopColor="#92400e"/>
+                <stop offset="100%" stopColor="#78350f"/>
+              </linearGradient>
+              
+              <linearGradient id="grain2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#6b2d0a"/>
+                <stop offset="50%" stopColor="#78350f"/>
+                <stop offset="100%" stopColor="#6b2d0a"/>
+              </linearGradient>
+              
+              <linearGradient id="grain3" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#92400e"/>
+                <stop offset="50%" stopColor="#b45309">
+                  <animate attributeName="stop-opacity" values="0.3;0.6;0.3" dur="3s" repeatCount="indefinite"/>
+                </stop>
+                <stop offset="100%" stopColor="#92400e"/>
+              </linearGradient>
             </defs>
-            <rect width="400" height="225" fill="#0c0e14"/>
             
-            {/* Wooden planks in perspective */}
-            {[...Array(8)].map((_, i) => (
-              <g key={i}>
-                <rect className={i % 2 === 0 ? 'plank' : 'plank-light'} 
-                  x={i * 50} y={60 + i * 15} width="50" height={150 - i * 15} 
-                  fill="url(#woodGrain)"/>
-                <line x1={i * 50} y1={60 + i * 15} x2={i * 50} y2={210} 
-                  stroke="#78350f" strokeWidth="2"/>
-              </g>
-            ))}
+            {/* Background */}
+            <rect width="400" height="225" fill="url(#woodBg)"/>
             
-            {/* Floor sander tool */}
-            <g transform="translate(250, 100)">
-              <rect x="-30" y="-10" width="60" height="50" fill="#475569" rx="5"/>
-              <rect x="-25" y="20" width="50" height="30" fill="#64748b" rx="3"/>
-              <circle className="sander" cx="0" cy="35" r="20" fill="#b45309"/>
-              <circle cx="0" cy="35" r="15" fill="#92400e"/>
-              <circle cx="0" cy="35" r="10" fill="#78350f"/>
-              
-              {/* Handle */}
-              <rect x="-3" y="-40" width="6" height="35" fill="#334155" rx="3"/>
-              <ellipse cx="0" cy="-40" rx="12" ry="8" fill="#475569"/>
-              
-              {/* Sawdust particles */}
-              {[...Array(5)].map((_, i) => (
-                <circle key={i} cx={-20 + i * 10} cy={60 + i * 5} r="2" fill="#d97706" opacity="0.4"/>
-              ))}
+            {/* Parquet planks - offset brick pattern */}
+            {/* Row 1 */}
+            <rect x="20" y="30" width="90" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            <rect x="115" y="30" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            <rect x="210" y="30" width="90" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            <rect x="305" y="30" width="75" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            
+            {/* Row 2 - offset */}
+            <rect x="20" y="65" width="45" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            <rect x="70" y="65" width="90" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            <rect x="165" y="65" width="90" height="30" fill="url(#grain3)" stroke="#000" strokeWidth="1"/>
+            <rect x="260" y="65" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            <rect x="355" y="65" width="25" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            
+            {/* Row 3 */}
+            <rect x="20" y="100" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            
+            {/* LIFTED PLANK - with shadow */}
+            <g className="lifted-plank">
+              <ellipse cx="160" cy="118" rx="48" ry="8" fill="#000" opacity="0.3"/>
+              <rect x="115" y="100" width="90" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+              {/* Red X badge */}
+              <circle cx="160" cy="115" r="8" fill="#f43f5e" opacity="0.9"/>
+              <line x1="156" y1="111" x2="164" y2="119" stroke="#fff" strokeWidth="2"/>
+              <line x1="164" y1="111" x2="156" y2="119" stroke="#fff" strokeWidth="2"/>
             </g>
             
-            {/* Tools */}
-            <g transform="translate(80, 30)">
-              <rect x="-15" y="0" width="30" height="8" fill="#71717a" rx="2"/>
-              <text x="0" y="25" textAnchor="middle" fill="#a1a1aa" fontSize="10">Lac</text>
+            <rect x="210" y="100" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            <rect x="305" y="100" width="75" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            
+            {/* Row 4 - offset with WIDE GROUT ERROR */}
+            <rect x="20" y="135" width="45" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            <rect x="70" y="135" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            {/* Wide grout marked in red */}
+            <rect x="163" y="135" width="3" height="30" fill="#f43f5e" opacity="0.8"/>
+            <rect x="171" y="135" width="90" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            <rect x="266" y="135" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            <rect x="361" y="135" width="19" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            
+            {/* Row 5 - MISMATCHED PATTERN */}
+            <rect x="20" y="170" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            {/* This plank is LIGHT among dark - mismatched */}
+            <rect x="115" y="170" width="90" height="30" fill="#b45309" stroke="#000" strokeWidth="1"/>
+            <circle cx="160" cy="185" r="6" fill="none" stroke="#f43f5e" strokeWidth="2"/>
+            <text x="160" y="188" textAnchor="middle" fill="#f43f5e" fontSize="10" fontWeight="bold">!</text>
+            
+            <rect x="210" y="170" width="90" height="30" fill="url(#grain2)" stroke="#000" strokeWidth="1"/>
+            <rect x="305" y="170" width="75" height="30" fill="url(#grain1)" stroke="#000" strokeWidth="1"/>
+            
+            {/* Sander tool - bottom right */}
+            <g className="sander-tool" transform="translate(330, 30)">
+              <rect x="0" y="0" width="50" height="30" rx="4" fill="#9ca3af"/>
+              <rect x="5" y="5" width="40" height="20" rx="2" fill="#6b7280"/>
+              <circle cx="25" cy="35" r="12" fill="#4b5563" opacity="0.6"/>
+              <circle cx="25" cy="35" r="8" fill="#374151"/>
+              {/* Motion blur effect */}
+              <ellipse cx="25" cy="35" rx="14" ry="6" fill="#9ca3af" opacity="0.2"/>
+              <text x="25" y="60" textAnchor="middle" fill="#6b7280" fontSize="7">Brusilnik</text>
             </g>
             
             {/* Category badge */}
-            <rect x="20" y="185" width="120" height="24" rx="12" fill="#92400e" opacity="0.9"/>
-            <text x="80" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Zaključna dela</text>
+            <rect x="20" y="185" width="125" height="24" rx="12" fill="#7c3aed" opacity="0.85"/>
+            <text x="82.5" y="202" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">Zaključna dela</text>
           </svg>
         )
 
