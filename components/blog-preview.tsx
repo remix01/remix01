@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowRight, Clock } from "lucide-react"
 import { blogPosts } from "@/lib/blog-data"
 import { Button } from "@/components/ui/button"
+import { BlogIllustration } from "@/components/blog/BlogIllustration"
 
 export function BlogPreview() {
   const featuredPosts = blogPosts.slice(0, 3)
@@ -28,18 +29,11 @@ export function BlogPreview() {
               className="group flex flex-col overflow-hidden rounded-2xl border bg-card transition-all hover:shadow-lg hover:border-primary/30"
             >
               <Link href={`/blog/${post.slug}`}>
-                <div className="aspect-[16/10] overflow-hidden bg-muted">
-                  {post.image ? (
-                    <img
-                      src={post.image}
-                      alt={post.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-primary/10">
-                      <span className="text-4xl text-primary/40">{post.category[0]}</span>
-                    </div>
-                  )}
+                <div className="aspect-[16/10] overflow-hidden bg-[#0c0e14]">
+                  <BlogIllustration 
+                    category={post.illustrationCategory} 
+                    className="h-full w-full transition-transform duration-300 group-hover:scale-105"
+                  />
                 </div>
                 <div className="flex flex-1 flex-col p-6">
                   <div className="flex items-center gap-3 text-sm">
