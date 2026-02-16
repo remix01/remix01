@@ -68,6 +68,27 @@ enum PackageType {
 // MODELS
 // ══════════════════════════════════════════════════════════════
 
+/// Customer inquiry submitted through the website
+model Inquiry {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String
+  email       String
+  description String   @db.Text
+  jobType     String   // Category like "vodoinstalater", "elektrikar"
+  status      String   @default("new") // new, assigned, completed, cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Optional: assigned craftworker
+  craftworkerId String? @map("craftworker_id")
+  craftworker   CraftworkerProfile? @relation(fields: [craftworkerId], references: [id])
+  
+  @@index([status])
+  @@index([createdAt])
+  @@index([craftworkerId])
+}
+
 /// User account - can be customer, craftworker, or admin
 model User {
   id        String   @id @default(cuid())
@@ -132,6 +153,9 @@ model CraftworkerProfile {
   // Referral system
   referralCode String @unique @default(cuid())
   referredBy   String? // referralCode of who referred them
+  
+  // Relations
+  inquiries Inquiry[]
   
   @@index([userId])
   @@index([packageType])
