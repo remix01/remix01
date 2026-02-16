@@ -116,8 +116,21 @@ export default function RegistracijaMojsterForm() {
     if (!validateStep(3)) return
     setIsSubmitting(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      const response = await fetch('/api/registracija-mojster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Napaka pri registraciji')
+      }
+      
       setIsSuccess(true)
+    } catch (error) {
+      console.error('[v0] Registration error:', error)
+      setErrors({ submit: error instanceof Error ? error.message : 'Napaka pri registraciji' })
     } finally {
       setIsSubmitting(false)
     }
