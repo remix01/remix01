@@ -191,6 +191,7 @@ model Job {
   conversation Conversation?
   violations   Violation[]
   riskScore    RiskScore?
+  auditLogs    AuditLog[]
   
   @@index([customerId])
   @@index([craftworkerId])
@@ -219,6 +220,9 @@ model Payment {
   releasedAt  DateTime?
   refundedAt  DateTime?
   disputeReason String?
+  
+  // Relations
+  auditLogs AuditLog[]
   
   @@index([status])
   @@index([stripePaymentIntentId])
@@ -318,4 +322,32 @@ model RiskScore {
   triggeredAlert  Boolean @default(false)
   
   @@index([score])
+}
+
+/// Audit log for tracking all escrow payment state changes
+model AuditLog {
+  id        String   @id @default(cuid())
+  
+  // What happened
+  eventType String   // "payment.held", "payment.released", "payment.refunded", "dispute.opened", "dispute.resolved"
+  actor     String   // "system", "customer:{id}", "admin:{id}", "stripe:webhook"
+  
+  // Context
+  jobId      String?
+  job        Job?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  paymentId  String?
+  payment    Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  
+  // Stripe idempotency (prevent duplicate webhook processing)
+  stripeEventId String? @unique
+  
+  // Details
+  metadata   Json?    // Additional context (amounts, reasons, etc.)
+  
+  createdAt  DateTime @default(now())
+  
+  @@index([jobId, createdAt])
+  @@index([paymentId, createdAt])
+  @@index([eventType])
+  @@index([stripeEventId])
 }
