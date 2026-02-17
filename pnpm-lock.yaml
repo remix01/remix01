@@ -111,6 +111,9 @@ importers:
       '@supabase/ssr':
         specifier: ^0.8.0
         version: 0.8.0(@supabase/supabase-js@2.95.3)
+      '@supabase/supabase-js':
+        specifier: ^2.95.3
+        version: 2.95.3
       '@twilio/conversations':
         specifier: ^2.5.0
         version: 2.6.5
