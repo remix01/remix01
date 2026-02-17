@@ -48,6 +48,7 @@
     "@stripe/stripe-js": "^8.7.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3",
     "@twilio/conversations": "^2.5.0",
     "autoprefixer": "^10.4.20",
     "canvas-confetti": "^1.9.3",
