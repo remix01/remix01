@@ -177,3 +177,30 @@ export class NotificationService {
     }
   }
 }
+
+/**
+ * PUSH NOTIFICATION INTEGRATION GUIDE
+ * 
+ * To send push notifications when creating notifications, integrate the push service:
+ * 
+ * import { TokenService } from '@/lib/push/token-service'
+ * import { getPushService } from '@/lib/push/push-service'
+ * 
+ * // In NotificationService.create() method, after creating the notification:
+ * const notification = await supabaseAdmin.from('notifications').insert(...).single()
+ * 
+ * // Send push notification
+ * try {
+ *   const tokens = await TokenService.getForUser(userId)
+ *   if (tokens.length > 0) {
+ *     const pushService = getPushService()
+ *     await pushService.send(
+ *       tokens.map(t => t.token),
+ *       { title, body, data }
+ *     )
+ *   }
+ * } catch (error) {
+ *   console.error('[NotificationService] Push send failed:', error)
+ *   // Continue even if push fails
+ * }
+ */
