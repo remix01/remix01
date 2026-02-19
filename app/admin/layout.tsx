@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
+import { AdminHeader } from '@/components/admin/AdminHeader'
 
 export default async function AdminLayout({
   children,
@@ -27,13 +28,14 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <AdminSidebar user={dbUser} />
-      <main className="flex-1 overflow-y-auto">
-        <div className="container mx-auto p-8">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <AdminHeader user={dbUser} />
+        <main className="flex-1 overflow-y-auto bg-muted/30 p-6">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

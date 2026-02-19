@@ -22,12 +22,12 @@ interface AdminSidebarProps {
 }
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Overview', href: '/admin' },
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
+  { icon: Users, label: 'Stranke', href: '/admin/stranke' },
+  { icon: Briefcase, label: 'Partnerji', href: '/admin/partnerji' },
   { icon: AlertTriangle, label: 'Violations', href: '/admin/violations' },
   { icon: ShieldAlert, label: 'Risk Alerts', href: '/admin/risk-alerts' },
-  { icon: Users, label: 'Craftworkers', href: '/admin/craftworkers' },
-  { icon: Briefcase, label: 'Jobs', href: '/admin/jobs' },
-  { icon: Settings, label: 'Settings', href: '/admin/settings' },
+  { icon: Settings, label: 'Nastavitve', href: '/admin/nastavitve' },
 ]
 
 export function AdminSidebar({ user }: AdminSidebarProps) {
