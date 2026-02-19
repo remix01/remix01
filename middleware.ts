@@ -6,6 +6,29 @@ export async function middleware(request: NextRequest) {
   // First, update the session
   const response = await updateSession(request)
   
+  // Protected admin routes - require authentication and ADMIN role
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Not logged in → redirect to login
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+      return NextResponse.redirect(url)
+    }
+    
+    // Check if user has ADMIN role
+    const userRole = user.user_metadata?.role
+    if (userRole !== 'ADMIN') {
+      // Not an admin → redirect to homepage
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+  }
+
   // Protected partner routes - require authentication
   if (request.nextUrl.pathname.startsWith('/partner-dashboard')) {
     const supabase = await createClient()
