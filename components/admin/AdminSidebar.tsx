@@ -58,7 +58,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
               href={item.href}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                isActive
+                pathname === item.href || pathname.startsWith(item.href + '/')
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}

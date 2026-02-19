@@ -191,6 +191,120 @@ export async function suspendiranjPartnerja(id: string, razlog?: string) {
   revalidatePath('/admin/partnerji')
 }
 
+export async function getStranka(id: string): Promise<Stranka | null> {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: { jobs: true },
+      },
+    },
+  })
+
+  if (!user || user.role !== 'CUSTOMER') return null
+
+  return {
+    id: user.id,
+    ime: user.name.split(' ')[0] || '',
+    priimek: user.name.split(' ').slice(1).join(' ') || '',
+    email: user.email,
+    telefon: user.phone || undefined,
+    createdAt: user.createdAt,
+    status: 'AKTIVEN' as const,
+    narocil: user._count.jobs,
+  }
+}
+
+export async function getPartner(id: string): Promise<Partner | null> {
+  const profile = await prisma.craftworkerProfile.findUnique({
+    where: { id },
+    include: {
+      user: true,
+    },
+  })
+
+  if (!profile) return null
+
+  return {
+    id: profile.id,
+    ime: profile.user.name,
+    podjetje: undefined,
+    tip: 'PREVOZNIK' as const,
+    email: profile.user.email,
+    telefon: profile.user.phone || undefined,
+    createdAt: profile.createdAt,
+    status: profile.isSuspended
+      ? 'SUSPENDIRAN'
+      : profile.isVerified
+        ? 'AKTIVEN'
+        : 'PENDING',
+    ocena: parseFloat(profile.avgRating.toString()),
+    steviloPrevozov: profile.totalJobsCompleted,
+  }
+}
+
+export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPENDIRAN') {
+  // In a real system, you might have a status field on User
+  // For now, this is a placeholder
+  revalidatePath(`/admin/stranke/${id}`)
+  revalidatePath('/admin/stranke')
+}
+
+export async function deleteStranka(id: string) {
+  await prisma.user.delete({ where: { id } })
+  revalidatePath('/admin/stranke')
+}
+
+export async function deletePartner(id: string) {
+  await prisma.craftworkerProfile.delete({ where: { id } })
+  revalidatePath('/admin/partnerji')
+}
+
+export async function reaktivirajPartnerja(id: string) {
+  await prisma.craftworkerProfile.update({
+    where: { id },
+    data: {
+      isSuspended: false,
+      suspendedReason: null,
+      suspendedAt: null,
+    },
+  })
+  revalidatePath(`/admin/partnerji/${id}`)
+  revalidatePath('/admin/partnerji')
+}
+
+export async function bulkSuspendStranke(ids: string[]): Promise<void> {
+  // In a real system, you'd have a suspension mechanism for customers
+  // For now, this is a placeholder
+  revalidatePath('/admin/stranke')
+}
+
+export async function bulkDeleteStranke(ids: string[]): Promise<void> {
+  await prisma.user.deleteMany({
+    where: {
+      id: { in: ids },
+      role: 'CUSTOMER',
+    },
+  })
+  revalidatePath('/admin/stranke')
+}
+
+export async function exportStrankeCSV(): Promise<string> {
+  const users = await prisma.user.findMany({
+    where: { role: 'CUSTOMER' },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const header = 'ID,Ime,Priimek,Email,Telefon,Status,Datum registracije\n'
+  const rows = users.map(user => {
+    const [ime, ...priimekParts] = user.name.split(' ')
+    const priimek = priimekParts.join(' ')
+    return `"${user.id}","${ime}","${priimek}","${user.email}","${user.phone || ''}","AKTIVEN","${user.createdAt.toISOString().split('T')[0]}"`
+  }).join('\n')
+
+  return header + rows
+}
+
 export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji: ChartData[] }> {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec']
   const now = new Date()
