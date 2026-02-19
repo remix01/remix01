@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
@@ -10,28 +11,34 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   // Server-side admin check
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await getServerSession(authOptions)
 
-  if (!user) {
+  if (!session?.user?.email) {
     redirect('/')
   }
 
-  // Check if user is ADMIN in database
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { role: true, name: true, email: true }
+  // Check if user is an admin (zaposleni) in database
+  const zaposleni = await prisma.zaposleni.findUnique({
+    where: { email: session.user.email },
+    select: { 
+      id: true,
+      email: true,
+      ime: true,
+      priimek: true,
+      vloga: true,
+      aktiven: true
+    }
   })
 
-  if (!dbUser || dbUser.role !== 'ADMIN') {
+  if (!zaposleni || !zaposleni.aktiven) {
     redirect('/')
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <AdminSidebar user={dbUser} />
+      <AdminSidebar user={zaposleni} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <AdminHeader user={dbUser} />
+        <AdminHeader user={zaposleni} />
         <main className="flex-1 overflow-y-auto bg-muted/30 p-6">
           {children}
         </main>

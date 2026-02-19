@@ -64,6 +64,12 @@ enum PackageType {
   PRO    // Premium package with lower commission
 }
 
+enum Vloga {
+  SUPER_ADMIN   // polni dostop + upravljanje zaposlenih
+  MODERATOR     // stranke + partnerji read/write, no delete
+  OPERATER      // samo read + basic status changes
+}
+
 // ══════════════════════════════════════════════════════════════
 // MODELS
 // ══════════════════════════════════════════════════════════════
@@ -91,7 +97,7 @@ model Inquiry {
 
 /// User account - can be customer, craftworker, or admin
 model User {
-  id        String   @id @default(cuid())
+  id    String   @id @default(cuid())
   email     String   @unique
   phone     String?  // Encrypted at application level
   name      String
@@ -118,6 +124,23 @@ model User {
   
   @@index([email])
   @@index([role])
+}
+
+/// Admin/Employee account
+model Zaposleni {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  ime         String
+  priimek     String
+  vloga       Vloga    @default(OPERATER)
+  aktiven     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String   // super admin user id
+  
+  @@index([vloga])
+  @@index([aktiven])
+  @@index([createdAt])
 }
 
 /// Craftworker profile with package info and metrics

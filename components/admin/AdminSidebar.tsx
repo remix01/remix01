@@ -9,35 +9,60 @@ import {
   Users, 
   Briefcase, 
   Settings,
-  LogOut 
+  LogOut,
+  UserCog
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { signOut } from 'next-auth/react'
 import { cn } from '@/lib/utils'
+import type { Vloga } from '@/hooks/use-admin-role'
 
 interface AdminSidebarProps {
   user: {
-    name: string
+    ime: string
+    priimek: string
     email: string
+    vloga: Vloga
   }
 }
 
-const navItems = [
+interface NavItem {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  href: string
+  roles?: Vloga[]
+}
+
+const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
   { icon: Users, label: 'Stranke', href: '/admin/stranke' },
   { icon: Briefcase, label: 'Partnerji', href: '/admin/partnerji' },
   { icon: AlertTriangle, label: 'Violations', href: '/admin/violations' },
   { icon: ShieldAlert, label: 'Risk Alerts', href: '/admin/risk-alerts' },
+  { icon: UserCog, label: 'Zaposleni', href: '/admin/zaposleni', roles: ['SUPER_ADMIN'] },
   { icon: Settings, label: 'Nastavitve', href: '/admin/nastavitve' },
 ]
 
 export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
+    await signOut({ redirect: true, callbackUrl: '/' })
+  }
+
+  // Filter nav items based on user role
+  const visibleNavItems = navItems.filter(item => {
+    if (!item.roles) return true
+    return item.roles.includes(user.vloga)
+  })
+
+  const getRoleLabel = (vloga: Vloga) => {
+    const roleLabels: Record<Vloga, string> = {
+      SUPER_ADMIN: 'Super Admin',
+      MODERATOR: 'Moderator',
+      OPERATER: 'Operater',
+    }
+    return roleLabels[vloga]
   }
 
   return (
@@ -50,8 +75,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href
+        {visibleNavItems.map((item) => {
           return (
             <Link
               key={item.href}
@@ -72,8 +96,9 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
 
       <div className="border-t pt-4 space-y-3">
         <div className="text-sm">
-          <p className="font-medium text-foreground">{user.name}</p>
+          <p className="font-medium text-foreground">{user.ime} {user.priimek}</p>
           <p className="text-xs text-muted-foreground">{user.email}</p>
+          <p className="text-xs font-medium text-primary mt-1">{getRoleLabel(user.vloga)}</p>
         </div>
         <button
           onClick={handleLogout}
