@@ -1,45 +1,20 @@
 -- LiftGO Marketplace Migration
 -- Creates tables for naročniki, obrtniki, povpraševanja, ponudbe, and ocene
+-- Uses existing profiles table
 
 -- ============================================================================
--- PROFILES TABLE
+-- EXTEND PROFILES TABLE
 -- ============================================================================
-CREATE TABLE public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('narocnik', 'obrtnik')),
-  full_name TEXT NOT NULL,
-  phone TEXT,
-  avatar_url TEXT,
-  location_city TEXT,
-  location_region TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- Add marketplace columns to existing profiles table
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT CHECK (role IN ('narocnik', 'obrtnik'));
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location_city TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location_region TEXT;
 
--- RLS for profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Anyone can read profiles"
-  ON public.profiles
-  FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Users can insert own profile"
-  ON public.profiles
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile"
-  ON public.profiles
-  FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = id);
-
--- Indexes
-CREATE INDEX idx_profiles_role ON public.profiles(role);
-CREATE INDEX idx_profiles_city ON public.profiles(location_city);
+-- Indexes (will ignore if they exist)
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_city ON public.profiles(location_city);
 
 -- ============================================================================
 -- OBRTNIK PROFILES TABLE
