@@ -39,6 +39,62 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Protected naročnik routes - require authentication and naročnik role
+  if (request.nextUrl.pathname.startsWith('/narocnik')) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Not logged in → redirect to login
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/prijava'
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+      return NextResponse.redirect(url)
+    }
+    
+    // Check if user has naročnik role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    if (profile?.role !== 'narocnik') {
+      // Not a naročnik → redirect to homepage or obrtnik dashboard
+      const url = request.nextUrl.clone()
+      url.pathname = profile?.role === 'obrtnik' ? '/obrtnik/dashboard' : '/'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // Protected obrtnik routes - require authentication and obrtnik role
+  if (request.nextUrl.pathname.startsWith('/obrtnik')) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Not logged in → redirect to login
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/prijava'
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+      return NextResponse.redirect(url)
+    }
+    
+    // Check if user has obrtnik role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    
+    if (profile?.role !== 'obrtnik') {
+      // Not an obrtnik → redirect to homepage or naročnik dashboard
+      const url = request.nextUrl.clone()
+      url.pathname = profile?.role === 'narocnik' ? '/narocnik/dashboard' : '/'
+      return NextResponse.redirect(url)
+    }
+  }
+
   // Protected partner routes - require authentication
   if (request.nextUrl.pathname.startsWith('/partner-dashboard')) {
     const supabase = await createClient()
