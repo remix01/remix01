@@ -40,10 +40,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected naročnik routes - require authentication and naročnik role
-  if (request.nextUrl.pathname.startsWith('/dashboard') || 
-      request.nextUrl.pathname.startsWith('/novo-povprasevanje') ||
-      request.nextUrl.pathname.startsWith('/povprasevanja') ||
-      request.nextUrl.pathname.startsWith('/profil')) {
+  if (request.nextUrl.pathname.startsWith('/narocnik')) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -58,14 +55,14 @@ export async function middleware(request: NextRequest) {
     // Check if user has naročnik role
     const { data: profile } = await supabase
       .from('profiles')
-      .select('user_type')
+      .select('role')
       .eq('id', user.id)
       .single()
     
-    if (profile?.user_type !== 'narocnik') {
+    if (profile?.role !== 'narocnik') {
       // Not a naročnik → redirect to homepage or obrtnik dashboard
       const url = request.nextUrl.clone()
-      url.pathname = profile?.user_type === 'obrtnik' ? '/obrtnik/dashboard' : '/'
+      url.pathname = profile?.role === 'obrtnik' ? '/obrtnik/dashboard' : '/'
       return NextResponse.redirect(url)
     }
   }
@@ -86,14 +83,14 @@ export async function middleware(request: NextRequest) {
     // Check if user has obrtnik role
     const { data: profile } = await supabase
       .from('profiles')
-      .select('user_type')
+      .select('role')
       .eq('id', user.id)
       .single()
     
-    if (profile?.user_type !== 'obrtnik') {
+    if (profile?.role !== 'obrtnik') {
       // Not an obrtnik → redirect to homepage or naročnik dashboard
       const url = request.nextUrl.clone()
-      url.pathname = profile?.user_type === 'narocnik' ? '/dashboard' : '/'
+      url.pathname = profile?.role === 'narocnik' ? '/narocnik/dashboard' : '/'
       return NextResponse.redirect(url)
     }
   }
