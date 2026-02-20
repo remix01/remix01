@@ -12,9 +12,10 @@ import {
   LogOut,
   UserCog
 } from 'lucide-react'
-import { signOut } from 'next-auth/react'
 import { cn } from '@/lib/utils'
-import type { Vloga } from '@/hooks/use-admin-role'
+import { createClient } from '@/lib/supabase/client'
+
+type Vloga = 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
 
 interface AdminSidebarProps {
   user: {
@@ -45,9 +46,11 @@ const navItems: NavItem[] = [
 export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const supabase = createClient()
 
   const handleLogout = async () => {
-    await signOut({ redirect: true, callbackUrl: '/' })
+    await supabase.auth.signOut()
+    router.push('/')
   }
 
   // Filter nav items based on user role

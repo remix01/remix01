@@ -31,12 +31,34 @@ export default function Page() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (error) throw error
-      router.push('/protected')
+
+      // Check if user is an admin
+      if (data.user) {
+        const { data: adminUser, error: adminError } = await supabase
+          .from('admin_users')
+          .select('id, aktiven')
+          .eq('auth_user_id', data.user.id)
+          .single()
+
+        if (adminError || !adminUser) {
+          setError('Nimate dostopa do adminskega panela')
+          await supabase.auth.signOut()
+          return
+        }
+
+        if (!adminUser.aktiven) {
+          setError('Vaš račun je bil onemogočen')
+          await supabase.auth.signOut()
+          return
+        }
+
+        router.push('/admin')
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Napaka pri prijavi')
     } finally {
@@ -50,9 +72,9 @@ export default function Page() {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">Prijava</CardTitle>
+              <CardTitle className="text-2xl">Admin Prijava</CardTitle>
               <CardDescription>
-                Vnesite svoj email, da se prijavite v svoj račun
+                Vnesite vaše administratorske podatke
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -83,15 +105,6 @@ export default function Page() {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? 'Prijavljam se...' : 'Prijava'}
                   </Button>
-                </div>
-                <div className="mt-4 text-center text-sm">
-                  Še niste registrirani?{' '}
-                  <Link
-                    href="/auth/sign-up"
-                    className="underline underline-offset-4"
-                  >
-                    Registracija
-                  </Link>
                 </div>
               </form>
             </CardContent>

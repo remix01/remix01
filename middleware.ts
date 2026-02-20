@@ -6,23 +6,33 @@ export async function middleware(request: NextRequest) {
   // First, update the session
   const response = await updateSession(request)
   
-  // Protected admin routes - require authentication and ADMIN role
+  // Protected admin routes - require authentication and admin_users record
   if (request.nextUrl.pathname.startsWith('/admin')) {
+    // Allow access to setup page without authentication
+    if (request.nextUrl.pathname === '/admin/setup') {
+      return response
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
     // Not logged in → redirect to login
     if (!user) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
+      url.pathname = '/auth/login'
       url.searchParams.set('redirect', request.nextUrl.pathname)
       return NextResponse.redirect(url)
     }
     
-    // Check if user has ADMIN role
-    const userRole = user.user_metadata?.role
-    if (userRole !== 'ADMIN') {
-      // Not an admin → redirect to homepage
+    // Check if user is in admin_users table and is active
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id, aktiven')
+      .eq('auth_user_id', user.id)
+      .single()
+    
+    if (!adminUser || !adminUser.aktiven) {
+      // Not an admin or inactive → redirect to homepage
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)

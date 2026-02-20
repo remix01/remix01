@@ -9,10 +9,14 @@ import {
 } from '@/components/ui/sheet'
 import { AdminSidebar } from './AdminSidebar'
 
+type Vloga = 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
+
 interface AdminHeaderProps {
   user?: {
-    name: string
+    ime: string
+    priimek: string
     email: string
+    vloga: Vloga
   }
 }
 
@@ -27,7 +31,7 @@ export function AdminHeader({ user }: AdminHeaderProps) {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0">
-          <AdminSidebar />
+          {user && <AdminSidebar user={user} />}
         </SheetContent>
       </Sheet>
 
@@ -37,7 +41,7 @@ export function AdminHeader({ user }: AdminHeaderProps) {
         <div className="flex items-center gap-2">
           {user && (
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">{user.name}</p>
+              <p className="text-sm font-medium">{user.ime} {user.priimek}</p>
               <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
           )}
