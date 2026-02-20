@@ -121,27 +121,37 @@ const faqSchema = {
 
 export default function Page() {
   return (
-    <>
-      <JsonLd data={websiteSchema} />
-      <JsonLd data={reviewsSchema} />
-      <JsonLd data={faqSchema} />
-      <div className="flex min-h-screen flex-col">
-        <Navbar />
-        <main className="flex-1">
-          <Hero />
-          <Stats />
-          <OfferPreview />
-          <CaseStudies />
-          <Categories />
-          <BlogPreview />
-          <HowItWorks />
-          <Features />
-          <Testimonials />
-          <CTA />
-        </main>
-        <Footer />
-        <VideoDiagnozaButton variant="floating" />
-      </div>
-    </>
+    <div className="flex min-h-screen flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        suppressHydrationWarning
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewsSchema) }}
+        suppressHydrationWarning
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        suppressHydrationWarning
+      />
+      <Navbar />
+      <main className="flex-1">
+        <Hero />
+        <Stats />
+        <OfferPreview />
+        <CaseStudies />
+        <Categories />
+        <BlogPreview />
+        <HowItWorks />
+        <Features />
+        <Testimonials />
+        <CTA />
+      </main>
+      <Footer />
+      <VideoDiagnozaButton variant="floating" />
+    </div>
   )
 }
