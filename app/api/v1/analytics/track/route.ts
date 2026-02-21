@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { createServerClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 const eventSchema = z.object({
   name: z.string(),
@@ -27,11 +26,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { events } = validation.data
+    const supabaseAdmin = createAdminClient()
 
     // Get user ID if authenticated (optional)
     let userId: string | null = null
     try {
-      const supabase = await createServerClient()
+      const supabase = await createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()

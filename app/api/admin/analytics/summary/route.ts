@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
     // Check admin role
-    const supabase = await createServerClient()
+    const supabase = await createClient()
+    const supabaseAdmin = createAdminClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
