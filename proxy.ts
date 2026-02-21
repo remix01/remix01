@@ -1,8 +1,26 @@
 import { updateSession } from '@/lib/supabase/proxy'
 import { type NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
 
-export async function middleware(request: NextRequest) {
+// Helper to create Supabase client in middleware/proxy
+function createProxyClient(request: NextRequest) {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll() {
+          // Not needed in proxy - we're just reading
+        },
+      },
+    }
+  )
+}
+
+export default async function proxy(request: NextRequest) {
   // First, update the session
   const response = await updateSession(request)
   
@@ -13,7 +31,7 @@ export async function middleware(request: NextRequest) {
       return response
     }
 
-    const supabase = await createClient()
+    const supabase = createProxyClient(request)
     const { data: { user } } = await supabase.auth.getUser()
     
     // Not logged in → redirect to login
@@ -41,7 +59,7 @@ export async function middleware(request: NextRequest) {
 
   // Protected naročnik routes - require authentication and naročnik role
   if (request.nextUrl.pathname.startsWith('/narocnik')) {
-    const supabase = await createClient()
+    const supabase = createProxyClient(request)
     const { data: { user } } = await supabase.auth.getUser()
     
     // Not logged in → redirect to login
@@ -69,7 +87,7 @@ export async function middleware(request: NextRequest) {
 
   // Protected obrtnik routes - require authentication and obrtnik role
   if (request.nextUrl.pathname.startsWith('/obrtnik')) {
-    const supabase = await createClient()
+    const supabase = createProxyClient(request)
     const { data: { user } } = await supabase.auth.getUser()
     
     // Not logged in → redirect to login
@@ -97,7 +115,7 @@ export async function middleware(request: NextRequest) {
 
   // Protected partner routes - require authentication
   if (request.nextUrl.pathname.startsWith('/partner-dashboard')) {
-    const supabase = await createClient()
+    const supabase = createProxyClient(request)
     const { data: { user } } = await supabase.auth.getUser()
     
     // Not logged in → redirect to login
