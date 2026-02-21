@@ -1,33 +1,20 @@
-import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
 import { RiskAlertCard } from '@/components/admin/RiskAlertCard'
 
 async function getHighRiskJobs() {
-  const jobs = await prisma.job.findMany({
-    where: {
-      riskScore: {
-        score: { gte: 60 }
-      }
-    },
-    include: {
-      customer: {
-        select: { id: true, name: true, email: true }
-      },
-      craftworker: {
-        select: { id: true, name: true, email: true }
-      },
-      riskScore: true,
-      payment: {
-        select: { amount: true, status: true }
-      }
-    },
-    orderBy: {
-      riskScore: {
-        score: 'desc'
-      }
-    }
-  })
+  const supabase = await createClient()
+  
+  const { data: jobs } = await supabase
+    .from('povprasevanja')
+    .select(`
+      *,
+      profiles:narocnik_id(full_name, location_city),
+      categories:category_id(name)
+    `)
+    .eq('urgency', 'nujno')
+    .order('created_at', { ascending: false })
 
-  return jobs
+  return jobs || []
 }
 
 export default async function RiskAlertsPage() {
@@ -38,7 +25,7 @@ export default async function RiskAlertsPage() {
       <div>
         <h1 className="text-3xl font-bold text-foreground">Risk Alerts</h1>
         <p className="mt-2 text-muted-foreground">
-          Jobs with risk score ≥ 60 requiring attention
+          Jobs with urgent priority requiring attention
         </p>
       </div>
 
@@ -48,7 +35,7 @@ export default async function RiskAlertsPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {jobs.map((job) => (
+          {jobs.map((job: any) => (
             <RiskAlertCard key={job.id} job={job} />
           ))}
         </div>
@@ -56,3 +43,4 @@ export default async function RiskAlertsPage() {
     </div>
   )
 }
+
