@@ -145,7 +145,7 @@ export default async function proxy(request: NextRequest) {
   }
 
   // Check if user is authenticated and is a craftworker
-  const supabase = await createClient()
+  const supabase = createProxyClient(request)
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {

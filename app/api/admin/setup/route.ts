@@ -1,13 +1,12 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session?.user?.email) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -15,11 +14,12 @@ export async function POST(request: Request) {
     }
 
     // Check if super admin already exists
-    const superAdminCount = await prisma.zaposleni.count({
-      where: { vloga: 'SUPER_ADMIN' },
-    });
+    const { count } = await supabase
+      .from('admin_users')
+      .select('*', { count: 'exact', head: true })
+      .eq('vloga', 'SUPER_ADMIN');
 
-    if (superAdminCount > 0) {
+    if (count && count > 0) {
       return NextResponse.json(
         { error: 'Super admin already exists' },
         { status: 400 }
@@ -36,15 +36,20 @@ export async function POST(request: Request) {
     }
 
     // Create super admin from current user
-    const zaposleni = await prisma.zaposleni.create({
-      data: {
-        email: session.user.email,
+    const { data: zaposleni, error } = await supabase
+      .from('admin_users')
+      .insert({
+        auth_user_id: user.id,
+        email: user.email!,
         ime,
         priimek,
         vloga: 'SUPER_ADMIN',
-        createdBy: 'system', // Initial setup
-      },
-    });
+        created_by: user.id,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
 
     return NextResponse.json({
       success: true,
