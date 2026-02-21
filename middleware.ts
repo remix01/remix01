@@ -61,6 +61,35 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
   }
+
+  // Protected naročnik routes - require authentication and narocnik role
+  if (request.nextUrl.pathname.startsWith('/narocnik')) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Not logged in → redirect to login
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/prijava'
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+      return NextResponse.redirect(url)
+    }
+
+    // Fetch profile role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    // Check if user has narocnik role
+    if (!profile || profile.role !== 'narocnik') {
+      // Not a naročnik → redirect to partner dashboard
+      const url = request.nextUrl.clone()
+      url.pathname = '/partner-dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
   
   // Skip ToS check for public routes
   const publicRoutes = ['/terms', '/api', '/_next', '/auth', '/partner-auth']
