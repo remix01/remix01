@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
 import { CraftworkerProfileCard } from '@/components/admin/CraftworkerProfileCard'
 import { ActivityTimeline } from '@/components/admin/ActivityTimeline'
 import { BypassWarningLog } from '@/components/admin/BypassWarningLog'
@@ -11,32 +11,41 @@ interface PageProps {
 }
 
 async function getCraftworkerData(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      craftworkerProfile: true,
-      violations: {
-        include: {
-          job: true,
-          message: true,
-        },
-        orderBy: { createdAt: 'desc' }
-      },
-      assignedJobs: {
-        include: {
-          payment: true,
-          customer: true,
-        },
-        orderBy: { createdAt: 'desc' }
-      }
-    }
-  })
+  const supabase = await createClient()
+  
+  const { data: craftworker } = await supabase
+    .from('partners')
+    .select(`
+      *,
+      obrtnik_profile:obrtnik_profiles(*)
+    `)
+    .eq('id', userId)
+    .single()
 
-  if (!user || user.role !== 'CRAFTWORKER') {
+  if (!craftworker) {
     return null
   }
 
-  return user
+  // Fetch related povprasevanja (jobs)
+  const { data: povprasevanja } = await supabase
+    .from('povprasevanja')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  // Fetch related ocene (reviews)
+  const { data: ocene } = await supabase
+    .from('ocene')
+    .select('*')
+    .eq('obrtnik_id', userId)
+    .order('created_at', { ascending: false })
+
+  return {
+    ...craftworker,
+    assignedJobs: povprasevanja || [],
+    violations: [],
+    craftworkerProfile: craftworker.obrtnik_profile,
+    reviews: ocene || [],
+  }
 }
 
 export default async function CraftworkerDetailPage({ params }: PageProps) {
@@ -50,19 +59,19 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">{craftworker.name}</h1>
+        <h1 className="text-3xl font-bold text-foreground">{craftworker.business_name}</h1>
         <p className="mt-2 text-muted-foreground">Detajlni profil obrtnika</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <CraftworkerProfileCard 
           craftworker={craftworker} 
-          profile={craftworker.craftworkerProfile!}
+          profile={craftworker.craftworkerProfile}
         />
         <SuspensionPanel 
           userId={id} 
-          isSuspended={craftworker.craftworkerProfile?.isSuspended || false}
-          suspendedReason={craftworker.craftworkerProfile?.suspendedReason}
+          isSuspended={craftworker.craftworkerProfile?.is_available === false}
+          suspendedReason={null}
         />
       </div>
 
@@ -77,8 +86,9 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
 
       <CommissionHistory 
         jobs={craftworker.assignedJobs}
-        commissionRate={Number(craftworker.craftworkerProfile?.commissionRate || 0.15)}
+        commissionRate={0.15}
       />
     </div>
   )
 }
+

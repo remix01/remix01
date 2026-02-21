@@ -1,8 +1,6 @@
 'use server';
 
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache';
 import type { Vloga } from '@/hooks/use-admin-role';
 
@@ -22,15 +20,18 @@ interface UpdateZaposleniInput {
 }
 
 async function checkSuperAdminPermission() {
-  const session = await getServerSession(authOptions);
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!session?.user?.email) {
+  if (!user?.email) {
     throw new Error('Unauthorized');
   }
 
-  const admin = await prisma.zaposleni.findUnique({
-    where: { email: session.user.email },
-  });
+  const { data: admin } = await supabase
+    .from('admin_users')
+    .select('*')
+    .eq('email', user.email)
+    .single()
 
   if (!admin || admin.vloga !== 'SUPER_ADMIN') {
     throw new Error('Only super admins can manage employees');
@@ -42,11 +43,14 @@ async function checkSuperAdminPermission() {
 export async function createZaposleni(input: CreateZaposleniInput) {
   try {
     const superAdmin = await checkSuperAdminPermission();
+    const supabase = await createClient()
 
     // Check if email already exists
-    const existingZaposleni = await prisma.zaposleni.findUnique({
-      where: { email: input.email },
-    });
+    const { data: existingZaposleni } = await supabase
+      .from('Zaposleni')
+      .select('*')
+      .eq('email', input.email)
+      .single()
 
     if (existingZaposleni) {
       return {
@@ -55,15 +59,19 @@ export async function createZaposleni(input: CreateZaposleniInput) {
       };
     }
 
-    const zaposleni = await prisma.zaposleni.create({
-      data: {
+    const { data: zaposleni, error } = await supabase
+      .from('Zaposleni')
+      .insert([{
         email: input.email,
         ime: input.ime,
         priimek: input.priimek,
         vloga: input.vloga,
-        createdBy: superAdmin.id,
-      },
-    });
+        aktiven: true,
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
 
     revalidatePath('/admin/zaposleni');
 
@@ -82,16 +90,22 @@ export async function createZaposleni(input: CreateZaposleniInput) {
 export async function updateZaposleni(input: UpdateZaposleniInput) {
   try {
     await checkSuperAdminPermission();
+    const supabase = await createClient()
 
-    const zaposleni = await prisma.zaposleni.update({
-      where: { id: input.id },
-      data: {
-        ...(input.ime && { ime: input.ime }),
-        ...(input.priimek && { priimek: input.priimek }),
-        ...(input.vloga && { vloga: input.vloga }),
-        ...(input.aktiven !== undefined && { aktiven: input.aktiven }),
-      },
-    });
+    const updateData: any = {}
+    if (input.ime) updateData.ime = input.ime
+    if (input.priimek) updateData.priimek = input.priimek
+    if (input.vloga) updateData.vloga = input.vloga
+    if (input.aktiven !== undefined) updateData.aktiven = input.aktiven
+
+    const { data: zaposleni, error } = await supabase
+      .from('Zaposleni')
+      .update(updateData)
+      .eq('id', input.id)
+      .select()
+      .single()
+
+    if (error) throw error
 
     revalidatePath('/admin/zaposleni');
 
@@ -110,10 +124,14 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
 export async function deleteZaposleni(id: string) {
   try {
     await checkSuperAdminPermission();
+    const supabase = await createClient()
 
-    await prisma.zaposleni.delete({
-      where: { id },
-    });
+    const { error } = await supabase
+      .from('Zaposleni')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
 
     revalidatePath('/admin/zaposleni');
 
@@ -130,27 +148,33 @@ export async function deleteZaposleni(id: string) {
 
 export async function getZaposleniList() {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!session?.user?.email) {
+    if (!user?.email) {
       throw new Error('Unauthorized');
     }
 
-    const admin = await prisma.zaposleni.findUnique({
-      where: { email: session.user.email },
-    });
+    const { data: admin } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('email', user.email)
+      .single()
 
     if (!admin) {
       throw new Error('Not an admin');
     }
 
-    const zaposlenci = await prisma.zaposleni.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const { data: zaposlenci, error } = await supabase
+      .from('Zaposleni')
+      .select('*')
+      .order('id', { ascending: false })
+
+    if (error) throw error
 
     return {
       success: true,
-      data: zaposlenci,
+      data: zaposlenci || [],
     };
   } catch (error) {
     return {
@@ -162,25 +186,30 @@ export async function getZaposleniList() {
 
 export async function getZaposleniById(id: string) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!session?.user?.email) {
+    if (!user?.email) {
       throw new Error('Unauthorized');
     }
 
-    const admin = await prisma.zaposleni.findUnique({
-      where: { email: session.user.email },
-    });
+    const { data: admin } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('email', user.email)
+      .single()
 
     if (!admin) {
       throw new Error('Not an admin');
     }
 
-    const zaposleni = await prisma.zaposleni.findUnique({
-      where: { id },
-    });
+    const { data: zaposleni, error } = await supabase
+      .from('Zaposleni')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-    if (!zaposleni) {
+    if (error || !zaposleni) {
       throw new Error('Employee not found');
     }
 
@@ -195,3 +224,4 @@ export async function getZaposleniById(id: string) {
     };
   }
 }
+

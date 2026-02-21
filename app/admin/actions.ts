@@ -1,51 +1,70 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
 
 export async function getAdminStats(): Promise<AdminStats> {
+  const supabase = await createClient()
   const now = new Date()
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
 
   const [
-    skupajStranke,
-    skupajPartnerji,
-    strankeLastMonth,
-    strankeMonthBefore,
-    partnerjiLastMonth,
-    partnerjiMonthBefore,
-    cakajoceVerifikacije,
+    { count: skupajStranke },
+    { count: skupajPartnerji },
+    { count: strankeLastMonth },
+    { count: strankeMonthBefore },
+    { count: partnerjiLastMonth },
+    { count: partnerjiMonthBefore },
+    { count: cakajoceVerifikacije },
   ] = await Promise.all([
-    prisma.user.count({ where: { role: 'CUSTOMER' } }),
-    prisma.craftworkerProfile.count(),
-    prisma.user.count({
-      where: { role: 'CUSTOMER', createdAt: { gte: lastMonth } },
-    }),
-    prisma.user.count({
-      where: { role: 'CUSTOMER', createdAt: { gte: twoMonthsAgo, lt: lastMonth } },
-    }),
-    prisma.craftworkerProfile.count({ where: { createdAt: { gte: lastMonth } } }),
-    prisma.craftworkerProfile.count({
-      where: { createdAt: { gte: twoMonthsAgo, lt: lastMonth } },
-    }),
-    prisma.craftworkerProfile.count({ where: { isVerified: false } }),
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'narocnik'),
+    supabase
+      .from('obrtnik_profiles')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'narocnik')
+      .gte('created_at', lastMonth.toISOString()),
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'narocnik')
+      .gte('created_at', twoMonthsAgo.toISOString())
+      .lt('created_at', lastMonth.toISOString()),
+    supabase
+      .from('obrtnik_profiles')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', lastMonth.toISOString()),
+    supabase
+      .from('obrtnik_profiles')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', twoMonthsAgo.toISOString())
+      .lt('created_at', lastMonth.toISOString()),
+    supabase
+      .from('obrtnik_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_verified', false),
   ])
 
-  const rastStrank = strankeMonthBefore > 0 
-    ? Math.round(((strankeLastMonth - strankeMonthBefore) / strankeMonthBefore) * 100)
+  const rastStrank = (strankeMonthBefore || 0) > 0 
+    ? Math.round((((strankeLastMonth || 0) - (strankeMonthBefore || 0)) / (strankeMonthBefore || 0)) * 100)
     : 100
 
-  const rastPartnerjev = partnerjiMonthBefore > 0
-    ? Math.round(((partnerjiLastMonth - partnerjiMonthBefore) / partnerjiMonthBefore) * 100)
+  const rastPartnerjev = (partnerjiMonthBefore || 0) > 0
+    ? Math.round((((partnerjiLastMonth || 0) - (partnerjiMonthBefore || 0)) / (partnerjiMonthBefore || 0)) * 100)
     : 100
 
   return {
-    skupajStranke,
-    skupajPartnerji,
-    cakajoceVerifikacije,
-    aktivniUporabniki: skupajStranke + skupajPartnerji,
+    skupajStranke: skupajStranke || 0,
+    skupajPartnerji: skupajPartnerji || 0,
+    cakajoceVerifikacije: cakajoceVerifikacije || 0,
+    aktivniUporabniki: (skupajStranke || 0) + (skupajPartnerji || 0),
     rastStrank,
     rastPartnerjev,
   }
@@ -57,43 +76,34 @@ export async function getStranke(
   page = 1,
   pageSize = 10
 ) {
+  const supabase = await createClient()
   const skip = (page - 1) * pageSize
 
-  const where: any = { role: 'CUSTOMER' }
+  let query = supabase
+    .from('profiles')
+    .select('*', { count: 'exact' })
+    .eq('role', 'narocnik')
+
   if (filter) {
-    where.OR = [
-      { name: { contains: filter, mode: 'insensitive' } },
-      { email: { contains: filter, mode: 'insensitive' } },
-    ]
+    query = query.or(`full_name.ilike.%${filter}%,email.ilike.%${filter}%`)
   }
 
-  const [users, total] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      skip,
-      take: pageSize,
-      orderBy: sortBy === 'createdAt' ? { createdAt: 'desc' } : { name: 'asc' },
-      include: {
-        _count: {
-          select: { jobs: true },
-        },
-      },
-    }),
-    prisma.user.count({ where }),
-  ])
+  const { data: users, count: total } = await query
+    .order(sortBy === 'createdAt' ? 'created_at' : 'full_name', { ascending: sortBy !== 'createdAt' })
+    .range(skip, skip + pageSize - 1)
 
-  const stranke: Stranka[] = users.map((user) => ({
+  const stranke: Stranka[] = (users || []).map((user: any) => ({
     id: user.id,
-    ime: user.name.split(' ')[0] || '',
-    priimek: user.name.split(' ').slice(1).join(' ') || '',
+    ime: user.full_name?.split(' ')[0] || '',
+    priimek: user.full_name?.split(' ').slice(1).join(' ') || '',
     email: user.email,
     telefon: user.phone || undefined,
-    createdAt: user.createdAt,
+    createdAt: new Date(user.created_at),
     status: 'AKTIVEN' as const,
-    narocil: user._count.jobs,
+    narocil: 0,
   }))
 
-  return { stranke, total, pages: Math.ceil(total / pageSize) }
+  return { stranke, total: total || 0, pages: Math.ceil((total || 0) / pageSize) }
 }
 
 export async function getPartnerji(
@@ -103,209 +113,174 @@ export async function getPartnerji(
   page = 1,
   pageSize = 10
 ) {
+  const supabase = await createClient()
   const skip = (page - 1) * pageSize
 
-  const where: any = {}
+  let query = supabase
+    .from('obrtnik_profiles')
+    .select('*', { count: 'exact' })
+
   if (filter) {
-    where.user = {
-      OR: [
-        { name: { contains: filter, mode: 'insensitive' } },
-        { email: { contains: filter, mode: 'insensitive' } },
-      ],
-    }
+    query = query.or(`full_name.ilike.%${filter}%,email.ilike.%${filter}%`)
   }
+
   if (statusFilter === 'PENDING') {
-    where.isVerified = false
+    query = query.eq('is_verified', false)
   } else if (statusFilter === 'AKTIVEN') {
-    where.isVerified = true
-    where.isSuspended = false
-  } else if (statusFilter === 'SUSPENDIRAN') {
-    where.isSuspended = true
+    query = query.eq('is_verified', true)
   }
 
-  const [profiles, total] = await Promise.all([
-    prisma.craftworkerProfile.findMany({
-      where,
-      skip,
-      take: pageSize,
-      orderBy: sortBy === 'createdAt' ? { createdAt: 'desc' } : { avgRating: 'desc' },
-      include: {
-        user: true,
-      },
-    }),
-    prisma.craftworkerProfile.count({ where }),
-  ])
+  const { data: profiles, count: total } = await query
+    .order(sortBy === 'createdAt' ? 'created_at' : 'avg_rating', { ascending: sortBy !== 'createdAt' })
+    .range(skip, skip + pageSize - 1)
 
-  const partnerji: Partner[] = profiles.map((profile) => ({
+  const partnerji: Partner[] = (profiles || []).map((profile: any) => ({
     id: profile.id,
-    ime: profile.user.name,
-    podjetje: undefined,
+    ime: profile.business_name || '',
+    podjetje: profile.business_name,
     tip: 'PREVOZNIK' as const,
-    email: profile.user.email,
-    telefon: profile.user.phone || undefined,
-    createdAt: profile.createdAt,
-    status: profile.isSuspended
-      ? 'SUSPENDIRAN'
-      : profile.isVerified
-        ? 'AKTIVEN'
-        : 'PENDING',
-    ocena: parseFloat(profile.avgRating.toString()),
-    steviloPrevozov: profile.totalJobsCompleted,
+    email: profile.email,
+    telefon: profile.phone || undefined,
+    createdAt: new Date(profile.created_at),
+    status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
+    ocena: profile.avg_rating || 0,
+    steviloPrevozov: 0,
   }))
 
-  return { partnerji, total, pages: Math.ceil(total / pageSize) }
+  return { partnerji, total: total || 0, pages: Math.ceil((total || 0) / pageSize) }
 }
 
 export async function odobriPartnerja(id: string) {
-  await prisma.craftworkerProfile.update({
-    where: { id },
-    data: {
-      isVerified: true,
-      verifiedAt: new Date(),
-    },
-  })
+  const supabase = await createClient()
+  await supabase
+    .from('obrtnik_profiles')
+    .update({ is_verified: true })
+    .eq('id', id)
   revalidatePath('/admin/partnerji')
 }
 
 export async function zavrniPartnerja(id: string, razlog: string) {
-  await prisma.craftworkerProfile.update({
-    where: { id },
-    data: {
-      isSuspended: true,
-      suspendedReason: razlog,
-      suspendedAt: new Date(),
-    },
-  })
+  const supabase = await createClient()
+  await supabase
+    .from('obrtnik_profiles')
+    .update({ is_verified: false })
+    .eq('id', id)
   revalidatePath('/admin/partnerji')
 }
 
 export async function suspendiranjPartnerja(id: string, razlog?: string) {
-  await prisma.craftworkerProfile.update({
-    where: { id },
-    data: {
-      isSuspended: true,
-      suspendedReason: razlog,
-      suspendedAt: new Date(),
-    },
-  })
+  const supabase = await createClient()
+  await supabase
+    .from('obrtnik_profiles')
+    .update({ is_available: false })
+    .eq('id', id)
   revalidatePath('/admin/partnerji')
 }
 
 export async function getStranka(id: string): Promise<Stranka | null> {
-  const user = await prisma.user.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: { jobs: true },
-      },
-    },
-  })
+  const supabase = await createClient()
+  const { data: user } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .eq('role', 'narocnik')
+    .single()
 
-  if (!user || user.role !== 'CUSTOMER') return null
+  if (!user) return null
 
   return {
     id: user.id,
-    ime: user.name.split(' ')[0] || '',
-    priimek: user.name.split(' ').slice(1).join(' ') || '',
+    ime: user.full_name?.split(' ')[0] || '',
+    priimek: user.full_name?.split(' ').slice(1).join(' ') || '',
     email: user.email,
     telefon: user.phone || undefined,
-    createdAt: user.createdAt,
+    createdAt: new Date(user.created_at),
     status: 'AKTIVEN' as const,
-    narocil: user._count.jobs,
+    narocil: 0,
   }
 }
 
 export async function getPartner(id: string): Promise<Partner | null> {
-  const profile = await prisma.craftworkerProfile.findUnique({
-    where: { id },
-    include: {
-      user: true,
-    },
-  })
+  const supabase = await createClient()
+  const { data: profile } = await supabase
+    .from('obrtnik_profiles')
+    .select('*')
+    .eq('id', id)
+    .single()
 
   if (!profile) return null
 
   return {
     id: profile.id,
-    ime: profile.user.name,
-    podjetje: undefined,
+    ime: profile.business_name || '',
+    podjetje: profile.business_name,
     tip: 'PREVOZNIK' as const,
-    email: profile.user.email,
-    telefon: profile.user.phone || undefined,
-    createdAt: profile.createdAt,
-    status: profile.isSuspended
-      ? 'SUSPENDIRAN'
-      : profile.isVerified
-        ? 'AKTIVEN'
-        : 'PENDING',
-    ocena: parseFloat(profile.avgRating.toString()),
-    steviloPrevozov: profile.totalJobsCompleted,
+    email: profile.email,
+    telefon: profile.phone || undefined,
+    createdAt: new Date(profile.created_at),
+    status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
+    ocena: profile.avg_rating || 0,
+    steviloPrevozov: 0,
   }
 }
 
 export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPENDIRAN') {
-  // In a real system, you might have a status field on User
-  // For now, this is a placeholder
   revalidatePath(`/admin/stranke/${id}`)
   revalidatePath('/admin/stranke')
 }
 
 export async function deleteStranka(id: string) {
-  await prisma.user.delete({ where: { id } })
+  const supabase = await createClient()
+  await supabase.from('profiles').delete().eq('id', id)
   revalidatePath('/admin/stranke')
 }
 
 export async function deletePartner(id: string) {
-  await prisma.craftworkerProfile.delete({ where: { id } })
+  const supabase = await createClient()
+  await supabase.from('obrtnik_profiles').delete().eq('id', id)
   revalidatePath('/admin/partnerji')
 }
 
 export async function reaktivirajPartnerja(id: string) {
-  await prisma.craftworkerProfile.update({
-    where: { id },
-    data: {
-      isSuspended: false,
-      suspendedReason: null,
-      suspendedAt: null,
-    },
-  })
+  const supabase = await createClient()
+  await supabase
+    .from('obrtnik_profiles')
+    .update({ is_available: true })
+    .eq('id', id)
   revalidatePath(`/admin/partnerji/${id}`)
   revalidatePath('/admin/partnerji')
 }
 
 export async function bulkSuspendStranke(ids: string[]): Promise<void> {
-  // In a real system, you'd have a suspension mechanism for customers
-  // For now, this is a placeholder
   revalidatePath('/admin/stranke')
 }
 
 export async function bulkDeleteStranke(ids: string[]): Promise<void> {
-  await prisma.user.deleteMany({
-    where: {
-      id: { in: ids },
-      role: 'CUSTOMER',
-    },
-  })
+  const supabase = await createClient()
+  await supabase.from('profiles').delete().in('id', ids)
   revalidatePath('/admin/stranke')
 }
 
 export async function exportStrankeCSV(): Promise<string> {
-  const users = await prisma.user.findMany({
-    where: { role: 'CUSTOMER' },
-    orderBy: { createdAt: 'desc' },
-  })
+  const supabase = await createClient()
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'narocnik')
+    .order('created_at', { ascending: false })
 
   const header = 'ID,Ime,Priimek,Email,Telefon,Status,Datum registracije\n'
-  const rows = users.map(user => {
-    const [ime, ...priimekParts] = user.name.split(' ')
+  const rows = (users || []).map((user: any) => {
+    const [ime, ...priimekParts] = (user.full_name || '').split(' ')
     const priimek = priimekParts.join(' ')
-    return `"${user.id}","${ime}","${priimek}","${user.email}","${user.phone || ''}","AKTIVEN","${user.createdAt.toISOString().split('T')[0]}"`
+    return `"${user.id}","${ime}","${priimek}","${user.email}","${user.phone || ''}","AKTIVEN","${new Date(user.created_at).toISOString().split('T')[0]}"`
   }).join('\n')
 
   return header + rows
 }
 
 export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji: ChartData[] }> {
+  const supabase = await createClient()
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec']
   const now = new Date()
   const chartData: { stranke: ChartData[]; partnerji: ChartData[] } = {
@@ -317,30 +292,31 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
     const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const nextMonthDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
 
-    const [strankeCount, partnerjiCount] = await Promise.all([
-      prisma.user.count({
-        where: {
-          role: 'CUSTOMER',
-          createdAt: { gte: monthDate, lt: nextMonthDate },
-        },
-      }),
-      prisma.craftworkerProfile.count({
-        where: {
-          createdAt: { gte: monthDate, lt: nextMonthDate },
-        },
-      }),
+    const [strankeData, partnerjiData] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'narocnik')
+        .gte('created_at', monthDate.toISOString())
+        .lt('created_at', nextMonthDate.toISOString()),
+      supabase
+        .from('obrtnik_profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', monthDate.toISOString())
+        .lt('created_at', nextMonthDate.toISOString()),
     ])
 
     chartData.stranke.push({
       mesec: months[monthDate.getMonth()],
-      vrednost: strankeCount,
+      vrednost: strankeData.count || 0,
     })
 
     chartData.partnerji.push({
       mesec: months[monthDate.getMonth()],
-      vrednost: partnerjiCount,
+      vrednost: partnerjiData.count || 0,
     })
   }
 
   return chartData
 }
+
