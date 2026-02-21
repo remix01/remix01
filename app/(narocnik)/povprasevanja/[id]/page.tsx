@@ -5,6 +5,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { getPovprasevanje } from '@/lib/dal/povprasevanja'
 import { getPonudbeForPovprasevanje } from '@/lib/dal/ponudbe'
 import PonudbeList from '@/components/narocnik/ponudbe-list'
+import { AgentMatchResults } from '@/components/liftgo/AgentMatchResults'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -120,7 +121,14 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
           )}
         </Card>
 
-        {/* Section 2: Ponudbe */}
+        {/* Section 2: Agent Matches (only if status is odprto) */}
+        {povprasevanje.status === 'odprto' && (
+          <div className="mb-8">
+            <AgentMatchResults povprasevanjeId={id} />
+          </div>
+        )}
+
+        {/* Section 3: Ponudbe */}
         <div className="mb-8">
           <h2 className="mb-4 text-2xl font-bold text-gray-900">
             Prejete ponudbe ({ponudbe.length})
