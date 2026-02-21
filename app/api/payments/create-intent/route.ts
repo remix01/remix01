@@ -1,133 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { stripe } from '@/lib/stripe'
-import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
-
-const createIntentSchema = z.object({
-  jobId: z.string(),
-  amount: z.number().min(1)
-})
+import { createPaymentIntent } from '@/lib/mcp/payments'
 
 export async function POST(request: NextRequest) {
   try {
+    const { ponudbaId } = await request.json()
+
+    if (!ponudbaId) {
+      return NextResponse.json(
+        { error: 'ponudbaId is required' },
+        { status: 400 }
+      )
+    }
+
+    // 1. Auth check - must be narocnik
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized - not logged in' },
+        { status: 401 }
+      )
     }
 
-    const body = await request.json()
-    const { jobId, amount } = createIntentSchema.parse(body)
+    // Verify user is narocnik
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-    // Fetch job with all relations in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      const job = await tx.job.findUnique({
-        where: { id: jobId },
-        include: {
-          customer: true,
-          craftworker: {
-            include: {
-              craftworkerProfile: true
-            }
-          },
-          payment: true
-        }
-      })
+    if (!profile || profile.role !== 'narocnik') {
+      return NextResponse.json(
+        { error: 'Unauthorized - not a narocnik' },
+        { status: 403 }
+      )
+    }
 
-      if (!job) {
-        throw new Error('Job not found')
-      }
+    // 2. Fetch ponudba with povprasevanje
+    const { data: ponudba, error: ponudbaError } = await supabase
+      .from('ponudbe')
+      .select(`
+        *,
+        povprasevanja(*)
+      `)
+      .eq('id', ponudbaId)
+      .single()
 
-      // Validation: user must be customer of this job
-      if (job.customerId !== user.id) {
-        throw new Error('Not authorized for this job')
-      }
+    if (ponudbaError || !ponudba) {
+      return NextResponse.json(
+        { error: 'Ponudba not found' },
+        { status: 404 }
+      )
+    }
 
-      // Validation: job status must be MATCHED
-      if (job.status !== 'MATCHED') {
-        throw new Error('Job must be in MATCHED status to create payment')
-      }
+    // 3. Verify ponudba.status = 'sprejeta'
+    if (ponudba.status !== 'sprejeta') {
+      return NextResponse.json(
+        { error: 'Ponudba must be accepted first' },
+        { status: 400 }
+      )
+    }
 
-      // Validation: craftworker must have completed Stripe onboarding
-      if (!job.craftworker?.craftworkerProfile?.stripeAccountId) {
-        throw new Error('Craftworker has not completed Stripe onboarding')
-      }
+    // 4. Verify ownership - narocnik must own the povprasevanje
+    const povprasevanje = ponudba.povprasevanja
+    if (povprasevanje.narocnik_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized - not the povprasevanje owner' },
+        { status: 403 }
+      )
+    }
 
-      if (!job.craftworker.craftworkerProfile.stripeOnboardingComplete) {
-        throw new Error('Craftworker Stripe onboarding incomplete')
-      }
-
-      // Check if payment already exists
-      if (job.payment) {
-        throw new Error('Payment already exists for this job')
-      }
-
-      // Calculate effective commission using loyalty calculator
-      const { getEffectiveCommission } = await import('@/lib/loyalty/commissionCalculator')
-      const commissionResult = getEffectiveCommission(job.craftworker.craftworkerProfile)
-      const effectiveCommissionRate = commissionResult.rate
-      
-      const platformFee = amount * (effectiveCommissionRate / 100)
-      const craftworkerPayout = amount - platformFee
-
-      // Create Stripe PaymentIntent with application fee
-      const idempotencyKey = `job_${jobId}_${Date.now()}`
-      
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: 'eur',
-        application_fee_amount: Math.round(platformFee * 100),
-        transfer_data: {
-          destination: job.craftworker.craftworkerProfile.stripeAccountId
-        },
-        transfer_group: `job_${jobId}`,
-        metadata: {
-          jobId,
-          customerId: job.customerId,
-          craftworkerId: job.craftworkerId!,
-          platformFee: platformFee.toString(),
-          craftworkerPayout: craftworkerPayout.toString()
-        }
-      }, {
-        idempotencyKey
-      })
-
-      // Create Payment record
-      const payment = await tx.payment.create({
-        data: {
-          jobId,
-          amount,
-          platformFee,
-          craftworkerPayout,
-          status: 'UNPAID',
-          stripePaymentIntentId: paymentIntent.id
-        }
-      })
-
-      return {
-        clientSecret: paymentIntent.client_secret,
-        payment
-      }
+    // 5. Create payment intent
+    const amount = Math.round((ponudba.price_estimate || 0) * 100) // Convert to cents
+    const result = await createPaymentIntent({
+      amount,
+      povprasevanjeId: ponudba.povprasevanja_id,
+      ponudbaId,
+      narocnikEmail: user.email || '',
     })
+
+    if (result.error) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       clientSecret: result.clientSecret,
-      paymentId: result.payment.id
+      amount,
+      currency: 'eur',
     })
-
   } catch (error) {
-    console.error('[create-intent] Error:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 })
-    }
-
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
-
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[api/payments/create-intent] error:', errorMessage)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
+
