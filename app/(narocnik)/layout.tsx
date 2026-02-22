@@ -4,6 +4,7 @@ import { NarocnikSidebar } from '@/components/narocnik/sidebar'
 import { NarocnikBottomNav } from '@/components/narocnik/bottom-nav'
 import { NotificationBell } from '@/components/liftgo/NotificationBell'
 import { InstallPWA } from '@/components/liftgo/InstallPWA'
+import { PushPermission } from '@/components/liftgo/PushPermission'
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
@@ -61,6 +62,9 @@ export default async function NarocnikLayout({
 
       {/* PWA Install Banner */}
       <InstallPWA />
+
+      {/* Push Permission Banner */}
+      <PushPermission userId={session.user.id} />
     </div>
   )
 }

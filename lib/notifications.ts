@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { sendPushToUser } from '@/lib/push-notifications'
 
 export type NotificationType = 
   | 'nova_ponudba'        // narocnik: obrtnik sent offer
@@ -50,6 +51,28 @@ export async function sendNotification(params: {
     if (error) {
       console.error('[v0] Error sending notification:', error)
       return { success: false, error: error.message }
+    }
+
+    // Also send push notification for critical notification types
+    const pushNotificationTypes: NotificationType[] = [
+      'nova_ponudba',
+      'ponudba_sprejeta',
+      'nova_ocena',
+      'termin_opomnik'
+    ]
+
+    if (pushNotificationTypes.includes(params.type)) {
+      try {
+        await sendPushToUser({
+          userId: params.userId,
+          title: params.title,
+          message: params.message,
+          link: params.link
+        })
+      } catch (pushError) {
+        // Don't fail the main notification if push fails
+        console.error('[v0] Error sending push notification:', pushError)
+      }
     }
 
     return { success: true }
