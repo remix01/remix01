@@ -48,15 +48,6 @@ export default function NovoPoVprasevanjePage() {
   const [budgetMin, setBudgetMin] = useState<number | ''>('')
   const [budgetMax, setBudgetMax] = useState<number | ''>('')
   const [pricingEstimate, setPricingEstimate] = useState<any>(null)
-  const [description, setDescription] = useState('')
-  const [urgency, setUrgency] = useState<UrgencyLevel>('normalno')
-  const [locationCity, setLocationCity] = useState('')
-  const [locationNotes, setLocationNotes] = useState('')
-  const [preferredDateFrom, setPreferredDateFrom] = useState('')
-  const [preferredDateTo, setPreferredDateTo] = useState('')
-  const [budgetUndetermined, setBudgetUndetermined] = useState(true)
-  const [budgetMin, setBudgetMin] = useState<number | ''>('')
-  const [budgetMax, setBudgetMax] = useState<number | ''>('')
 
   // Fetch user and categories on mount
   useEffect(() => {
