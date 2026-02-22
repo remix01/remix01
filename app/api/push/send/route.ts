@@ -2,14 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import webpush from 'web-push'
 
-// Configure VAPID details
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+// Lazy VAPID configuration function
+function ensureVapidConfigured() {
+  if (process.env.VAPID_SUBJECT && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT,
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    )
+  } else {
+    throw new Error('VAPID environment variables not configured')
+  }
+}
 
 export async function POST(request: NextRequest) {
+  // Configure VAPID on first request (not at module load time)
+  ensureVapidConfigured()
+
   try {
     // Parse request body
     const { userId, title, message, link, icon } = await request.json()
