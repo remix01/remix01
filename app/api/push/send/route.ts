@@ -1,58 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { sendPushToUser, sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import webpush from 'web-push'
+
+// Configure VAPID details
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT!,
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+)
 
 export async function POST(request: NextRequest) {
   try {
+    // Parse request body
+    const { userId, title, message, link, icon } = await request.json()
+
+    if (!userId || !title || !message) {
+      return NextResponse.json({ error: 'userId, title, and message required' }, { status: 400 })
+    }
+
     const supabase = await createClient()
 
-    // Check authentication
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Fetch push subscriptions for the user
+    const { data: subscriptions, error } = await supabase
+      .from('push_subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+
+    if (error || !subscriptions || subscriptions.length === 0) {
+      return NextResponse.json({ sent: 0, failed: 0 })
     }
 
-    // Check if user is admin
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id, aktiven')
-      .eq('auth_user_id', user.id)
-      .single()
+    // Prepare push notification payload
+    const payload = JSON.stringify({
+      title,
+      body: message,
+      icon: icon || '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
+      data: { 
+        link: link || '/',
+        timestamp: Date.now()
+      },
+      actions: [
+        { action: 'open', title: 'Odpri' },
+        { action: 'close', title: 'Zapri' }
+      ]
+    })
 
-    if (!adminUser || !adminUser.aktiven) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    let sent = 0
+    let failed = 0
+
+    // Send push to each subscription
+    for (const subscription of subscriptions) {
+      try {
+        const pushSubscription = {
+          endpoint: subscription.endpoint,
+          keys: {
+            p256dh: subscription.p256dh!,
+            auth: subscription.auth!
+          }
+        }
+
+        await webpush.sendNotification(pushSubscription, payload)
+        sent++
+      } catch (error: any) {
+        console.error('[v0] Error sending push to subscription:', error)
+        
+        // If subscription expired (410 Gone), delete it from database
+        if (error.statusCode === 410) {
+          await supabase
+            .from('push_subscriptions')
+            .delete()
+            .eq('endpoint', subscription.endpoint)
+        }
+        
+        failed++
+      }
     }
 
-    // Parse request body
-    const { userId, categoryId, title, message, link } = await request.json()
-
-    if (!title || !message) {
-      return NextResponse.json({ error: 'Title and message required' }, { status: 400 })
-    }
-
-    let result
-
-    if (userId) {
-      // Send to specific user
-      result = await sendPushToUser({
-        userId,
-        title,
-        message,
-        link
-      })
-      return NextResponse.json({ sent: result.sent, failed: result.failed })
-    } else if (categoryId) {
-      // Send to obrtniki in category
-      result = await sendPushToObrtnikiByCategory({
-        categoryId,
-        title,
-        message,
-        link: link || '/obrtnik/povprasevanja'
-      })
-      return NextResponse.json({ sent: result.sent })
-    } else {
-      return NextResponse.json({ error: 'Either userId or categoryId required' }, { status: 400 })
-    }
+    return NextResponse.json({ sent, failed })
   } catch (error) {
     console.error('[v0] Error in push send:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -1,12 +1,7 @@
-import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 
-// Configure VAPID details for web push
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+// Note: web-push import is kept in API routes only to avoid bundling Node.js modules
+// This file only handles database operations
 
 interface PushSubscriptionKeys {
   p256dh: string
@@ -64,72 +59,33 @@ interface SendPushToUserParams {
 
 /**
  * Send push notification to a specific user
+ * This function makes an internal API call to avoid importing web-push in client bundles
  */
 export async function sendPushToUser(params: SendPushToUserParams): Promise<{ sent: number; failed: number }> {
-  let sent = 0
-  let failed = 0
-
   try {
-    const supabase = await createClient()
+    // Make internal API call to push/send endpoint
+    const response = await fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: params.userId,
+        title: params.title,
+        message: params.message,
+        link: params.link,
+        icon: params.icon
+      })
+    })
 
-    // Fetch all push subscriptions for the user
-    const { data: subscriptions, error } = await supabase
-      .from('push_subscriptions')
-      .select('*')
-      .eq('user_id', params.userId)
-
-    if (error || !subscriptions || subscriptions.length === 0) {
+    if (!response.ok) {
+      console.error('[v0] Push API call failed:', response.statusText)
       return { sent: 0, failed: 0 }
     }
 
-    // Prepare push notification payload
-    const payload = JSON.stringify({
-      title: params.title,
-      body: params.message,
-      icon: params.icon || '/icons/icon-192x192.png',
-      badge: '/icons/icon-72x72.png',
-      data: { 
-        link: params.link || '/',
-        timestamp: Date.now()
-      },
-      actions: [
-        { action: 'open', title: 'Odpri' },
-        { action: 'close', title: 'Zapri' }
-      ]
-    })
-
-    // Send push to each subscription
-    for (const subscription of subscriptions) {
-      try {
-        const pushSubscription = {
-          endpoint: subscription.endpoint,
-          keys: {
-            p256dh: subscription.p256dh!,
-            auth: subscription.auth!
-          }
-        }
-
-        await webpush.sendNotification(pushSubscription, payload)
-        sent++
-      } catch (error: any) {
-        console.error('[v0] Error sending push to subscription:', error)
-        
-        // If subscription expired (410 Gone), delete it from database
-        if (error.statusCode === 410) {
-          await supabase
-            .from('push_subscriptions')
-            .delete()
-            .eq('endpoint', subscription.endpoint)
-        }
-        
-        failed++
-      }
-    }
-
-    return { sent, failed }
+    const result = await response.json()
+    return { sent: result.sent || 0, failed: result.failed || 0 }
   } catch (error) {
-    console.error('[v0] Error in sendPushToUser:', error)
-    return { sent, failed }
+    console.error('[v0] Error calling push API:', error)
+    return { sent: 0, failed: 0 }
   }
 }
 
@@ -142,6 +98,7 @@ interface SendPushToObrtnikiParams {
 
 /**
  * Send push notification to all obrtniki in a category
+ * This function fetches obrtniki IDs then calls the internal API
  */
 export async function sendPushToObrtnikiByCategory(params: SendPushToObrtnikiParams): Promise<{ sent: number }> {
   try {
@@ -157,63 +114,19 @@ export async function sendPushToObrtnikiByCategory(params: SendPushToObrtnikiPar
       return { sent: 0 }
     }
 
-    const obrtnikiIds = obrtnikiCategories.map(oc => oc.obrtnik_id)
-
-    // Fetch push subscriptions for these obrtniki
-    const { data: subscriptions, error: subscriptionsError } = await supabase
-      .from('push_subscriptions')
-      .select('*')
-      .in('user_id', obrtnikiIds)
-
-    if (subscriptionsError || !subscriptions || subscriptions.length === 0) {
-      return { sent: 0 }
+    // Send push to each obrtnik via API
+    let totalSent = 0
+    for (const oc of obrtnikiCategories) {
+      const result = await sendPushToUser({
+        userId: oc.obrtnik_id,
+        title: params.title,
+        message: params.message,
+        link: params.link
+      })
+      totalSent += result.sent
     }
 
-    // Prepare push notification payload
-    const payload = JSON.stringify({
-      title: params.title,
-      body: params.message,
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-72x72.png',
-      data: { 
-        link: params.link,
-        timestamp: Date.now()
-      },
-      actions: [
-        { action: 'open', title: 'Poglej' },
-        { action: 'close', title: 'Zapri' }
-      ]
-    })
-
-    let sent = 0
-
-    // Send push to each subscription
-    for (const subscription of subscriptions) {
-      try {
-        const pushSubscription = {
-          endpoint: subscription.endpoint,
-          keys: {
-            p256dh: subscription.p256dh!,
-            auth: subscription.auth!
-          }
-        }
-
-        await webpush.sendNotification(pushSubscription, payload)
-        sent++
-      } catch (error: any) {
-        console.error('[v0] Error sending push to obrtnik:', error)
-        
-        // If subscription expired (410 Gone), delete it from database
-        if (error.statusCode === 410) {
-          await supabase
-            .from('push_subscriptions')
-            .delete()
-            .eq('endpoint', subscription.endpoint)
-        }
-      }
-    }
-
-    return { sent }
+    return { sent: totalSent }
   } catch (error) {
     console.error('[v0] Error in sendPushToObrtnikiByCategory:', error)
     return { sent: 0 }
