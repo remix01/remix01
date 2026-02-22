@@ -1,7 +1,10 @@
+'use server'
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { NarocnikSidebar } from '@/components/narocnik/sidebar'
 import { NarocnikBottomNav } from '@/components/narocnik/bottom-nav'
+import { NotificationBell } from '@/components/liftgo/NotificationBell'
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
@@ -42,6 +45,11 @@ export default async function NarocnikLayout({
 
       {/* Main Content */}
       <div className="flex flex-col flex-1 md:ml-64 md:pb-0 pb-20">
+        {/* Top Bar with Notification Bell */}
+        <div className="flex items-center justify-end p-4 md:p-6 border-b md:border-b-0">
+          <NotificationBell userId={session.user.id} />
+        </div>
+
         <main className="flex-1 p-4 md:p-6">
           {children}
         </main>

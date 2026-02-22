@@ -1,5 +1,6 @@
 // Data Access Layer - Ponudbe & Ocene
 import { createClient } from '@/lib/supabase/server'
+import { sendNotification } from '@/lib/notifications'
 import type { 
   Ponudba, 
   PonudbaInsert, 
@@ -120,7 +121,24 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
     return null
   }
 
-  return data as unknown as Ponudba
+  const result = data as unknown as Ponudba
+
+  // Send notification to naročnik about new ponudba
+  if (result.povprasevanje?.narocnik_id && result.obrtnik?.profile?.full_name) {
+    await sendNotification({
+      userId: result.povprasevanje.narocnik_id,
+      type: 'nova_ponudba',
+      title: 'Nova ponudba prejeta',
+      message: `${result.obrtnik.profile.full_name} je poslal ponudbo za vaše povpraševanje.`,
+      link: `/narocnik/povprasevanja/${result.povprasevanje.id}`,
+      metadata: { ponudbaId: result.id, obrtknikId: result.obrtnik_id }
+    }).catch(err => {
+      console.error('[v0] Error sending notification:', err)
+      // Don't fail the whole operation if notification fails
+    })
+  }
+
+  return result
 }
 
 /**
@@ -156,6 +174,24 @@ export async function updatePonudba(id: string, updates: PonudbaUpdate): Promise
  */
 export async function acceptPonudba(id: string): Promise<boolean> {
   const result = await updatePonudba(id, { status: 'sprejeta' })
+  
+  // Send notification to obrtnik that their ponudba was accepted
+  if (result) {
+    const ponudba = await getPonudba(id)
+    if (ponudba?.obrtnik_id && ponudba?.povprasevanje?.title) {
+      await sendNotification({
+        userId: ponudba.obrtnik_id,
+        type: 'ponudba_sprejeta',
+        title: 'Ponudba sprejeta! 🎉',
+        message: `Vaša ponudba je bila sprejeta. Dogovorite se za termin z naročnikom.`,
+        link: '/obrtnik/ponudbe',
+        metadata: { ponudbaId: id, povprasevanjeId: ponudba.povprasevanje.id }
+      }).catch(err => {
+        console.error('[v0] Error sending notification:', err)
+      })
+    }
+  }
+  
   return result !== null
 }
 
@@ -284,7 +320,23 @@ export async function createOcena(ocena: OcenaInsert): Promise<Ocena | null> {
     return null
   }
 
-  return data as unknown as Ocena
+  const result = data as unknown as Ocena
+
+  // Send notification to obrtnik about new review
+  if (result.obrtnik_id && ocena.rating) {
+    await sendNotification({
+      userId: result.obrtnik_id,
+      type: 'nova_ocena',
+      title: 'Prejeli ste novo oceno',
+      message: `Naročnik vas je ocenil z ${ocena.rating}/5 zvezdicami.`,
+      link: '/obrtnik/ocene',
+      metadata: { ocenaId: result.id, ponudbaId: result.ponudba_id, rating: ocena.rating }
+    }).catch(err => {
+      console.error('[v0] Error sending notification:', err)
+    })
+  }
+
+  return result
 }
 
 /**
