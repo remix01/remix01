@@ -3,9 +3,7 @@ import { stripe } from '@/lib/mcp/payments'
 import { transferToObrtnik } from '@/lib/mcp/payments'
 import { createClient } from '@/lib/supabase/server'
 
-export const config = {
-  api: { bodyParser: false },
-}
+export const maxDuration = 30
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
