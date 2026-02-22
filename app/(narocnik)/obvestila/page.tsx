@@ -53,28 +53,19 @@ export default async function NotificationsPage() {
     return `${diffDays} dni`
   }
 
+  // Mark all as read on page load
+  if (notifications.some((n) => !n.is_read)) {
+    await markAllAsRead(user.id).catch(err => {
+      console.error('[v0] Error marking all as read:', err)
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-3xl px-4">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Obvestila</h1>
-          {notifications.some((n) => !n.is_read) && (
-            <form
-              action={async () => {
-                'use server'
-                await markAllAsRead(user.id)
-                redirect('/narocnik/obvestila')
-              }}
-            >
-              <button
-                type="submit"
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Označi vse kot prebrano
-              </button>
-            </form>
-          )}
         </div>
 
         {/* Notifications List */}
