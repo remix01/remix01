@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { MATCHING_RULES, AGENT_INSTRUCTIONS } from './skills/matching-rules'
+import { getPricingForCategory } from './skills/pricing-rules'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -17,6 +19,45 @@ export interface MatchingResponse {
   topMatches: MatchResult[]
   reasoning: string
   error?: string
+}
+
+export async function getAgentPricingEstimate(params: {
+  categorySlug: string
+  urgency: string
+  isWeekend: boolean
+}): Promise<{
+  estimate: string
+  notes: string
+}> {
+  try {
+    const pricing = getPricingForCategory(params.categorySlug)
+    let minPrice = pricing.minHourly
+    let maxPrice = pricing.maxHourly
+
+    // Apply weekend surcharge
+    if (params.isWeekend) {
+      minPrice = pricing.withWeekendSurcharge.min
+      maxPrice = pricing.withWeekendSurcharge.max
+    }
+
+    // Apply urgent surcharge (on top of weekend if applicable)
+    if (params.urgency === 'nujno') {
+      const urgentMin = Math.round(minPrice * 1.15)
+      const urgentMax = Math.round(maxPrice * 1.15)
+      minPrice = urgentMin
+      maxPrice = urgentMax
+    }
+
+    return {
+      estimate: `${minPrice}-${maxPrice} EUR/uro`,
+      notes: `Ocena AI agenta${params.isWeekend ? ' (vikend)' : ''}${params.urgency === 'nujno' ? ' (nujno)' : ''} — dejanska cena se lahko razlikuje`,
+    }
+  } catch (error) {
+    return {
+      estimate: '25-60 EUR/uro',
+      notes: 'Splošna ocena — dejanska cena se lahko razlikuje',
+    }
+  }
 }
 
 export async function matchObrtnikiForPovprasevanje(
@@ -75,34 +116,71 @@ export async function matchObrtnikiForPovprasevanje(
       }
     }
 
-    // 3. Build prompts for Claude
-    const systemPrompt = `Ti si AI agent za platformo LiftGO, ki povezuje naročnike z obrtniki v Sloveniji. 
-Tvoja naloga je izbrati najboljše obrtnike za specifično povpraševanje.
+    // 3. Filter obrtniki by minimum requirements and urgency
+    let filteredObrtniki = (obrnikaData || []).filter((o: any) => {
+      // Minimum rating requirement
+      if ((o.avg_rating || 0) < MATCHING_RULES.minimumRequirements.minRating) {
+        return false
+      }
 
-Kriteriji za ocenjevanje (po prioriteti):
-1. Ustreznost kategorije storitve (obvezno)
-2. Lokacija — bližina naročnika (višja prioriteta)
-3. Povprečna ocena (avg_rating)
-4. Odzivnost (response_time_hours — nižje je boljše)
-5. Razpoložljivost (is_available = true)
+      // Must be verified
+      if (MATCHING_RULES.minimumRequirements.mustBeVerified && !o.is_verified) {
+        return false
+      }
 
-Vrni SAMO JSON brez dodatnega teksta.`
+      // Must be available
+      if (MATCHING_RULES.minimumRequirements.mustBeAvailable && !o.is_available) {
+        return false
+      }
 
-    const userPrompt = `POVPRAŠEVANJE:
+      // Urgency filter: for 'nujno', only show obrtniki with <2h response time
+      if (povprasevanje.urgency === 'nujno') {
+        const minResponseTime = MATCHING_RULES.urgency.nujno.minResponseTimeHours
+        if ((o.response_time_hours || 48) > minResponseTime) {
+          return false
+        }
+      }
+
+      return true
+    })
+
+    if (!filteredObrtnuki || filteredObrtnuki.length === 0) {
+      return {
+        topMatches: [],
+        reasoning: 'V tej kategoriji in nujnosti trenutno ni razpoložljivih obrtnov.',
+        error: 'Ni razpoložljivih obrtnov',
+      }
+    }
+
+    // 4. Calculate pricing estimate
+    const pricingEstimate = await getAgentPricingEstimate({
+      categorySlug: povprasevanje.category?.slug || 'default',
+      urgency: povprasevanje.urgency,
+      isWeekend: [0, 6].includes(new Date().getDay()),
+    })
+
+    // 5. Build prompts for Claude with rules and instructions
+    const systemPrompt = AGENT_INSTRUCTIONS
+
+    const userPrompt = `MATCHING RULES TO FOLLOW:
+${JSON.stringify(MATCHING_RULES, null, 2)}
+
+POVPRAŠEVANJE:
 - Naslov: ${povprasevanje.title}
 - Opis: ${povprasevanje.description}
 - Kategorija: ${povprasevanje.category?.name || 'N/A'}
 - Lokacija naročnika: ${povprasevanje.location_city}
 - Nujnost: ${povprasevanje.urgency}
+- Okvirna cena: ${pricingEstimate.estimate}
 - Proračun: ${
       povprasevanje.budget_min && povprasevanje.budget_max
         ? `${povprasevanje.budget_min}-${povprasevanje.budget_max} EUR`
         : 'ni določen'
     }
 
-RAZPOLOŽLJIVI OBRTNIKI:
+RAZPOLOŽLJIVI OBRTNIKI (že filtrirani):
 ${JSON.stringify(
-  (obrnikaData || []).map((o: any) => ({
+  filteredObrtniki.map((o: any) => ({
     id: o.id,
     businessName: o.business_name,
     city: o.profile?.location_city,
@@ -124,7 +202,7 @@ Vrni JSON v tej obliki (SAMO JSON, brez drugega teksta):
       "businessName": "ime podjetja",
       "score": 85,
       "reasons": ["Razlog 1", "Razlog 2"],
-      "estimatedPrice": "50-80 EUR"
+      "estimatedPrice": "${pricingEstimate.estimate}"
     }
   ],
   "reasoning": "Kratka razlaga izbire v slovenščini (2-3 stavki)"
