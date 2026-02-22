@@ -1,5 +1,4 @@
 import { createServerClient as createServerClientSSR } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
 
 /**
@@ -10,6 +9,7 @@ import type { Database } from '@/types/supabase'
  * Always create a new client within each function.
  */
 export async function createClient() {
+  const { cookies } = await import('next/headers')
   const cookieStore = await cookies()
 
   return createServerClientSSR<Database>(
