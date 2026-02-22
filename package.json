@@ -7,6 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "generate-icons": "node scripts/generate-icons.js",
     "postinstall": "prisma generate || true",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -70,6 +71,7 @@
     "lucide-react": "^0.544.0",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
+    "next-pwa": "^5.6.0",
     "next-themes": "^0.4.6",
     "nodemailer": "^6.9.16",
     "react": "19.2.3",
@@ -91,6 +93,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
     "@types/jest": "^29.5.14",
+    "@types/next-pwa": "^2.0.2",
     "@types/node": "^22",
     "@types/nodemailer": "^6.4.16",
     "@types/react": "19.2.7",

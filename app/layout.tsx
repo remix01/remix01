@@ -13,7 +13,9 @@ const dmSans = DM_Sans({ subsets: ['latin', 'latin-ext'], variable: '--font-dm-s
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#0f172a',
 }
 
 export const metadata: Metadata = {
@@ -65,6 +67,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://www.liftgo.net',
   },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'LiftGO',
+  },
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -73,6 +81,7 @@ export const metadata: Metadata = {
     ],
     apple: [
       { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
     ],
   },
 }
@@ -113,6 +122,9 @@ export default function RootLayout({
     <html lang="sl">
       <head>
         <link rel="preload" as="image" href="/images/hero-craftsman.jpg" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <JsonLd data={organizationSchema} />
       </head>
       <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>
