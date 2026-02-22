@@ -1,13 +1,12 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!session?.user?.email) {
+    if (!user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
