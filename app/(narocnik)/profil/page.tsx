@@ -1,5 +1,3 @@
-'use server'
-
 import { createClient } from '@/lib/supabase/server'
 import { getProfile } from '@/lib/dal/profiles'
 import { redirect } from 'next/navigation'
