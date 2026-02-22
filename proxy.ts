@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-export async function proxy(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // For now, just pass through to the next handler
   // Route protection is handled in individual components via auth checks
   return NextResponse.next()
