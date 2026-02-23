@@ -4,13 +4,18 @@ import path from 'path'
 // Manual frontmatter parser to replace gray-matter
 function parseFrontmatter(content: string) {
   const lines = content.split('\n')
-  const data: Record<string, string> = {}
+  const data: Record<string, any> = {}
   let i = 1 // skip first ---
   while (i < lines.length && lines[i] !== '---') {
     const [key, ...val] = lines[i].split(':')
     if (key && val.length) {
-      data[key.trim()] = val.join(':').trim()
-        .replace(/^["']|["']$/g, '')
+      let value = val.join(':').trim().replace(/^["']|["']$/g, '')
+      // Try to parse as number
+      if (!isNaN(Number(value))) {
+        data[key.trim()] = Number(value)
+      } else {
+        data[key.trim()] = value
+      }
     }
     i++
   }
@@ -45,13 +50,13 @@ export async function getAllPosts(): Promise<BlogPost[]> {
       const { data, content } = parseFrontmatter(fileContent)
 
       return {
-        title: data.title,
-        slug: data.slug,
-        date: data.date,
-        category: data.category,
-        city: data.city,
-        description: data.description,
-        readTime: data.readTime,
+        title: String(data.title || ''),
+        slug: String(data.slug || ''),
+        date: String(data.date || ''),
+        category: String(data.category || ''),
+        city: data.city ? String(data.city) : undefined,
+        description: String(data.description || ''),
+        readTime: Number(data.readTime || 5),
         content
       }
     })
@@ -73,13 +78,13 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     const { data, content } = parseFrontmatter(fileContent)
 
     return {
-      title: data.title,
-      slug: data.slug,
-      date: data.date,
-      category: data.category,
-      city: data.city,
-      description: data.description,
-      readTime: data.readTime,
+      title: String(data.title || ''),
+      slug: String(data.slug || ''),
+      date: String(data.date || ''),
+      category: String(data.category || ''),
+      city: data.city ? String(data.city) : undefined,
+      description: String(data.description || ''),
+      readTime: Number(data.readTime || 5),
       content
     }
   } catch (error) {
