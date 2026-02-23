@@ -2,22 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import webpush from 'web-push'
 
-// Lazy VAPID configuration function
-function ensureVapidConfigured() {
-  if (process.env.VAPID_SUBJECT && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-      process.env.VAPID_SUBJECT,
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-      process.env.VAPID_PRIVATE_KEY
-    )
-  } else {
-    throw new Error('VAPID environment variables not configured')
+// Lazy VAPID configuration function - returns false if not configured
+function getWebPush() {
+  if (!process.env.VAPID_SUBJECT || 
+      !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 
+      !process.env.VAPID_PRIVATE_KEY) {
+    return null
   }
+  
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  )
+  return webpush
 }
 
 export async function POST(request: NextRequest) {
   // Configure VAPID on first request (not at module load time)
-  ensureVapidConfigured()
+  const wp = getWebPush()
+  
+  if (!wp) {
+    console.warn('[v0] Push notifications not configured - missing VAPID environment variables')
+    return NextResponse.json({ sent: 0, failed: 0 })
+  }
 
   try {
     // Parse request body
@@ -69,7 +77,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        await webpush.sendNotification(pushSubscription, payload)
+        await wp.sendNotification(pushSubscription, payload)
         sent++
       } catch (error: any) {
         console.error('[v0] Error sending push to subscription:', error)
