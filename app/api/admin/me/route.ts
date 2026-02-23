@@ -6,19 +6,22 @@ export async function GET() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user?.email) {
+    if (!user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // Fetch admin from Zaposleni table
-    const admin = await prisma.zaposleni.findUnique({
-      where: { email: session.user.email },
-    });
+    // Fetch admin from admin_users table by auth_user_id
+    const { data: admin, error } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .single()
 
-    if (!admin || !admin.aktiven) {
+    if (error || !admin) {
       return NextResponse.json(
         { error: 'Not an active admin' },
         { status: 403 }
@@ -29,8 +32,6 @@ export async function GET() {
       admin: {
         id: admin.id,
         email: admin.email,
-        ime: admin.ime,
-        priimek: admin.priimek,
         vloga: admin.vloga,
         aktiven: admin.aktiven,
       },
