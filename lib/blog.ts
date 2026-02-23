@@ -1,7 +1,22 @@
 import fs from 'fs'
 import path from 'path'
-import matter from 'gray-matter'
-import { compileMDX } from 'next-mdx-remote/rsc'
+
+// Manual frontmatter parser to replace gray-matter
+function parseFrontmatter(content: string) {
+  const lines = content.split('\n')
+  const data: Record<string, string> = {}
+  let i = 1 // skip first ---
+  while (i < lines.length && lines[i] !== '---') {
+    const [key, ...val] = lines[i].split(':')
+    if (key && val.length) {
+      data[key.trim()] = val.join(':').trim()
+        .replace(/^["']|["']$/g, '')
+    }
+    i++
+  }
+  const body = lines.slice(i + 1).join('\n')
+  return { data, content: body }
+}
 
 export interface BlogPost {
   title: string
@@ -27,7 +42,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
     files.map(async file => {
       const filePath = path.join(blogDir, file)
       const fileContent = fs.readFileSync(filePath, 'utf-8')
-      const { data, content } = matter(fileContent)
+      const { data, content } = parseFrontmatter(fileContent)
 
       return {
         title: data.title,
@@ -55,7 +70,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     }
 
     const fileContent = fs.readFileSync(filePath, 'utf-8')
-    const { data, content } = matter(fileContent)
+    const { data, content } = parseFrontmatter(fileContent)
 
     return {
       title: data.title,

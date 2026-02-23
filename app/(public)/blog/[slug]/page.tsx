@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPostBySlug, getAllPosts, getRelatedPosts } from '@/lib/blog'
-import { compileMDX } from 'next-mdx-remote/rsc'
 import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -47,13 +46,10 @@ export default async function BlogPostPage(props: Props) {
     notFound()
   }
 
-  // Compile MDX content
-  const { content } = await compileMDX({
-    source: post.content,
-    options: {
-      parseFrontmatter: true
-    }
-  })
+  // Use post content directly as plain text
+  const contentParagraphs = post.content
+    .split('\n\n')
+    .filter(p => p.trim().length > 0)
 
   // Get related posts
   const relatedPosts = await getRelatedPosts(post.category, post.slug, 3)
@@ -163,9 +159,13 @@ export default async function BlogPostPage(props: Props) {
         {/* Article Content */}
         <section className="py-12 md:py-16">
           <div className="max-w-4xl mx-auto px-4">
-            <div className="prose prose-sm md:prose-base max-w-none">
-              {content}
-            </div>
+            <article className="prose prose-sm md:prose-base max-w-none">
+              {contentParagraphs.map((paragraph, i) => (
+                <p key={i} className="text-gray-700 leading-relaxed mb-4">
+                  {paragraph}
+                </p>
+              ))}
+            </article>
           </div>
         </section>
 
