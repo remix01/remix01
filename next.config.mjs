@@ -17,6 +17,14 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  // Ensure rewrites work correctly in production
+  async rewrites() {
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
+  },
 }
 
 export default nextConfig

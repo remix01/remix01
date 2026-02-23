@@ -32,7 +32,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const roleHierarchy: Record<AdminRole, number> = {
     SUPER_ADMIN: 3,
@@ -41,6 +40,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // Create client inside useEffect to avoid hydration issues
+    const supabase = createClient()
+    
     // Get initial session
     const initAuth = async () => {
       try {
@@ -48,7 +50,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          await fetchAdminUser(session.user.id)
+          await fetchAdminUser(supabase, session.user.id)
         }
       } catch (error) {
         console.error('[v0] Error initializing auth:', error)
@@ -65,7 +67,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          await fetchAdminUser(session.user.id)
+          await fetchAdminUser(supabase, session.user.id)
         } else {
           setAdminUser(null)
         }
@@ -77,7 +79,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const fetchAdminUser = async (authUserId: string) => {
+  const fetchAdminUser = async (supabase: ReturnType<typeof createClient>, authUserId: string) => {
     try {
       const { data, error } = await supabase
         .from('admin_users')
@@ -100,6 +102,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
+    const supabase = createClient()
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -108,11 +111,12 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
     
     if (data.user) {
-      await fetchAdminUser(data.user.id)
+      await fetchAdminUser(supabase, data.user.id)
     }
   }
 
   const signOut = async () => {
+    const supabase = createClient()
     await supabase.auth.signOut()
     setUser(null)
     setAdminUser(null)

@@ -12,5 +12,15 @@
       "path": "/api/cron/escrow-auto-release",
       "schedule": "0 3 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/admin/:path*",
+      "destination": "/admin/:path*"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin/index"
+    }
   ]
 }
