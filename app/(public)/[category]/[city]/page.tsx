@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { generateCategoryMeta, generateLocalBusinessSchema } from '@/lib/seo/meta'
+import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getCategoryBySlug } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
 import { getCityBySlug, SLOVENIAN_CITIES } from '@/lib/seo/locations'
@@ -8,6 +8,11 @@ import { ObrtnikCard } from '@/components/obrtnik-card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
+import { Breadcrumb } from '@/components/seo/breadcrumb'
+import { FAQSection } from '@/components/seo/faq-section'
+import { RelatedCities } from '@/components/seo/related-cities'
+import { RelatedCategories } from '@/components/seo/related-categories'
+import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 
 interface Props {
   params: Promise<{ category: string; city: string }>
@@ -91,6 +96,10 @@ export default async function CategoryCityPage(props: Props) {
 
   const nearbyCities = getNearbyCities(city.region, params.city)
 
+  // Get pricing for schema
+  const pricing = getPricingForCategory(params.category)
+
+  // Generate schema markup
   const businessSchema = generateLocalBusinessSchema({
     categoryName: category.name,
     cityName: city.name,
@@ -100,12 +109,30 @@ export default async function CategoryCityPage(props: Props) {
       : 0
   })
 
+  const serviceSchema = generateServiceSchema({
+    categoryName: category.name,
+    cityName: city.name,
+    description: 'Preverjeni ' + category.name.toLowerCase() + ' mojstri v ' + city.name + ' s hirim odzivom in ocenami strank.',
+    minPrice: pricing.minHourly,
+    maxPrice: pricing.maxHourly
+  })
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(businessSchema) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+      />
+
+      <Breadcrumb items={[
+        { name: 'Domov', href: '/' },
+        { name: category.name, href: '/' + params.category },
+        { name: city.name, href: '/' + params.category + '/' + params.city }
+      ]} />
 
       <main className="min-h-screen">
         {/* Hero Section */}
@@ -178,6 +205,26 @@ export default async function CategoryCityPage(props: Props) {
             </div>
           </section>
         )}
+
+        {/* FAQ Section */}
+        <FAQSection
+          categoryName={category.name}
+          categorySlug={params.category}
+          cityName={city.name}
+        />
+
+        {/* Related Cities */}
+        <RelatedCities
+          categorySlug={params.category}
+          categoryName={category.name}
+          currentCitySlug={params.city}
+        />
+
+        {/* Related Categories */}
+        <RelatedCategories
+          currentCategorySlug={params.category}
+          citySlug={params.city}
+        />
       </main>
     </>
   )
