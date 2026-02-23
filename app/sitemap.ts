@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 
 const BASE_URL = 'https://www.liftgo.net'
 
@@ -25,8 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let cityCategoryPages: MetadataRoute.Sitemap = []
 
   try {
-    const { getActiveCategories } = await import('@/lib/dal/categories')
-    const categories = await getActiveCategories()
+    const categories = await getActiveCategoriesPublic()
 
     // Category pages
     categoryPages = categories.map(cat => ({

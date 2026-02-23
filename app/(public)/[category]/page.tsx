@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
-import { getCategoryBySlug } from '@/lib/dal/categories'
+import { getCategoryBySlug, getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
 import { ObrtnikCard } from '@/components/obrtnik-card'
 import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
@@ -22,8 +22,7 @@ export async function generateStaticParams() {
   // Fetch all active categories from database
   // This will be called at build time for static generation
   try {
-    const { getActiveCategories } = await import('@/lib/dal/categories')
-    const categories = await getActiveCategories()
+    const categories = await getActiveCategoriesPublic()
     return categories.map(cat => ({ category: cat.slug }))
   } catch (error) {
     console.error('[v0] Error generating static params for categories:', error)

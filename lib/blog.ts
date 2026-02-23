@@ -1,7 +1,27 @@
 import fs from 'fs'
 import path from 'path'
-import matter from 'gray-matter'
-import { compileMDX } from 'next-mdx-remote/rsc'
+
+// Manual frontmatter parser to replace gray-matter
+function parseFrontmatter(content: string) {
+  const lines = content.split('\n')
+  const data: Record<string, any> = {}
+  let i = 1 // skip first ---
+  while (i < lines.length && lines[i] !== '---') {
+    const [key, ...val] = lines[i].split(':')
+    if (key && val.length) {
+      let value = val.join(':').trim().replace(/^["']|["']$/g, '')
+      // Try to parse as number
+      if (!isNaN(Number(value))) {
+        data[key.trim()] = Number(value)
+      } else {
+        data[key.trim()] = value
+      }
+    }
+    i++
+  }
+  const body = lines.slice(i + 1).join('\n')
+  return { data, content: body }
+}
 
 export interface BlogPost {
   title: string
@@ -27,16 +47,16 @@ export async function getAllPosts(): Promise<BlogPost[]> {
     files.map(async file => {
       const filePath = path.join(blogDir, file)
       const fileContent = fs.readFileSync(filePath, 'utf-8')
-      const { data, content } = matter(fileContent)
+      const { data, content } = parseFrontmatter(fileContent)
 
       return {
-        title: data.title,
-        slug: data.slug,
-        date: data.date,
-        category: data.category,
-        city: data.city,
-        description: data.description,
-        readTime: data.readTime,
+        title: String(data.title || ''),
+        slug: String(data.slug || ''),
+        date: String(data.date || ''),
+        category: String(data.category || ''),
+        city: data.city ? String(data.city) : undefined,
+        description: String(data.description || ''),
+        readTime: Number(data.readTime || 5),
         content
       }
     })
@@ -55,16 +75,16 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     }
 
     const fileContent = fs.readFileSync(filePath, 'utf-8')
-    const { data, content } = matter(fileContent)
+    const { data, content } = parseFrontmatter(fileContent)
 
     return {
-      title: data.title,
-      slug: data.slug,
-      date: data.date,
-      category: data.category,
-      city: data.city,
-      description: data.description,
-      readTime: data.readTime,
+      title: String(data.title || ''),
+      slug: String(data.slug || ''),
+      date: String(data.date || ''),
+      category: String(data.category || ''),
+      city: data.city ? String(data.city) : undefined,
+      description: String(data.description || ''),
+      readTime: Number(data.readTime || 5),
       content
     }
   } catch (error) {
