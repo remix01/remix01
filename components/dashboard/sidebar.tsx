@@ -19,9 +19,9 @@ export function Sidebar({ user }: SidebarProps) {
   }
 
   const navItems = [
-    { icon: Home, label: 'Nadzorna plošča', href: '/protected' },
-    { icon: BarChart3, label: 'Analitika', href: '/protected' },
-    { icon: Settings, label: 'Nastavitve', href: '/protected' },
+    { icon: Home, label: 'Nadzorna plošča', href: '/' },
+    { icon: BarChart3, label: 'Analitika', href: '/' },
+    { icon: Settings, label: 'Nastavitve', href: '/' },
   ]
 
   return (
