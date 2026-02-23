@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client'
+// This file is deprecated - all Prisma usage has been migrated to Supabase
+// Keeping this file to avoid breaking imports that might reference it
+// All database operations now use supabaseAdmin from '@/lib/supabase-admin'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+export const prisma = undefined as any
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// If you need database access, use:
+// import { supabaseAdmin } from '@/lib/supabase-admin'

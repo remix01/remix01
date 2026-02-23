@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { calculateJobRisk, getJobsForRiskCheck } from '@/lib/riskScoring/calculator'
 import { adminAlertEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 /**
  * Cron job to check risk scores for all active jobs
@@ -93,40 +93,39 @@ export async function GET(request: NextRequest) {
  * Handle critical risk jobs - take immediate action
  */
 async function handleCriticalRisk(jobId: string, score: number, flags: string[]) {
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: {
-      craftworker: {
-        include: {
-          craftworkerProfile: true
-        }
-      },
-      conversation: true
-    }
-  })
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('job')
+    .select(`
+      *,
+      craftworker:craftworker_id(
+        *,
+        craftworker_profile(*)
+      ),
+      conversation:conversation_id(*)
+    `)
+    .eq('id', jobId)
+    .single()
 
-  if (!job) return
+  if (jobError || !job) return
 
   // 1. Set job status to DISPUTED
-  await prisma.job.update({
-    where: { id: jobId },
-    data: {
-      status: 'DISPUTED'
-    }
-  })
+  await supabaseAdmin
+    .from('job')
+    .update({ status: 'DISPUTED' })
+    .eq('id', jobId)
   console.log(`[handleCriticalRisk] Job ${jobId} set to DISPUTED`)
 
   // 2. Suspend craftworker temporarily
-  if (job.craftworkerId && job.craftworker?.craftworkerProfile) {
-    await prisma.craftworkerProfile.update({
-      where: { userId: job.craftworkerId },
-      data: {
-        isSuspended: true,
-        suspendedAt: new Date(),
-        suspendedReason: `Automatic suspension due to high risk score (${score}) on job ${jobId}`
-      }
-    })
-    console.log(`[handleCriticalRisk] Craftworker ${job.craftworkerId} suspended`)
+  if (job.craftworker_id && job.craftworker?.craftworker_profile) {
+    await supabaseAdmin
+      .from('craftworker_profile')
+      .update({
+        is_suspended: true,
+        suspended_at: new Date().toISOString(),
+        suspended_reason: `Automatic suspension due to high risk score (${score}) on job ${jobId}`
+      })
+      .eq('user_id', job.craftworker_id)
+    console.log(`[handleCriticalRisk] Craftworker ${job.craftworker_id} suspended`)
   }
 
   // 3. Close Twilio conversation if active
@@ -138,20 +137,20 @@ async function handleCriticalRisk(jobId: string, score: number, flags: string[])
       )
 
       await twilio.conversations.v1
-        .conversations(job.conversation.twilioConversationSid)
+        .conversations(job.conversation.twilio_conversation_sid)
         .update({ state: 'closed' })
 
-      await prisma.conversation.update({
-        where: { id: job.conversation.id },
-        data: {
+      await supabaseAdmin
+        .from('conversation')
+        .update({
           status: 'SUSPENDED',
-          closedAt: new Date()
-        }
-      })
+          closed_at: new Date().toISOString()
+        })
+        .eq('id', job.conversation.id)
 
       // Send system message to conversation
       await twilio.conversations.v1
-        .conversations(job.conversation.twilioConversationSid)
+        .conversations(job.conversation.twilio_conversation_sid)
         .messages
         .create({
           author: 'system',

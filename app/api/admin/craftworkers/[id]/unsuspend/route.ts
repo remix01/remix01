@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 import { craftworkerUnsuspensionEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
@@ -21,41 +21,44 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email! }
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('role')
+      .eq('email', user.email!)
+      .single()
 
-    if (!dbUser || dbUser.role !== 'ADMIN') {
+    if (userError || !dbUser || dbUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
 
     const craftworkerId = params.id
 
     // Get craftworker profile
-    const profile = await prisma.craftworkerProfile.findUnique({
-      where: { userId: craftworkerId },
-      include: {
-        user: true
-      }
-    })
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .select('*, user:user_id(*)')
+      .eq('user_id', craftworkerId)
+      .single()
 
-    if (!profile) {
+    if (profileError || !profile) {
       return NextResponse.json({ error: 'Craftworker not found' }, { status: 404 })
     }
 
-    if (!profile.isSuspended) {
+    if (!profile.is_suspended) {
       return NextResponse.json({ error: 'Craftworker is not suspended' }, { status: 400 })
     }
 
     // Unsuspend the craftworker
-    await prisma.craftworkerProfile.update({
-      where: { userId: craftworkerId },
-      data: {
-        isSuspended: false,
-        suspendedAt: null,
-        suspendedReason: null
-      }
-    })
+    const { error: updateError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .update({
+        is_suspended: false,
+        suspended_at: null,
+        suspended_reason: null
+      })
+      .eq('user_id', craftworkerId)
+
+    if (updateError) throw new Error(updateError.message)
 
     console.log(`[unsuspend] Craftworker ${craftworkerId} unsuspended by admin ${dbUser.id}`)
 

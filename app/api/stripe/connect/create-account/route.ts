@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const requestSchema = z.object({
   email: z.string().email(),
@@ -21,19 +21,24 @@ export async function POST(request: Request) {
     }
 
     // Verify user is a craftworker
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { craftworkerProfile: true }
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('role, craftworker_profile(*)')
+      .eq('id', user.id)
+      .single()
 
-    if (!dbUser || dbUser.role !== 'CRAFTWORKER') {
+    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
       return NextResponse.json(
         { error: 'Only craftworkers can create Stripe Connect accounts' },
         { status: 403 }
       )
     }
 
-    if (!dbUser.craftworkerProfile) {
+    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
+      ? dbUser.craftworker_profile[0] 
+      : dbUser.craftworker_profile
+
+    if (!craftworkerProfile) {
       return NextResponse.json(
         { error: 'Craftworker profile not found' },
         { status: 404 }
@@ -41,9 +46,9 @@ export async function POST(request: Request) {
     }
 
     // Check if already has Stripe account
-    if (dbUser.craftworkerProfile.stripeAccountId) {
+    if (craftworkerProfile.stripe_account_id) {
       return NextResponse.json({
-        accountId: dbUser.craftworkerProfile.stripeAccountId,
+        accountId: craftworkerProfile.stripe_account_id,
         alreadyExists: true
       })
     }
@@ -67,13 +72,15 @@ export async function POST(request: Request) {
     })
 
     // Save account ID to database
-    await prisma.craftworkerProfile.update({
-      where: { userId: user.id },
-      data: {
-        stripeAccountId: account.id,
-        stripeOnboardingComplete: false
-      }
-    })
+    const { error: updateError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .update({
+        stripe_account_id: account.id,
+        stripe_onboarding_complete: false
+      })
+      .eq('user_id', user.id)
+
+    if (updateError) throw new Error(updateError.message)
 
     return NextResponse.json({
       accountId: account.id,

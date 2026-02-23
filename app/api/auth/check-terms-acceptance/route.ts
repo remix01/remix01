@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const CURRENT_TOS_VERSION = '2026-02-v1'
 const NINETY_DAYS_IN_MS = 90 * 24 * 60 * 60 * 1000
@@ -17,24 +17,20 @@ export async function GET() {
     }
 
     // Get user from database
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        role: true,
-        tosAcceptedAt: true,
-        tosVersion: true,
-        craftworkerAgreementAcceptedAt: true,
-      },
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('role, tos_accepted_at, tos_version, craftworker_agreement_accepted_at')
+      .eq('id', user.id)
+      .single()
 
-    if (!dbUser || dbUser.role !== 'CRAFTWORKER') {
+    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
       return NextResponse.json({ shouldShowModal: false })
     }
 
     // Check if craftworker has accepted current terms
     const hasAcceptedCurrentTerms = 
-      dbUser.tosVersion === CURRENT_TOS_VERSION &&
-      dbUser.craftworkerAgreementAcceptedAt !== null
+      dbUser.tos_version === CURRENT_TOS_VERSION &&
+      dbUser.craftworker_agreement_accepted_at !== null
 
     if (hasAcceptedCurrentTerms) {
       return NextResponse.json({ shouldShowModal: false })
@@ -42,8 +38,8 @@ export async function GET() {
 
     // Check if last acceptance was more than 90 days ago
     const shouldShow = 
-      !dbUser.craftworkerAgreementAcceptedAt ||
-      Date.now() - new Date(dbUser.craftworkerAgreementAcceptedAt).getTime() > NINETY_DAYS_IN_MS
+      !dbUser.craftworker_agreement_accepted_at ||
+      Date.now() - new Date(dbUser.craftworker_agreement_accepted_at).getTime() > NINETY_DAYS_IN_MS
 
     return NextResponse.json({ shouldShowModal: shouldShow })
   } catch (error) {

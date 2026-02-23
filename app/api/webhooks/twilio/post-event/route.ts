@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import twilio from 'twilio'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 /**
  * Twilio Post-Event Webhook
@@ -67,35 +67,35 @@ export async function POST(req: NextRequest) {
     }
 
     // Find conversation
-    const conversation = await prisma.conversation.findUnique({
-      where: { twilioConversationSid: conversationSid },
-    })
+    const { data: conversation, error: convoError } = await supabaseAdmin
+      .from('conversation')
+      .select('id')
+      .eq('twilio_conversation_sid', conversationSid)
+      .single()
 
-    if (!conversation) {
+    if (convoError || !conversation) {
       console.error('[v0] Conversation not found:', conversationSid)
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
     }
 
     // Update conversation's last message timestamp
-    await prisma.conversation.update({
-      where: { id: conversation.id },
-      data: {
-        lastMessageAt: new Date(dateCreated || Date.now()),
-      },
-    })
+    await supabaseAdmin
+      .from('conversation')
+      .update({
+        last_message_at: new Date(dateCreated || Date.now()).toISOString(),
+      })
+      .eq('id', conversation.id)
 
     // Update message with Twilio SID if it exists in our DB
     if (messageBody) {
-      await prisma.message.updateMany({
-        where: {
-          conversationId: conversation.id,
-          body: messageBody,
-          twilioMessageSid: null,
-        },
-        data: {
-          twilioMessageSid: messageSid,
-        },
-      })
+      await supabaseAdmin
+        .from('message')
+        .update({
+          twilio_message_sid: messageSid,
+        })
+        .eq('conversation_id', conversation.id)
+        .eq('body', messageBody)
+        .is('twilio_message_sid', null)
     }
 
     console.log('[v0] Post-event processed successfully')

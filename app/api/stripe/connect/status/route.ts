@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET() {
   try {
@@ -16,19 +16,24 @@ export async function GET() {
     }
 
     // Get user with craftworker profile
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { craftworkerProfile: true }
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('role, craftworker_profile(*)')
+      .eq('id', user.id)
+      .single()
 
-    if (!dbUser || dbUser.role !== 'CRAFTWORKER') {
+    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
       return NextResponse.json(
         { error: 'Only craftworkers can check Stripe status' },
         { status: 403 }
       )
     }
 
-    if (!dbUser.craftworkerProfile?.stripeAccountId) {
+    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
+      ? dbUser.craftworker_profile[0] 
+      : dbUser.craftworker_profile
+
+    if (!craftworkerProfile?.stripe_account_id) {
       return NextResponse.json({
         isComplete: false,
         hasAccount: false,
@@ -42,7 +47,7 @@ export async function GET() {
 
     // Retrieve account from Stripe
     const account = await stripe.accounts.retrieve(
-      dbUser.craftworkerProfile.stripeAccountId
+      craftworkerProfile.stripe_account_id
     )
 
     const isComplete = 
@@ -51,11 +56,11 @@ export async function GET() {
       account.payouts_enabled === true
 
     // Update database if status changed
-    if (isComplete !== dbUser.craftworkerProfile.stripeOnboardingComplete) {
-      await prisma.craftworkerProfile.update({
-        where: { userId: user.id },
-        data: { stripeOnboardingComplete: isComplete }
-      })
+    if (isComplete !== craftworkerProfile.stripe_onboarding_complete) {
+      await supabaseAdmin
+        .from('craftworker_profile')
+        .update({ stripe_onboarding_complete: isComplete })
+        .eq('user_id', user.id)
     }
 
     // Determine if more info is needed

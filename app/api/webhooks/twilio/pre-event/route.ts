@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import twilio from 'twilio'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { analyzeMessage, getBlockedReasonMessage } from '@/lib/twilio/contentFilter'
 import { sendBlockedMessageWarning } from '@/lib/twilio/systemMessages'
 
@@ -70,24 +70,21 @@ export async function POST(req: NextRequest) {
     const detection = analyzeMessage(messageBody)
 
     // Find conversation and related job
-    const conversation = await prisma.conversation.findUnique({
-      where: { twilioConversationSid: conversationSid },
-      include: {
-        job: {
-          include: {
-            customer: true,
-            craftworker: {
-              include: {
-                craftworkerProfile: true,
-              },
-            },
-            payment: true,
-          },
-        },
-      },
-    })
+    const { data: conversation, error: convoError } = await supabaseAdmin
+      .from('conversation')
+      .select(`
+        *,
+        job:job_id(
+          *,
+          customer:customer_id(*),
+          craftworker:craftworker_id(craftworker_profile(*)),
+          payment:payment_id(*)
+        )
+      `)
+      .eq('twilio_conversation_sid', conversationSid)
+      .single()
 
-    if (!conversation) {
+    if (convoError || !conversation) {
       console.error('[v0] Conversation not found:', conversationSid)
       // Allow message if conversation not found (fail open)
       return NextResponse.json({ action: 'ALLOW' })
@@ -95,9 +92,9 @@ export async function POST(req: NextRequest) {
 
     // Determine sender (customer or craftworker)
     const senderUserId = 
-      participantSid === conversation.participantCustomerSid
-        ? conversation.job.customerId
-        : conversation.job.craftworkerId
+      participantSid === conversation.participant_customer_sid
+        ? conversation.job.customer_id
+        : conversation.job.craftworker_id
 
     if (!senderUserId) {
       console.error('[v0] Could not determine sender')
@@ -110,17 +107,17 @@ export async function POST(req: NextRequest) {
       conversation.job.payment?.status === 'RELEASED'
 
     // If payment confirmed, allow all messages
-    if (isPaymentConfirmed && conversation.contactRevealedAt) {
+    if (isPaymentConfirmed && conversation.contact_revealed_at) {
       // Save message without blocking
-      await prisma.message.create({
-        data: {
-          conversationId: conversation.id,
-          senderUserId,
+      await supabaseAdmin
+        .from('message')
+        .insert({
+          conversation_id: conversation.id,
+          sender_user_id: senderUserId,
           body: messageBody,
-          isBlocked: false,
-          sentAt: new Date(),
-        },
-      })
+          is_blocked: false,
+          created_at: new Date().toISOString(),
+        })
 
       return NextResponse.json({ action: 'ALLOW' })
     }
@@ -134,49 +131,50 @@ export async function POST(req: NextRequest) {
       })
 
       // Save blocked message
-      const message = await prisma.message.create({
-        data: {
-          conversationId: conversation.id,
-          senderUserId,
+      const { data: message, error: msgError } = await supabaseAdmin
+        .from('message')
+        .insert({
+          conversation_id: conversation.id,
+          sender_user_id: senderUserId,
           body: detection.redactedBody,
-          isBlocked: true,
-          blockedReason: getBlockedReasonMessage(detection.violationType!),
-          sentAt: new Date(),
-        },
-      })
+          is_blocked: true,
+          blocked_reason: getBlockedReasonMessage(detection.violationType!),
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
 
-      // Create violation record
-      await prisma.violation.create({
-        data: {
-          jobId: conversation.jobId,
-          userId: senderUserId,
-          messageId: message.id,
-          type: detection.violationType!,
-          severity: detection.severity,
-          detectedContent: detection.detectedItems.join(', '),
-        },
-      })
+      if (!msgError && message) {
+        // Create violation record
+        await supabaseAdmin
+          .from('violation')
+          .insert({
+            job_id: conversation.job_id,
+            user_id: senderUserId,
+            message_id: message.id,
+            type: detection.violationType!,
+            severity: detection.severity,
+            detected_content: detection.detectedItems.join(', '),
+          })
+      }
 
       // Update craftworker warnings if sender is craftworker
-      if (senderUserId === conversation.job.craftworkerId) {
-        const craftworkerProfile = conversation.job.craftworker?.craftworkerProfile
+      if (senderUserId === conversation.job.craftworker_id && conversation.job.craftworker?.craftworker_profile) {
+        const craftworkerProfile = conversation.job.craftworker.craftworker_profile
+        const newWarnings = (craftworkerProfile.bypass_warnings || 0) + 1
         
-        if (craftworkerProfile) {
-          const newWarnings = craftworkerProfile.bypassWarnings + 1
-          
-          await prisma.craftworkerProfile.update({
-            where: { id: craftworkerProfile.id },
-            data: {
-              bypassWarnings: newWarnings,
-              // Suspend if 3+ warnings
-              isSuspended: newWarnings >= 3,
-              suspendedAt: newWarnings >= 3 ? new Date() : undefined,
-              suspendedReason: newWarnings >= 3 
-                ? 'Večkratne kršitve pravil proti izogibanju platformi'
-                : undefined,
-            },
+        await supabaseAdmin
+          .from('craftworker_profile')
+          .update({
+            bypass_warnings: newWarnings,
+            // Suspend if 3+ warnings
+            is_suspended: newWarnings >= 3,
+            suspended_at: newWarnings >= 3 ? new Date().toISOString() : undefined,
+            suspended_reason: newWarnings >= 3 
+              ? 'Večkratne kršitve pravil proti izogibanju platformi'
+              : undefined,
           })
-        }
+          .eq('id', craftworkerProfile.id)
       }
 
       // Send warning message to conversation (async, don't wait)
@@ -192,15 +190,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Allow message
-    await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        senderUserId,
+    await supabaseAdmin
+      .from('message')
+      .insert({
+        conversation_id: conversation.id,
+        sender_user_id: senderUserId,
         body: messageBody,
-        isBlocked: false,
-        sentAt: new Date(),
-      },
-    })
+        is_blocked: false,
+        created_at: new Date().toISOString(),
+      })
 
     const elapsed = Date.now() - startTime
     console.log('[v0] Pre-event response time:', elapsed, 'ms')

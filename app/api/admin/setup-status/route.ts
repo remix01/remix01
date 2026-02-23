@@ -1,17 +1,18 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
     // Check if any super admin exists
-    const superAdminCount = await prisma.zaposleni.count({
-      where: { vloga: 'SUPER_ADMIN' },
-    });
+    const { count, error } = await supabaseAdmin
+      .from('zaposleni')
+      .select('*', { count: 'exact', head: true })
+      .eq('vloga', 'SUPER_ADMIN');
+
+    if (error) throw new Error(error.message);
 
     return NextResponse.json({
-      needsSetup: superAdminCount === 0,
+      needsSetup: (count || 0) === 0,
     });
   } catch (error) {
     console.error('Error checking setup status:', error);
