@@ -1,7 +1,5 @@
 import fs from 'fs'
 import path from 'path'
-import matter from 'gray-matter'
-import { compileMDX } from 'next-mdx-remote/rsc'
 
 export interface BlogPost {
   title: string
@@ -16,6 +14,46 @@ export interface BlogPost {
 
 const blogDir = path.join(process.cwd(), 'content', 'blog')
 
+// Manual frontmatter parser - splits on ---
+function parseFrontmatter(fileContent: string): { data: Record<string, any>; content: string } {
+  const lines = fileContent.split('\n')
+  let frontmatterEnd = -1
+  let inFrontmatter = false
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '---') {
+      if (!inFrontmatter) {
+        inFrontmatter = true
+      } else {
+        frontmatterEnd = i
+        break
+      }
+    }
+  }
+
+  if (frontmatterEnd === -1) {
+    // No frontmatter found
+    return { data: {}, content: fileContent }
+  }
+
+  const frontmatterLines = lines.slice(1, frontmatterEnd)
+  const content = lines.slice(frontmatterEnd + 1).join('\n')
+
+  // Parse YAML-like frontmatter
+  const data: Record<string, any> = {}
+  for (const line of frontmatterLines) {
+    if (!line.trim()) continue
+    const colonIndex = line.indexOf(':')
+    if (colonIndex > -1) {
+      const key = line.substring(0, colonIndex).trim()
+      const value = line.substring(colonIndex + 1).trim().replace(/^['"]|['"]$/g, '')
+      data[key] = value
+    }
+  }
+
+  return { data, content }
+}
+
 export async function getAllPosts(): Promise<BlogPost[]> {
   if (!fs.existsSync(blogDir)) {
     return []
@@ -23,24 +61,22 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 
   const files = fs.readdirSync(blogDir).filter(file => file.endsWith('.mdx'))
 
-  const posts = await Promise.all(
-    files.map(async file => {
-      const filePath = path.join(blogDir, file)
-      const fileContent = fs.readFileSync(filePath, 'utf-8')
-      const { data, content } = matter(fileContent)
+  const posts = files.map(file => {
+    const filePath = path.join(blogDir, file)
+    const fileContent = fs.readFileSync(filePath, 'utf-8')
+    const { data, content } = parseFrontmatter(fileContent)
 
-      return {
-        title: data.title,
-        slug: data.slug,
-        date: data.date,
-        category: data.category,
-        city: data.city,
-        description: data.description,
-        readTime: data.readTime,
-        content
-      }
-    })
-  )
+    return {
+      title: data.title || 'Untitled',
+      slug: data.slug || file.replace('.mdx', ''),
+      date: data.date || new Date().toISOString(),
+      category: data.category || 'general',
+      city: data.city,
+      description: data.description || '',
+      readTime: parseInt(data.readTime) || 5,
+      content
+    }
+  })
 
   // Sort by date descending
   return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -55,20 +91,20 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     }
 
     const fileContent = fs.readFileSync(filePath, 'utf-8')
-    const { data, content } = matter(fileContent)
+    const { data, content } = parseFrontmatter(fileContent)
 
     return {
-      title: data.title,
-      slug: data.slug,
-      date: data.date,
-      category: data.category,
+      title: data.title || 'Untitled',
+      slug: data.slug || slug,
+      date: data.date || new Date().toISOString(),
+      category: data.category || 'general',
       city: data.city,
-      description: data.description,
-      readTime: data.readTime,
+      description: data.description || '',
+      readTime: parseInt(data.readTime) || 5,
       content
     }
   } catch (error) {
-    console.error(`Error reading blog post ${slug}:`, error)
+    console.error(`[v0] Error reading blog post ${slug}:`, error)
     return null
   }
 }
