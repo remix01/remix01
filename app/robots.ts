@@ -9,9 +9,11 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/partner-auth/',     // login/signup strani — ne indeksiraj
           '/partner-dashboard', // zasebna nadzorna plošča
+          '/narocnik/',         // naročnik dashboard
+          '/obrtnik/',          // obrtnik dashboard
           '/api/',              // API endpointi
           '/_next/',            // Next.js interni fajli
-          '/admin/',            // admin panel če obstaja
+          '/admin/',            // admin panel
         ],
       },
       {

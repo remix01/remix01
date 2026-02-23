@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next'
+import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
 
 const BASE_URL = 'https://www.liftgo.net'
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   
   // Statične strani
   const staticPages = [
@@ -19,46 +20,41 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/privacy`, priority: 0.3, changeFrequency: 'yearly' as const },
   ]
 
-  // Kategorijske strani (za SEO)
-  const kategorije = [
-    'Gradnja-adaptacije',
-    'Vodovod-ogrevanje', 
-    'Elektrika-pametni-sistemi',
-    'Mizarstvo-kovinarstvo',
-    'Zakljucna-dela',
-    'Okna-vrata-sencila',
-    'Okolica-zunanja-ureditev',
-    'Vzdrzevanje-popravila',
-    'Poslovne-storitve',
-  ]
+  // Fetch all active categories
+  let categoryPages: MetadataRoute.Sitemap = []
+  let cityCategoryPages: MetadataRoute.Sitemap = []
 
-  const kategorijskeStrani = kategorije.map(kat => ({
-    url: `${BASE_URL}/storitev/${kat.toLowerCase()}`,
-    priority: 0.8,
-    changeFrequency: 'weekly' as const,
-    lastModified: new Date(),
-  }))
+  try {
+    const { getActiveCategories } = await import('@/lib/dal/categories')
+    const categories = await getActiveCategories()
 
-  // Lokacijske strani (za lokalni SEO)
-  const mesta = [
-    'ljubljana', 'maribor', 'celje', 'kranj', 
-    'koper', 'novo-mesto', 'velenje', 'ptuj',
-    'murska-sobota', 'nova-gorica',
-  ]
+    // Category pages
+    categoryPages = categories.map(cat => ({
+      url: `${BASE_URL}/${cat.slug}`,
+      priority: 0.9,
+      changeFrequency: 'daily' as const,
+      lastModified: new Date(),
+    }))
 
-  const lokacijskeStrani = mesta.map(mesto => ({
-    url: `${BASE_URL}/obrtnik-${mesto}`,
-    priority: 0.7,
-    changeFrequency: 'weekly' as const,
-    lastModified: new Date(),
-  }))
+    // Category + City pages (225 pages)
+    cityCategoryPages = categories.flatMap(cat =>
+      SLOVENIAN_CITIES.map(city => ({
+        url: `${BASE_URL}/${cat.slug}/${city.slug}`,
+        priority: 0.8,
+        changeFrequency: 'daily' as const,
+        lastModified: new Date(),
+      }))
+    )
+  } catch (error) {
+    console.error('[v0] Error fetching categories for sitemap:', error)
+  }
 
   return [
     ...staticPages.map(p => ({
       ...p,
       lastModified: new Date(),
     })),
-    ...kategorijskeStrani,
-    ...lokacijskeStrani,
+    ...categoryPages,
+    ...cityCategoryPages,
   ]
 }
