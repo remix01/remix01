@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
-import { getCategoryBySlug } from '@/lib/dal/categories'
+import { getCategoryBySlug, getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
 import { getCityBySlug, SLOVENIAN_CITIES } from '@/lib/seo/locations'
 import { ObrtnikCard } from '@/components/obrtnik-card'
@@ -21,8 +21,7 @@ interface Props {
 export async function generateStaticParams() {
   // Generate all combinations of category slugs × city slugs
   try {
-    const { getActiveCategories } = await import('@/lib/dal/categories')
-    const categories = await getActiveCategories()
+    const categories = await getActiveCategoriesPublic()
 
     const params = []
     for (const category of categories) {
