@@ -23,8 +23,7 @@ const EXCLUDED_PATHS = [
   'images', 'icons', 'fonts', 'api', 'admin', 
   '_next', 'static', 'favicon.ico', 'robots.txt',
   'sitemap.xml', 'sw.js', 'manifest.json'
-  ]
-}
+]
 
 export default async function CategoryPage(props: Props) {
   const params = await props.params
