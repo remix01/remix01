@@ -1,3 +1,7 @@
+'use client'
+
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -5,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { CheckCircle } from 'lucide-react'
 
 export default function Page() {
   return (
@@ -12,16 +17,36 @@ export default function Page() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-4 text-center">
+              <div className="flex justify-center">
+                <CheckCircle className="w-12 h-12 text-green-600" />
+              </div>
               <CardTitle className="text-2xl">
-                Hvala, da ste se registrirali!
+                Račun ustvarjen!
               </CardTitle>
-              <CardDescription>Preverite svoj email za potrditev</CardDescription>
+              <CardDescription>
+                Dobrodošli na LiftGO
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Uspešno ste se registrirali. Prosim, preverite svoj email, da potrdite svoj račun, preden se prijavite.
               </p>
+
+              <Link href="/narocnik/dashboard" className="block">
+                <Button className="w-full">
+                  Pojdi na dashboard →
+                </Button>
+              </Link>
+
+              <div className="border-t pt-4 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Imate vprašanja?{' '}
+                  <a href="mailto:info@liftgo.net" className="text-blue-600 hover:underline font-medium">
+                    info@liftgo.net
+                  </a>
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
