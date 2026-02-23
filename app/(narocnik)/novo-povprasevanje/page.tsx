@@ -47,6 +47,7 @@ export default function NovoPoVprasevanjePage() {
   const [budgetUndetermined, setBudgetUndetermined] = useState(true)
   const [budgetMin, setBudgetMin] = useState<number | ''>('')
   const [budgetMax, setBudgetMax] = useState<number | ''>('')
+  const [pricingEstimate, setPricingEstimate] = useState<any>(null)
 
   // Fetch user and categories on mount
   useEffect(() => {
@@ -79,6 +80,28 @@ export default function NovoPoVprasevanjePage() {
 
     fetchData()
   }, [supabase, router])
+
+  // Fetch pricing estimate when category or urgency changes
+  useEffect(() => {
+    if (selectedCategory && step === 4) {
+      const fetchPricing = async () => {
+        try {
+          const response = await fetch(
+            `/api/agent/pricing?categorySlug=${selectedCategory.slug}&urgency=${urgency}`
+          )
+          const data = await response.json()
+          setPricingEstimate(data)
+        } catch (error) {
+          console.error('[v0] Pricing fetch error:', error)
+          setPricingEstimate({
+            estimate: '25-60 EUR/uro',
+            notes: 'Splošna ocena',
+          })
+        }
+      }
+      fetchPricing()
+    }
+  }, [selectedCategory, urgency, step])
 
   // Validation functions
   const isStep1Valid = selectedCategory !== null
@@ -479,6 +502,23 @@ export default function NovoPoVprasevanjePage() {
                 )}
               </div>
             </Card>
+
+            {/* Pricing estimate from AI agent */}
+            {selectedCategory && (
+              <Card className="p-6 bg-blue-50 border-blue-200">
+                <h3 className="text-lg font-semibold mb-2 text-blue-900">💡 Okvirna cena</h3>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-blue-900">
+                    {typeof pricingEstimate === 'string' 
+                      ? pricingEstimate 
+                      : pricingEstimate?.estimate || 'Nalagam oceno...'}
+                  </p>
+                  <p className="text-xs text-blue-700 italic">
+                    Ocena AI agenta — dejanska cena se lahko razlikuje glede na specifikacije dela
+                  </p>
+                </div>
+              </Card>
+            )}
 
             <div className="flex justify-between gap-2 mt-8">
               <Button onClick={handlePrevious} variant="outline">

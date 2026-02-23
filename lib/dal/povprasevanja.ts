@@ -1,5 +1,6 @@
 // Data Access Layer - Povprasevanja
 import { createClient } from '@/lib/supabase/server'
+import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import type { 
   Povprasevanje, 
   PovprasevanjeInsert, 
@@ -212,7 +213,24 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
     return null
   }
 
-  return data as unknown as Povprasevanje
+  const result = data as unknown as Povprasevanje
+
+  // Send push notification to obrtniki in the category
+  if (result.category_id && result.title && result.location_city) {
+    try {
+      await sendPushToObrtnikiByCategory({
+        categoryId: result.category_id,
+        title: 'Novo povpraševanje v vaši kategoriji',
+        message: `${result.title} — ${result.location_city}`,
+        link: '/obrtnik/povprasevanja'
+      })
+    } catch (pushError) {
+      // Don't fail the main operation if push fails
+      console.error('[v0] Error sending push to obrtniki:', pushError)
+    }
+  }
+
+  return result
 }
 
 /**

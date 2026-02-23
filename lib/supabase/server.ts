@@ -1,5 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createServerClient as createServerClientSSR } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
 
 /**
@@ -10,9 +9,10 @@ import type { Database } from '@/types/supabase'
  * Always create a new client within each function.
  */
 export async function createClient() {
+  const { cookies } = await import('next/headers')
   const cookieStore = await cookies()
 
-  return createServerClient<Database>(
+  return createServerClientSSR<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -49,7 +49,7 @@ export async function createClient() {
  * NEVER expose this client to untrusted code or client-side.
  */
 export function createAdminClient() {
-  return createServerClient<Database>(
+  return createServerClientSSR<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
@@ -64,3 +64,7 @@ export function createAdminClient() {
     },
   )
 }
+
+// Export for compatibility with deprecated import patterns
+export { createServerClientSSR as createServerClient }
+export { createServerClientSSR }

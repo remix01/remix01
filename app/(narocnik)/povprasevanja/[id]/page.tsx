@@ -1,5 +1,3 @@
-'use server'
-
 import { notFound, redirect } from 'next/navigation'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { getPovprasevanje } from '@/lib/dal/povprasevanja'

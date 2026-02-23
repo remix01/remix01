@@ -127,12 +127,7 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
       <div className="flex flex-wrap gap-3">
         {partner.status === 'PENDING' && (
           <>
-            <form
-              action={async () => {
-                'use server'
-                await odobriPartnerja(partnerId)
-              }}
-            >
+            <form action={() => odobriPartnerja(partnerId)}>
               <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
                 Odobri
               </Button>
@@ -144,12 +139,7 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
         )}
 
         {partner.status === 'AKTIVEN' && (
-          <form
-            action={async () => {
-              'use server'
-              await suspendiranjPartnerja(partnerId)
-            }}
-          >
+          <form action={() => suspendiranjPartnerja(partnerId)}>
             <Button type="submit" variant="destructive">
               Suspendiraj
             </Button>
@@ -157,12 +147,7 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
         )}
 
         {partner.status === 'SUSPENDIRAN' && (
-          <form
-            action={async () => {
-              'use server'
-              await reaktivirajPartnerja(partnerId)
-            }}
-          >
+          <form action={() => reaktivirajPartnerja(partnerId)}>
             <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
               Reaktiviraj
             </Button>
@@ -182,7 +167,6 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
           cancelText="Prekliči"
           variant="destructive"
           onConfirm={async () => {
-            'use server'
             await deletePartner(partnerId)
             redirect('/admin/partnerji')
           }}
@@ -206,11 +190,7 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
               Prekliči
             </Button>
             <form
-              action={async () => {
-                'use server'
-                await zavrniPartnerja(partnerId, rejectReason)
-                setRejectDialogOpen(false)
-              }}
+              action={() => zavrniPartnerja(partnerId, rejectReason)}
             >
               <Button type="submit" variant="destructive" disabled={!rejectReason.trim()}>
                 Zavrni

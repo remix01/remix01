@@ -57,7 +57,7 @@ export default function PrijavaPage() {
       if (profile.role === 'narocnik') {
         router.push('/narocnik/dashboard')
       } else if (profile.role === 'obrtnik') {
-        router.push('/partner-dashboard')
+        router.push('/obrtnik/dashboard')
       } else {
         router.push('/registracija')
       }

@@ -42,11 +42,6 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    if (request.nextUrl.pathname.startsWith('/protected')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/auth/login'
-      return NextResponse.redirect(url)
-    }
     if (request.nextUrl.pathname.startsWith('/partner-dashboard')) {
       const url = request.nextUrl.clone()
       url.pathname = '/partner-auth/login'

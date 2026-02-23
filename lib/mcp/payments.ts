@@ -5,6 +5,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20'
 })
 
+// Export stripe instance for use in webhook handlers
+export { stripe }
+
 /**
  * Create payment intent when narocnik accepts ponudba
  */

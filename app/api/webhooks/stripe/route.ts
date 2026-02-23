@@ -10,7 +10,7 @@ import {
 } from '@/lib/escrow'
 
 // KRITIČNO: onemogoči body parser — Stripe zahteva raw body za podpis
-export const config = { api: { bodyParser: false } }
+export const maxDuration = 30
 
 export async function POST(request: NextRequest) {
   // 1. PREBERI RAW BODY
