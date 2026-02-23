@@ -25,18 +25,15 @@ const EXCLUDED_PATHS = [
   'sitemap.xml', 'sw.js', 'manifest.json'
 ]
 
-export default async function CategoryPage(props: Props) {
-  const params = await props.params
-  
-  // Exclude static files and reserved paths
-  if (EXCLUDED_PATHS.includes(params.category)) {
-    notFound()
-  }
-  
-  const category = await getCategoryBySlug(params.category)
-
-  if (!category) {
-    notFound()
+export async function generateStaticParams() {
+  // Fetch all active categories from database
+  // This will be called at build time for static generation
+  try {
+    const categories = await getActiveCategoriesPublic()
+    return categories.map(cat => ({ category: cat.slug }))
+  } catch (error) {
+    console.error('[v0] Error generating static params for categories:', error)
+    return []
   }
 }
 
