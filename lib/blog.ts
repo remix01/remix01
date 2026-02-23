@@ -1,0 +1,86 @@
+import fs from 'fs'
+import path from 'path'
+import matter from 'gray-matter'
+import { compileMDX } from 'next-mdx-remote/rsc'
+
+export interface BlogPost {
+  title: string
+  slug: string
+  date: string
+  category: string
+  city?: string
+  description: string
+  readTime: number
+  content: string
+}
+
+const blogDir = path.join(process.cwd(), 'content', 'blog')
+
+export async function getAllPosts(): Promise<BlogPost[]> {
+  if (!fs.existsSync(blogDir)) {
+    return []
+  }
+
+  const files = fs.readdirSync(blogDir).filter(file => file.endsWith('.mdx'))
+
+  const posts = await Promise.all(
+    files.map(async file => {
+      const filePath = path.join(blogDir, file)
+      const fileContent = fs.readFileSync(filePath, 'utf-8')
+      const { data, content } = matter(fileContent)
+
+      return {
+        title: data.title,
+        slug: data.slug,
+        date: data.date,
+        category: data.category,
+        city: data.city,
+        description: data.description,
+        readTime: data.readTime,
+        content
+      }
+    })
+  )
+
+  // Sort by date descending
+  return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+}
+
+export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
+  try {
+    const filePath = path.join(blogDir, `${slug}.mdx`)
+    
+    if (!fs.existsSync(filePath)) {
+      return null
+    }
+
+    const fileContent = fs.readFileSync(filePath, 'utf-8')
+    const { data, content } = matter(fileContent)
+
+    return {
+      title: data.title,
+      slug: data.slug,
+      date: data.date,
+      category: data.category,
+      city: data.city,
+      description: data.description,
+      readTime: data.readTime,
+      content
+    }
+  } catch (error) {
+    console.error(`Error reading blog post ${slug}:`, error)
+    return null
+  }
+}
+
+export async function getPostsByCategory(category: string): Promise<BlogPost[]> {
+  const posts = await getAllPosts()
+  return posts.filter(post => post.category === category)
+}
+
+export async function getRelatedPosts(category: string, currentSlug: string, limit = 3): Promise<BlogPost[]> {
+  const posts = await getPostsByCategory(category)
+  return posts
+    .filter(post => post.slug !== currentSlug)
+    .slice(0, limit)
+}

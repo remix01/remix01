@@ -63,3 +63,68 @@ export function generateLocalBusinessSchema(params: {
     }
   }
 }
+
+export function generateFAQSchema(faqs: {
+  question: string
+  answer: string
+}[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': faqs.map(faq => ({
+      '@type': 'Question',
+      'name': faq.question,
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': faq.answer
+      }
+    }))
+  }
+}
+
+export function generateBreadcrumbSchema(items: {
+  name: string
+  url: string
+}[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    'itemListElement': items.map((item, index) => ({
+      '@type': 'ListItem',
+      'position': index + 1,
+      'name': item.name,
+      'item': item.url
+    }))
+  }
+}
+
+export function generateServiceSchema(params: {
+  categoryName: string
+  cityName: string
+  description: string
+  minPrice: number
+  maxPrice: number
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    'name': params.categoryName,
+    'description': params.description,
+    'areaServed': {
+      '@type': 'City',
+      'name': params.cityName,
+      'addressCountry': 'SI'
+    },
+    'offers': {
+      '@type': 'AggregateOffer',
+      'priceCurrency': 'EUR',
+      'lowPrice': params.minPrice,
+      'highPrice': params.maxPrice
+    },
+    'provider': {
+      '@type': 'Organization',
+      'name': 'LiftGO',
+      'url': 'https://liftgo.net'
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { generateCategoryMeta, generateLocalBusinessSchema } from '@/lib/seo/meta'
+import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getCategoryBySlug } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
 import { ObrtnikCard } from '@/components/obrtnik-card'
@@ -8,6 +8,11 @@ import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
+import { Breadcrumb } from '@/components/seo/breadcrumb'
+import { FAQSection } from '@/components/seo/faq-section'
+import { RelatedCities } from '@/components/seo/related-cities'
+import { RelatedCategories } from '@/components/seo/related-categories'
+import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 
 interface Props {
   params: Promise<{ category: string }>
@@ -68,46 +73,10 @@ export default async function CategoryPage(props: Props) {
     limit: 12
   })
 
-  // Generate FAQ schema
-  const faqSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    'mainEntity': [
-      {
-        '@type': 'Question',
-        'name': 'Koliko stane ' + category.name.toLowerCase() + '?',
-        'acceptedAnswer': {
-          '@type': 'Answer',
-          'text': 'Cena ' + category.name.toLowerCase() + ' je odvisna od obsega dela. Na LiftGO dobite brezplačne ponudbe od več mojstrov in si lahko izberete najboljšo ceno.'
-        }
-      },
-      {
-        '@type': 'Question',
-        'name': 'Kako hitro pride ' + category.name.toLowerCase() + ' mojster?',
-        'acceptedAnswer': {
-          '@type': 'Answer',
-          'text': 'Povprečen čas odziva je 2 uri. Po zavrnitvi povpraševanja boste hitro prejeli ponudbe od preverjenih mojstrov.'
-        }
-      },
-      {
-        '@type': 'Question',
-        'name': 'Kako preveriti kakovost ' + category.name.toLowerCase() + ' mojstra?',
-        'acceptedAnswer': {
-          '@type': 'Answer',
-          'text': 'Vsi mojstri na LiftGO so preverjeni in imajo ocene strank. Lahko vidite njihov profil, ocene in reference.'
-        }
-      },
-      {
-        '@type': 'Question',
-        'name': 'Kaj vključuje ' + category.name.toLowerCase() + ' storitev?',
-        'acceptedAnswer': {
-          '@type': 'Answer',
-          'text': 'To je odvisno od mojstra in specifičnega primera. Kontaktirajte mojstre in sprašite za natančne podrobnosti.'
-        }
-      }
-    ]
-  }
+  // Get pricing for schema
+  const pricing = getPricingForCategory(params.category)
 
+  // Generate schema markup
   const businessSchema = generateLocalBusinessSchema({
     categoryName: category.name,
     cityName: 'Sloveniji',
@@ -117,16 +86,29 @@ export default async function CategoryPage(props: Props) {
       : 0
   })
 
+  const serviceSchema = generateServiceSchema({
+    categoryName: category.name,
+    cityName: 'Slovenija',
+    description: 'Preverjeni ' + category.name.toLowerCase() + ' mojstri s hirim odzivom in ocenami strank.',
+    minPrice: pricing.minHourly,
+    maxPrice: pricing.maxHourly
+  })
+
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(businessSchema) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(businessSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
       />
+
+      <Breadcrumb items={[
+        { name: 'Domov', href: '/' },
+        { name: category.name, href: '/' + params.category }
+      ]} />
 
       <main className="min-h-screen">
         {/* Hero Section */}
@@ -201,62 +183,21 @@ export default async function CategoryPage(props: Props) {
         </section>
 
         {/* FAQ Section */}
-        <section className="py-12 md:py-20">
-          <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-3xl font-bold mb-12 text-center">
-              Pogosta vprašanja
-            </h2>
+        <FAQSection 
+          categoryName={category.name}
+          categorySlug={params.category}
+        />
 
-            <div className="space-y-6">
-              {[
-                {
-                  q: 'Koliko stane ' + category.name.toLowerCase() + '?',
-                  a: 'Cena je odvisna od obsega dela. Na LiftGO dobite brezplačne ponudbe in si izberete najboljšo ceno.'
-                },
-                {
-                  q: 'Kako hitro pride ' + category.name.toLowerCase() + ' mojster?',
-                  a: 'Povprečen čas odziva je 2 uri. Hitro prejmate ponudbe od preverjenih mojstrov.'
-                },
-                {
-                  q: 'Kako preveriti kakovost mojstra?',
-                  a: 'Vsi mojstri so preverjeni in imajo ocene strank. Lahko vidite njihove profile in reference.'
-                },
-                {
-                  q: 'Kaj vključuje storitev?',
-                  a: 'To je odvisno od mojstra. Kontaktirajte mojstre in sprašite za natančne podrobnosti.'
-                }
-              ].map((item, i) => (
-                <div key={i} className="border rounded-lg p-6">
-                  <h3 className="font-semibold mb-2">{item.q}</h3>
-                  <p className="text-gray-600">{item.a}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Related Cities */}
+        <RelatedCities
+          categorySlug={params.category}
+          categoryName={category.name}
+        />
 
-        {/* Cities Grid */}
-        <section className="py-12 md:py-20 bg-gray-50">
-          <div className="max-w-6xl mx-auto px-4">
-            <h2 className="text-3xl font-bold mb-12">
-              {category.name} po mestih
-            </h2>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {SLOVENIAN_CITIES.map(city => (
-                <Link
-                  key={city.slug}
-                  href={`/${params.category}/${city.slug}`}
-                  className="p-4 border rounded-lg hover:shadow-md transition-shadow text-center"
-                >
-                  <p className="font-medium text-sm">
-                    {category.name.split(' ')[0]} {city.name}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Related Categories */}
+        <RelatedCategories
+          currentCategorySlug={params.category}
+        />
       </main>
     </>
   )

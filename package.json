@@ -20,6 +20,8 @@
     "googleapis": "^140.0.0",
     "@hookform/resolvers": "^3.9.1",
     "@next/third-parties": "^16.1.6",
+    "next-mdx-remote": "^5.0.0",
+    "gray-matter": "^4.0.3",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
     "@radix-ui/react-aspect-ratio": "1.1.1",
@@ -86,6 +88,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
     "@types/jest": "^29.5.14",
+    "@types/mdx": "^2.0.13",
+    "@types/gray-matter": "^4.1.4",
     "@types/node": "^22",
     "@types/nodemailer": "^6.4.16",
     "@types/react": "19.2.7",
