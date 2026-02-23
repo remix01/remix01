@@ -1,4 +1,17 @@
-import { ViolationType, ViolationSeverity } from '@prisma/client'
+// Local type definitions to avoid Prisma dependency
+export enum ViolationType {
+  PHONE_DETECTED = 'PHONE_DETECTED',
+  EMAIL_DETECTED = 'EMAIL_DETECTED',
+  BYPASS_ATTEMPT = 'BYPASS_ATTEMPT',
+  SUSPICIOUS_PATTERN = 'SUSPICIOUS_PATTERN',
+}
+
+export enum ViolationSeverity {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
+}
 
 // Detection patterns for contact information and bypass attempts
 export const DETECTION_PATTERNS = [
