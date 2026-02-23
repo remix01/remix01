@@ -18,6 +18,13 @@ interface Props {
   params: Promise<{ category: string; city: string }>
 }
 
+// Exclude static files and reserved paths from being caught by dynamic route
+const EXCLUDED_PATHS = [
+  'images', 'icons', 'fonts', 'api', 'admin', 
+  '_next', 'static', 'favicon.ico', 'robots.txt',
+  'sitemap.xml', 'sw.js', 'manifest.json'
+]
+
 export async function generateStaticParams() {
   // Generate all combinations of category slugs × city slugs
   try {
@@ -41,6 +48,12 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
+  
+  // Exclude static paths and file extensions
+  if (EXCLUDED_PATHS.includes(params.category) || params.city.includes('.')) {
+    return { title: 'LiftGO' }
+  }
+  
   const category = await getCategoryBySlug(params.category)
   const city = getCityBySlug(params.city)
 
@@ -78,6 +91,12 @@ function getNearbyCities(region: string, currentCity: string) {
 
 export default async function CategoryCityPage(props: Props) {
   const params = await props.params
+  
+  // Exclude static files and reserved paths
+  if (EXCLUDED_PATHS.includes(params.category) || params.city.includes('.')) {
+    notFound()
+  }
+  
   const category = await getCategoryBySlug(params.category)
   const city = getCityBySlug(params.city)
 
