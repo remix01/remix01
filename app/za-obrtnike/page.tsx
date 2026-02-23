@@ -58,6 +58,13 @@ export default function ZaObrtnike() {
                   </Button>
                 </div>
 
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Že imate račun?{' '}
+                  <Link href="/partner-auth/login" className="text-blue-600 hover:underline font-medium">
+                    Prijavite se →
+                  </Link>
+                </p>
+
                 <div className="mt-8 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <CheckCircle className="h-4 w-4 text-primary" />

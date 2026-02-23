@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PartnerSidebar } from '@/components/partner/sidebar'
 import { OfferForm } from '@/components/partner/offer-form'
@@ -9,6 +10,7 @@ import { OffersList } from '@/components/partner/offers-list'
 import { PartnerStats } from '@/components/partner/partner-stats'
 import { PaymentsSection } from '@/components/partner/payments-section'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function PartnerDashboard() {
@@ -102,6 +104,25 @@ export default function PartnerDashboard() {
               Dobrodošli, {partner.company_name}
             </p>
           </div>
+
+          {/* New Requests Banner */}
+          <Card className="mb-8 p-6 bg-blue-50 border-blue-200">
+            <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
+              <div>
+                <h3 className="font-semibold text-lg text-foreground mb-1">
+                  🆕 Nova povpraševanja dostopna
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Preglejte povpraševanja naročnikov in pošljite ponudbo
+                </p>
+              </div>
+              <Link href="/partner-dashboard/povprasevanja" className="flex-shrink-0">
+                <Button className="gap-2 whitespace-nowrap">
+                  Poglej povpraševanja →
+                </Button>
+              </Link>
+            </div>
+          </Card>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList>

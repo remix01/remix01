@@ -51,17 +51,30 @@ export async function updateSession(request: NextRequest) {
 
   // Verify partner access for /partner-dashboard
   if (user && request.nextUrl.pathname.startsWith('/partner-dashboard')) {
+    // Check for partner record in old system
     const { data: partner } = await supabase
       .from('partners')
       .select('id')
       .eq('id', user.id)
       .single()
 
+    // If no old system partner, check new system profiles/obrtnik table
     if (!partner) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/partner-auth/sign-up'
-      return NextResponse.redirect(url)
+      const { data: obrtnikProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single()
+
+      // If neither partner nor obrtnik profile exists, redirect to signup
+      if (!obrtnikProfile) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/partner-auth/sign-up'
+        return NextResponse.redirect(url)
+      }
+      // Has obrtnik profile in new system - allow access
     }
+    // Has partner record in old system - allow access
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

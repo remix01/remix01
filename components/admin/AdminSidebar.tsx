@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { 
+import {
   LayoutDashboard, 
   AlertTriangle, 
   ShieldAlert, 
@@ -10,7 +10,8 @@ import {
   Briefcase, 
   Settings,
   LogOut,
-  UserCog
+  UserCog,
+  RefreshCw
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -37,6 +38,7 @@ const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin' },
   { icon: Users, label: 'Stranke', href: '/admin/stranke' },
   { icon: Briefcase, label: 'Partnerji', href: '/admin/partnerji' },
+  { icon: RefreshCw, label: '🔄 Migracije', href: '/admin/migracije', roles: ['SUPER_ADMIN'] },
   { icon: AlertTriangle, label: 'Violations', href: '/admin/violations' },
   { icon: ShieldAlert, label: 'Risk Alerts', href: '/admin/risk-alerts' },
   { icon: UserCog, label: 'Zaposleni', href: '/admin/zaposleni', roles: ['SUPER_ADMIN'] },
