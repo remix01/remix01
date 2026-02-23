@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 
 const confirmCompletionSchema = z.object({
@@ -32,24 +32,25 @@ export async function POST(request: NextRequest) {
     const { jobId } = validation.data
 
     // 3. Fetch job with payment and craftworker info
-    const job = await prisma.job.findUnique({
-      where: { id: jobId },
-      include: {
-        payment: true,
-        craftworker: {
-          include: {
-            craftworkerProfile: true,
-          },
-        },
-      },
-    })
+    const { data: job, error: jobError } = await supabaseAdmin
+      .from('job')
+      .select(`
+        *,
+        payment:payment_id(*),
+        craftworker:craftworker_id(
+          *,
+          craftworker_profile(*)
+        )
+      `)
+      .eq('id', jobId)
+      .single()
 
     // 4. Validate job exists and user is the customer
-    if (!job) {
+    if (jobError || !job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     }
 
-    if (job.customerId !== user.id) {
+    if (job.customer_id !== user.id) {
       return NextResponse.json({ error: 'Not authorized for this job' }, { status: 403 })
     }
 
@@ -74,61 +75,66 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Validate craftworker has Stripe account
-    if (!job.craftworker?.craftworkerProfile?.stripeAccountId) {
+    if (!job.craftworker?.craftworker_profile?.stripe_account_id) {
       return NextResponse.json(
         { error: 'Craftworker does not have Stripe account configured' },
         { status: 400 }
       )
     }
 
-    const stripeAccountId = job.craftworker.craftworkerProfile.stripeAccountId
-    const craftworkerPayoutAmount = job.payment.craftworkerPayout.toNumber()
+    const stripeAccountId = job.craftworker.craftworker_profile.stripe_account_id
+    const craftworkerPayoutAmount = Number(job.payment.craftworker_payout)
 
-    // 8. Perform database update and Stripe operations in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Update job status to COMPLETED
-      const updatedJob = await tx.job.update({
-        where: { id: jobId },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-        },
+    // 8. Update job status to COMPLETED
+    const { error: jobUpdateError } = await supabaseAdmin
+      .from('job')
+      .update({
+        status: 'COMPLETED',
+        completed_at: new Date().toISOString(),
       })
+      .eq('id', jobId)
 
-      // Update payment status to RELEASED
-      const updatedPayment = await tx.payment.update({
-        where: { id: job.payment!.id },
-        data: {
-          status: 'RELEASED',
-          releasedAt: new Date(),
-        },
+    if (jobUpdateError) throw new Error(jobUpdateError.message)
+
+    // 9. Update payment status to RELEASED
+    const { error: paymentUpdateError } = await supabaseAdmin
+      .from('payment')
+      .update({
+        status: 'RELEASED',
+        released_at: new Date().toISOString(),
       })
+      .eq('id', job.payment.id)
 
-      // Update craftworker profile metrics
-      await tx.craftworkerProfile.update({
-        where: { userId: job.craftworkerId! },
-        data: {
-          totalJobsCompleted: {
-            increment: 1,
-          },
-        },
-      })
+    if (paymentUpdateError) throw new Error(paymentUpdateError.message)
 
-      return { updatedJob, updatedPayment }
-    })
+    // 10. Update craftworker profile metrics
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .select('total_jobs_completed')
+      .eq('user_id', job.craftworker_id)
+      .single()
 
-    // 9. Create Stripe payout (happens automatically with destination charges, but we log it)
+    if (!profileError && profile) {
+      await supabaseAdmin
+        .from('craftworker_profile')
+        .update({
+          total_jobs_completed: (profile.total_jobs_completed || 0) + 1,
+        })
+        .eq('user_id', job.craftworker_id)
+    }
+
+    // 11. Create Stripe payout (happens automatically with destination charges, but we log it)
     // Note: With destination charges and application fees, the money is already in the connected account
     // We don't need to create a separate transfer - it was created when the PaymentIntent succeeded
     
     // TODO: Send email/SMS notification to craftworker
-    console.log(`[confirm-completion] Job ${jobId} completed. Craftworker ${job.craftworkerId} will receive ${craftworkerPayoutAmount} EUR`)
+    console.log(`[confirm-completion] Job ${jobId} completed. Craftworker ${job.craftworker_id} will receive ${craftworkerPayoutAmount} EUR`)
 
     return NextResponse.json({
       success: true,
-      jobId: result.updatedJob.id,
-      paymentStatus: result.updatedPayment.status,
-      completedAt: result.updatedJob.completedAt,
+      jobId: job.id,
+      paymentStatus: 'RELEASED',
+      completedAt: new Date().toISOString(),
       message: 'Payment released to craftworker successfully',
     })
 

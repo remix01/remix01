@@ -1,5 +1,4 @@
-import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 /**
  * Actor types for audit logging
@@ -51,10 +50,13 @@ export async function createAuditLog(options: CreateAuditLogOptions) {
   try {
     // Idempotency check: if stripeEventId exists, check if already processed
     if (stripeEventId) {
-      const existing = await prisma.auditLog.findUnique({
-        where: { stripeEventId },
-      })
+      const { data: existing, error: fetchError } = await supabaseAdmin
+        .from('audit_log')
+        .select('*')
+        .eq('stripe_event_id', stripeEventId)
+        .single()
 
+      if (fetchError && fetchError.code !== 'PGRST116') throw fetchError
       if (existing) {
         console.log(`[audit] Duplicate Stripe event ${stripeEventId}, skipping`)
         return null
@@ -62,16 +64,20 @@ export async function createAuditLog(options: CreateAuditLogOptions) {
     }
 
     // Create audit log entry
-    const auditLog = await prisma.auditLog.create({
-      data: {
-        eventType,
+    const { data: auditLog, error } = await supabaseAdmin
+      .from('audit_log')
+      .insert({
+        event_type: eventType,
         actor,
-        jobId,
-        paymentId,
-        stripeEventId,
-        metadata: metadata as Prisma.JsonObject,
-      },
-    })
+        job_id: jobId,
+        payment_id: paymentId,
+        stripe_event_id: stripeEventId,
+        metadata: metadata,
+      })
+      .select()
+      .single()
+
+    if (error) throw new Error(error.message)
 
     console.log(`[audit] ${eventType} by ${actor}`, { 
       auditLogId: auditLog.id,
@@ -94,10 +100,13 @@ export async function createAuditLog(options: CreateAuditLogOptions) {
  * @returns true if event was already processed
  */
 export async function isStripeEventProcessed(stripeEventId: string): Promise<boolean> {
-  const existing = await prisma.auditLog.findUnique({
-    where: { stripeEventId },
-  })
+  const { data: existing, error } = await supabaseAdmin
+    .from('audit_log')
+    .select('*')
+    .eq('stripe_event_id', stripeEventId)
+    .single()
 
+  if (error && error.code !== 'PGRST116') throw new Error(error.message)
   return existing !== null
 }
 
@@ -108,10 +117,14 @@ export async function isStripeEventProcessed(stripeEventId: string): Promise<boo
  * @returns Array of audit logs ordered by creation time
  */
 export async function getJobAuditLogs(jobId: string) {
-  return prisma.auditLog.findMany({
-    where: { jobId },
-    orderBy: { createdAt: 'asc' },
-  })
+  const { data, error } = await supabaseAdmin
+    .from('audit_log')
+    .select('*')
+    .eq('job_id', jobId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return data
 }
 
 /**
@@ -121,10 +134,14 @@ export async function getJobAuditLogs(jobId: string) {
  * @returns Array of audit logs ordered by creation time
  */
 export async function getPaymentAuditLogs(paymentId: string) {
-  return prisma.auditLog.findMany({
-    where: { paymentId },
-    orderBy: { createdAt: 'asc' },
-  })
+  const { data, error } = await supabaseAdmin
+    .from('audit_log')
+    .select('*')
+    .eq('payment_id', paymentId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return data
 }
 
 /**
@@ -134,24 +151,16 @@ export async function getPaymentAuditLogs(paymentId: string) {
  * @returns Array of recent audit logs
  */
 export async function getRecentAuditLogs(limit: number = 50) {
-  return prisma.auditLog.findMany({
-    take: limit,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      job: {
-        select: {
-          id: true,
-          customer: { select: { name: true } },
-          craftworker: { select: { name: true } },
-        },
-      },
-      payment: {
-        select: {
-          id: true,
-          amount: true,
-          status: true,
-        },
-      },
-    },
-  })
+  const { data, error } = await supabaseAdmin
+    .from('audit_log')
+    .select(`
+      *,
+      job:job_id(id, customer:customer_id(name), craftworker:craftworker_id(name)),
+      payment:payment_id(id, amount, status)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+  return data
 }

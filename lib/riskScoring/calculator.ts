@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export type AlertLevel = 'none' | 'watch' | 'review' | 'critical'
 
@@ -22,35 +22,26 @@ const SUSPICIOUS_WORDS = [
  * Score range: 0-100 (higher = more risky)
  */
 export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: {
-      craftworker: {
-        include: {
-          craftworkerProfile: true
-        }
-      },
-      customer: true,
-      violations: {
-        where: {
-          type: {
-            in: ['PHONE_DETECTED', 'EMAIL_DETECTED', 'BYPASS_ATTEMPT']
-          }
-        }
-      },
-      conversation: {
-        include: {
-          messages: {
-            orderBy: { sentAt: 'desc' },
-            take: 50 // Analyze last 50 messages
-          }
-        }
-      },
-      payment: true
-    }
-  })
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('job')
+    .select(`
+      *,
+      craftworker:craftworker_id(
+        *,
+        craftworker_profile(*)
+      ),
+      customer:customer_id(*),
+      violation(*),
+      conversation:conversation_id(
+        *,
+        message(*, order_by: { created_at: desc }, limit: 50)
+      ),
+      payment:payment_id(*)
+    `)
+    .eq('id', jobId)
+    .single()
 
-  if (!job) {
+  if (jobError || !job) {
     throw new Error(`Job ${jobId} not found`)
   }
 
@@ -59,8 +50,8 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
   const details: Record<string, number> = {}
 
   // 1. Bypass warnings from craftworker (max 75 points)
-  if (job.craftworker?.craftworkerProfile) {
-    const warnings = job.craftworker.craftworkerProfile.bypassWarnings
+  if (job.craftworker?.craftworker_profile) {
+    const warnings = job.craftworker.craftworker_profile.bypass_warnings
     if (warnings >= 1) {
       const warningScore = Math.min(warnings * 25, 75)
       score += warningScore
@@ -77,20 +68,20 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
   }
 
   // 3. High value job (> 5000 EUR) (+15 points)
-  if (job.estimatedValue && Number(job.estimatedValue) > 5000) {
+  if (job.estimated_value && Number(job.estimated_value) > 5000) {
     score += 15
     details.highValue = 15
-    flags.push(`High value job: €${job.estimatedValue}`)
+    flags.push(`High value job: €${job.estimated_value}`)
   }
 
   // 4. Low craftworker completion rate (< 40%) (+20 points)
-  if (job.craftworker?.craftworkerProfile) {
-    const profile = job.craftworker.craftworkerProfile
-    const completionRate = profile.totalJobsCompleted > 0 
-      ? (profile.totalJobsCompleted / (profile.totalJobsCompleted + 5)) * 100 // Rough estimate
+  if (job.craftworker?.craftworker_profile) {
+    const profile = job.craftworker.craftworker_profile
+    const completionRate = profile.total_jobs_completed > 0 
+      ? (profile.total_jobs_completed / (profile.total_jobs_completed + 5)) * 100 // Rough estimate
       : 0
     
-    if (completionRate < 40 && profile.totalJobsCompleted > 0) {
+    if (completionRate < 40 && profile.total_jobs_completed > 0) {
       score += 20
       details.lowCompletionRate = 20
       flags.push(`Low completion rate: ${completionRate.toFixed(0)}%`)
@@ -98,8 +89,8 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
   }
 
   // 5. Suspicious words in messages (+15 points)
-  if (job.conversation?.messages) {
-    const suspiciousMessages = job.conversation.messages.filter(msg => {
+  if (job.conversation?.message) {
+    const suspiciousMessages = job.conversation.message.filter((msg: any) => {
       const body = msg.body.toLowerCase()
       return SUSPICIOUS_WORDS.some(word => body.includes(word))
     })
@@ -113,7 +104,7 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
 
   // 6. Job older than 7 days with no progress (+10 points)
   const daysSinceCreated = Math.floor(
-    (Date.now() - job.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+    (Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)
   )
 
   if (daysSinceCreated > 7 && job.status === 'MATCHED') {
@@ -126,7 +117,7 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
   if (job.craftworker && job.customer) {
     // Simple check - would need full address comparison in production
     const sameCity = job.city.toLowerCase() === job.craftworker.phone?.toLowerCase() // Placeholder
-    if (sameCity && job.estimatedValue && Number(job.estimatedValue) > 3000) {
+    if (sameCity && job.estimated_value && Number(job.estimated_value) > 3000) {
       score += 10
       details.sameCityHighValue = 10
       flags.push('Customer and craftworker from same area (high value)')
@@ -147,21 +138,16 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
   }
 
   // Save to database
-  await prisma.riskScore.upsert({
-    where: { jobId },
-    create: {
-      jobId,
+  const { error: upsertError } = await supabaseAdmin
+    .from('risk_score')
+    .upsert({
+      job_id: jobId,
       score,
       flags: flags,
-      triggeredAlert: score >= 70
-    },
-    update: {
-      score,
-      flags: flags,
-      calculatedAt: new Date(),
-      triggeredAlert: score >= 70
-    }
-  })
+      triggered_alert: score >= 70,
+    })
+
+  if (upsertError) throw new Error(upsertError.message)
 
   return {
     score,
@@ -175,19 +161,18 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
  * Get all jobs that need risk assessment
  */
 export async function getJobsForRiskCheck() {
-  return prisma.job.findMany({
-    where: {
-      status: {
-        in: ['IN_PROGRESS', 'MATCHED']
-      }
-    },
-    include: {
-      craftworker: {
-        include: {
-          craftworkerProfile: true
-        }
-      },
-      riskScore: true
-    }
-  })
+  const { data, error } = await supabaseAdmin
+    .from('job')
+    .select(`
+      *,
+      craftworker:craftworker_id(
+        *,
+        craftworker_profile(*)
+      ),
+      risk_score(*)
+    `)
+    .in('status', ['IN_PROGRESS', 'MATCHED'])
+
+  if (error) throw new Error(error.message)
+  return data
 }

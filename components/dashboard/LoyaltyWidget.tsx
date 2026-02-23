@@ -6,8 +6,17 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
-import type { CraftworkerProfile } from '@prisma/client'
 import { getEffectiveCommission, getCommissionExplanation } from '@/lib/loyalty/commissionCalculator'
+
+interface CraftworkerProfile {
+  id: string
+  user_id: string
+  package_type: 'START' | 'PRO'
+  total_jobs_completed: number
+  loyalty_points: number
+  commission_override?: number | null
+  referral_code?: string
+}
 
 interface LoyaltyWidgetProps {
   profile: CraftworkerProfile
@@ -21,10 +30,10 @@ export function LoyaltyWidget({ profile }: LoyaltyWidgetProps) {
   
   // Calculate progress percentage to next tier
   const progressPercent = commission.nextTierAt 
-    ? Math.min(100, ((profile.totalJobsCompleted % (commission.nextTierAt + profile.totalJobsCompleted)) / (commission.nextTierAt + profile.totalJobsCompleted)) * 100)
+    ? Math.min(100, ((profile.total_jobs_completed % (commission.nextTierAt + profile.total_jobs_completed)) / (commission.nextTierAt + profile.total_jobs_completed)) * 100)
     : 100
 
-  const referralLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'}/join?ref=${profile.referralCode}`
+  const referralLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'}/join?ref=${profile.referral_code}`
 
   const handleCopyReferralLink = async () => {
     try {
@@ -78,7 +87,7 @@ export function LoyaltyWidget({ profile }: LoyaltyWidgetProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Napredek do naslednjega tiera</span>
-              <span className="font-medium">{profile.totalJobsCompleted} / {profile.totalJobsCompleted + commission.nextTierAt} del</span>
+              <span className="font-medium">{profile.total_jobs_completed} / {profile.total_jobs_completed + commission.nextTierAt} del</span>
             </div>
             <Progress value={progressPercent} className="h-2" />
             <p className="text-xs text-muted-foreground">
@@ -97,15 +106,15 @@ export function LoyaltyWidget({ profile }: LoyaltyWidgetProps) {
         )}
 
         {/* Loyalty Points */}
-        {profile.loyaltyPoints > 0 && (
+        {profile.loyalty_points > 0 && (
           <div className="flex items-center justify-between p-3 bg-accent rounded-lg">
             <div className="flex items-center gap-2">
               <Gift className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Zvestobne točke</span>
             </div>
             <div className="text-right">
-              <p className="font-bold">{profile.loyaltyPoints}</p>
-              <p className="text-xs text-muted-foreground">= {(profile.loyaltyPoints / 100 * 0.5).toFixed(2)}% popust</p>
+              <p className="font-bold">{profile.loyalty_points}</p>
+              <p className="text-xs text-muted-foreground">= {(profile.loyalty_points / 100 * 0.5).toFixed(2)}% popust</p>
             </div>
           </div>
         )}
@@ -151,7 +160,7 @@ export function LoyaltyWidget({ profile }: LoyaltyWidgetProps) {
           </summary>
           <div className="mt-2 space-y-1 text-xs">
             <div className="flex justify-between">
-              <span>Osnovna stopnja ({profile.packageType}):</span>
+              <span>Osnovna stopnja ({profile.package_type}):</span>
               <span className="font-medium">{commission.breakdown.baseRate}%</span>
             </div>
             {commission.breakdown.tierDiscount > 0 && (

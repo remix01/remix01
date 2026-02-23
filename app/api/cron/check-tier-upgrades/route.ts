@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEffectiveCommission } from '@/lib/loyalty/commissionCalculator'
 import { sendEmail } from '@/lib/email/sender'
 
@@ -14,32 +14,30 @@ export async function GET(request: NextRequest) {
     console.log('[tier-upgrades] Starting tier upgrade check...')
 
     // Get all craftworkers
-    const craftworkers = await prisma.craftworkerProfile.findMany({
-      where: {
-        isSuspended: false
-      },
-      include: {
-        user: true
-      }
-    })
+    const { data: craftworkers, error } = await supabaseAdmin
+      .from('craftworker_profile')
+      .select('*, user:user_id(*)')
+      .eq('is_suspended', false)
+
+    if (error) throw new Error(error.message)
 
     let upgradeCount = 0
     const upgrades: Array<{ name: string; oldRate: number; newRate: number; tierName: string }> = []
 
-    for (const craftworker of craftworkers) {
+    for (const craftworker of (craftworkers || [])) {
       // Calculate current effective commission
       const currentCommission = getEffectiveCommission(craftworker)
-      const currentRate = craftworker.commissionRate.toNumber()
+      const currentRate = Number(craftworker.commission_rate) || 10
 
       // Check if there's a change in tier (lower rate = upgrade)
       if (currentCommission.rate < currentRate && currentCommission.rate !== currentRate) {
         // Update the stored commission rate
-        await prisma.craftworkerProfile.update({
-          where: { id: craftworker.id },
-          data: {
-            commissionRate: currentCommission.rate
-          }
-        })
+        const { error: updateError } = await supabaseAdmin
+          .from('craftworker_profile')
+          .update({ commission_rate: currentCommission.rate })
+          .eq('id', craftworker.id)
+
+        if (updateError) throw new Error(updateError.message)
 
         upgradeCount++
         upgrades.push({
@@ -66,7 +64,7 @@ export async function GET(request: NextRequest) {
                   <p style="margin: 8px 0 0 0;"><strong>Tier:</strong> ${currentCommission.tierName}</p>
                 </div>
                 
-                <p><strong>Opravljenih del:</strong> ${craftworker.totalJobsCompleted}</p>
+                <p><strong>Opravljenih del:</strong> ${craftworker.total_jobs_completed}</p>
                 
                 ${currentCommission.nextTierAt 
                   ? `<p>Do naslednjega tiera še <strong>${currentCommission.nextTierAt} del</strong>!</p>` 
@@ -87,11 +85,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log(`[tier-upgrades] Processed ${craftworkers.length} craftworkers, ${upgradeCount} upgrades`)
+    console.log(`[tier-upgrades] Processed ${craftworkers?.length || 0} craftworkers, ${upgradeCount} upgrades`)
 
     return NextResponse.json({
       success: true,
-      checked: craftworkers.length,
+      checked: craftworkers?.length || 0,
       upgrades: upgradeCount,
       details: upgrades
     })

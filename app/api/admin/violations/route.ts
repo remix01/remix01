@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { z } from 'zod'
 
 const querySchema = z.object({
@@ -21,12 +21,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true }
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-    if (!dbUser || dbUser.role !== 'ADMIN') {
+    if (userError || !dbUser || dbUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -38,61 +39,33 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(params.limit)
     const skip = (page - 1) * limit
 
-    // Build where clause
-    const where: any = {}
-    if (params.type) where.type = params.type
-    if (params.severity) where.severity = params.severity
-    if (params.reviewed) where.isReviewed = params.reviewed === 'true'
+    // Build filters
+    let query = supabaseAdmin
+      .from('violation')
+      .select(`
+        *,
+        job:job_id(id, title, category, status),
+        user:user_id(id, name, email, craftworker_profile:craftworker_profile(bypass_warnings, is_suspended)),
+        message:message_id(id, created_at)
+      `, { count: 'exact' })
 
-    // Fetch violations with relations
-    const [violations, total] = await Promise.all([
-      prisma.violation.findMany({
-        where,
-        include: {
-          job: {
-            select: {
-              id: true,
-              title: true,
-              category: true,
-              status: true,
-            }
-          },
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              craftworkerProfile: {
-                select: {
-                  bypassWarnings: true,
-                  isSuspended: true,
-                }
-              }
-            }
-          },
-          message: {
-            select: {
-              id: true,
-              sentAt: true,
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        skip,
-        take: limit,
-      }),
-      prisma.violation.count({ where })
-    ])
+    if (params.type) query = query.eq('type', params.type)
+    if (params.severity) query = query.eq('severity', params.severity)
+    if (params.reviewed) query = query.eq('is_reviewed', params.reviewed === 'true')
+
+    const { data: violations, count: total, error } = await query
+      .order('created_at', { ascending: false })
+      .range(skip, skip + limit - 1)
+
+    if (error) throw new Error(error.message)
 
     return NextResponse.json({
       violations,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit)
+        total: total || 0,
+        totalPages: Math.ceil((total || 0) / limit)
       }
     })
 

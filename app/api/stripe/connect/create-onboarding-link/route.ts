@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const requestSchema = z.object({
   accountId: z.string(),
@@ -21,19 +21,24 @@ export async function POST(request: Request) {
     }
 
     // Verify user is a craftworker
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { craftworkerProfile: true }
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('role, craftworker_profile(*)')
+      .eq('id', user.id)
+      .single()
 
-    if (!dbUser || dbUser.role !== 'CRAFTWORKER') {
+    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
       return NextResponse.json(
         { error: 'Only craftworkers can access onboarding' },
         { status: 403 }
       )
     }
 
-    if (!dbUser.craftworkerProfile?.stripeAccountId) {
+    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
+      ? dbUser.craftworker_profile[0] 
+      : dbUser.craftworker_profile
+
+    if (!craftworkerProfile?.stripe_account_id) {
       return NextResponse.json(
         { error: 'No Stripe account found. Create one first.' },
         { status: 404 }
@@ -44,7 +49,7 @@ export async function POST(request: Request) {
     const validatedData = requestSchema.parse(body)
 
     // Verify the account ID matches the user's account
-    if (validatedData.accountId !== dbUser.craftworkerProfile.stripeAccountId) {
+    if (validatedData.accountId !== craftworkerProfile.stripe_account_id) {
       return NextResponse.json(
         { error: 'Account ID mismatch' },
         { status: 403 }

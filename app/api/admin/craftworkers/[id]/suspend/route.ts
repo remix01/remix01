@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 import { craftworkerSuspensionEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
@@ -27,11 +27,13 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email! }
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('*')
+      .eq('email', user.email!)
+      .single()
 
-    if (!dbUser || dbUser.role !== 'ADMIN') {
+    if (userError || !dbUser || dbUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
 
@@ -42,49 +44,46 @@ export async function POST(
     const craftworkerId = params.id
 
     // Get craftworker profile
-    const profile = await prisma.craftworkerProfile.findUnique({
-      where: { userId: craftworkerId },
-      include: {
-        user: true
-      }
-    })
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .select('*, user:user_id(*)')
+      .eq('user_id', craftworkerId)
+      .single()
 
-    if (!profile) {
+    if (profileError || !profile) {
       return NextResponse.json({ error: 'Craftworker not found' }, { status: 404 })
     }
 
-    if (profile.isSuspended) {
+    if (profile.is_suspended) {
       return NextResponse.json({ error: 'Craftworker already suspended' }, { status: 400 })
     }
 
     // Suspend the craftworker
-    await prisma.craftworkerProfile.update({
-      where: { userId: craftworkerId },
-      data: {
-        isSuspended: true,
-        suspendedAt: new Date(),
-        suspendedReason: validatedData.reason
-      }
-    })
+    const { error: updateError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .update({
+        is_suspended: true,
+        suspended_at: new Date().toISOString(),
+        suspended_reason: validatedData.reason
+      })
+      .eq('user_id', craftworkerId)
+
+    if (updateError) throw new Error(updateError.message)
 
     console.log(`[suspend] Craftworker ${craftworkerId} suspended by admin ${dbUser.id}`)
 
     // Close all active Twilio conversations
-    const activeJobs = await prisma.job.findMany({
-      where: {
-        craftworkerId,
-        status: {
-          in: ['MATCHED', 'IN_PROGRESS']
-        }
-      },
-      include: {
-        conversation: true
-      }
-    })
+    const { data: activeJobs, error: jobsError } = await supabaseAdmin
+      .from('job')
+      .select('*, conversation:conversation_id(*)')
+      .eq('craftworker_id', craftworkerId)
+      .in('status', ['MATCHED', 'IN_PROGRESS'])
 
-    console.log(`[suspend] Found ${activeJobs.length} active jobs to close`)
+    if (jobsError) throw new Error(jobsError.message)
 
-    for (const job of activeJobs) {
+    console.log(`[suspend] Found ${(activeJobs || []).length} active jobs to close`)
+
+    for (const job of (activeJobs || [])) {
       if (job.conversation && job.conversation.status === 'ACTIVE') {
         try {
           const twilio = require('twilio')(
@@ -93,16 +92,16 @@ export async function POST(
           )
 
           await twilio.conversations.v1
-            .conversations(job.conversation.twilioConversationSid)
+            .conversations(job.conversation.twilio_conversation_sid)
             .update({ state: 'closed' })
 
-          await prisma.conversation.update({
-            where: { id: job.conversation.id },
-            data: {
+          await supabaseAdmin
+            .from('conversation')
+            .update({
               status: 'SUSPENDED',
-              closedAt: new Date()
-            }
-          })
+              closed_at: new Date().toISOString()
+            })
+            .eq('id', job.conversation.id)
 
           console.log(`[suspend] Closed conversation for job ${job.id}`)
         } catch (error) {
@@ -127,7 +126,7 @@ export async function POST(
       message: 'Craftworker suspended successfully',
       craftworkerId,
       suspendedAt: new Date().toISOString(),
-      closedConversations: activeJobs.filter(j => j.conversation).length
+      closedConversations: (activeJobs || []).filter(j => j.conversation).length
     })
 
   } catch (error) {

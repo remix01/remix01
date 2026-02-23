@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { z } from 'zod'
 
 const querySchema = z.object({
@@ -17,12 +17,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { email: user.email! },
-      select: { role: true }
-    })
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('role')
+      .eq('email', user.email!)
+      .single()
 
-    if (dbUser?.role !== 'ADMIN') {
+    if (userError || dbUser?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -32,67 +33,49 @@ export async function GET(request: NextRequest) {
       filter: searchParams.get('filter') || 'all'
     })
 
-    // Build where clause based on filter
-    const where: any = {}
-    
+    // Build filters
+    let query = supabaseAdmin
+      .from('craftworker_profile')
+      .select(`
+        *,
+        user:user_id(id, name, email)
+      `)
+
     if (filter === 'active') {
-      where.isSuspended = false
-      where.isVerified = true
+      query = query.eq('is_suspended', false).eq('is_verified', true)
     } else if (filter === 'suspended') {
-      where.isSuspended = true
+      query = query.eq('is_suspended', true)
     } else if (filter === 'unverified') {
-      where.isVerified = false
+      query = query.eq('is_verified', false)
     }
 
-    // Fetch craftworkers with related data
-    const craftworkers = await prisma.craftworkerProfile.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        },
-        _count: {
-          select: {
-            user: {
-              where: {
-                violations: {
-                  some: {}
-                }
-              }
-            }
-          }
-        }
-      },
-      orderBy: [
-        { isSuspended: 'desc' },
-        { bypassWarnings: 'desc' },
-        { totalJobsCompleted: 'desc' }
-      ]
-    })
+    const { data: craftworkers, error } = await query
+      .order('is_suspended', { ascending: true })
+      .order('bypass_warnings', { ascending: false })
+      .order('total_jobs_completed', { ascending: false })
+
+    if (error) throw new Error(error.message)
 
     // Get violation counts for each craftworker
     const craftworkersWithViolations = await Promise.all(
-      craftworkers.map(async (cw) => {
-        const violationCount = await prisma.violation.count({
-          where: { userId: cw.user.id }
-        })
+      (craftworkers || []).map(async (cw: any) => {
+        const { count: violationCount } = await supabaseAdmin
+          .from('violation')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', cw.user.id)
 
         return {
           id: cw.user.id,
           name: cw.user.name,
           email: cw.user.email,
-          packageType: cw.packageType,
-          stripeOnboardingComplete: cw.stripeOnboardingComplete,
-          totalJobsCompleted: cw.totalJobsCompleted,
-          avgRating: Number(cw.avgRating),
-          bypassWarnings: cw.bypassWarnings,
-          isSuspended: cw.isSuspended,
-          isVerified: cw.isVerified,
-          violationCount,
+          packageType: cw.package_type,
+          stripeOnboardingComplete: cw.stripe_onboarding_complete,
+          totalJobsCompleted: cw.total_jobs_completed,
+          avgRating: Number(cw.avg_rating),
+          bypassWarnings: cw.bypass_warnings,
+          isSuspended: cw.is_suspended,
+          isVerified: cw.is_verified,
+          violationCount: violationCount || 0,
         }
       })
     )

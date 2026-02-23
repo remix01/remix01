@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const CURRENT_TOS_VERSION = '2026-02-v1'
 
@@ -30,24 +30,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user in database
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        tosAcceptedAt: new Date(),
-        tosVersion: CURRENT_TOS_VERSION,
-        ...(craftworkerAgreement && {
-          craftworkerAgreementAcceptedAt: new Date(),
-        }),
-      },
-    })
+    const updateData: any = {
+      tos_accepted_at: new Date().toISOString(),
+      tos_version: CURRENT_TOS_VERSION,
+    }
+
+    if (craftworkerAgreement) {
+      updateData.craftworker_agreement_accepted_at = new Date().toISOString()
+    }
+
+    const { data: updatedUser, error: updateError } = await supabaseAdmin
+      .from('user')
+      .update(updateData)
+      .eq('id', user.id)
+      .select('id, tos_accepted_at, tos_version, craftworker_agreement_accepted_at')
+      .single()
+
+    if (updateError) throw new Error(updateError.message)
 
     return NextResponse.json({
       success: true,
       user: {
-        id: updatedUser.id,
-        tosAcceptedAt: updatedUser.tosAcceptedAt,
-        tosVersion: updatedUser.tosVersion,
-        craftworkerAgreementAcceptedAt: updatedUser.craftworkerAgreementAcceptedAt,
+        id: updatedUser?.id,
+        tosAcceptedAt: updatedUser?.tos_accepted_at,
+        tosVersion: updatedUser?.tos_version,
+        craftworkerAgreementAcceptedAt: updatedUser?.craftworker_agreement_accepted_at,
       },
     })
   } catch (error) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 
 const disputeSchema = z.object({
@@ -32,21 +32,23 @@ export async function POST(request: NextRequest) {
     const { jobId, reason } = validation.data
 
     // 3. Fetch job with payment info
-    const job = await prisma.job.findUnique({
-      where: { id: jobId },
-      include: {
-        payment: true,
-        customer: true,
-        craftworker: true,
-      },
-    })
+    const { data: job, error: jobError } = await supabaseAdmin
+      .from('job')
+      .select(`
+        *,
+        payment:payment_id(*),
+        customer:customer_id(*),
+        craftworker:craftworker_id(*)
+      `)
+      .eq('id', jobId)
+      .single()
 
     // 4. Validate job exists and user is the customer
-    if (!job) {
+    if (jobError || !job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     }
 
-    if (job.customerId !== user.id) {
+    if (job.customer_id !== user.id) {
       return NextResponse.json({ error: 'Not authorized for this job' }, { status: 403 })
     }
 
@@ -64,24 +66,22 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Update job and payment status to DISPUTED
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedJob = await tx.job.update({
-        where: { id: jobId },
-        data: {
-          status: 'DISPUTED',
-        },
-      })
+    const { error: jobUpdateError } = await supabaseAdmin
+      .from('job')
+      .update({ status: 'DISPUTED' })
+      .eq('id', jobId)
 
-      const updatedPayment = await tx.payment.update({
-        where: { id: job.payment!.id },
-        data: {
-          status: 'DISPUTED',
-          disputeReason: reason,
-        },
+    const { error: paymentUpdateError } = await supabaseAdmin
+      .from('payment')
+      .update({
+        status: 'DISPUTED',
+        dispute_reason: reason,
       })
+      .eq('id', job.payment.id)
 
-      return { updatedJob, updatedPayment }
-    })
+    if (jobUpdateError || paymentUpdateError) {
+      throw new Error('Database update failed')
+    }
 
     // 8. Send alert email to admin
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@liftgo.net'
@@ -101,9 +101,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      jobId: result.updatedJob.id,
-      jobStatus: result.updatedJob.status,
-      paymentStatus: result.updatedPayment.status,
+      jobId: job.id,
+      jobStatus: 'DISPUTED',
+      paymentStatus: 'DISPUTED',
       message: 'Dispute opened successfully. Admin team will review within 24-48 hours.',
     })
 

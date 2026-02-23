@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/sender'
 
@@ -21,74 +21,79 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { referrerId, newCraftworkerId } = referralSchema.parse(body)
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Fetch referrer profile
-      const referrerProfile = await tx.craftworkerProfile.findUnique({
-        where: { userId: referrerId },
-        include: { user: true }
+    // Fetch referrer profile
+    const { data: referrerData, error: referrerError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .select('*, user:user_id(*)')
+      .eq('user_id', referrerId)
+      .single()
+
+    if (referrerError || !referrerData) {
+      throw new Error('Referrer not found')
+    }
+
+    // Fetch new craftworker
+    const { data: newCraftworkerData, error: craftworkerError } = await supabaseAdmin
+      .from('user')
+      .select('*, craftworker_profile(*)')
+      .eq('id', newCraftworkerId)
+      .single()
+
+    if (craftworkerError || !newCraftworkerData) {
+      throw new Error('New craftworker not found')
+    }
+
+    const newCraftworkerProfile = Array.isArray(newCraftworkerData.craftworker_profile)
+      ? newCraftworkerData.craftworker_profile[0]
+      : newCraftworkerData.craftworker_profile
+
+    if (!newCraftworkerProfile) {
+      throw new Error('New craftworker profile not found')
+    }
+
+    // Check if craftworker was registered within last 30 days
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    if (new Date(newCraftworkerData.created_at) < thirtyDaysAgo) {
+      throw new Error('Craftworker must be registered within the last 30 days')
+    }
+
+    // Check if already referred
+    if (newCraftworkerProfile.referred_by) {
+      throw new Error('This craftworker has already been referred')
+    }
+
+    // Update new craftworker with referral code
+    const { error: updateError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .update({ referred_by: referrerData.referral_code })
+      .eq('id', newCraftworkerProfile.id)
+
+    if (updateError) throw new Error(updateError.message)
+
+    // Add 100 loyalty points to referrer (100 points = 0.5% discount)
+    const { data: updatedReferrer, error: referrerUpdateError } = await supabaseAdmin
+      .from('craftworker_profile')
+      .update({
+        loyalty_points: (referrerData.loyalty_points || 0) + 100
       })
+      .eq('id', referrerData.id)
+      .select()
+      .single()
 
-      if (!referrerProfile) {
-        throw new Error('Referrer not found')
-      }
-
-      // Fetch new craftworker
-      const newCraftworker = await tx.user.findUnique({
-        where: { id: newCraftworkerId },
-        include: { craftworkerProfile: true }
-      })
-
-      if (!newCraftworker || !newCraftworker.craftworkerProfile) {
-        throw new Error('New craftworker not found')
-      }
-
-      // Check if craftworker was registered within last 30 days
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-      if (newCraftworker.createdAt < thirtyDaysAgo) {
-        throw new Error('Craftworker must be registered within the last 30 days')
-      }
-
-      // Check if already referred
-      if (newCraftworker.craftworkerProfile.referredBy) {
-        throw new Error('This craftworker has already been referred')
-      }
-
-      // Update new craftworker with referral code
-      await tx.craftworkerProfile.update({
-        where: { id: newCraftworker.craftworkerProfile.id },
-        data: {
-          referredBy: referrerProfile.referralCode
-        }
-      })
-
-      // Add 100 loyalty points to referrer (100 points = 0.5% discount)
-      const updatedReferrer = await tx.craftworkerProfile.update({
-        where: { id: referrerProfile.id },
-        data: {
-          loyaltyPoints: {
-            increment: 100
-          }
-        }
-      })
-
-      return {
-        referrer: updatedReferrer,
-        referrerUser: referrerProfile.user
-      }
-    })
+    if (referrerUpdateError) throw new Error(referrerUpdateError.message)
 
     // Send email notification to referrer
     try {
       await sendEmail({
-        to: result.referrerUser.email,
+        to: referrerData.user.email,
         subject: '🎉 Hvala za priporočilo!',
         html: `
           <h2>Hvala za priporočilo!</h2>
-          <p>Pozdravljeni ${result.referrerUser.name},</p>
+          <p>Pozdravljeni ${referrerData.user.name},</p>
           <p>Prejeli ste <strong>100 zvestobnih točk</strong> za uspešno priporočilo novega mojstra na LiftGO platformo.</p>
-          <p>Vaše zvestobne točke: <strong>${result.referrer.loyaltyPoints}</strong></p>
+          <p>Vaše zvestobne točke: <strong>${(updatedReferrer?.loyalty_points || 0)}</strong></p>
           <p>To pomeni dodatni popust na vašo provizijo! 100 točk = 0.5% popust.</p>
           <p>Hvala, da ste del LiftGO skupnosti!</p>
           <p>Ekipa LiftGO</p>
@@ -101,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      loyaltyPoints: result.referrer.loyaltyPoints,
+      loyaltyPoints: updatedReferrer?.loyalty_points || 0,
       message: 'Referral bonus awarded successfully'
     })
 
