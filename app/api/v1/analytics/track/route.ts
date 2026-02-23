@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Get user ID if authenticated (optional)
     let userId: string | null = null
     try {
-      const supabase = await createServerClient()
+      const supabase = await createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
