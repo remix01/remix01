@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, calculateEscrow } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { writeAuditLog } from '@/lib/escrow'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +20,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Manjkajoči podatki.' },
         { status: 400 }
+      )
+    }
+
+    // Rate limit check (use customerEmail as key)
+    const { allowed, retryAfter } = checkRateLimit(
+      `escrow_create:${customerEmail}`,
+      5,       // max 5 escrows
+      60_000   // per minute
+    )
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: `Preveč zahtevkov. Poskusite čez ${retryAfter}s.` },
+        { status: 429 }
       )
     }
 
