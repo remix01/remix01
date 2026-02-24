@@ -3,10 +3,11 @@ import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/sender'
+import { apiSuccess, badRequest, unauthorized, internalError } from '@/lib/api-response'
 
 const referralSchema = z.object({
-  referrerId: z.string(),
-  newCraftworkerId: z.string()
+  referrerId: z.string().uuid('Invalid referrer ID'),
+  newCraftworkerId: z.string().uuid('Invalid craftworker ID')
 })
 
 export async function POST(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return unauthorized()
     }
 
     const body = await request.json()
@@ -104,23 +105,22 @@ export async function POST(request: NextRequest) {
       // Don't fail the request if email fails
     }
 
-    return NextResponse.json({
-      success: true,
-      loyaltyPoints: updatedReferrer?.loyalty_points || 0,
-      message: 'Referral bonus awarded successfully'
-    })
+    return apiSuccess(
+      { loyaltyPoints: updatedReferrer?.loyalty_points || 0 }
+    )
 
   } catch (error) {
     console.error('[referral-submit] Error:', error)
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 })
+      const errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
+      return badRequest(errorMessage)
     }
 
     if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return badRequest(error.message)
     }
 
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return internalError('Failed to process referral.')
   }
 }
