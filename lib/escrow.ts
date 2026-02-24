@@ -64,8 +64,9 @@ export async function getEscrowTransaction(id: string) {
     .from('escrow_transactions')
     .select('*')
     .eq('id', id)
-    .single()
+    .maybeSingle()
   if (error) throw new Error(`[ESCROW] getTransaction: ${error.message}`)
+  if (!data) return null
   return data
 }
 
@@ -74,8 +75,9 @@ export async function getEscrowByPaymentIntent(stripePaymentIntentId: string) {
     .from('escrow_transactions')
     .select('*')
     .eq('stripe_payment_intent_id', stripePaymentIntentId)
-    .single()
+    .maybeSingle()
   if (error) throw new Error(`[ESCROW] getByPI: ${error.message}`)
+  if (!data) return null
   return data
 }
 
