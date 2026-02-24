@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -10,17 +11,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Preveri, ali je uporabnik admin
-    const { data: profile } = await supabase
+    // Check if user is admin
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    const { data: inquiries, error } = await supabase
-      .from('inquiries')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const isAdmin = profile?.role === 'admin'
+
+    // Build query - admins see all, users see only their own (filtered by email)
+    let query = supabase.from('inquiries').select('*')
+
+    if (!isAdmin) {
+      // Non-admins can only see inquiries they created (matched by email)
+      query = query.eq('email', user.email)
+    }
+
+    const { data: inquiries, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })

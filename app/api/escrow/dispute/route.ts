@@ -20,8 +20,19 @@ export async function POST(request: NextRequest) {
 
     const { escrowId, reason, description } = await request.json()
 
-    if (!reason?.trim()) {
-      return NextResponse.json({ success: false, message: 'Navedite razlog spora.' }, { status: 400 })
+    // Reason validation
+    const trimmedReason = reason?.trim()
+    if (!trimmedReason || trimmedReason.length < 10) {
+      return NextResponse.json(
+        { success: false, error: 'Razlog mora vsebovati vsaj 10 znakov' },
+        { status: 400 }
+      )
+    }
+    if (trimmedReason.length > 1000) {
+      return NextResponse.json(
+        { success: false, error: 'Razlog ne sme presegati 1000 znakov' },
+        { status: 400 }
+      )
     }
 
     // 2. PREBERI TRANSAKCIJO
@@ -30,7 +41,7 @@ export async function POST(request: NextRequest) {
     // 3. SAMO 'paid' TRANSAKCIJE IMAJO LAHKO SPOR
     if (!['paid'].includes(escrow.status)) {
       return NextResponse.json(
-        { success: false, message: 'Spor je možen samo pri plačani transakciji.' },
+        { success: false, error: 'Spor je možen samo pri plačani transakciji.' },
         { status: 400 }
       )
     }
@@ -41,7 +52,7 @@ export async function POST(request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('transaction_id', escrowId)
     if ((count ?? 0) > 0) {
-      return NextResponse.json({ success: false, message: 'Spor je že odprt.' }, { status: 409 })
+      return NextResponse.json({ success: false, error: 'Spor je že odprt.' }, { status: 409 })
     }
 
     // 5. DOLOČI KDO ODPIRA SPOR
@@ -55,7 +66,7 @@ export async function POST(request: NextRequest) {
         transaction_id: escrowId,
         opened_by:      openedBy,
         opened_by_id:   session.user.id,
-        reason:         reason.trim(),
+        reason:         trimmedReason,
         description:    description?.trim() ?? null,
         status:         'open',
       })
@@ -68,7 +79,7 @@ export async function POST(request: NextRequest) {
       newStatus:     'disputed',
       actor:         openedBy,
       actorId:       session.user.id,
-      metadata:      { reason, openedBy },
+      metadata:      { reason: trimmedReason, openedBy },
     })
 
     // 8. OBVESTI ADMIN (email prek lib/email.ts)
@@ -82,7 +93,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error('[ESCROW DISPUTE]', err)
     return NextResponse.json(
-      { success: false, message: 'Napaka pri odpiranju spora.' },
+      { success: false, error: 'Napaka pri odpiranju spora.' },
       { status: 500 }
     )
   }

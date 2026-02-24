@@ -20,6 +20,31 @@ export async function GET(
       return NextResponse.json({ success: false }, { status: 401 })
     }
 
+    // Verify user owns this transaction OR is admin
+    const { data: escrow, error: escrowError } = await supabaseAdmin
+      .from('escrow_transactions')
+      .select('partner_id, customer_email')
+      .eq('id', params.transactionId)
+      .maybeSingle()
+
+    if (!escrow) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
+    }
+
+    // Check if user is the partner, customer, or admin
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .maybeSingle()
+
+    const isAdmin = profile?.role === 'admin'
+    const isPartner = escrow.partner_id === session.user.id
+
+    if (!isAdmin && !isPartner) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
     const { data: logs, error } = await supabaseAdmin
       .from('escrow_audit_log')
       .select('*')

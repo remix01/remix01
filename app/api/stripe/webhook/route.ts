@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { writeAuditLog, isStripeEventProcessed } from '@/lib/escrow'
 import {
   sendPaymentConfirmationToCustomer,
   sendPaymentConfirmationToCraftsman,
@@ -24,7 +26,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  console.log('[v0] Webhook event received:', event.type)
+  console.log('[v0] Webhook event received:', event.type, 'id:', event.id)
+
+  // ========== IDEMPOTENCY CHECK: Prevent duplicate processing ==========
+  const stripeEventId = event.id
+  
+  // Check if already processed
+  const alreadyProcessed = await isStripeEventProcessed(stripeEventId)
+  if (alreadyProcessed) {
+    console.log(`[v0] Stripe event ${stripeEventId} already processed, skipping`)
+    return NextResponse.json({ received: true, skipped: true })
+  }
+
+  // Mark as processing BEFORE doing any work (insert sentinel record)
+  try {
+    await supabaseAdmin.from('escrow_audit_log').insert({
+      stripe_event_id: stripeEventId,
+      event_type: 'webhook_received',
+      actor: 'system',
+      metadata: { stripe_event_type: event.type },
+    })
+  } catch (err: any) {
+    // If insert fails due to unique constraint, event is already being processed
+    if (err?.code === '23505') { // Unique violation
+      console.log(`[v0] Stripe event ${stripeEventId} duplicate detected, aborting`)
+      return NextResponse.json({ received: true, duplicate: true })
+    }
+    // Other errors should not prevent processing
+  }
 
   const supabase = await createClient()
 
@@ -49,6 +78,18 @@ export async function POST(req: NextRequest) {
         if (updateError) {
           console.error('[v0] Error updating offer:', updateError)
           break
+        }
+
+        // Record webhook event in audit log
+        if (offer) {
+          await writeAuditLog({
+            transactionId: offer.id,
+            eventType: 'paid',
+            actor: 'system',
+            actorId: 'stripe-webhook',
+            stripeEventId: stripeEventId,
+            metadata: { payment_intent_id: paymentIntent.id },
+          })
         }
 
         // Send confirmation emails

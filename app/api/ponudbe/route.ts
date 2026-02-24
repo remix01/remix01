@@ -16,7 +16,45 @@ export async function POST(request: NextRequest) {
     const { povprasevanje_id, obrtnik_id, message, price_estimate, price_type, available_date } = await request.json()
 
     if (!povprasevanje_id || !obrtnik_id || !message || !price_estimate) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Price validation
+    const price = Number(price_estimate)
+    if (isNaN(price) || price <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Cena mora biti pozitivno število' },
+        { status: 400 }
+      )
+    }
+    if (price > 999_999) {
+      return NextResponse.json(
+        { success: false, error: 'Cena presega dovoljeno mejo' },
+        { status: 400 }
+      )
+    }
+
+    // Validate price_type against allowed values
+    const allowedPriceTypes = ['fixed', 'hourly', 'estimate']
+    if (price_type && !allowedPriceTypes.includes(price_type)) {
+      return NextResponse.json(
+        { success: false, error: 'Neveljaven tip cene' },
+        { status: 400 }
+      )
+    }
+
+    // Validate date if provided
+    if (available_date) {
+      const date = new Date(available_date)
+      if (isNaN(date.getTime())) {
+        return NextResponse.json(
+          { success: false, error: 'Neveljaven datum' },
+          { status: 400 }
+        )
+      }
     }
 
     // Verify obrtnik owns this profile
@@ -28,7 +66,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!obrtnikProfile) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 403 }
+      )
     }
 
     // Create ponudba
@@ -43,12 +84,18 @@ export async function POST(request: NextRequest) {
     })
 
     if (!ponudba) {
-      return NextResponse.json({ error: 'Failed to create ponudba' }, { status: 500 })
+      return NextResponse.json(
+        { success: false, error: 'Failed to create ponudba' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({ success: true, ponudba })
   } catch (error) {
     console.error('[v0] Error creating ponudba:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }

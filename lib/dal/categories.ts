@@ -85,7 +85,7 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
     .from('categories')
     .select('*')
     .eq('slug', slug)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching category by slug:', error)
