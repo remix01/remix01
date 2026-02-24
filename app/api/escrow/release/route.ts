@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEscrowTransaction, updateEscrowStatus } from '@/lib/escrow'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { validateRequiredString, collectErrors } from '@/lib/validation'
+import { badRequest, unauthorized, forbidden, internalError, apiSuccess } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,10 +18,19 @@ export async function POST(request: NextRequest) {
     )
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Nepooblaščen dostop.' }, { status: 401 })
+      return unauthorized()
     }
 
     const { escrowId, confirmedByCustomer } = await request.json()
+
+    // INPUT VALIDATION
+    const validationErrors = collectErrors(
+      validateRequiredString(escrowId, 'escrowId')
+    )
+
+    if (validationErrors.length > 0) {
+      return badRequest(validationErrors.map(e => `${e.field}: ${e.message}`).join('; '))
+    }
 
     // 2. PREBERI TRANSAKCIJO ZA PREVERJANJE LASTNIŠTVA
     const escrow = await getEscrowTransaction(escrowId)
@@ -28,7 +39,7 @@ export async function POST(request: NextRequest) {
     const isPartner = escrow.partner_id === session.user.id
     const isAdmin   = session.user.user_metadata?.role === 'admin'
     if (!isPartner && !isAdmin) {
-      return NextResponse.json({ success: false, message: 'Nimate dostopa.' }, { status: 403 })
+      return forbidden()
     }
 
     // 4. ATOMICALLY CLAIM — samo če je status natanko 'paid' in še ni bilo sproščeno
@@ -91,26 +102,61 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. POBERI PLAČILO NA STRIPE (iz 'requires_capture' v 'succeeded')
+    // 6. TRANSACTIONAL CONSISTENCY FIX
+    // =====================================
+    // IMPORTANT: Stripe capture must succeed BEFORE DB status is finalized
+    // We use the 'releasing' intermediate status as a guard:
+    // - If Stripe fails → revert to 'paid', transaction can be retried
+    // - If Stripe succeeds → immediately commit to 'released' in DB
+    // - This ensures DB status never gets updated before Stripe confirms success
+    
+    let stripeSuccess = false
     try {
+      // Capture payment in Stripe (this must succeed)
       await stripe.paymentIntents.capture(claimed.stripe_payment_intent_id)
-    } catch (stripeError) {
-      // Revert to 'paid' so it can be retried
-      await supabaseAdmin
+      stripeSuccess = true
+      console.log(`[ESCROW RELEASE] Successfully captured PI: ${claimed.stripe_payment_intent_id}`)
+    } catch (stripeError: any) {
+      // Stripe operation failed - revert status back to 'paid' for retry
+      console.error(`[ESCROW RELEASE] Stripe capture failed: ${stripeError.message}`)
+      const { error: revertError } = await supabaseAdmin
         .from('escrow_transactions')
         .update({ status: 'paid' })
         .eq('id', escrowId)
-      throw stripeError
+      
+      if (revertError) {
+        console.error(`[ESCROW RELEASE] Failed to revert status: ${revertError.message}`)
+      }
+      
+      return NextResponse.json(
+        { success: false, message: `Stripe napaka: ${stripeError.message}` },
+        { status: 402 } // Payment Required status for Stripe errors
+      )
     }
 
-    // 7. POSODOBI STANJE NA ZAVRŠNI 'released'
-    await supabaseAdmin
+    // 7. ONLY UPDATE DB AFTER STRIPE SUCCESS
+    // At this point, Stripe has confirmed the capture succeeded
+    if (!stripeSuccess) {
+      throw new Error('Stripe success flag not set - this should never happen')
+    }
+
+    const { error: updateError } = await supabaseAdmin
       .from('escrow_transactions')
       .update({
         status: 'released',
         released_at: new Date().toISOString(),
       })
       .eq('id', escrowId)
+
+    if (updateError) {
+      console.error(`[ESCROW RELEASE] DB update failed after Stripe success: ${updateError.message}`)
+      // Even if DB update fails, Stripe was successful - we must retry the DB update
+      // This is a critical state that needs manual intervention/retry
+      return NextResponse.json(
+        { success: false, message: 'Napaka pri posodobi stanja. Kontaktirajte support.' },
+        { status: 500 }
+      )
+    }
 
     // 8. ZAPIŠI AUDIT
     await updateEscrowStatus({

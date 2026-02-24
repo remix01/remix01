@@ -41,11 +41,34 @@ export async function GET(request: NextRequest) {
     try {
       console.log(`[CRON AUTO-RELEASE] Processing transaction ${tx.id}`)
 
-      // Capture payment in Stripe
-      await stripe.paymentIntents.capture(tx.stripe_payment_intent_id)
-      console.log(`[CRON AUTO-RELEASE] Captured PI ${tx.stripe_payment_intent_id}`)
+      // ========== TRANSACTIONAL CONSISTENCY FIX ==========
+      // Capture payment FIRST, then update DB status ONLY on success
+      // Never update DB before confirming Stripe success
+      
+      let stripeSuccess = false
+      try {
+        // Capture payment in Stripe (must succeed)
+        await stripe.paymentIntents.capture(tx.stripe_payment_intent_id)
+        stripeSuccess = true
+        console.log(`[CRON AUTO-RELEASE] Captured PI ${tx.stripe_payment_intent_id}`)
+      } catch (stripeErr: any) {
+        console.error(`[CRON AUTO-RELEASE] Stripe capture failed for ${tx.id}: ${stripeErr.message}`)
+        // Revert status back to 'paid' so it can be retried on next cron run
+        const { error: revertErr } = await supabaseAdmin
+          .from('escrow_transactions')
+          .update({ status: 'paid' })
+          .eq('id', tx.id)
+        if (revertErr) {
+          console.error(`[CRON AUTO-RELEASE] Failed to revert ${tx.id}: ${revertErr.message}`)
+        }
+        throw stripeErr
+      }
 
-      // Update transaction status to 'released'
+      // ONLY update DB status after Stripe confirms success
+      if (!stripeSuccess) {
+        throw new Error('Stripe success not confirmed - DB update prevented')
+      }
+
       const { error: updateError } = await supabaseAdmin
         .from('escrow_transactions')
         .update({
@@ -55,6 +78,7 @@ export async function GET(request: NextRequest) {
         .eq('id', tx.id)
 
       if (updateError) {
+        console.error(`[CRON AUTO-RELEASE] DB update failed for ${tx.id} after Stripe success: ${updateError.message}`)
         throw new Error(`DB update failed: ${updateError.message}`)
       }
 
@@ -77,18 +101,6 @@ export async function GET(request: NextRequest) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
       console.error(`[CRON AUTO-RELEASE] Failed for tx ${tx.id}: ${errorMsg}`)
-
-      // If capture failed, revert status back to 'paid' so it can be retried
-      try {
-        await supabaseAdmin
-          .from('escrow_transactions')
-          .update({ status: 'paid' })
-          .eq('id', tx.id)
-        console.log(`[CRON AUTO-RELEASE] Reverted ${tx.id} back to 'paid' for retry`)
-      } catch (revertErr) {
-        console.error(`[CRON AUTO-RELEASE] Failed to revert ${tx.id}:`, revertErr)
-      }
-
       results.push({ id: tx.id, success: false, error: errorMsg })
     }
   }

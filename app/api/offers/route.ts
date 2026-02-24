@@ -11,28 +11,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user is admin
+    // Check user's role
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
-    const isAdmin = profile?.role === 'admin'
+    const userRole = profile?.role
 
     const { searchParams } = new URL(request.url)
     const partnerId = searchParams.get('partner_id')
 
     let query = supabase.from('offers').select('*').order('created_at', { ascending: false })
 
-    if (!isAdmin) {
-      // Non-admins see offers where they are partner OR customer
-      // Assuming offers table has partner_id and customer_id columns
-      // Filter using RLS policies or explicit filtering
-      query = query.or(`partner_id.eq.${user.id},customer_id.eq.${user.id}`)
-    } else if (partnerId) {
-      // Admins can filter by partner if specified
-      query = query.eq('partner_id', partnerId)
+    if (userRole === 'admin') {
+      // Admins see all offers, optionally filtered by partner_id
+      if (partnerId) {
+        query = query.eq('partner_id', partnerId)
+      }
+    } else if (userRole === 'partner') {
+      // Partners can only see their own offers (partner_id = user.id)
+      query = query.eq('partner_id', user.id)
+    } else {
+      // Regular users cannot view offers directly - access would be through requests
+      return NextResponse.json(
+        { success: false, error: 'Access denied' },
+        { status: 403 }
+      )
     }
 
     const { data: offers, error } = await query
