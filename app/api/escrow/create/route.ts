@@ -15,12 +15,44 @@ export async function POST(request: NextRequest) {
     } = body
 
     // 1. VALIDACIJA
-    if (!customerEmail || !amountCents || amountCents < 100) {
+    if (!customerEmail || !amountCents) {
       return NextResponse.json(
-        { success: false, message: 'Manjkajoči ali neveljavni podatki.' },
+        { success: false, error: 'Manjkajoči podatki.' },
         { status: 400 }
       )
     }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(customerEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Neveljaven email naslov' },
+        { status: 400 }
+      )
+    }
+
+    // Amount bounds
+    if (amountCents < 100) {
+      return NextResponse.json(
+        { success: false, error: 'Znesek mora biti vsaj 1€ (100 centov)' },
+        { status: 400 }
+      )
+    }
+    if (amountCents > 1_000_000_00) { // 1M EUR max
+      return NextResponse.json(
+        { success: false, error: 'Znesek presega dovoljeno mejo' },
+        { status: 400 }
+      )
+    }
+
+    // Description sanitization
+    if (!description?.trim()) {
+      return NextResponse.json(
+        { success: false, error: 'Opis je obvezen' },
+        { status: 400 }
+      )
+    }
+    const sanitizedDescription = description.trim().slice(0, 500)
 
     // 2. PREBERI PAKET PARTNERJA (za provizijo)
     const { data: partner, error: partnerErr } = await supabaseAdmin
@@ -31,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     if (partnerErr || !partner) {
       return NextResponse.json(
-        { success: false, message: 'Partner ni najden.' },
+        { success: false, error: 'Partner ni najden.' },
         { status: 404 }
       )
     }
@@ -47,7 +79,7 @@ export async function POST(request: NextRequest) {
       currency:       'eur',
       capture_method: 'manual',    // ← KLJUČNO za escrow
       receipt_email:  customerEmail,
-      description:    description ?? 'LiftGO plačilo za storitev',
+        description:    description ?? 'LiftGO plačilo za storitev',
       metadata: {
         liftgo_inquiry_id:   inquiryId   ?? '',
         liftgo_partner_id:   partnerId   ?? '',
@@ -76,7 +108,7 @@ export async function POST(request: NextRequest) {
         payout_cents:            payoutCents,
         stripe_payment_intent_id: paymentIntent.id,
         status:                  'pending',
-        description:             description ?? null,
+        description:             sanitizedDescription ?? null,
         release_due_at:          releaseDate.toISOString(),
       })
       .select()
@@ -87,7 +119,7 @@ export async function POST(request: NextRequest) {
       await stripe.paymentIntents.cancel(paymentIntent.id).catch(() => null)
       console.error('[ESCROW CREATE DB]', escrowErr)
       return NextResponse.json(
-        { success: false, message: 'Napaka pri ustvarjanju transakcije.' },
+        { success: false, error: 'Napaka pri ustvarjanju transakcije.' },
         { status: 500 }
       )
     }
@@ -117,7 +149,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error('[ESCROW CREATE]', err)
     return NextResponse.json(
-      { success: false, message: 'Stripe napaka. Poskusite znova.' },
+      { success: false, error: 'Stripe napaka. Poskusite znova.' },
       { status: 500 }
     )
   }
