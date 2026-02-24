@@ -4,6 +4,8 @@ import { getEscrowTransaction, updateEscrowStatus, writeAuditLog } from '@/lib/e
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { validateStringLength, collectErrors } from '@/lib/validation'
+import { badRequest, unauthorized, conflict, internalError, apiSuccess } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
     )
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Nepooblaščen dostop.' }, { status: 401 })
+      return unauthorized()
     }
 
     // Rate limit check
@@ -26,27 +28,19 @@ export async function POST(request: NextRequest) {
       60_000   // per minute
     )
     if (!allowed) {
-      return NextResponse.json(
-        { success: false, error: `Preveč zahtevkov. Poskusite čez ${retryAfter}s.` },
-        { status: 429 }
-      )
+      return badRequest(`Too many requests. Try again in ${retryAfter}s.`)
     }
 
     const { escrowId, reason, description } = await request.json()
 
-    // Reason validation
-    const trimmedReason = reason?.trim()
-    if (!trimmedReason || trimmedReason.length < 10) {
-      return NextResponse.json(
-        { success: false, error: 'Razlog mora vsebovati vsaj 10 znakov' },
-        { status: 400 }
-      )
-    }
-    if (trimmedReason.length > 1000) {
-      return NextResponse.json(
-        { success: false, error: 'Razlog ne sme presegati 1000 znakov' },
-        { status: 400 }
-      )
+    // INPUT VALIDATION
+    const validationErrors = collectErrors(
+      validateStringLength(reason, 'reason', 10, 1000),
+      validateStringLength(escrowId, 'escrowId', 1, 100)
+    )
+
+    if (validationErrors.length > 0) {
+      return badRequest(validationErrors.map(e => `${e.field}: ${e.message}`).join('; '))
     }
 
     // 2. PREBERI TRANSAKCIJO
@@ -54,10 +48,7 @@ export async function POST(request: NextRequest) {
 
     // 3. SAMO 'paid' TRANSAKCIJE IMAJO LAHKO SPOR
     if (!['paid'].includes(escrow.status)) {
-      return NextResponse.json(
-        { success: false, error: 'Spor je možen samo pri plačani transakciji.' },
-        { status: 400 }
-      )
+      return badRequest('Disputes are only allowed for paid transactions.')
     }
 
     // 4. PREVERI DA SPOR ŠE NI ODPRT
@@ -66,7 +57,7 @@ export async function POST(request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('transaction_id', escrowId)
     if ((count ?? 0) > 0) {
-      return NextResponse.json({ success: false, error: 'Spor je že odprt.' }, { status: 409 })
+      return conflict('A dispute is already open for this transaction.')
     }
 
     // 5. DOLOČI KDO ODPIRA SPOR
@@ -99,16 +90,10 @@ export async function POST(request: NextRequest) {
     // 8. OBVESTI ADMIN (email prek lib/email.ts)
     // await sendAdminDisputeAlert({ escrowId, openedBy, reason })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Spor je odprt. Naša ekipa bo pregledala primer v 24 urah.',
-    })
+    return apiSuccess({ message: 'Dispute opened. Our team will review within 24 hours.' })
 
   } catch (err) {
     console.error('[ESCROW DISPUTE]', err)
-    return NextResponse.json(
-      { success: false, error: 'Napaka pri odpiranju spora.' },
-      { status: 500 }
-    )
+    return internalError('Failed to open dispute.')
   }
 }

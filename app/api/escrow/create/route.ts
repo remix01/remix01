@@ -3,6 +3,8 @@ import { stripe, calculateEscrow } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { writeAuditLog } from '@/lib/escrow'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { validateEmail, validateAmount, validateRequiredString, validateUUID, collectErrors } from '@/lib/validation'
+import { apiSuccess, badRequest, notFound, tooManyRequests, internalError } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,12 +17,17 @@ export async function POST(request: NextRequest) {
       description,
     } = body
 
-    // 1. VALIDACIJA
-    if (!customerEmail || !amountCents) {
-      return NextResponse.json(
-        { success: false, error: 'Manjkajoči podatki.' },
-        { status: 400 }
-      )
+    // 1. INPUT VALIDATION - all checks before any DB/Stripe calls
+    const validationErrors = collectErrors(
+      validateRequiredString(customerEmail, 'customerEmail'),
+      validateEmail(customerEmail),
+      validateRequiredString(partnerId, 'partnerId'),
+      validateAmount(amountCents, 'amountCents', 100),
+      validateRequiredString(description, 'description')
+    )
+
+    if (validationErrors.length > 0) {
+      return badRequest(validationErrors.map(e => `${e.field}: ${e.message}`).join('; '))
     }
 
     // Rate limit check (use customerEmail as key)
@@ -30,42 +37,9 @@ export async function POST(request: NextRequest) {
       60_000   // per minute
     )
     if (!allowed) {
-      return NextResponse.json(
-        { success: false, error: `Preveč zahtevkov. Poskusite čez ${retryAfter}s.` },
-        { status: 429 }
-      )
+      return tooManyRequests(`Too many requests. Try again in ${retryAfter}s.`)
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(customerEmail)) {
-      return NextResponse.json(
-        { success: false, error: 'Neveljaven email naslov' },
-        { status: 400 }
-      )
-    }
-
-    // Amount bounds
-    if (amountCents < 100) {
-      return NextResponse.json(
-        { success: false, error: 'Znesek mora biti vsaj 1€ (100 centov)' },
-        { status: 400 }
-      )
-    }
-    if (amountCents > 1_000_000_00) { // 1M EUR max
-      return NextResponse.json(
-        { success: false, error: 'Znesek presega dovoljeno mejo' },
-        { status: 400 }
-      )
-    }
-
-    // Description sanitization
-    if (!description?.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'Opis je obvezen' },
-        { status: 400 }
-      )
-    }
     const sanitizedDescription = description.trim().slice(0, 500)
 
     // 2. PREBERI PAKET PARTNERJA (za provizijo)
@@ -73,13 +47,10 @@ export async function POST(request: NextRequest) {
       .from('partners')
       .select('paket')
       .eq('id', partnerId)
-      .single()
+      .maybeSingle()
 
     if (partnerErr || !partner) {
-      return NextResponse.json(
-        { success: false, error: 'Partner ni najden.' },
-        { status: 404 }
-      )
+      return notFound('Partner not found')
     }
 
     const { commissionRate, commissionCents, payoutCents } =
@@ -132,10 +103,7 @@ export async function POST(request: NextRequest) {
       // Razveljavimo PI ker DB ni uspel
       await stripe.paymentIntents.cancel(paymentIntent.id).catch(() => null)
       console.error('[ESCROW CREATE DB]', escrowErr)
-      return NextResponse.json(
-        { success: false, error: 'Napaka pri ustvarjanju transakcije.' },
-        { status: 500 }
-      )
+      return internalError('Failed to create transaction.')
     }
 
     // 5. AUDIT LOG
@@ -151,10 +119,9 @@ export async function POST(request: NextRequest) {
     })
 
     // 6. VRNI CLIENT SECRET (za Stripe.js na frontendu)
-    return NextResponse.json({
-      success:            true,
-      escrowId:           escrow.id,
-      clientSecret:       paymentIntent.client_secret,
+    return apiSuccess({
+      escrowId:      escrow.id,
+      clientSecret:  paymentIntent.client_secret,
       amountCents,
       commissionCents,
       payoutCents,
@@ -162,9 +129,6 @@ export async function POST(request: NextRequest) {
 
   } catch (err) {
     console.error('[ESCROW CREATE]', err)
-    return NextResponse.json(
-      { success: false, error: 'Stripe napaka. Poskusite znova.' },
-      { status: 500 }
-    )
+    return internalError('Stripe error. Please try again.')
   }
 }

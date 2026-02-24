@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEscrowTransaction, updateEscrowStatus } from '@/lib/escrow'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { validateRequiredString, collectErrors } from '@/lib/validation'
+import { badRequest, unauthorized, forbidden, internalError, apiSuccess } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,10 +18,19 @@ export async function POST(request: NextRequest) {
     )
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      return NextResponse.json({ success: false, message: 'Nepooblaščen dostop.' }, { status: 401 })
+      return unauthorized()
     }
 
     const { escrowId, confirmedByCustomer } = await request.json()
+
+    // INPUT VALIDATION
+    const validationErrors = collectErrors(
+      validateRequiredString(escrowId, 'escrowId')
+    )
+
+    if (validationErrors.length > 0) {
+      return badRequest(validationErrors.map(e => `${e.field}: ${e.message}`).join('; '))
+    }
 
     // 2. PREBERI TRANSAKCIJO ZA PREVERJANJE LASTNIŠTVA
     const escrow = await getEscrowTransaction(escrowId)
@@ -28,7 +39,7 @@ export async function POST(request: NextRequest) {
     const isPartner = escrow.partner_id === session.user.id
     const isAdmin   = session.user.user_metadata?.role === 'admin'
     if (!isPartner && !isAdmin) {
-      return NextResponse.json({ success: false, message: 'Nimate dostopa.' }, { status: 403 })
+      return forbidden()
     }
 
     // 4. ATOMICALLY CLAIM — samo če je status natanko 'paid' in še ni bilo sproščeno
