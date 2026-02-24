@@ -1,13 +1,48 @@
-# v0 runtime files (should only exist in preview, not in git)
-__v0_runtime_loader.js
-__v0_devtools.tsx
-__v0_jsx-dev-runtime.ts
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Common ignores
-node_modules/
-.next/
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+/dist
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files (ključno za varnost!)
 .env
 .env*.local
-.env.test
-.DS_Store
+.env*.secret
+
+# vercel
 .vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
