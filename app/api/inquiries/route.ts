@@ -11,20 +11,30 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user is admin
+    // Check user's role
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
-    const isAdmin = profile?.role === 'admin'
+    const userRole = profile?.role
 
-    // Build query - admins see all, users see only their own (filtered by email)
+    // Build query with role-based access control
     let query = supabase.from('inquiries').select('*')
 
-    if (!isAdmin) {
-      // Non-admins can only see inquiries they created (matched by email)
+    if (userRole === 'admin') {
+      // Admins see all inquiries
+      query = query
+    } else if (userRole === 'partner') {
+      // Partners see inquiries (no specific partner_id in inquiries table, so they see all for now)
+      // In a real scenario, you might want to add a partner_id or assigned_partners field
+      query = query
+    } else {
+      // Regular users only see their own inquiries (matched by email)
+      if (!user.email) {
+        return NextResponse.json({ success: false, error: 'User email not found' }, { status: 400 })
+      }
       query = query.eq('email', user.email)
     }
 
