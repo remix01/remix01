@@ -65,14 +65,14 @@ export async function getCategory(categoryId: string): Promise<Category | null> 
     .from('categories')
     .select('*')
     .eq('id', categoryId)
-    .single()
+    .limit(1)
 
   if (error) {
     console.error('[v0] Error fetching category:', error)
     return null
   }
 
-  return data
+  return data && data.length > 0 ? data[0] : null
 }
 
 /**
@@ -85,14 +85,14 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
     .from('categories')
     .select('*')
     .eq('slug', slug)
-    .single()
+    .limit(1)
 
   if (error) {
     console.error('[v0] Error fetching category by slug:', error)
     return null
   }
 
-  return data
+  return data && data.length > 0 ? data[0] : null
 }
 
 /**
