@@ -11,7 +11,7 @@ import { Testimonials } from '@/components/testimonials'
 import { CTA } from '@/components/cta'
 import { Footer } from '@/components/footer'
 import { VideoDiagnozaButton } from '@/components/video-diagnoza-button'
-import { JsonLd } from './components/JsonLd'
+import { JsonLd } from '@/app/components/JsonLd'
 
 const websiteSchema = {
   "@context": "https://schema.org",
