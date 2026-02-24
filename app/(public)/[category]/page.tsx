@@ -41,7 +41,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
   
   // Exclude static paths from being treated as categories
-  if (EXCLUDED_PATHS.includes(params.category)) {
+  if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.')) {
     return { title: 'LiftGO' }
   }
   
@@ -72,6 +72,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function CategoryPage(props: Props) {
   const params = await props.params
+  
+  // Exclude static files and reserved paths
+  if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.')) {
+    notFound()
+  }
+  
   const category = await getCategoryBySlug(params.category)
 
   if (!category) {

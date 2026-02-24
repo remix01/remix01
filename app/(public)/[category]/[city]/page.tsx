@@ -50,7 +50,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
   
   // Exclude static paths and file extensions
-  if (EXCLUDED_PATHS.includes(params.category) || params.city.includes('.')) {
+  if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.') || params.city.includes('.')) {
     return { title: 'LiftGO' }
   }
   
