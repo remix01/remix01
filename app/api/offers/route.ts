@@ -34,11 +34,22 @@ export async function GET(request: Request) {
       // Partners can only see their own offers (partner_id = user.id)
       query = query.eq('partner_id', user.id)
     } else {
-      // Regular users cannot view offers directly - access would be through requests
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      )
+      // Regular users can only see offers for requests they created
+      // We need to find requests (inquiries) created by this user's email, then get offers for those requests
+      const { data: userRequests } = await supabaseAdmin
+        .from('inquiries')
+        .select('id')
+        .eq('email', user.email)
+
+      const requestIds = userRequests?.map(r => r.id) || []
+      
+      if (requestIds.length === 0) {
+        // User has no requests, return empty list
+        return NextResponse.json({ success: true, data: [] })
+      }
+
+      // Only show offers for this user's inquiries
+      query = query.in('request_id', requestIds)
     }
 
     const { data: offers, error } = await query
