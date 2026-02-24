@@ -22,52 +22,79 @@ export async function POST(request: NextRequest) {
     const { escrowId, resolution, adminNotes } = await request.json()
     // resolution: 'full_refund' | 'partial_refund' | 'release_to_partner'
 
-    const escrow = await getEscrowTransaction(escrowId)
+    // 2. ATOMICALLY CLAIM — samo če je status natanko 'disputed' in še ni bil spremenjen
+    const { data: claimed, error: claimError } = await supabaseAdmin
+      .from('escrow_transactions')
+      .update({ status: 'resolving' })
+      .eq('id', escrowId)
+      .eq('status', 'disputed')
+      .select()
+      .maybeSingle()
 
-    if (escrow.status !== 'disputed') {
+    if (!claimed) {
       return NextResponse.json(
-        { success: false, message: 'Transakcija ni v stanju spora.' },
+        { success: false, message: 'Transakcija ni v stanju spora ali je že v reševanju.' },
         { status: 400 }
       )
     }
 
     let newEscrowStatus: 'refunded' | 'released' = 'released'
 
-    if (resolution === 'full_refund') {
-      // Preklici PI → vrni stranki
-      await stripe.paymentIntents.cancel(escrow.stripe_payment_intent_id)
-      newEscrowStatus = 'refunded'
+    try {
+      if (resolution === 'full_refund') {
+        // Preklici PI → vrni stranki
+        await stripe.paymentIntents.cancel(claimed.stripe_payment_intent_id)
+        newEscrowStatus = 'refunded'
 
-    } else if (resolution === 'release_to_partner') {
-      // Poberi PI → sprosti obrtniku
-      await stripe.paymentIntents.capture(escrow.stripe_payment_intent_id)
-      newEscrowStatus = 'released'
-    }
+      } else if (resolution === 'release_to_partner') {
+        // Poberi PI → sprosti obrtniku
+        await stripe.paymentIntents.capture(claimed.stripe_payment_intent_id)
+        newEscrowStatus = 'released'
+      }
 
-    // Posodobi spor
-    await supabaseAdmin
-      .from('escrow_disputes')
-      .update({
-        status:      resolution === 'full_refund' ? 'resolved_customer' : 'resolved_partner',
-        admin_notes: adminNotes ?? null,
-        resolved_by: session.user.id,
-        resolved_at: new Date().toISOString(),
-        resolution,
+      // Posodobi spor
+      await supabaseAdmin
+        .from('escrow_disputes')
+        .update({
+          status:      resolution === 'full_refund' ? 'resolved_customer' : 'resolved_partner',
+          admin_notes: adminNotes ?? null,
+          resolved_by: session.user.id,
+          resolved_at: new Date().toISOString(),
+          resolution,
+        })
+        .eq('transaction_id', escrowId)
+
+      // Posodobi escrow na končno stanje
+      await supabaseAdmin
+        .from('escrow_transactions')
+        .update({
+          status: newEscrowStatus,
+          ...(newEscrowStatus === 'refunded'  && { refunded_at: new Date().toISOString() }),
+          ...(newEscrowStatus === 'released'  && { released_at: new Date().toISOString() }),
+        })
+        .eq('id', escrowId)
+
+      // Zapiši audit
+      await updateEscrowStatus({
+        transactionId: claimed.id,
+        newStatus:     newEscrowStatus,
+        actor:         'admin',
+        actorId:       session.user.id,
+        extraFields: {
+          ...(newEscrowStatus === 'refunded'  && { refunded_at: new Date().toISOString() }),
+          ...(newEscrowStatus === 'released'  && { released_at: new Date().toISOString() }),
+        },
+        metadata: { resolution, adminNotes },
       })
-      .eq('transaction_id', escrowId)
 
-    // Posodobi escrow
-    await updateEscrowStatus({
-      transactionId: escrow.id,
-      newStatus:     newEscrowStatus,
-      actor:         'admin',
-      actorId:       session.user.id,
-      extraFields: {
-        ...(newEscrowStatus === 'refunded'  && { refunded_at: new Date().toISOString() }),
-        ...(newEscrowStatus === 'released'  && { released_at: new Date().toISOString() }),
-      },
-      metadata: { resolution, adminNotes },
-    })
+    } catch (err) {
+      // Revert to 'disputed' if something failed
+      await supabaseAdmin
+        .from('escrow_transactions')
+        .update({ status: 'disputed' })
+        .eq('id', escrowId)
+      throw err
+    }
 
     return NextResponse.json({
       success:    true,

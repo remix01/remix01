@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const { escrowId, confirmedByCustomer } = await request.json()
 
-    // 2. PREBERI TRANSAKCIJO
+    // 2. PREBERI TRANSAKCIJO ZA PREVERJANJE LASTNIŠTVA
     const escrow = await getEscrowTransaction(escrowId)
 
     // 3. PREVERI LASTNIŠTVO
@@ -31,21 +31,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Nimate dostopa.' }, { status: 403 })
     }
 
-    // 4. PREVERI STANJE — sproščamo samo 'paid' transakcije
-    if (escrow.status !== 'paid') {
+    // 4. ATOMICALLY CLAIM — samo če je status natanko 'paid' in še ni bilo sproščeno
+    const { data: claimed, error: claimError } = await supabaseAdmin
+      .from('escrow_transactions')
+      .update({ status: 'releasing' })
+      .eq('id', escrowId)
+      .eq('status', 'paid')
+      .select()
+      .maybeSingle()
+
+    if (!claimed) {
+      // Transakcija ni v stanju 'paid' ali je že bila sočasno spremenjena
+      const { data: current } = await supabaseAdmin
+        .from('escrow_transactions')
+        .select('status')
+        .eq('id', escrowId)
+        .maybeSingle()
+
+      const status = current?.status
+      if (status === 'disputed') {
+        return NextResponse.json(
+          { success: false, message: 'Transakcija ima odprt spor. Sproščanje ni možno.' },
+          { status: 400 }
+        )
+      }
+      if (status === 'released') {
+        return NextResponse.json(
+          { success: false, message: 'Transakcija je že bila sproščena.' },
+          { status: 400 }
+        )
+      }
+      if (status === 'refunded') {
+        return NextResponse.json(
+          { success: false, message: 'Transakcija je bila povrnjena.' },
+          { status: 400 }
+        )
+      }
       return NextResponse.json(
-        { success: false, message: `Transakcija v stanju '${escrow.status}' ne more biti sproščena.` },
+        { success: false, message: `Transakcija v stanju '${status}' ne more biti sproščena.` },
         { status: 400 }
       )
     }
 
-    // 5. PREVERI DA NI ODPRTEGA SPORA
+    // 5. DOUBLE-CHECK — preveri da ni odprtega spora (belt-and-suspenders)
     const { count: disputeCount } = await supabaseAdmin
       .from('escrow_disputes')
       .select('id', { count: 'exact', head: true })
       .eq('transaction_id', escrowId)
-      .in('status', ['open', 'investigating'])
+      .eq('status', 'open')
     if ((disputeCount ?? 0) > 0) {
+      // Revert atomic claim
+      await supabaseAdmin
+        .from('escrow_transactions')
+        .update({ status: 'paid' })
+        .eq('id', escrowId)
       return NextResponse.json(
         { success: false, message: 'Transakcija ima odprt spor. Sproščanje ni možno.' },
         { status: 400 }
@@ -53,9 +92,27 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. POBERI PLAČILO NA STRIPE (iz 'requires_capture' v 'succeeded')
-    await stripe.paymentIntents.capture(escrow.stripe_payment_intent_id)
+    try {
+      await stripe.paymentIntents.capture(claimed.stripe_payment_intent_id)
+    } catch (stripeError) {
+      // Revert to 'paid' so it can be retried
+      await supabaseAdmin
+        .from('escrow_transactions')
+        .update({ status: 'paid' })
+        .eq('id', escrowId)
+      throw stripeError
+    }
 
-    // 7. POSODOBI STANJE
+    // 7. POSODOBI STANJE NA ZAVRŠNI 'released'
+    await supabaseAdmin
+      .from('escrow_transactions')
+      .update({
+        status: 'released',
+        released_at: new Date().toISOString(),
+      })
+      .eq('id', escrowId)
+
+    // 8. ZAPIŠI AUDIT
     await updateEscrowStatus({
       transactionId: escrow.id,
       newStatus:     'released',
