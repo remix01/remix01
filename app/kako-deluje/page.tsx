@@ -24,7 +24,7 @@ const customerSteps = [
     number: 2,
     emoji: "📨",
     title: "Prejmete ponudbe",
-    description: "V manj kot 24 urah vas kontaktirajo preverjen mojstri.",
+    description: "V manj kot 2 urah vas kontaktirajo preverjen mojstri.",
   },
   {
     number: 3,
@@ -70,7 +70,7 @@ const craftsmanSteps = [
 const guarantees = [
   {
     icon: Shield,
-    title: "Garancija odziva v 24 urah",
+    title: "Garancija odziva v 2 urah",
     description: "Mojster se odzove v 2 urah ali denar nazaj",
   },
   {
@@ -132,7 +132,7 @@ export default function KakoDelujePage() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-
+      
       <main className="flex-1">
         {/* Hero Section */}
         <section className="bg-primary py-20 lg:py-28">
@@ -144,8 +144,8 @@ export default function KakoDelujePage() {
               Od povpraševanja do zaključenega dela v štirih preprostih korakih. Brez zapletov, brez skritih stroškov.
             </p>
             <div className="mt-8">
-              <Button
-                size="lg"
+              <Button 
+                size="lg" 
                 variant="secondary"
                 onClick={scrollToForm}
                 className="gap-2 min-h-[48px]"
@@ -298,8 +298,8 @@ export default function KakoDelujePage() {
               Pridružite se tisočem zadovoljnih strank in obrtnikov po vsej Sloveniji.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Button
-                size="lg"
+              <Button 
+                size="lg" 
                 variant="secondary"
                 onClick={scrollToForm}
                 className="gap-2 w-full sm:w-auto min-h-[48px]"
@@ -307,8 +307,8 @@ export default function KakoDelujePage() {
                 Oddajte povpraševanje
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <Button
-                size="lg"
+              <Button 
+                size="lg" 
                 variant="outline"
                 asChild
                 className="gap-2 w-full sm:w-auto min-h-[48px] border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"

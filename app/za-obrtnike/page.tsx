@@ -2,12 +2,12 @@ import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  ArrowRight,
-  TrendingUp,
-  UserPlus,
-  ShieldCheck,
-  Bell,
+import { 
+  ArrowRight, 
+  TrendingUp, 
+  UserPlus, 
+  ShieldCheck, 
+  Bell, 
   Banknote,
   CheckCircle,
   Clock,
@@ -210,7 +210,7 @@ export default function ZaObrtnike() {
                       <p className="mt-1 text-sm text-muted-foreground">Za začetek in testiranje</p>
                     </div>
                   </div>
-
+                  
                   <div className="mt-6">
                     <div className="flex items-baseline gap-2">
                       <span className="font-display text-5xl font-bold text-foreground">0 EUR</span>
@@ -252,7 +252,7 @@ export default function ZaObrtnike() {
                       <p className="mt-1 text-sm text-muted-foreground">Za profesionalce</p>
                     </div>
                   </div>
-
+                  
                   <div className="mt-6">
                     <div className="flex items-baseline gap-2">
                       <span className="font-display text-5xl font-bold text-primary">29 EUR</span>
@@ -437,7 +437,7 @@ export default function ZaObrtnike() {
                     </Button>
                   </div>
                   <p className="mt-6 text-sm text-muted-foreground">
-                    Ali pokličite: <a href="tel:+38669920963" className="text-primary hover:underline">+386 69 920 963</a>
+                    Ali pokličite: <a href="tel:+38641234567" className="text-primary hover:underline">+386 41 234 567</a>
                   </p>
                 </div>
               </CardContent>

@@ -25,9 +25,9 @@ export const metadata: Metadata = {
     default: 'LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah',
     template: '%s | LiftGO',
   },
-  description: 'Povežemo vas z zanesljivimi preverjenimi obrtniki po vsej Sloveniji. Brezplačno povpraševanje, odziv v 24 urah. 225+ aktivnih mojstrov.',
+  description: 'Povežemo vas z zanesljivimi preverjenimi obrtniki po vsej Sloveniji. Brezplačno povpraševanje, odziv v 2 urah. 225+ aktivnih mojstrov.',
   keywords: [
-    'obrtnik', 'mojster', 'Slovenija', 'vodovodar', 'električar', 'parketar',
+    'obrtnik', 'mojster', 'Slovenija', 'vodovodar', 'elektrikar',
     'vodoinstalater', 'mizar', 'Ljubljana', 'Maribor', 'renovacija', 'popravilo', 'LiftGO', 'adaptacije'
   ],
   authors: [{ name: 'LiftGO', url: 'https://www.liftgo.net' }],
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   publisher: 'Liftgo d.o.o.',
   openGraph: {
     title: 'LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah',
-    description: 'Oddajte brezplačno povpraševanje in prejmite ponudbo preverjenega obrtnika v manj kot 24 urah.',
+    description: 'Oddajte brezplačno povpraševanje in prejmite ponudbo preverjenega obrtnika v manj kot 2 urah.',
     url: 'https://liftgo.net',
     siteName: 'LiftGO',
     locale: 'sl_SI',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah',
-    description: 'Preverjen obrtnik v manj kot 24 urah. Brezplačno povpraševanje.',
+    description: 'Preverjen obrtnik v manj kot 2 urah. Brezplačno povpraševanje.',
     images: ['/images/og-image.jpg'],
   },
   robots: {

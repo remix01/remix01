@@ -5,18 +5,18 @@ import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
 } from '@/components/ui/accordion'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { Input } from '@/components/ui/input'
@@ -25,10 +25,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
-import {
-  Calculator,
-  CheckSquare,
-  Clock,
+import { 
+  Calculator, 
+  CheckSquare, 
+  Clock, 
   AlertTriangle,
   ArrowRight,
   Droplet,
@@ -51,7 +51,7 @@ export default function OrodjaPage() {
                 Orodja za lastnike nepremičnin
               </h1>
               <p className="mt-4 text-lg text-muted-foreground text-pretty leading-relaxed">
-                Brezplačna orodja za pametno načrtovanje vzdrževanja doma.
+                Brezplačna orodja za pametno načrtovanje vzdrževanja doma. 
                 Ocenite stroške, čas in nujnost del preden kontaktirate mojstra.
               </p>
             </div>
@@ -188,8 +188,8 @@ export default function OrodjaPage() {
               Potrebujete mojstra?
             </h2>
             <p className="mt-4 text-lg text-muted-foreground text-pretty leading-relaxed">
-              Oddajte brezplačno povpraševanje in prejmite ponudbe od verificiranih
-              obrtnikov v manj kot 24 urah.
+              Oddajte brezplačno povpraševanje in prejmite ponudbe od verificiranih 
+              obrtnikov v manj kot 2 urah.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button size="lg" asChild className="min-h-[48px]">
@@ -231,7 +231,7 @@ function CenaKalkulator() {
 
   const calculatePrice = () => {
     if (!vrstaDelaCategory) return null
-
+    
     const data = priceData[vrstaDelaCategory as keyof typeof priceData]
     if (!data) return null
 
@@ -327,8 +327,8 @@ function CenaKalkulator() {
           />
         </div>
 
-        <Button
-          onClick={() => setShowResult(true)}
+        <Button 
+          onClick={() => setShowResult(true)} 
           className="w-full"
           disabled={!vrstaDelaCategory || !vrstaDelaTip || !postnaStev}
         >
@@ -513,12 +513,12 @@ function KontrolnaLista() {
                         <Checkbox
                           id={itemKey}
                           checked={checkedItems[itemKey] || false}
-                          onCheckedChange={(checked) =>
+                          onCheckedChange={(checked) => 
                             setCheckedItems(prev => ({ ...prev, [itemKey]: checked as boolean }))
                           }
                         />
-                        <Label
-                          htmlFor={itemKey}
+                        <Label 
+                          htmlFor={itemKey} 
                           className="font-normal leading-relaxed cursor-pointer"
                         >
                           {item}
@@ -647,8 +647,8 @@ function CasEstimator() {
           </RadioGroup>
         </div>
 
-        <Button
-          onClick={() => setShowResult(true)}
+        <Button 
+          onClick={() => setShowResult(true)} 
           className="w-full"
           disabled={!vrstaDelaSelected}
         >
