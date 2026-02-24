@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { apiSuccess, badRequest, internalError } from '@/lib/api-response'
 
 const inquirySchema = z.object({
   storitev: z.string().min(1, 'Storitev je obvezna'),
@@ -38,10 +39,7 @@ export async function POST(request: NextRequest) {
     
     if (dbError) {
       console.error('[v0] Database error:', dbError)
-      return NextResponse.json(
-        { error: 'Napaka pri shranjevanju podatkov. Poskusite znova.' },
-        { status: 500 }
-      )
+      return internalError('Failed to save inquiry.')
     }
     
     // Send confirmation email to customer using Resend
@@ -93,27 +91,18 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Povpraševanje uspešno oddano',
-        inquiryId: inquiry?.id,
-      },
-      { status: 201 }
+    return apiSuccess(
+      { inquiryId: inquiry?.id },
+      201
     )
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Neveljavni podatki', details: error.errors },
-        { status: 400 }
-      )
+      const errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
+      return badRequest(errorMessage)
     }
     
     console.error('[v0] Inquiry submission error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri oddaji povpraševanja. Poskusite znova.' },
-      { status: 500 }
-    )
+    return internalError('Failed to submit inquiry.')
   }
 }

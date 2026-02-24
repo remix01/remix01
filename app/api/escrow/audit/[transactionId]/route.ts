@@ -40,8 +40,9 @@ export async function GET(
 
     const isAdmin = profile?.role === 'admin'
     const isPartner = escrow.partner_id === session.user.id
+    const isCustomer = escrow.customer_email === session.user.email
 
-    if (!isAdmin && !isPartner) {
+    if (!isAdmin && !isPartner && !isCustomer) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

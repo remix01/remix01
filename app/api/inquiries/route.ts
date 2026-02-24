@@ -20,16 +20,15 @@ export async function GET(request: Request) {
 
     const userRole = profile?.role
 
-    // Build query with role-based access control
+    // Build query with ownership-based access control
     let query = supabase.from('inquiries').select('*')
 
     if (userRole === 'admin') {
       // Admins see all inquiries
-      query = query
+      // No filter applied
     } else if (userRole === 'partner') {
-      // Partners see inquiries (no specific partner_id in inquiries table, so they see all for now)
-      // In a real scenario, you might want to add a partner_id or assigned_partners field
-      query = query
+      // Partners see all inquiries (they can respond to any inquiry)
+      // No filter applied for now - partners can browse all available inquiries
     } else {
       // Regular users only see their own inquiries (matched by email)
       if (!user.email) {

@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEscrowTransaction, updateEscrowStatus } from '@/lib/escrow'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { validateRequiredString, validateAmount, collectErrors } from '@/lib/validation'
+import { badRequest, forbidden, apiSuccess, internalError } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,20 +19,27 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession()
     const isAdmin = session?.user.user_metadata?.role === 'admin'
     if (!session || !isAdmin) {
-      return NextResponse.json({ success: false, message: 'Samo admin.' }, { status: 403 })
+      return forbidden('Only admin can refund transactions.')
     }
 
     const { escrowId, reason, amountCents } = await request.json()
+
+    // INPUT VALIDATION
+    const validationErrors = collectErrors(
+      validateRequiredString(escrowId, 'escrowId'),
+      amountCents ? validateAmount(amountCents, 'amountCents', 0) : null
+    )
+
+    if (validationErrors.length > 0) {
+      return badRequest(validationErrors.map(e => `${e.field}: ${e.message}`).join('; '))
+    }
 
     // 2. PREBERI TRANSAKCIJO
     const escrow = await getEscrowTransaction(escrowId)
 
     // 3. SAMO 'paid' SE LAHKO VRNE
     if (escrow.status !== 'paid') {
-      return NextResponse.json(
-        { success: false, message: `Status '${escrow.status}' ne dovoljuje vrnitve.` },
-        { status: 400 }
-      )
+      return badRequest(`Status '${escrow.status}' does not allow refunds.`)
     }
 
     // 4. PREKLICI PAYMENT INTENT (bo vrnil celotno rezervacijo)
@@ -52,16 +61,13 @@ export async function POST(request: NextRequest) {
       metadata: { reason: reason ?? 'Admin refund', requestedAmountCents: amountCents },
     })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Vrnitev uspešna. Stranka bo prejela sredstva v 5–10 delovnih dneh.',
+    return apiSuccess({
+      refundId: refund.id,
+      message: 'Refund successful. Customer will receive funds within 5-10 business days.'
     })
 
   } catch (err) {
     console.error('[ESCROW REFUND]', err)
-    return NextResponse.json(
-      { success: false, message: 'Napaka pri vračilu.' },
-      { status: 500 }
-    )
+    return internalError('Failed to process refund.')
   }
 }

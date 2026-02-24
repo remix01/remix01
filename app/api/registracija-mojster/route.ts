@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-response'
 
 const registrationSchema = z.object({
-  firstName: z.string().min(1, 'Ime je obvezno'),
-  lastName: z.string().min(1, 'Priimek je obvezno'),
-  email: z.string().email('Neveljaven e-poštni naslov'),
-  phone: z.string().min(1, 'Telefonska številka je obvezna'),
-  password: z.string().min(8, 'Geslo mora imeti vsaj 8 znakov'),
-  companyName: z.string().min(1, 'Podjetje je obvezno'),
-  taxNumber: z.string().min(1, 'Davčna številka je obvezna'),
-  specialization: z.string().min(1, 'Specialnost je obvezna'),
-  workArea: z.string().min(1, 'Območje dela je obvezno'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email format'),
+  phone: z.string().min(1, 'Phone number is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  companyName: z.string().min(1, 'Company name is required'),
+  taxNumber: z.string().min(1, 'Tax number is required'),
+  specialization: z.string().min(1, 'Specialization is required'),
+  workArea: z.string().min(1, 'Work area is required'),
   planSelected: z.enum(['start', 'pro']),
 })
 
@@ -50,16 +51,10 @@ export async function POST(request: NextRequest) {
       console.error('[v0] Supabase auth error:', authError)
       
       if (authError.message.includes('already registered')) {
-        return NextResponse.json(
-          { error: 'Ta e-poštni naslov je že registriran' },
-          { status: 400 }
-        )
+        return conflict('This email is already registered.')
       }
       
-      return NextResponse.json(
-        { error: 'Napaka pri registraciji. Poskusite znova.' },
-        { status: 500 }
-      )
+      return internalError('Registration failed. Please try again.')
     }
     
     // Send welcome email using Resend
@@ -115,27 +110,18 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Registracija uspešna. Preverite email za potrditev.',
-        userId: authData.user?.id,
-      },
-      { status: 201 }
+    return apiSuccess(
+      { userId: authData.user?.id },
+      201
     )
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Neveljavni podatki', details: error.errors },
-        { status: 400 }
-      )
+      const errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
+      return badRequest(errorMessage)
     }
     
     console.error('[v0] Registration error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri registraciji. Poskusite znova.' },
-      { status: 500 }
-    )
+    return internalError('Registration failed. Please try again.')
   }
 }
