@@ -72,6 +72,16 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function CategoryPage(props: Props) {
   const params = await props.params
+  
+  // Reject static file paths immediately
+  if (
+    EXCLUDED_PATHS.includes(params.category) ||
+    params.category.includes('.') ||
+    params.category.startsWith('_')
+  ) {
+    notFound()
+  }
+  
   const category = await getCategoryBySlug(params.category)
 
   if (!category) {

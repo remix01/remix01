@@ -92,8 +92,13 @@ function getNearbyCities(region: string, currentCity: string) {
 export default async function CategoryCityPage(props: Props) {
   const params = await props.params
   
-  // Exclude static files and reserved paths
-  if (EXCLUDED_PATHS.includes(params.category) || params.city.includes('.')) {
+  // Reject static file paths immediately
+  if (
+    EXCLUDED_PATHS.includes(params.category) ||
+    params.category.includes('.') ||
+    params.city.includes('.') ||
+    params.category.startsWith('_')
+  ) {
     notFound()
   }
   
