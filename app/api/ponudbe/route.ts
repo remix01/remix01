@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createPonudba } from '@/lib/dal/ponudbe'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,19 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limit check
+    const { allowed, retryAfter } = checkRateLimit(
+      `ponudbe:${user.id}`,
+      10,      // max 10 ponudb
+      60_000   // per minute
+    )
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: `Preveč zahtevkov. Poskusite čez ${retryAfter}s.` },
+        { status: 429 }
+      )
     }
 
     // Parse request body

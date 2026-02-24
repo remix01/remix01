@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEscrowTransaction, updateEscrowStatus, writeAuditLog } from '@/lib/escrow'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,19 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ success: false, message: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
+
+    // Rate limit check
+    const { allowed, retryAfter } = checkRateLimit(
+      `dispute:${session.user.id}`,
+      3,       // max 3 disputes
+      60_000   // per minute
+    )
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: `Preveč zahtevkov. Poskusite čez ${retryAfter}s.` },
+        { status: 429 }
+      )
     }
 
     const { escrowId, reason, description } = await request.json()

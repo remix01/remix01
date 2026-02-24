@@ -73,10 +73,15 @@ export async function POST(req: NextRequest) {
           })
           .eq('payment_intent_id', paymentIntent.id)
           .select('*, partners(email, full_name)')
-          .single()
+          .maybeSingle()
 
         if (updateError) {
           console.error('[v0] Error updating offer:', updateError)
+          break
+        }
+
+        if (!offer) {
+          console.warn(`[webhook] No offer found for payment_intent: ${paymentIntent.id}`)
           break
         }
 
@@ -155,7 +160,12 @@ export async function POST(req: NextRequest) {
           .from('partners')
           .select('email')
           .eq('stripe_account_id', account.id)
-          .single()
+          .maybeSingle()
+
+        if (!partner) {
+          console.warn(`[webhook] No partner found for stripe_account: ${account.id}`)
+          break
+        }
 
         if (partner) {
           await sendStripeOnboardingNotification(
