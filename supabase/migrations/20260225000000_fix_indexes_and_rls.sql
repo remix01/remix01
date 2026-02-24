@@ -36,6 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_disputes_transaction_status
 -- ============================================================
 -- 5. FIX RLS TYPE MISMATCH in escrow_disputes
 -- Problem: opened_by_id stored as TEXT, auth.uid() is UUID
+-- Solution: Cast opened_by_id to UUID instead of casting auth.uid() to TEXT
 -- ============================================================
 
 -- Drop old policy
@@ -46,24 +47,30 @@ CREATE POLICY "Parties see own disputes"
   ON escrow_disputes
   FOR ALL
   USING (
-    opened_by_id = auth.uid()::text
+    opened_by_id::uuid = auth.uid()
     OR EXISTS (
       SELECT 1 FROM escrow_transactions et
       WHERE et.id = escrow_disputes.transaction_id
-        AND (et.partner_id = auth.uid() OR et.customer_id = auth.uid())
+        AND (et.partner_id = auth.uid() OR et.customer_email = (SELECT email FROM auth.users WHERE id = auth.uid()))
     )
   );
 
 -- ============================================================
--- 6. ADD customer visibility to escrow_transactions RLS
--- Current policy only allows partners — customers are locked out
+-- 6. FIX customer RLS in escrow_transactions
+-- Problem: Policy referenced non-existent customer_id UUID column
+-- Actual column: customer_email (TEXT)
+-- Solution: Match customer_email against current user's email from auth.users
 -- ============================================================
 DROP POLICY IF EXISTS "Customers see own transactions" ON escrow_transactions;
 
 CREATE POLICY "Customers see own transactions"
   ON escrow_transactions
   FOR SELECT
-  USING (customer_id = auth.uid());
+  USING (
+    customer_email = (
+      SELECT email FROM auth.users WHERE id = auth.uid()
+    )
+  );
 
 -- ============================================================
 -- 7. ADD new statuses to CHECK constraint (for race condition fixes)
