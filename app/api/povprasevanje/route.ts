@@ -1,108 +1,76 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
-import { apiSuccess, badRequest, internalError } from '@/lib/api-response'
+import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
-const inquirySchema = z.object({
-  storitev: z.string().min(1, 'Storitev je obvezna'),
-  lokacija: z.string().min(1, 'Lokacija je obvezna'),
-  email: z.string().email('Neveljaven e-poštni naslov'),
-  telefon: z.string().regex(/^(\+386|0)[0-9]{8,9}$/, 'Neveljavna telefonska številka'),
-  zeljeniDatum: z.string().optional(),
-  opis: z.string().min(10, 'Opis mora vsebovati vsaj 10 znakov').max(500),
-})
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    
-    // Validate input
-    const validatedData = inquirySchema.parse(body)
-    
-    // Save to Supabase
-    const supabase = await createClient()
-    
-    const { data: inquiry, error: dbError } = await supabase
-      .from('inquiries')
+    const body = await request.json();
+    const { storitev, lokacija, opis, obrtnik_id, termin_datum, termin_ura, email, telefon } = body;
+
+    // Validate required fields
+    if (!storitev || !lokacija || !opis || !obrtnik_id || !termin_datum || !termin_ura) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Insert inquiry
+    const { data, error } = await supabase
+      .from('povprasevanja')
       .insert({
-        service: validatedData.storitev,
-        location: validatedData.lokacija,
-        email: validatedData.email,
-        phone: validatedData.telefon,
-        preferred_date: validatedData.zeljeniDatum || null,
-        description: validatedData.opis,
-        status: 'pending',
-        created_at: new Date().toISOString(),
+        storitev,
+        lokacija,
+        opis,
+        obrtnik_id,
+        termin_datum,
+        termin_ura,
+        status: 'novo',
+        email,
+        telefon,
       })
       .select()
-      .single()
-    
-    if (dbError) {
-      console.error('[v0] Database error:', dbError)
-      return internalError('Failed to save inquiry.')
+      .single();
+
+    if (error) {
+      console.error('[v0] Supabase insert error:', error);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
     }
-    
-    // Send confirmation email to customer using Resend
-    if (process.env.RESEND_API_KEY) {
+
+    // Send notification email to contractor
+    if (data && email) {
       try {
-        const resendResponse = await fetch('https://api.resend.com/emails', {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-email`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net',
-            to: validatedData.email,
-            subject: 'Povpraševanje prejeto - LiftGO',
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #2563eb;">Povpraševanje uspešno prejeto!</h2>
-                <p>Spoštovani,</p>
-                <p>Hvala za zaupanje. Vaše povpraševanje je bilo uspešno poslano našim obrtinkom.</p>
-                <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <p style="margin: 5px 0;"><strong>Storitev:</strong> ${validatedData.storitev}</p>
-                  <p style="margin: 5px 0;"><strong>Lokacija:</strong> ${validatedData.lokacija}</p>
-                  ${validatedData.zeljeniDatum ? `<p style="margin: 5px 0;"><strong>Željeni datum:</strong> ${validatedData.zeljeniDatum}</p>` : ''}
-                  <p style="margin: 5px 0;"><strong>Opis:</strong> ${validatedData.opis}</p>
-                </div>
-                <p><strong>Kaj sledi?</strong></p>
-                <ul>
-                  <li>V roku 2 ur boste prejeli ponudbe ustreznih obrtnikov</li>
-                  <li>Izberete najprimernejšo ponudbo</li>
-                  <li>Obrtnik vas kontaktira za dogovor</li>
-                </ul>
-                <p>Lep pozdrav,<br/>Ekipa LiftGO</p>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;" />
-                <p style="font-size: 12px; color: #6b7280;">
-                  To je avtomatsko sporočilo. Ne odgovarjajte na ta email.
-                </p>
-              </div>
-            `,
+            povprasevanje_id: data.id,
+            obrtnik_id,
+            email,
           }),
-        })
-        
-        if (!resendResponse.ok) {
-          console.error('[v0] Resend email error:', await resendResponse.text())
-        }
+        });
       } catch (emailError) {
-        console.error('[v0] Email sending failed:', emailError)
-        // Ne failaj celotnega requesta če email ne gre skozi
+        console.log('[v0] Email notification skipped:', emailError);
       }
     }
-    
-    return apiSuccess(
-      { inquiryId: inquiry?.id },
-      201
-    )
-    
+
+    return NextResponse.json({
+      success: true,
+      inquiry_id: data.id,
+      message: 'Povpraševanje uspešno oddano',
+    });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
-      return badRequest(errorMessage)
-    }
-    
-    console.error('[v0] Inquiry submission error:', error)
-    return internalError('Failed to submit inquiry.')
+    console.error('[v0] API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
