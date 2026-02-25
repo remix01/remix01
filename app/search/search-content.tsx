@@ -457,11 +457,10 @@ export default function SearchContent() {
                       aria-label={saved.includes(c.id) ? "Odstrani iz shranjenih" : "Shrani"}
                     >
                       <Heart
-                        className={`h-4 w-4 transition-colors ${
-                          saved.includes(c.id)
+                        className={`h-4 w-4 transition-colors ${saved.includes(c.id)
                             ? "fill-red-500 text-red-500"
                             : "text-muted-foreground"
-                        }`}
+                          }`}
                       />
                     </button>
                   </div>
@@ -534,7 +533,7 @@ export default function SearchContent() {
                       className="gap-1 bg-transparent"
                       asChild
                     >
-                      <a href={`tel:+38640000000`}>
+                      <a href={`tel:+38669920963`}>
                         <Phone className="h-3.5 w-3.5" />
                         <span className="sr-only">Poklic</span>
                       </a>

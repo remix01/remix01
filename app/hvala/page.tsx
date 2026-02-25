@@ -46,7 +46,7 @@ export default function Page() {
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-sm text-muted-foreground mb-6">
-                Preverjen obrtnik vam bo odgovoril v manj kot 2 urah. Obvestilo boste prejeli na vaš email.
+                Preverjen obrtnik vam bo odgovoril v manj kot 24 urah. Obvestilo boste prejeli na vaš email.
               </p>
               <Button asChild className="w-full">
                 <Link href="/">

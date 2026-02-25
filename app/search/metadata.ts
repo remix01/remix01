@@ -1,7 +1,7 @@
 export const categoryMetadata: Record<string, { title: string; description: string }> = {
   'vodovod-ogrevanje': {
     title: 'Vodovodar v {location} | LiftGO — Preverjeni mojstri',
-    description: 'Najdite verificiranega vodovoda v {location}. Hiter odziv v manj kot 2 urah. Centralno ogrevanje, talno ogrevanje, toplotne črpalke. 4.9★ povprečna ocena.',
+    description: 'Najdite verificiranega vodovoda v {location}. Hiter odziv v manj kot 24 urah. Centralno ogrevanje, talno ogrevanje, toplotne črpalke. 4.9★ povprečna ocena.',
   },
   'elektrika-pametni-sistemi': {
     title: 'Elektrikar v {location} | LiftGO — Certificirani elektro mojstri',
@@ -39,14 +39,14 @@ export const categoryMetadata: Record<string, { title: string; description: stri
 
 export function getCategoryKey(category: string | null): string {
   if (!category) return 'default'
-  
+
   const normalized = category
     .toLowerCase()
     .replace(/\s+&\s+/g, '-')
     .replace(/\s+/g, '-')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-  
+
   return Object.keys(categoryMetadata).includes(normalized) ? normalized : 'default'
 }
 
@@ -54,7 +54,7 @@ export function getMetadataForCategory(category: string | null, location: string
   const categoryKey = getCategoryKey(category)
   const meta = categoryMetadata[categoryKey]
   const loc = location || 'Sloveniji'
-  
+
   return {
     title: meta.title.replace('{location}', loc),
     description: meta.description.replace(/{location}/g, loc),
