@@ -18,7 +18,7 @@ const websiteSchema = {
   "@type": "WebSite",
   "name": "LiftGO",
   "url": "https://www.liftgo.net",
-  "description": "Platforma za iskanje zanesljivih obrtnikov po vsej Sloveniji. Brezplačno povpraševanje, odziv v 2 urah.",
+  "description": "Platforma za iskanje zanesljivih obrtnikov po vsej Sloveniji. Brezplačno povpraševanje, odziv v 24 urah.",
   "inLanguage": "sl-SI",
   "potentialAction": {
     "@type": "SearchAction",
@@ -36,7 +36,7 @@ const reviewsSchema = {
   "name": "LiftGO — Obrtniki v Sloveniji",
   "url": "https://www.liftgo.net",
   "image": "https://www.liftgo.net/images/hero-craftsman.jpg",
-  "description": "Povežemo vas z zanesljivimi preverjenimi obrtniki po vsej Sloveniji v manj kot 2 urah.",
+  "description": "Povežemo vas z zanesljivimi preverjenimi obrtniki po vsej Sloveniji v manj kot 24 urah.",
   "areaServed": {
     "@type": "Country",
     "name": "Slovenia"
@@ -89,11 +89,11 @@ const faqSchema = {
       "name": "Kako deluje LiftGO?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Oddajte brezplačno povpraševanje, mi pa vas povežemo s preverjenimi obrtniki v vaši okolici. Ponudbo prejmete v manj kot 2 urah."
+        "text": "Oddajte brezplačno povpraševanje, mi pa vas povežemo s preverjenimi obrtniki v vaši okolici. Ponudbo prejmete v manj kot 24 urah."
       }
     },
     {
-      "@type": "Question", 
+      "@type": "Question",
       "name": "Koliko stane iskanje mojstra prek LiftGO?",
       "acceptedAnswer": {
         "@type": "Answer",
@@ -113,7 +113,7 @@ const faqSchema = {
       "name": "Kako hitro dobim ponudbo?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Garantiramo odziv v manj kot 2 urah po oddaji povpraševanja. Povprečni odzivni čas je krajši od 2 ur."
+        "text": "Garantiramo odziv v manj kot 2 urah po oddaji povpraševanja. Povprečni odzivni čas je krajši od 24 ur."
       }
     }
   ]

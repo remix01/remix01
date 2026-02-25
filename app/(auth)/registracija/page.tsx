@@ -1,17 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
+import { Search, Wrench } from 'lucide-react'
+import type { UserRole } from '@/types'
 
 export default function RegistracijaPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
+  const [selectedRole, setSelectedRole] = useState<UserRole>('narocnik')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -73,27 +78,53 @@ export default function RegistracijaPage() {
         return
       }
 
-      // Insert profile
-      const { error: insertError } = await supabase
+      // 1. Ustvari profile record
+      const { error: profileError } = await supabase
         .from('profiles')
-        .insert([
-          {
-            id: data.user.id,
-            role: 'narocnik',
-            full_name: fullName,
-            phone: phone || null,
-            location_city: locationCity,
-          },
-        ])
+        .insert({
+          id: data.user.id,
+          role: selectedRole,
+          full_name: fullName,
+          phone: phone || null,
+          location_city: locationCity,
+          email: email,
+        })
 
-      if (insertError) {
+      if (profileError) {
         setError('Napaka pri ustvarjanju profila. Poskusite znova.')
         setLoading(false)
         return
       }
 
-      // Redirect to dashboard
-      router.push('/narocnik/dashboard')
+      // 2. Če je obrtnik, ustvari tudi obrtnik_profiles record
+      if (selectedRole === 'obrtnik') {
+        const { error: obrtnikError } = await supabase
+          .from('obrtnik_profiles')
+          .insert({
+            id: data.user.id,
+            business_name: fullName,
+            is_verified: false,
+            verification_status: 'pending',
+            status: 'pending',
+            avg_rating: 0,
+            total_reviews: 0,
+            is_available: true,
+          })
+
+        if (obrtnikError) {
+          setError('Napaka pri ustvarjanju obrtnikovega profila.')
+          setLoading(false)
+          return
+        }
+      }
+
+      // 3. Preusmeri glede na role
+      if (selectedRole === 'obrtnik') {
+        router.push('/obrtnik/dashboard')
+      } else {
+        const redirect = searchParams?.get('redirect')
+        router.push(redirect || '/dashboard')
+      }
     } catch (err) {
       setError('Napaka pri registraciji. Poskusite znova.')
     } finally {
@@ -105,10 +136,49 @@ export default function RegistracijaPage() {
     <div className="space-y-6">
       <div className="space-y-2 text-center">
         <h2 className="text-2xl font-bold text-foreground">Ustvari račun</h2>
-        <p className="text-muted-foreground">Brezplačna registracija za naročnike</p>
+        <p className="text-muted-foreground">Izberite, kaj vas zanima</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Role selector — PRVO v formi */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <button
+            type="button"
+            onClick={() => setSelectedRole('narocnik')}
+            className={cn(
+              'rounded-[var(--radius)] border-2 p-4 text-left transition-all',
+              selectedRole === 'narocnik'
+                ? 'border-primary bg-secondary'
+                : 'border-border bg-card hover:border-primary/40'
+            )}
+          >
+            <Search className="w-6 h-6 text-primary mb-2" />
+            <div className="font-bold text-sm text-foreground">Iščem mojstra</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Oddajte povpraševanje
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedRole('obrtnik')}
+            className={cn(
+              'rounded-[var(--radius)] border-2 p-4 text-left transition-all',
+              selectedRole === 'obrtnik'
+                ? 'border-primary bg-secondary'
+                : 'border-border bg-card hover:border-primary/40'
+            )}
+          >
+            <Wrench className="w-6 h-6 text-primary mb-2" />
+            <div className="font-bold text-sm text-foreground">
+              Sem obrtnik / mojster
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Ponujam storitve
+            </div>
+          </button>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="fullName">Ime in priimek</Label>
           <Input
@@ -196,13 +266,8 @@ export default function RegistracijaPage() {
             Prijava →
           </Link>
         </div>
-        <div>
-          <span className="text-muted-foreground">Ste obrtnik? </span>
-          <Link href="/partner-auth/sign-up" className="text-primary hover:underline font-medium">
-            Registracija za partnerje →
-          </Link>
-        </div>
       </div>
     </div>
   )
 }
+

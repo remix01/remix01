@@ -25,23 +25,119 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired — required for Server Components
   const { data: { user } } = await supabase.auth.getUser()
+  const path = request.nextUrl.pathname
 
-  // Protect partner dashboard routes
-  if (
-    request.nextUrl.pathname.startsWith('/partner-dashboard') &&
-    !user
-  ) {
-    return NextResponse.redirect(new URL('/partner-auth/sign-in', request.url))
+  // ── NAROČNIK dashboard zaščita ──────────────────────────
+  // Vse pod /dashboard, /povprasevanja, /profil, /obvestila, /ocena
+  // ki niso pod /admin ali /obrtnik
+  const narocnikPaths = [
+    '/dashboard',
+    '/povprasevanja',
+    '/novo-povprasevanje',
+    '/profil',
+    '/obvestila',
+    '/ocena',
+  ]
+
+  const isNarocnikPath = narocnikPaths.some(p => path.startsWith(p))
+
+  if (isNarocnikPath) {
+    if (!user) {
+      return NextResponse.redirect(
+        new URL(`/prijava?redirect=${path}`, request.url)
+      )
+    }
+
+    // Preveri da je res naročnik (ne obrtnik, ne admin)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'obrtnik') {
+      return NextResponse.redirect(
+        new URL('/obrtnik/dashboard', request.url)
+      )
+    }
   }
 
-  // Protect admin routes
-  if (
-    request.nextUrl.pathname.startsWith('/admin') &&
-    !user
-  ) {
-    return NextResponse.redirect(new URL('/partner-auth/sign-in', request.url))
+  // ── OBRTNIK dashboard zaščita ───────────────────────────
+  if (path.startsWith('/obrtnik')) {
+    if (!user) {
+      return NextResponse.redirect(
+        new URL('/prijava?redirect=/obrtnik/dashboard', request.url)
+      )
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || profile.role !== 'obrtnik') {
+      return NextResponse.redirect(
+        new URL('/prijava?error=not_obrtnik', request.url)
+      )
+    }
+  }
+
+  // ── ADMIN zaščita ───────────────────────────────────────
+  if (path.startsWith('/admin')) {
+    if (path === '/admin/login') return supabaseResponse
+
+    if (!user) {
+      return NextResponse.redirect(
+        new URL('/admin/login', request.url)
+      )
+    }
+
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!adminUser) {
+      return NextResponse.redirect(
+        new URL('/admin/login?error=unauthorized', request.url)
+      )
+    }
+  }
+
+  // ── Preusmeritev prijavljenih stran od /prijava ─────────
+  if (path === '/prijava' || path === '/registracija') {
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(
+          new URL('/obrtnik/dashboard', request.url)
+        )
+      }
+
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (adminUser) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+
+      // Naročnik
+      const redirect = request.nextUrl.searchParams.get('redirect')
+      return NextResponse.redirect(
+        new URL(redirect || '/dashboard', request.url)
+      )
+    }
   }
 
   return supabaseResponse
@@ -49,13 +145,15 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimisation)
-     * - favicon.ico
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/dashboard/:path*',
+    '/povprasevanja/:path*',
+    '/novo-povprasevanje/:path*',
+    '/profil/:path*',
+    '/obvestila/:path*',
+    '/ocena/:path*',
+    '/obrtnik/:path*',
+    '/admin/:path*',
+    '/prijava',
+    '/registracija',
   ],
 }

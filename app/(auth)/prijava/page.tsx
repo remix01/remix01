@@ -41,6 +41,18 @@ export default function PrijavaPage() {
         return
       }
 
+      // Check for admin first
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('user_id', data.user.id)
+        .single()
+
+      if (adminUser) {
+        router.push('/admin')
+        return
+      }
+
       // Fetch user profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -54,12 +66,12 @@ export default function PrijavaPage() {
       }
 
       // Redirect based on role
-      if (profile.role === 'narocnik') {
-        router.push('/narocnik/dashboard')
-      } else if (profile.role === 'obrtnik') {
+      if (profile.role === 'obrtnik') {
         router.push('/obrtnik/dashboard')
       } else {
-        router.push('/registracija')
+        // Naročnik — check for redirect param
+        const redirect = new URLSearchParams(window.location.search).get('redirect')
+        router.push(redirect || '/dashboard')
       }
     } catch (err) {
       setError('Napaka pri prijavi. Poskusite znova.')
