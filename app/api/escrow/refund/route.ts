@@ -5,7 +5,8 @@ import { getEscrowTransaction, updateEscrowStatus } from '@/lib/escrow'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { validateRequiredString, validateAmount, collectErrors } from '@/lib/validation'
-import { badRequest, forbidden, apiSuccess, internalError } from '@/lib/api-response'
+import { badRequest, forbidden, apiSuccess, internalError, conflict } from '@/lib/api-response'
+import { assertEscrowTransition } from '@/lib/agent/state-machine'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +37,21 @@ export async function POST(request: NextRequest) {
 
     // 2. PREBERI TRANSAKCIJO
     const escrow = await getEscrowTransaction(escrowId)
+
+    // 2.5 STATE MACHINE GUARD — enforce valid transitions
+    // This runs AFTER permission checks, BEFORE DB writes
+    try {
+      await assertEscrowTransition(escrowId, 'refunded')
+    } catch (error: any) {
+      // State machine rejected the transition
+      if (error.code === 409) {
+        return conflict(error.error)
+      }
+      if (error.code === 404) {
+        return badRequest(error.error)
+      }
+      throw error
+    }
 
     // 3. SAMO 'paid' SE LAHKO VRNE
     if (escrow.status !== 'paid') {

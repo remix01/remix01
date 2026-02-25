@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { validateStringLength, collectErrors } from '@/lib/validation'
 import { badRequest, unauthorized, conflict, internalError, apiSuccess } from '@/lib/api-response'
+import { assertEscrowTransition } from '@/lib/agent/state-machine'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +46,21 @@ export async function POST(request: NextRequest) {
 
     // 2. PREBERI TRANSAKCIJO
     const escrow = await getEscrowTransaction(escrowId)
+
+    // 2.5 STATE MACHINE GUARD — enforce valid transitions
+    // This runs AFTER permission checks, BEFORE DB writes
+    try {
+      await assertEscrowTransition(escrowId, 'disputed')
+    } catch (error: any) {
+      // State machine rejected the transition
+      if (error.code === 409) {
+        return conflict(error.error)
+      }
+      if (error.code === 404) {
+        return badRequest(error.error)
+      }
+      throw error
+    }
 
     // 3. SAMO 'paid' TRANSAKCIJE IMAJO LAHKO SPOR
     if (!['paid'].includes(escrow.status)) {

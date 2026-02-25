@@ -5,7 +5,8 @@ import { getEscrowTransaction, updateEscrowStatus } from '@/lib/escrow'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { validateRequiredString, collectErrors } from '@/lib/validation'
-import { badRequest, unauthorized, forbidden, internalError, apiSuccess } from '@/lib/api-response'
+import { badRequest, unauthorized, forbidden, internalError, apiSuccess, conflict } from '@/lib/api-response'
+import { assertEscrowTransition } from '@/lib/agent/state-machine'
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,21 @@ export async function POST(request: NextRequest) {
 
     // 2. PREBERI TRANSAKCIJO ZA PREVERJANJE LASTNIŠTVA
     const escrow = await getEscrowTransaction(escrowId)
+
+    // 2.5 STATE MACHINE GUARD — enforce valid transitions
+    // This runs AFTER permission checks (above), BEFORE DB writes
+    try {
+      await assertEscrowTransition(escrowId, 'released')
+    } catch (error: any) {
+      // State machine rejected the transition
+      if (error.code === 409) {
+        return conflict(error.error)
+      }
+      if (error.code === 404) {
+        return badRequest(error.error)
+      }
+      throw error
+    }
 
     // 3. PREVERI LASTNIŠTVO
     const isPartner = escrow.partner_id === session.user.id
