@@ -25,23 +25,135 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired — required for Server Components
   const { data: { user } } = await supabase.auth.getUser()
+  const path = request.nextUrl.pathname
 
-  // Protect partner dashboard routes
-  if (
-    request.nextUrl.pathname.startsWith('/partner-dashboard') &&
-    !user
-  ) {
-    return NextResponse.redirect(new URL('/partner-auth/sign-in', request.url))
+  // ── /admin zaščita ─────────────────────────────────────────────
+  if (path.startsWith('/admin')) {
+    if (path === '/admin/login') return supabaseResponse
+
+    if (!user) {
+      return NextResponse.redirect(new URL('/admin/login', request.url))
+    }
+
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!adminUser) {
+      return NextResponse.redirect(
+        new URL('/admin/login?error=unauthorized', request.url)
+      )
+    }
   }
 
-  // Protect admin routes
+  // ── /partner-dashboard zaščita ─────────────────────────────────
+  if (path.startsWith('/partner-dashboard')) {
+    if (!user) {
+      return NextResponse.redirect(
+        new URL('/partner-auth/sign-in', request.url)
+      )
+    }
+
+    const { data: obrtnik } = await supabase
+      .from('obrtniki')
+      .select('id, status')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!obrtnik) {
+      return NextResponse.redirect(
+        new URL('/partner-auth/sign-up', request.url)
+      )
+    }
+  }
+
+  // ── /partner-auth preusmeritev (že prijavljen) ──────────────────
   if (
-    request.nextUrl.pathname.startsWith('/admin') &&
-    !user
+    path.startsWith('/partner-auth') &&
+    path !== '/partner-auth/verify-email' &&
+    path !== '/partner-auth/reset-password'
   ) {
-    return NextResponse.redirect(new URL('/partner-auth/sign-in', request.url))
+    if (user) {
+      const { data: obrtnik } = await supabase
+        .from('obrtniki')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (obrtnik) {
+        return NextResponse.redirect(
+          new URL('/partner-dashboard', request.url)
+        )
+      }
+    }
+  }
+
+  // ── /povprasevanje — obvezna registracija stranke ───────────────
+  if (path.startsWith('/povprasevanje')) {
+    if (!user) {
+      return NextResponse.redirect(
+        new URL(`/prijava?redirect=/povprasevanje`, request.url)
+      )
+    }
+
+    // Preveri da prijavljen user NI obrtnik ali admin
+    const { data: obrtnik } = await supabase
+      .from('obrtniki')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (obrtnik) {
+      // Obrtnik ne more oddati povpraševanja — preusmeri na dashboard
+      return NextResponse.redirect(
+        new URL('/partner-dashboard', request.url)
+      )
+    }
+  }
+
+  // ── /moje-povprasevanje — stranka dashboard ─────────────────────
+  if (path.startsWith('/moje-povprasevanje')) {
+    if (!user) {
+      return NextResponse.redirect(
+        new URL(`/prijava?redirect=${path}`, request.url)
+      )
+    }
+  }
+
+  // ── /prijava in /registracija — preusmeritev če že prijavljen ───
+  if (path === '/prijava' || path === '/registracija') {
+    if (user) {
+      // Preveri tip userja in preusmeri na pravi dashboard
+      const { data: obrtnik } = await supabase
+        .from('obrtniki')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (obrtnik) {
+        return NextResponse.redirect(
+          new URL('/partner-dashboard', request.url)
+        )
+      }
+
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (adminUser) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+
+      // Navadna stranka
+      return NextResponse.redirect(
+        new URL('/moje-povprasevanje', request.url)
+      )
+    }
   }
 
   return supabaseResponse
@@ -49,13 +161,12 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimisation)
-     * - favicon.ico
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/admin/:path*',
+    '/partner-dashboard/:path*',
+    '/partner-auth/:path*',
+    '/povprasevanje/:path*',
+    '/moje-povprasevanje/:path*',
+    '/prijava',
+    '/registracija',
   ],
 }
