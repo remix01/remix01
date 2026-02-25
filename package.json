@@ -51,6 +51,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
     "@twilio/conversations": "^2.5.0",
+    "@upstash/redis": "^1.36.2",
     "autoprefixer": "^10.4.20",
     "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.1",

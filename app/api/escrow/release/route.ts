@@ -7,6 +7,7 @@ import { cookies } from 'next/headers'
 import { validateRequiredString, collectErrors } from '@/lib/validation'
 import { badRequest, unauthorized, forbidden, internalError, apiSuccess, conflict } from '@/lib/api-response'
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
+import { enqueueJob } from '@/lib/jobs/queue'
 
 export async function POST(request: NextRequest) {
   try {
@@ -185,6 +186,34 @@ export async function POST(request: NextRequest) {
         confirmedByCustomer: confirmedByCustomer ?? false,
         releasedBy: isAdmin ? 'admin' : 'partner',
       },
+    })
+
+    // 9. ENQUEUE ASYNC SIDE EFFECTS
+    // - Notify customer of release
+    // - Notify partner of release
+    // - Log to webhook
+    // These are fire-and-forget; failures don't block the response
+    Promise.all([
+      enqueueJob('send_release_email', {
+        transactionId: escrow.id,
+        recipientEmail: escrow.customer_email,
+        recipientName: escrow.customer_name,
+        partnerName: escrow.partner_name,
+        amount: escrow.amount_cents,
+      }, {
+        dedupeKey: `escrow-${escrow.id}-release-email`,
+      }),
+      enqueueJob('webhook_escrow_status_changed', {
+        transactionId: escrow.id,
+        statusBefore: 'paid',
+        statusAfter: 'released',
+        metadata: { releasedBy: isAdmin ? 'admin' : 'partner' },
+      }, {
+        dedupeKey: `escrow-${escrow.id}-webhook-released`,
+      }),
+    ]).catch(err => {
+      // Log but don't fail the request
+      console.error('[ESCROW RELEASE] Error enqueueing jobs:', err)
     })
 
     return NextResponse.json({

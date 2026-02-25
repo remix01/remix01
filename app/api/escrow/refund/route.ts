@@ -7,6 +7,7 @@ import { cookies } from 'next/headers'
 import { validateRequiredString, validateAmount, collectErrors } from '@/lib/validation'
 import { badRequest, forbidden, apiSuccess, internalError, conflict } from '@/lib/api-response'
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
+import { enqueueJob } from '@/lib/jobs/queue'
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,6 +76,32 @@ export async function POST(request: NextRequest) {
         stripe_refund_id: refund.id,
       },
       metadata: { reason: reason ?? 'Admin refund', requestedAmountCents: amountCents },
+    })
+
+    // 6. ENQUEUE ASYNC SIDE EFFECTS
+    // - Notify customer of refund
+    // - Notify partner of refund
+    // - Log to webhook
+    Promise.all([
+      enqueueJob('send_refund_email', {
+        transactionId: escrow.id,
+        recipientEmail: escrow.customer_email,
+        recipientName: escrow.customer_name,
+        amount: amountCents || escrow.amount_cents,
+        reason: reason || 'Admin refund',
+      }, {
+        dedupeKey: `escrow-${escrow.id}-refund-email`,
+      }),
+      enqueueJob('webhook_escrow_status_changed', {
+        transactionId: escrow.id,
+        statusBefore: 'paid',
+        statusAfter: 'refunded',
+        metadata: { reason, refundId: refund.id },
+      }, {
+        dedupeKey: `escrow-${escrow.id}-webhook-refunded`,
+      }),
+    ]).catch(err => {
+      console.error('[ESCROW REFUND] Error enqueueing jobs:', err)
     })
 
     return apiSuccess({
