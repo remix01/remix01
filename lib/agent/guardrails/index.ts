@@ -2,12 +2,20 @@
  * Main Guardrails Orchestrator
  * Runs all guards in sequence before tool execution
  * Fails fast on first guard failure
+ * 
+ * Guard Execution Order (each guard runs after auth):
+ * 1. PERMISSIONS (role-based + ownership) — first line of defense
+ * 2. SCHEMA validation — prevents malformed requests
+ * 3. INJECTION detection — prevents attack payloads
+ * 4. AMOUNT validation — prevents financial errors
+ * 5. RATE LIMIT — prevents abuse
  */
 
 import { schemaGuard } from './schemaGuard'
 import { injectionGuard } from './injectionGuard'
 import { amountGuard } from './amountGuard'
 import { rateGuard } from './rateGuard'
+import { checkPermission, type Role } from '../permissions'
 
 export interface GuardError {
   success: false
@@ -19,6 +27,7 @@ export interface Session {
   user: {
     id: string
     email?: string
+    role: Role
   }
 }
 
@@ -26,22 +35,35 @@ export interface Session {
  * Run all guardrails on tool call
  * Throws GuardError if any guard fails
  * Pure function - no side effects beyond rate limit tracking
+ * 
+ * Order matters: PERMISSIONS first, then other security checks
  */
 export async function runGuardrails(
   toolName: string,
   params: unknown,
   session: Session
 ): Promise<void> {
-  // 1. Validate schema
+  // 1. Check PERMISSIONS first (role-based + ownership)
+  // This prevents unauthorized users from accessing resources
+  const permissionResult = await checkPermission(toolName, params, session)
+  if (!permissionResult.allowed) {
+    throw {
+      success: false,
+      error: permissionResult.error || 'Forbidden',
+      code: permissionResult.code || 403,
+    }
+  }
+
+  // 2. Validate schema
   await schemaGuard(toolName, params)
 
-  // 2. Check for injection attempts
+  // 3. Check for injection attempts
   await injectionGuard(params)
 
-  // 3. Validate financial amounts
+  // 4. Validate financial amounts
   await amountGuard(params)
 
-  // 4. Check rate limits
+  // 5. Check rate limits
   await rateGuard(session.user.id)
 }
 
