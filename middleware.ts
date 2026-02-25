@@ -28,12 +28,70 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // ── /admin zaščita ─────────────────────────────────────────────
+  // ── NAROČNIK dashboard zaščita ──────────────────────────
+  // Vse pod /dashboard, /povprasevanja, /profil, /obvestila, /ocena
+  // ki niso pod /admin ali /obrtnik
+  const narocnikPaths = [
+    '/dashboard',
+    '/povprasevanja',
+    '/novo-povprasevanje',
+    '/profil',
+    '/obvestila',
+    '/ocena',
+  ]
+
+  const isNarocnikPath = narocnikPaths.some(p => path.startsWith(p))
+
+  if (isNarocnikPath) {
+    if (!user) {
+      return NextResponse.redirect(
+        new URL(`/prijava?redirect=${path}`, request.url)
+      )
+    }
+
+    // Preveri da je res naročnik (ne obrtnik, ne admin)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'obrtnik') {
+      return NextResponse.redirect(
+        new URL('/obrtnik/dashboard', request.url)
+      )
+    }
+  }
+
+  // ── OBRTNIK dashboard zaščita ───────────────────────────
+  if (path.startsWith('/obrtnik')) {
+    if (!user) {
+      return NextResponse.redirect(
+        new URL('/prijava?redirect=/obrtnik/dashboard', request.url)
+      )
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || profile.role !== 'obrtnik') {
+      return NextResponse.redirect(
+        new URL('/prijava?error=not_obrtnik', request.url)
+      )
+    }
+  }
+
+  // ── ADMIN zaščita ───────────────────────────────────────
   if (path.startsWith('/admin')) {
     if (path === '/admin/login') return supabaseResponse
 
     if (!user) {
-      return NextResponse.redirect(new URL('/admin/login', request.url))
+      return NextResponse.redirect(
+        new URL('/admin/login', request.url)
+      )
     }
 
     const { data: adminUser } = await supabase
@@ -49,93 +107,18 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ── /partner-dashboard zaščita ─────────────────────────────────
-  if (path.startsWith('/partner-dashboard')) {
-    if (!user) {
-      return NextResponse.redirect(
-        new URL('/partner-auth/sign-in', request.url)
-      )
-    }
-
-    const { data: obrtnik } = await supabase
-      .from('obrtniki')
-      .select('id, status')
-      .eq('user_id', user.id)
-      .single()
-
-    if (!obrtnik) {
-      return NextResponse.redirect(
-        new URL('/partner-auth/sign-up', request.url)
-      )
-    }
-  }
-
-  // ── /partner-auth preusmeritev (že prijavljen) ──────────────────
-  if (
-    path.startsWith('/partner-auth') &&
-    path !== '/partner-auth/verify-email' &&
-    path !== '/partner-auth/reset-password'
-  ) {
-    if (user) {
-      const { data: obrtnik } = await supabase
-        .from('obrtniki')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (obrtnik) {
-        return NextResponse.redirect(
-          new URL('/partner-dashboard', request.url)
-        )
-      }
-    }
-  }
-
-  // ── /povprasevanje — obvezna registracija stranke ───────────────
-  if (path.startsWith('/povprasevanje')) {
-    if (!user) {
-      return NextResponse.redirect(
-        new URL(`/prijava?redirect=/povprasevanje`, request.url)
-      )
-    }
-
-    // Preveri da prijavljen user NI obrtnik ali admin
-    const { data: obrtnik } = await supabase
-      .from('obrtniki')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (obrtnik) {
-      // Obrtnik ne more oddati povpraševanja — preusmeri na dashboard
-      return NextResponse.redirect(
-        new URL('/partner-dashboard', request.url)
-      )
-    }
-  }
-
-  // ── /moje-povprasevanje — stranka dashboard ─────────────────────
-  if (path.startsWith('/moje-povprasevanje')) {
-    if (!user) {
-      return NextResponse.redirect(
-        new URL(`/prijava?redirect=${path}`, request.url)
-      )
-    }
-  }
-
-  // ── /prijava in /registracija — preusmeritev če že prijavljen ───
+  // ── Preusmeritev prijavljenih stran od /prijava ─────────
   if (path === '/prijava' || path === '/registracija') {
     if (user) {
-      // Preveri tip userja in preusmeri na pravi dashboard
-      const { data: obrtnik } = await supabase
-        .from('obrtniki')
-        .select('id')
-        .eq('user_id', user.id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
         .single()
 
-      if (obrtnik) {
+      if (profile?.role === 'obrtnik') {
         return NextResponse.redirect(
-          new URL('/partner-dashboard', request.url)
+          new URL('/obrtnik/dashboard', request.url)
         )
       }
 
@@ -149,9 +132,10 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/admin', request.url))
       }
 
-      // Navadna stranka
+      // Naročnik
+      const redirect = request.nextUrl.searchParams.get('redirect')
       return NextResponse.redirect(
-        new URL('/moje-povprasevanje', request.url)
+        new URL(redirect || '/dashboard', request.url)
       )
     }
   }
@@ -161,11 +145,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/dashboard/:path*',
+    '/povprasevanja/:path*',
+    '/novo-povprasevanje/:path*',
+    '/profil/:path*',
+    '/obvestila/:path*',
+    '/ocena/:path*',
+    '/obrtnik/:path*',
     '/admin/:path*',
-    '/partner-dashboard/:path*',
-    '/partner-auth/:path*',
-    '/povprasevanje/:path*',
-    '/moje-povprasevanje/:path*',
     '/prijava',
     '/registracija',
   ],
