@@ -6,6 +6,8 @@ import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { validateStringLength, collectErrors } from '@/lib/validation'
 import { badRequest, unauthorized, conflict, internalError, apiSuccess } from '@/lib/api-response'
+import { assertEscrowTransition } from '@/lib/agent/state-machine'
+import { enqueueJob } from '@/lib/jobs/queue'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +47,21 @@ export async function POST(request: NextRequest) {
 
     // 2. PREBERI TRANSAKCIJO
     const escrow = await getEscrowTransaction(escrowId)
+
+    // 2.5 STATE MACHINE GUARD — enforce valid transitions
+    // This runs AFTER permission checks, BEFORE DB writes
+    try {
+      await assertEscrowTransition(escrowId, 'disputed')
+    } catch (error: any) {
+      // State machine rejected the transition
+      if (error.code === 409) {
+        return conflict(error.error)
+      }
+      if (error.code === 404) {
+        return badRequest(error.error)
+      }
+      throw error
+    }
 
     // 3. SAMO 'paid' TRANSAKCIJE IMAJO LAHKO SPOR
     if (!['paid'].includes(escrow.status)) {
@@ -87,8 +104,39 @@ export async function POST(request: NextRequest) {
       metadata:      { reason: trimmedReason, openedBy },
     })
 
-    // 8. OBVESTI ADMIN (email prek lib/email.ts)
-    // await sendAdminDisputeAlert({ escrowId, openedBy, reason })
+    // 8. ENQUEUE ASYNC SIDE EFFECTS
+    // - Notify customer of dispute
+    // - Notify partner of dispute
+    // - Alert admin
+    // - Log to webhook
+    Promise.all([
+      enqueueJob('send_dispute_email', {
+        transactionId: escrow.id,
+        recipientEmail: escrow.customer_email,
+        recipientName: escrow.customer_name,
+        reason: `${openedBy === 'partner' ? 'Partner' : 'Customer'} opened a dispute: ${reason}`,
+      }, {
+        dedupeKey: `escrow-${escrow.id}-dispute-customer`,
+      }),
+      enqueueJob('send_dispute_email', {
+        transactionId: escrow.id,
+        recipientEmail: escrow.partner_email,
+        recipientName: escrow.partner_name,
+        reason: `${openedBy === 'partner' ? 'You' : 'Customer'} opened a dispute: ${reason}`,
+      }, {
+        dedupeKey: `escrow-${escrow.id}-dispute-partner`,
+      }),
+      enqueueJob('webhook_escrow_status_changed', {
+        transactionId: escrow.id,
+        statusBefore: 'paid',
+        statusAfter: 'disputed',
+        metadata: { openedBy, reason, description },
+      }, {
+        dedupeKey: `escrow-${escrow.id}-webhook-disputed`,
+      }),
+    ]).catch(err => {
+      console.error('[ESCROW DISPUTE] Error enqueueing jobs:', err)
+    })
 
     return apiSuccess({ message: 'Dispute opened. Our team will review within 24 hours.' })
 
