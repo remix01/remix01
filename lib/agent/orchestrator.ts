@@ -9,6 +9,9 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { getConversationForLLM, type AgentContext } from './context'
+import { agentLogger, tracer } from '@/lib/observability'
+import type { Span } from '@/lib/observability'
+import { anomalyDetector } from '@/lib/observability/alerting'
 import {
   shortTermMemory,
   loadLongTermMemory,
@@ -118,7 +121,22 @@ export async function orchestrate(
   userMessage: string,
   context: AgentContext
 ): Promise<OrchestratorResponse> {
+  // ── ROOT TRACE SPAN ─────────────────────────────────────────────────────
+  const rootSpan = tracer.startTrace('orchestrator.process', {
+    userId:        context.userId,
+    sessionId:     context.sessionId,
+    messageLength: userMessage.length,
+  })
+
   try {
+    // ── OBSERVABILITY ──────────────────────────────────────────────────────
+    agentLogger.log({
+      sessionId: context.sessionId,
+      userId: context.userId,
+      level: 'info',
+      event: 'session_started',
+    })
+
     // ── WORKING MEMORY (init) ──────────────────────────────────────────────
     // Ensures the session exists before any reads/writes below.
     workingMemory.init(context.sessionId, context.userId)
@@ -181,11 +199,40 @@ export async function orchestrate(
     ]
 
     // Call Claude
+    const llmStartedAt = Date.now()
+    const llmSpan = tracer.startSpan('llm.call', rootSpan, {
+      model:        'claude-3-5-sonnet-20241022',
+      messageCount: messages.length,
+    })
+
+    agentLogger.log({
+      sessionId: context.sessionId,
+      userId: context.userId,
+      level: 'debug',
+      event: 'llm_call_started',
+      params: { model: 'claude-3-5-sonnet-20241022', messageCount: messages.length },
+    })
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
       system: systemPrompt,
       messages,
+    })
+
+    const llmDurationMs = Date.now() - llmStartedAt
+    tracer.endSpan(llmSpan, 'ok', undefined)
+    // Patch in token + duration attributes now that we have them
+    llmSpan.attributes.promptTokens     = response.usage?.input_tokens  ?? 0
+    llmSpan.attributes.completionTokens = response.usage?.output_tokens ?? 0
+    llmSpan.attributes.durationMs       = llmDurationMs
+
+    agentLogger.log({
+      sessionId: context.sessionId,
+      userId: context.userId,
+      level: 'debug',
+      event: 'llm_call_completed',
+      durationMs: llmDurationMs,
     })
 
     // Extract text response
@@ -293,6 +340,11 @@ export async function orchestrate(
     }
   } catch (error) {
     console.error('[ORCHESTRATOR] Error calling LLM:', error)
+    
+    // Record LLM error for anomaly detection (non-blocking)
+    anomalyDetector.record('llm_error_spike', context.userId, context.sessionId, 
+      error instanceof Error ? error.message : String(error))
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

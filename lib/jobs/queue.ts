@@ -14,6 +14,7 @@
  */
 
 import { Redis } from '@upstash/redis'
+import { anomalyDetector } from '@/lib/observability/alerting'
 
 // ── TYPES
 export type JobType =
@@ -162,6 +163,9 @@ export async function dequeueAndProcess(
       await client.set(`job:${jobId}`, JSON.stringify(job), { ex: 604800 }) // 7 days
       await client.lpush(`queue:dead_letter`, jobId)
       console.error(`[JOB FAILED] ${type} (${jobId}) — moved to DLQ after ${job.attemptCount} attempts`, error)
+      
+      // Record job failure for anomaly detection (non-blocking)
+      anomalyDetector.record('job_queue_failure_spike')
       
     } else {
       // Retry with exponential backoff
