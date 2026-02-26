@@ -9,7 +9,8 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { getConversationForLLM, type AgentContext } from './context'
-import { agentLogger } from '@/lib/observability'
+import { agentLogger, tracer } from '@/lib/observability'
+import type { Span } from '@/lib/observability'
 import {
   shortTermMemory,
   loadLongTermMemory,
@@ -119,6 +120,13 @@ export async function orchestrate(
   userMessage: string,
   context: AgentContext
 ): Promise<OrchestratorResponse> {
+  // ── ROOT TRACE SPAN ─────────────────────────────────────────────────────
+  const rootSpan = tracer.startTrace('orchestrator.process', {
+    userId:        context.userId,
+    sessionId:     context.sessionId,
+    messageLength: userMessage.length,
+  })
+
   try {
     // ── OBSERVABILITY ──────────────────────────────────────────────────────
     agentLogger.log({
