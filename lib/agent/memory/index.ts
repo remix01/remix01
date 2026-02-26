@@ -9,3 +9,6 @@ export {
   formatForSystemPrompt,
 } from './longTerm'
 export type { LongTermMemoryRecord, ActivityEntry } from './longTerm'
+
+export { workingMemory, FINANCIAL_TOOLS, formatWorkingContextForPrompt } from './workingMemory'
+export type { WorkingMemoryState } from './workingMemory'

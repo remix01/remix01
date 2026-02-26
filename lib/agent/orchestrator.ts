@@ -14,6 +14,9 @@ import {
   loadLongTermMemory,
   appendActivity,
   formatForSystemPrompt,
+  workingMemory,
+  FINANCIAL_TOOLS,
+  formatWorkingContextForPrompt,
 } from './memory'
 
 const anthropic = new Anthropic({
@@ -74,7 +77,9 @@ CRITICAL RULES:
 CONTEXT:
 - Current user ID: {userId}
 - User role: {userRole}
-- Active resources: {activeResources}`;
+- Active resources: {activeResources}
+
+{workingContext}`;
 
 /**
  * Parse LLM response to extract tool call
@@ -114,6 +119,10 @@ export async function orchestrate(
   context: AgentContext
 ): Promise<OrchestratorResponse> {
   try {
+    // ── WORKING MEMORY (init) ──────────────────────────────────────────────
+    // Ensures the session exists before any reads/writes below.
+    workingMemory.init(context.sessionId, context.userId)
+
     // ── LONG-TERM MEMORY (load) ────────────────────────────────────────────
     // Fetch persistent user preferences, history summary, and recent actions.
     // Fire-and-continue: if DB is slow we still proceed with an empty record.
@@ -141,12 +150,22 @@ export async function orchestrate(
       .filter(Boolean)
       .join(', ') || 'none'
 
-    // Format system prompt with both long-term and live context
+    // Build working-memory context string for system prompt
+    const wFocus = workingMemory.getFocus(context.sessionId) ?? {}
+    const wState = workingMemory['store'].get(context.sessionId)
+    const workingContext = formatWorkingContextForPrompt(
+      wFocus,
+      wState?.pendingAction,
+      wState?.completedActions ?? []
+    )
+
+    // Format system prompt with long-term, live, and working context
     const systemPrompt = SYSTEM_PROMPT
       .replace('{longTermContext}', longTermContext)
       .replace('{userId}', context.userId)
       .replace('{userRole}', context.userRole)
       .replace('{activeResources}', activeResources)
+      .replace('{workingContext}', workingContext)
 
     // Build messages: persisted history (without current message — already added above)
     // Use messages stored in memory, excluding the one we just added, so we can
@@ -237,6 +256,36 @@ export async function orchestrate(
         message: toolCall.params?.message as string,
       }
     }
+
+    // ── FINANCIAL GATE ─────────────────────────────────────────────────────
+    // captureEscrow, releaseEscrow, refundEscrow require explicit confirmation.
+    // On first encounter: register as pending and ask for confirmation.
+    // On second encounter (user confirmed): resolve and allow execution.
+    if (FINANCIAL_TOOLS.has(toolCall.tool)) {
+      const pending = workingMemory.resolvePendingAction(context.sessionId)
+
+      if (!pending || pending.tool !== toolCall.tool) {
+        // Not yet confirmed — hold, ask user
+        workingMemory.setPendingAction(
+          context.sessionId,
+          toolCall.tool,
+          toolCall.params,
+          'user_confirmation'
+        )
+        return {
+          success: false,
+          message: `Please confirm: do you want to execute "${toolCall.tool}"? Reply "yes" to proceed.`,
+        }
+      }
+      // pending resolved above — fall through to execute with confirmed params
+    }
+
+    // ── POST-TOOL: update working memory ──────────────────────────────────
+    const p = toolCall.params as Record<string, unknown>
+    if (typeof p.escrowId  === 'string') workingMemory.setFocus(context.sessionId, 'escrow',  p.escrowId,  'active')
+    if (typeof p.inquiryId === 'string') workingMemory.setFocus(context.sessionId, 'inquiry', p.inquiryId, 'open')
+    if (typeof p.offerId   === 'string') workingMemory.setFocus(context.sessionId, 'offer',   p.offerId,   'pending')
+    workingMemory.markCompleted(context.sessionId, toolCall.tool)
 
     return {
       success: true,
