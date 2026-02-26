@@ -13,6 +13,7 @@
 import { runGuardrails } from './guardrails'
 import { checkPermission } from './permissions'
 import { ToolCallResult, type AgentContext } from './context'
+import { agentLogger } from '@/lib/observability'
 
 // Import all tool handlers
 import { createInquiry } from './tools/createInquiry'
@@ -93,6 +94,14 @@ export async function routeTool(
     }
   }
 
+  // Start timing + log tool_call_started
+  const doneLog = agentLogger.logToolCall(
+    context.sessionId,
+    context.userId,
+    toolName,
+    params
+  )
+
   try {
     // 2. RUN GUARDRAILS (schema, injection, amounts, rate limits)
     await runGuardrails(toolName, params, {
@@ -112,6 +121,7 @@ export async function routeTool(
       },
     })
     if (!permCheck.allowed) {
+      doneLog(permCheck.error || 'Forbidden')
       return {
         success: false,
         error: permCheck.error || 'Forbidden',
@@ -121,20 +131,20 @@ export async function routeTool(
 
     // 4. RUN STATE GUARD if defined
     // State guards are checked in tool handlers via assertTransition()
-    // This is where state machines verify valid transitions
 
     // 5. EXECUTE HANDLER
     const result = await toolDef.handler(params, context)
 
+    doneLog() // success
     return {
       success: true,
       data: result,
     }
   } catch (error: any) {
-    // Extract error details
     const errorMessage = error?.error || error?.message || String(error)
     const errorCode = error?.code || 500
 
+    doneLog(errorMessage)
     console.error(`[TOOL ROUTER] Error executing ${toolName}:`, error)
 
     return {

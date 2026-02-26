@@ -1,6 +1,7 @@
 import { assertEscrowTransition } from './escrowMachine'
 import { assertInquiryTransition } from './inquiryMachine'
 import { assertOfferTransition } from './offerMachine'
+import { agentLogger } from '@/lib/observability'
 
 export type ResourceType = 'escrow' | 'inquiry' | 'offer'
 
@@ -16,20 +17,33 @@ export type ResourceType = 'escrow' | 'inquiry' | 'offer'
 export async function assertTransition(
   resource: ResourceType,
   id: string,
-  targetStatus: string
+  targetStatus: string,
+  sessionId: string = 'unknown'
 ): Promise<void> {
-  switch (resource) {
-    case 'escrow':
-      return assertEscrowTransition(id, targetStatus)
-    case 'inquiry':
-      return assertInquiryTransition(id, targetStatus)
-    case 'offer':
-      return assertOfferTransition(id, targetStatus)
-    default:
-      throw {
-        code: 400,
-        error: `Unknown resource type: ${resource}`,
-      }
+  try {
+    switch (resource) {
+      case 'escrow':
+        await assertEscrowTransition(id, targetStatus)
+        break
+      case 'inquiry':
+        await assertInquiryTransition(id, targetStatus)
+        break
+      case 'offer':
+        await assertOfferTransition(id, targetStatus)
+        break
+      default:
+        throw {
+          code: 400,
+          error: `Unknown resource type: ${resource}`,
+        }
+    }
+
+    // Transition allowed — log success
+    agentLogger.logStateTransitionSuccess(sessionId, `${resource}:${id}`, '?', targetStatus)
+  } catch (err: any) {
+    // Transition blocked — log and re-throw
+    agentLogger.logStateTransitionBlocked(sessionId, `${resource}:${id}`, '?', targetStatus)
+    throw err
   }
 }
 

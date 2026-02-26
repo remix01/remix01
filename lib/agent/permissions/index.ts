@@ -6,6 +6,7 @@
 
 import { canAccess, Role } from './roles'
 import { assertOwnership, OwnershipError } from './ownership'
+import { agentLogger } from '@/lib/observability'
 
 export interface Session {
   user: {
@@ -112,6 +113,13 @@ export async function checkPermission(
 
     // 2. Role-based access check
     if (!canAccess(session.user.role, toolPermission.requiredRole)) {
+      agentLogger.logPermissionDenied(
+        'unknown',
+        session.user.id,
+        toolName,
+        toolPermission.requiredRole,
+        session.user.role
+      )
       return {
         allowed: false,
         error: 'Forbidden',
@@ -131,6 +139,13 @@ export async function checkPermission(
           await assertOwnership(check.resource, resourceId, session.user.id, session.user.role)
         } catch (error) {
           if (error instanceof OwnershipError) {
+            agentLogger.logPermissionDenied(
+              'unknown',
+              session.user.id,
+              toolName,
+              `owns:${check.resource}`,
+              session.user.role
+            )
             return {
               allowed: false,
               error: 'Forbidden',

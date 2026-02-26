@@ -9,6 +9,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { getConversationForLLM, type AgentContext } from './context'
+import { agentLogger } from '@/lib/observability'
 import {
   shortTermMemory,
   loadLongTermMemory,
@@ -119,6 +120,14 @@ export async function orchestrate(
   context: AgentContext
 ): Promise<OrchestratorResponse> {
   try {
+    // ── OBSERVABILITY ──────────────────────────────────────────────────────
+    agentLogger.log({
+      sessionId: context.sessionId,
+      userId: context.userId,
+      level: 'info',
+      event: 'session_started',
+    })
+
     // ── WORKING MEMORY (init) ──────────────────────────────────────────────
     // Ensures the session exists before any reads/writes below.
     workingMemory.init(context.sessionId, context.userId)
@@ -181,11 +190,28 @@ export async function orchestrate(
     ]
 
     // Call Claude
+    const llmStartedAt = Date.now()
+    agentLogger.log({
+      sessionId: context.sessionId,
+      userId: context.userId,
+      level: 'debug',
+      event: 'llm_call_started',
+      params: { model: 'claude-3-5-sonnet-20241022', messageCount: messages.length },
+    })
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
       system: systemPrompt,
       messages,
+    })
+
+    agentLogger.log({
+      sessionId: context.sessionId,
+      userId: context.userId,
+      level: 'debug',
+      event: 'llm_call_completed',
+      durationMs: Date.now() - llmStartedAt,
     })
 
     // Extract text response

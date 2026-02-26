@@ -16,6 +16,7 @@ import { injectionGuard } from './injectionGuard'
 import { amountGuard } from './amountGuard'
 import { rateGuard } from './rateGuard'
 import { checkPermission, type Role } from '../permissions'
+import { agentLogger } from '@/lib/observability'
 
 export interface GuardError {
   success: false
@@ -43,10 +44,13 @@ export async function runGuardrails(
   params: unknown,
   session: Session
 ): Promise<void> {
+  const sessionId = (session as any).sessionId ?? 'unknown'
+  const userId = session.user.id
+
   // 1. Check PERMISSIONS first (role-based + ownership)
-  // This prevents unauthorized users from accessing resources
   const permissionResult = await checkPermission(toolName, params, session)
   if (!permissionResult.allowed) {
+    agentLogger.logGuardrailRejection(sessionId, userId, toolName, 'permission')
     throw {
       success: false,
       error: permissionResult.error || 'Forbidden',
@@ -55,16 +59,36 @@ export async function runGuardrails(
   }
 
   // 2. Validate schema
-  await schemaGuard(toolName, params)
+  try {
+    await schemaGuard(toolName, params)
+  } catch (e: any) {
+    agentLogger.logGuardrailRejection(sessionId, userId, toolName, `schema: ${e.error ?? e.message}`)
+    throw e
+  }
 
   // 3. Check for injection attempts
-  await injectionGuard(params)
+  try {
+    await injectionGuard(params)
+  } catch (e: any) {
+    agentLogger.logInjectionAttempt(sessionId, userId, 'injection_pattern_detected')
+    throw e
+  }
 
   // 4. Validate financial amounts
-  await amountGuard(params)
+  try {
+    await amountGuard(params)
+  } catch (e: any) {
+    agentLogger.logGuardrailRejection(sessionId, userId, toolName, `amount: ${e.error ?? e.message}`)
+    throw e
+  }
 
   // 5. Check rate limits
-  await rateGuard(session.user.id)
+  try {
+    await rateGuard(session.user.id)
+  } catch (e: any) {
+    agentLogger.logRateLimit(sessionId, userId)
+    throw e
+  }
 }
 
 /**
