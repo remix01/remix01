@@ -5,6 +5,7 @@ import Script from 'next/script'
 import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
+import { AgentChatButton } from '@/components/agent/AgentChatButton'
 
 import './globals.css'
 
@@ -129,6 +130,7 @@ export default function RootLayout({
         {children}
         <CookieConsent />
         <ServiceWorkerRegistration />
+        <AgentChatButton />
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <Script
