@@ -199,6 +199,11 @@ export async function orchestrate(
 
     // Call Claude
     const llmStartedAt = Date.now()
+    const llmSpan = tracer.startSpan('llm.call', rootSpan, {
+      model:        'claude-3-5-sonnet-20241022',
+      messageCount: messages.length,
+    })
+
     agentLogger.log({
       sessionId: context.sessionId,
       userId: context.userId,
@@ -214,12 +219,19 @@ export async function orchestrate(
       messages,
     })
 
+    const llmDurationMs = Date.now() - llmStartedAt
+    tracer.endSpan(llmSpan, 'ok', undefined)
+    // Patch in token + duration attributes now that we have them
+    llmSpan.attributes.promptTokens     = response.usage?.input_tokens  ?? 0
+    llmSpan.attributes.completionTokens = response.usage?.output_tokens ?? 0
+    llmSpan.attributes.durationMs       = llmDurationMs
+
     agentLogger.log({
       sessionId: context.sessionId,
       userId: context.userId,
       level: 'debug',
       event: 'llm_call_completed',
-      durationMs: Date.now() - llmStartedAt,
+      durationMs: llmDurationMs,
     })
 
     // Extract text response
