@@ -11,6 +11,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { getConversationForLLM, type AgentContext } from './context'
 import { agentLogger, tracer } from '@/lib/observability'
 import type { Span } from '@/lib/observability'
+import { anomalyDetector } from '@/lib/observability/alerting'
 import {
   shortTermMemory,
   loadLongTermMemory,
@@ -339,6 +340,11 @@ export async function orchestrate(
     }
   } catch (error) {
     console.error('[ORCHESTRATOR] Error calling LLM:', error)
+    
+    // Record LLM error for anomaly detection (non-blocking)
+    anomalyDetector.record('llm_error_spike', context.userId, context.sessionId, 
+      error instanceof Error ? error.message : String(error))
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

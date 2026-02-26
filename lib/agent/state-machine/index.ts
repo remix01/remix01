@@ -2,6 +2,7 @@ import { assertEscrowTransition } from './escrowMachine'
 import { assertInquiryTransition } from './inquiryMachine'
 import { assertOfferTransition } from './offerMachine'
 import { agentLogger } from '@/lib/observability'
+import { anomalyDetector } from '@/lib/observability/alerting'
 
 export type ResourceType = 'escrow' | 'inquiry' | 'offer'
 
@@ -41,8 +42,12 @@ export async function assertTransition(
     // Transition allowed — log success
     agentLogger.logStateTransitionSuccess(sessionId, `${resource}:${id}`, '?', targetStatus)
   } catch (err: any) {
-    // Transition blocked — log and re-throw
+    // Transition blocked — log and record anomaly
     agentLogger.logStateTransitionBlocked(sessionId, `${resource}:${id}`, '?', targetStatus)
+    
+    // Record state violation for anomaly detection (non-blocking)
+    anomalyDetector.record('repeated_state_violations', undefined, sessionId, `${resource}:${id} -> ${targetStatus}`)
+    
     throw err
   }
 }

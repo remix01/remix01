@@ -7,6 +7,7 @@
 import { canAccess, Role } from './roles'
 import { assertOwnership, OwnershipError } from './ownership'
 import { agentLogger } from '@/lib/observability'
+import { anomalyDetector } from '@/lib/observability/alerting'
 
 export interface Session {
   user: {
@@ -120,6 +121,10 @@ export async function checkPermission(
         toolPermission.requiredRole,
         session.user.role
       )
+      
+      // Record permission denial for anomaly detection (non-blocking)
+      anomalyDetector.record('repeated_permission_denials', session.user.id)
+      
       return {
         allowed: false,
         error: 'Forbidden',
@@ -146,6 +151,10 @@ export async function checkPermission(
               `owns:${check.resource}`,
               session.user.role
             )
+            
+            // Record ownership violation for anomaly detection (non-blocking)
+            anomalyDetector.record('repeated_permission_denials', session.user.id)
+            
             return {
               allowed: false,
               error: 'Forbidden',

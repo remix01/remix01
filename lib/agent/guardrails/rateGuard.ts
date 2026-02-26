@@ -4,6 +4,8 @@
  * Uses Upstash Redis for distributed rate limiting across instances
  */
 
+import { anomalyDetector } from '@/lib/observability/alerting'
+
 // Configuration
 const RATE_LIMIT_WINDOW = 60 // 60 seconds
 const RATE_LIMIT_MAX_CALLS = 20 // Max 20 tool calls per minute
@@ -47,6 +49,9 @@ export async function rateGuard(userId: string): Promise<void> {
         await redis.expire(key, RATE_LIMIT_WINDOW)
       }
 
+      // Record tool call for anomaly detection
+      anomalyDetector.record('excessive_tool_calls', userId)
+
       if (current > RATE_LIMIT_MAX_CALLS) {
         const ttl = await redis.ttl(key)
         const retryAfter = Math.max(1, ttl || RATE_LIMIT_WINDOW)
@@ -83,6 +88,9 @@ export async function rateGuard(userId: string): Promise<void> {
 
   // Increment counter
   entry.count++
+
+  // Record tool call for anomaly detection
+  anomalyDetector.record('excessive_tool_calls', userId)
 
   // Check if exceeded
   if (entry.count > RATE_LIMIT_MAX_CALLS) {
