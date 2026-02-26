@@ -13,11 +13,16 @@ const inter = Inter({ subsets: ['latin', 'latin-ext'], variable: '--font-inter' 
 const dmSans = DM_Sans({ subsets: ['latin', 'latin-ext'], variable: '--font-dm-sans' })
 
 export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#0f172a' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b0f1a' },
+  ],
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  themeColor: '#0f172a',
+  minimumScale: 1,
+  maximumScale: 5,           // Dovoli zoom za dostopnost (ne blokiraj!)
+  userScalable: true,
+  viewportFit: 'cover',
 }
 
 export const metadata: Metadata = {
@@ -31,59 +36,123 @@ export const metadata: Metadata = {
     'obrtnik', 'mojster', 'Slovenija', 'vodovodar', 'elektrikar', 'parketar', 'malar',
     'vodoinstalater', 'mizar', 'Ljubljana', 'Maribor', 'renovacija', 'popravilo', 'LiftGO', 'adaptacije'
   ],
-  authors: [{ name: 'LiftGO', url: 'https://www.liftgo.net' }],
-  creator: 'LiftGO',
-  publisher: 'Liftgo d.o.o.',
-  openGraph: {
-    title: 'LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah',
-    description: 'Oddajte brezplačno povpraševanje in prejmite ponudbo preverjenega obrtnika v manj kot 24 urah.',
-    url: 'https://liftgo.net',
-    siteName: 'LiftGO',
-    locale: 'sl_SI',
-    type: 'website',
-    images: [
+  // Kanonična domena
+  metadataBase: new URL('https://www.liftgo.net'),
+  alternates: {
+    canonical: '/',
+  },
+  // ─── PWA specifično ───
+  applicationName: 'LiftGo',
+  manifest: '/manifest.json',        // Next.js generira iz app/manifest.ts
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',  // Full-screen z notch podporo
+    title: 'LiftGo',
+    // Splash screeni za iOS (generiraj z PWA Asset Generator)
+    startupImage: [
+      // iPhone 15 Pro Max
       {
-        url: '/images/og-image.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'LiftGO — Platforma za iskanje obrtnikov v Sloveniji',
+        url: '/splash/apple-splash-1290-2796.png',
+        media: '(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)',
+      },
+      // iPhone 14 / 15
+      {
+        url: '/splash/apple-splash-1179-2556.png',
+        media: '(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)',
+      },
+      // iPhone SE
+      {
+        url: '/splash/apple-splash-750-1334.png',
+        media: '(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)',
+      },
+      // iPad Pro 12.9"
+      {
+        url: '/splash/apple-splash-2048-2732.png',
+        media: '(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)',
       },
     ],
   },
+  // Open Graph
+  openGraph: {
+    type: 'website',
+    locale: 'sl_SI',
+    url: 'https://www.liftgo.net',
+    siteName: 'LiftGo',
+    title: 'LiftGo — Servis na klik',
+    description: 'Poišči in naroči obrtnika za vsako delo.',
+    images: [
+      {
+        url: '/og-image.png',         // 1200x630px
+        width: 1200,
+        height: 630,
+        alt: 'LiftGo — Servis na klik',
+      },
+    ],
+  },
+
+  // Twitter/X Card
   twitter: {
     card: 'summary_large_image',
-    title: 'LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah',
-    description: 'Preverjen obrtnik v manj kot 24 urah. Brezplačno povpraševanje.',
-    images: ['/images/og-image.jpg'],
+    title: 'LiftGo — Servis na klik',
+    description: 'Poišči in naroči obrtnika za vsako delo.',
+    images: ['/og-image.png'],
   },
+
+  // Robots (za strani ki naj bodo indeksirane)
   robots: {
     index: true,
     follow: true,
     googleBot: {
       index: true,
       follow: true,
+      'max-video-preview': -1,
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
   },
-  alternates: {
-    canonical: 'https://www.liftgo.net',
-  },
-  manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'LiftGO',
-  },
+
+  // Ikone
   icons: {
     icon: [
-      { url: '/favicon.ico' },
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/icons/icon-96x96.png', sizes: '96x96', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon.svg', type: 'image/svg+xml' },
     ],
     apple: [
       { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
+    other: [
+      { rel: 'mask-icon', url: '/icons/safari-pinned-tab.svg', color: '#4f9eff' },
+    ],
+  },
+
+  // Microsoft Tiles (Windows)
+  other: {
+    'msapplication-TileColor': '#4f9eff',
+    'msapplication-TileImage': '/icons/icon-144x144.png',
+    'msapplication-config': '/browserconfig.xml',
+    // Prepreči telefon/email detekcijo ki pokvari layout
+    'format-detection': 'telephone=no',
   },
 }
+
+// ─── ROOT LAYOUT COMPONENT ────────────────────────────────────────────────
+// Primer kako registrirati Service Worker v layout
+// Dodaj <ServiceWorkerRegistration /> v svoj <body>
+
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="sl">
+      <body>
+        {children}
+        <ServiceWorkerRegistration />   // ← dodaj to
+      </body>
+    </html>
+  )
+}
+*/
 
 const organizationSchema = {
   "@context": "https://schema.org",
