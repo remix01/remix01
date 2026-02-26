@@ -9,7 +9,12 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { getConversationForLLM, type AgentContext } from './context'
-import { shortTermMemory } from './memory'
+import {
+  shortTermMemory,
+  loadLongTermMemory,
+  appendActivity,
+  formatForSystemPrompt,
+} from './memory'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -27,8 +32,11 @@ export interface OrchestratorResponse {
   error?: string
 }
 
-// System prompt tells LLM what tools are available and constraints
+// System prompt template — {longTermContext} is replaced per-request with
+// the user's persistent preferences, history summary, and recent actions.
 const SYSTEM_PROMPT = `You are an AI agent for LiftGO, a marketplace connecting customers with craftspeople.
+
+{longTermContext}
 
 AVAILABLE TOOLS:
 1. createInquiry
@@ -106,6 +114,12 @@ export async function orchestrate(
   context: AgentContext
 ): Promise<OrchestratorResponse> {
   try {
+    // ── LONG-TERM MEMORY (load) ────────────────────────────────────────────
+    // Fetch persistent user preferences, history summary, and recent actions.
+    // Fire-and-continue: if DB is slow we still proceed with an empty record.
+    const longTermMem = await loadLongTermMemory(context.userId)
+    const longTermContext = formatForSystemPrompt(longTermMem)
+
     // ── SHORT-TERM MEMORY ──────────────────────────────────────────────────
     // Retrieve or create session state. This gives the LLM full conversation
     // history and the currently active resource IDs (inquiry/offer/escrow).
@@ -127,8 +141,9 @@ export async function orchestrate(
       .filter(Boolean)
       .join(', ') || 'none'
 
-    // Format system prompt with live context
+    // Format system prompt with both long-term and live context
     const systemPrompt = SYSTEM_PROMPT
+      .replace('{longTermContext}', longTermContext)
       .replace('{userId}', context.userId)
       .replace('{userRole}', context.userRole)
       .replace('{activeResources}', activeResources)
@@ -196,6 +211,23 @@ export async function orchestrate(
       if (typeof p.escrowId  === 'string') shortTermMemory.setActiveResource(context.sessionId, 'escrowId',  p.escrowId)
       if (typeof p.inquiryId === 'string') shortTermMemory.setActiveResource(context.sessionId, 'inquiryId', p.inquiryId)
       if (typeof p.offerId   === 'string') shortTermMemory.setActiveResource(context.sessionId, 'offerId',   p.offerId)
+
+      // ── LONG-TERM MEMORY (flush) ───────────────────────────────────
+      // Append this tool call to the user's persistent activity log.
+      // Fire-and-forget: don't await so it never delays the response.
+      appendActivity(context.userId, {
+        tool: toolCall.tool,
+        resourceId: (
+          (p.escrowId  as string) ??
+          (p.inquiryId as string) ??
+          (p.offerId   as string) ??
+          undefined
+        ),
+        timestamp: Date.now(),
+        success: true,
+      }).catch(err =>
+        console.error('[ORCHESTRATOR] Long-term memory flush error:', err)
+      )
     }
 
     // Reject tool="chat" — agent should only call tools
