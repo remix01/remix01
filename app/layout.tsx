@@ -152,7 +152,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
-*/
 
 const organizationSchema = {
   "@context": "https://schema.org",
