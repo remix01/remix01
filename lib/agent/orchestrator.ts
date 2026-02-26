@@ -9,6 +9,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { getConversationForLLM, type AgentContext } from './context'
+import { shortTermMemory } from './memory'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -105,30 +106,44 @@ export async function orchestrate(
   context: AgentContext
 ): Promise<OrchestratorResponse> {
   try {
-    // Get conversation history for stateful reasoning
-    const conversationHistory = getConversationForLLM(context)
+    // ── SHORT-TERM MEMORY ──────────────────────────────────────────────────
+    // Retrieve or create session state. This gives the LLM full conversation
+    // history and the currently active resource IDs (inquiry/offer/escrow).
+    const memState = shortTermMemory.getOrCreate(context.sessionId, context.userId)
 
-    // Format system prompt with context
+    // Record the incoming user message into memory
+    shortTermMemory.addMessage(context.sessionId, {
+      role: 'user',
+      content: userMessage,
+      timestamp: Date.now(),
+    })
+
+    // Build active resources string from memory (authoritative source of truth)
+    const activeResources = [
+      memState.activeInquiryId ? `inquiryId=${memState.activeInquiryId}` : null,
+      memState.activeOfferId   ? `offerId=${memState.activeOfferId}`     : null,
+      memState.activeEscrowId  ? `escrowId=${memState.activeEscrowId}`   : null,
+    ]
+      .filter(Boolean)
+      .join(', ') || 'none'
+
+    // Format system prompt with live context
     const systemPrompt = SYSTEM_PROMPT
       .replace('{userId}', context.userId)
       .replace('{userRole}', context.userRole)
-      .replace(
-        '{activeResources}',
-        context.activeResourceIds
-          ? Object.entries(context.activeResourceIds)
-              .filter(([_, v]) => v)
-              .map(([k, v]) => `${k}=${v}`)
-              .join(', ')
-          : 'none'
-      )
+      .replace('{activeResources}', activeResources)
 
-    // Build messages array: full history + new user message
+    // Build messages: persisted history (without current message — already added above)
+    // Use messages stored in memory, excluding the one we just added, so we can
+    // append the current turn after we get the response.
+    const historyForLLM = memState.messages
+      .slice(0, -1) // exclude the user message we just pushed — will be last
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+
     const messages = [
-      ...conversationHistory,
-      {
-        role: 'user' as const,
-        content: userMessage,
-      },
+      ...historyForLLM,
+      { role: 'user' as const, content: userMessage },
     ]
 
     // Call Claude
@@ -155,6 +170,32 @@ export async function orchestrate(
         success: false,
         error: `Invalid tool call format from LLM: ${textContent.text}`,
       }
+    }
+
+    // ── RECORD ASSISTANT RESPONSE IN MEMORY ───────────────────────────────
+    shortTermMemory.addMessage(context.sessionId, {
+      role: 'assistant',
+      content: textContent.text,
+      timestamp: Date.now(),
+      toolCall: { tool: toolCall.tool, params: toolCall.params },
+    })
+
+    // Track last tool call name for debugging / analytics
+    if (toolCall.tool !== 'chat') {
+      const state = shortTermMemory.getContext(context.sessionId)
+      if (state) {
+        // Mutate updatedAt via setActiveResource as a side-effect-free way;
+        // we update lastToolCall directly since it's the same in-memory ref.
+        state.lastToolCall = toolCall.tool
+      }
+
+      // ── EXTRACT ACTIVE RESOURCE IDs FROM PARAMS ─────────────────────
+      // Persist any resource IDs returned in params so the LLM can refer
+      // to them implicitly in follow-up turns.
+      const p = toolCall.params as Record<string, unknown>
+      if (typeof p.escrowId  === 'string') shortTermMemory.setActiveResource(context.sessionId, 'escrowId',  p.escrowId)
+      if (typeof p.inquiryId === 'string') shortTermMemory.setActiveResource(context.sessionId, 'inquiryId', p.inquiryId)
+      if (typeof p.offerId   === 'string') shortTermMemory.setActiveResource(context.sessionId, 'offerId',   p.offerId)
     }
 
     // Reject tool="chat" — agent should only call tools
