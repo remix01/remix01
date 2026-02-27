@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { NotificationBell } from "@/components/notifications/NotificationBell"
+import { NotificationBellClient } from "@/components/liftgo/NotificationBellClient"
 import { createClient } from "@/lib/supabase/client"
 
 export function Navbar() {
@@ -96,7 +96,7 @@ export function Navbar() {
 
           {/* Desktop CTA */}
           <div className="hidden gap-3 lg:flex items-center">
-            <NotificationBell userId={userId} />
+            <NotificationBellClient userId={userId} />
             <Button variant="outline" asChild className="min-h-[48px]">
               <Link href="/prijava">Prijava</Link>
             </Button>

@@ -233,6 +233,7 @@ export default function RootLayout({
       </head>
 
       <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>
+        <GlobalErrorHandler />
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
