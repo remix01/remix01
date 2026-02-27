@@ -133,6 +133,7 @@ export function AgentChat() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
