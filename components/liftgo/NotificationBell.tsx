@@ -28,7 +28,6 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     return null
   }
 
-  const supabase = createClient()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
@@ -36,90 +35,129 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 
   // Fetch initial notifications
   useEffect(() => {
-    const fetchNotifications = async () => {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10)
+    const supabase = createClient()
+    if (!supabase) return
 
-      if (!error) {
-        setNotifications(data || [])
-        const unread = (data || []).filter(n => !n.is_read).length
-        setUnreadCount(unread)
+    const fetchNotifications = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (!error) {
+          setNotifications(data || [])
+          const unread = (data || []).filter(n => !n.is_read).length
+          setUnreadCount(unread)
+        }
+      } catch (err) {
+        console.error('[v0] Error fetching notifications:', err)
       }
     }
 
     fetchNotifications()
-  }, [userId, supabase])
+  }, [userId])
 
   // Subscribe to Realtime notifications
   useEffect(() => {
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification
-          setNotifications((prev) => [newNotification, ...prev.slice(0, 9)])
-          setUnreadCount((prev) => prev + 1)
+    const supabase = createClient()
+    if (!supabase) return
 
-          // Show browser notification if permitted
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(newNotification.title, {
-              body: newNotification.message,
-              icon: '/icon.png',
-            })
+    try {
+      const channel = supabase
+        .channel(`notifications:${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            try {
+              const newNotification = payload.new as Notification
+              setNotifications((prev) => [newNotification, ...prev.slice(0, 9)])
+              setUnreadCount((prev) => prev + 1)
+
+              // Show browser notification if permitted
+              if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'granted') {
+                try {
+                  new window.Notification(newNotification.title, {
+                    body: newNotification.message,
+                    icon: '/icon.png',
+                  })
+                } catch (err) {
+                  console.error('[v0] Error creating notification:', err)
+                }
+              }
+            } catch (err) {
+              console.error('[v0] Error processing notification payload:', err)
+            }
           }
+        )
+        .subscribe()
+
+      // Request notification permission
+      if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'default') {
+        try {
+          window.Notification.requestPermission()
+        } catch (err) {
+          console.error('[v0] Error requesting notification permission:', err)
         }
-      )
-      .subscribe()
+      }
 
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
+      return () => {
+        supabase.removeChannel(channel)
+      }
+    } catch (err) {
+      console.error('[v0] Error setting up realtime subscription:', err)
+      return () => {}
     }
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [userId, supabase])
+  }, [userId])
 
   // Subscribe to read status updates
   useEffect(() => {
-    const channel = supabase
-      .channel(`notifications:${userId}:updates`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const updated = payload.new as Notification
-          setNotifications((prev) =>
-            prev.map((n) => (n.id === updated.id ? updated : n))
-          )
-          setUnreadCount((prev) =>
-            Math.max(0, prev - (updated.is_read ? 1 : 0))
-          )
-        }
-      )
-      .subscribe()
+    const supabase = createClient()
+    if (!supabase) return
 
-    return () => {
-      supabase.removeChannel(channel)
+    try {
+      const channel = supabase
+        .channel(`notifications:${userId}:updates`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            try {
+              const updated = payload.new as Notification
+              setNotifications((prev) =>
+                prev.map((n) => (n.id === updated.id ? updated : n))
+              )
+              setUnreadCount((prev) =>
+                Math.max(0, prev - (updated.is_read ? 1 : 0))
+              )
+            } catch (err) {
+              console.error('[v0] Error processing update payload:', err)
+            }
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
+    } catch (err) {
+      console.error('[v0] Error setting up update subscription:', err)
+      return () => {}
     }
-  }, [userId, supabase])
+  }, [userId])
 
   // Close dropdown on click outside
   useEffect(() => {
