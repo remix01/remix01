@@ -48,7 +48,7 @@ export default async function NarocnikLayout({
           <NotificationBellClient userId={session.user.id} />
         </div>
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 pb-24 md:pb-0">
           {children}
         </main>
       </div>

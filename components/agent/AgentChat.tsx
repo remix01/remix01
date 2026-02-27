@@ -51,16 +51,17 @@ export function AgentChat() {
 
   return (
     <>
-      {/* Mobile overlay backdrop — zapira chat na klik zunaj */}
+      {/* Mobile overlay backdrop — zapira chat na klik zunaj (z-40 < z-50 chat) */}
       <div
         className="fixed inset-0 bg-black/20 z-40 md:hidden"
         onClick={closeChat}
         aria-hidden="true"
       />
       
-      <div className="fixed bottom-0 right-0 w-full h-[70vh] md:bottom-20 md:right-4 md:w-96 md:h-[600px] bg-white rounded-t-xl md:rounded-xl shadow-lg border border-slate-200 flex flex-col z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl md:rounded-t-xl">
+      {/* FIX: z-50 za chat okno — mora biti nad gumbom (z-40) */}
+      <div className="fixed bottom-0 right-0 w-full h-[70vh] md:bottom-6 md:right-6 md:w-96 md:h-[600px] bg-white rounded-t-xl md:rounded-xl shadow-2xl border border-slate-200 flex flex-col z-50">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl md:rounded-t-xl">
         <h2 className="font-semibold text-slate-900">LiftGO Assistant</h2>
         <button
           onClick={closeChat}
