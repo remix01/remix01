@@ -15,6 +15,7 @@
  */
 
 import { Client } from '@upstash/qstash'
+import { env } from '../env'
 
 // ── TYPES
 export type JobType =
@@ -34,13 +35,7 @@ let qstash: Client | null = null
 
 function getQStash(): Client {
   if (!qstash) {
-    const token = process.env.QSTASH_TOKEN
-    
-    if (!token) {
-      throw new Error('Missing Upstash QStash token: QSTASH_TOKEN')
-    }
-    
-    qstash = new Client({ token })
+    qstash = new Client({ token: env.QSTASH_TOKEN })
   }
   return qstash
 }
@@ -67,7 +62,7 @@ export async function enqueue<T extends Record<string, any>>(
   }
 ): Promise<string> {
   const client = getQStash()
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net'
+  const baseUrl = env.NEXT_PUBLIC_APP_URL
 
   const result = await client.publishJSON({
     url: `${baseUrl}/api/jobs/process`,

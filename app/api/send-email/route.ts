@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
+import { env } from '@/lib/env'
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_API_KEY = env.RESEND_API_KEY
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       <p><strong>ID povpraševanja:</strong> ${povprasevanje_id}</p>
       <p><strong>Obrtnik ID:</strong> ${obrtnik_id}</p>
       <p>Prijavite se v nadzorno ploščo, da vidite podrobnosti.</p>
-      <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard">Odpri dashboard</a></p>
+      <p><a href="${env.NEXT_PUBLIC_APP_URL}/dashboard">Odpri dashboard</a></p>
     `;
 
     const response = await fetch('https://api.resend.com/emails', {
