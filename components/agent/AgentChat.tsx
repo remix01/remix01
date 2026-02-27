@@ -62,15 +62,15 @@ export function AgentChat() {
       <div className="fixed bottom-0 right-0 w-full h-[70vh] md:bottom-6 md:right-6 md:w-96 md:h-[600px] bg-white rounded-t-xl md:rounded-xl shadow-2xl border border-slate-200 flex flex-col z-50">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl md:rounded-t-xl">
-        <h2 className="font-semibold text-slate-900">LiftGO Assistant</h2>
-        <button
-          onClick={closeChat}
-          className="p-1 hover:bg-slate-200 rounded-md transition-colors"
-          aria-label="Close chat"
-        >
-          <X className="w-5 h-5 text-slate-600" />
-        </button>
-      </div>
+          <h2 className="font-semibold text-slate-900">LiftGO Assistant</h2>
+          <button
+            onClick={closeChat}
+            className="p-1 hover:bg-slate-200 rounded-md transition-colors"
+            aria-label="Close chat"
+          >
+            <X className="w-5 h-5 text-slate-600" />
+          </button>
+        </div>
 
       {/* Messages List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -132,7 +132,6 @@ export function AgentChat() {
             <Send className="w-4 h-4" />
           </button>
         </div>
-      </div>
       </div>
     </>
   )
