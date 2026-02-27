@@ -8,67 +8,28 @@
   "background_color": "#ffffff",
   "theme_color": "#000000",
   "orientation": "portrait",
-  "icons": [
-    {
-      "src": "/icons/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
+  "icons": [],
   "categories": [
     "business",
     "utilities"
   ],
   "lang": "sl",
   "dir": "ltr",
-  "screenshots": [
-    {
-      "src": "/icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
+  "screenshots": [],
   "shortcuts": [
     {
       "name": "Oddajte povpraševanje",
       "short_name": "Povpraševanje",
       "description": "Hitro oddajte povpraševanje za obrtnika",
       "url": "/oddaj-povprasevanje?utm_source=pwa_shortcut",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
+      "icons": []
     },
     {
       "name": "Moj profil",
       "short_name": "Profil",
       "description": "Poglejte svoj profil in ponudbe",
       "url": "/dashboard?utm_source=pwa_shortcut",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
+      "icons": []
     }
   ]
 }

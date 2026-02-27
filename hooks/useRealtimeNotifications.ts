@@ -48,11 +48,14 @@ export function useRealtimeNotifications(userId: string | null) {
           setUnreadCount(prev => prev + 1)
 
           // Browser notification if permission granted
-          if (Notification.permission === 'granted') {
-            new Notification(notification.title, {
-              body: notification.body,
-              icon: '/icon.png',
-            })
+          // Guard: only access browser APIs inside callback/useEffect
+          if (typeof window !== 'undefined' && 'Notification' in window) {
+            if (window.Notification.permission === 'granted') {
+              new window.Notification(notification.title, {
+                body: notification.body,
+                icon: '/favicon.ico',
+              })
+            }
           }
         }
       )
@@ -113,9 +116,9 @@ export function useRealtimeNotifications(userId: string | null) {
   }
 
   const requestPermission = async () => {
-    if ('Notification' in window) {
-      await Notification.requestPermission()
-    }
+    if (typeof window === 'undefined') return
+    if (!('Notification' in window)) return
+    await window.Notification.requestPermission()
   }
 
   return { notifications, unreadCount, markAsRead, markAllAsRead, requestPermission }
