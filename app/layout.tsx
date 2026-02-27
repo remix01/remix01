@@ -1,5 +1,6 @@
 import React from 'react'
 import type { Metadata, Viewport } from 'next'
+import dynamic from 'next/dynamic'
 import { Inter, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
 import { env } from '@/lib/env'
@@ -7,7 +8,12 @@ import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
-import { InstallPrompt } from '@/components/pwa/InstallPrompt'
+
+// Client-only components: prevent SSR
+const InstallPrompt = dynamic(
+  () => import('@/components/pwa/InstallPrompt').then(m => m.InstallPrompt),
+  { ssr: false }
+)
 
 import './globals.css'
 
@@ -117,7 +123,7 @@ export const metadata: Metadata = {
   },
 
   // ─── PWA ────────────────────────────────────────────────────────────────
-  manifest: '/manifest.json',
+  // manifest is auto-served via /app/manifest.ts — do NOT manually specify here
 
   // ─── Apple PWA ──────────────────────────────────────────────────────────
   appleWebApp: {
