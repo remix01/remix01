@@ -7,6 +7,7 @@ import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
+import { InstallPrompt } from '@/components/pwa/InstallPrompt'
 
 import './globals.css'
 
@@ -290,6 +291,9 @@ export default function RootLayout({
 
         {/* SW registracija — po page load, ne blokira renderiranja */}
         <ServiceWorkerRegistration />
+
+        {/* PWA Install Prompt — mobile devices only */}
+        <InstallPrompt />
 
         {/* Chat — prikaže se samo avtenticiranim uporabnikom */}
         <AgentChatButton />
