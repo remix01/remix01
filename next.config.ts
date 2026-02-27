@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  turbopack: {},
 }
 
 const pwaConfig = withPWA({
