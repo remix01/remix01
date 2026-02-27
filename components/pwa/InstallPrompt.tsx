@@ -11,30 +11,36 @@ export function InstallPrompt() {
   const [showAfterDelay, setShowAfterDelay] = useState(false)
 
   useEffect(() => {
-    // Check if mobile
-    const checkMobile = () => {
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      )
-      setIsMobile(isMobileDevice)
-    }
+    try {
+      // Check if mobile
+      const checkMobile = () => {
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        )
+        setIsMobile(isMobileDevice)
+      }
 
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
+      checkMobile()
+      window.addEventListener('resize', checkMobile)
 
-    // Check if already dismissed this session
-    const isDismissed = sessionStorage.getItem('pwa-install-dismissed')
-    if (!isDismissed) {
-      // Show prompt after 30 seconds on first visit
-      const timer = setTimeout(() => {
-        setShowAfterDelay(true)
-      }, 30000)
+      // Check if already dismissed this session
+      const isDismissed = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('pwa-install-dismissed') : null
+      let timer: NodeJS.Timeout | undefined
+      
+      if (!isDismissed) {
+        // Show prompt after 30 seconds on first visit
+        timer = setTimeout(() => {
+          setShowAfterDelay(true)
+        }, 30000)
+      }
 
-      return () => clearTimeout(timer)
-    }
-
-    return () => {
-      window.removeEventListener('resize', checkMobile)
+      return () => {
+        window.removeEventListener('resize', checkMobile)
+        if (timer) clearTimeout(timer)
+      }
+    } catch (error) {
+      console.error('[v0] Error in InstallPrompt setup:', error)
+      return () => {}
     }
   }, [])
 
@@ -65,7 +71,9 @@ export function InstallPrompt() {
       if (outcome === 'accepted') {
         // User accepted the install prompt
         setIsVisible(false)
-        sessionStorage.setItem('pwa-install-dismissed', 'true')
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('pwa-install-dismissed', 'true')
+        }
       }
     } catch (error) {
       console.error('[v0] Install prompt error:', error)
@@ -74,7 +82,9 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setIsVisible(false)
-    sessionStorage.setItem('pwa-install-dismissed', 'true')
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('pwa-install-dismissed', 'true')
+    }
   }
 
   if (!isVisible || !isMobile) {
