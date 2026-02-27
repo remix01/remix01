@@ -8,6 +8,7 @@ import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { GlobalErrorHandler } from '@/components/GlobalErrorHandler'
 
 import './globals.css'
 
@@ -232,6 +233,7 @@ export default function RootLayout({
       </head>
 
       <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>
+        <GlobalErrorHandler />
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
