@@ -33,7 +33,11 @@ export interface Job<T = any> {
 // ── QSTASH CLIENT
 let qstash: Client | null = null
 
-function getQStash(): Client {
+function getQStash(): Client | null {
+  if (!env.QSTASH_TOKEN) {
+    console.warn('[v0] QStash token not configured, queueing disabled')
+    return null
+  }
   if (!qstash) {
     qstash = new Client({ token: env.QSTASH_TOKEN })
   }
@@ -63,6 +67,11 @@ export async function enqueue<T extends Record<string, any>>(
 ): Promise<string> {
   const client = getQStash()
   const baseUrl = env.NEXT_PUBLIC_APP_URL
+
+  if (!client || !baseUrl) {
+    console.warn(`[v0] Job queuing disabled: QStash=${!!client}, APP_URL=${!!baseUrl}`)
+    return 'no-op'
+  }
 
   const result = await client.publishJSON({
     url: `${baseUrl}/api/jobs/process`,
