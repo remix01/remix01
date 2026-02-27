@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export default function PartnerDashboard() {
   const router = useRouter()
   const [partner, setPartner] = useState<any>(null)
+  const [paket, setPaket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState('overview')
@@ -51,6 +52,17 @@ export default function PartnerDashboard() {
 
         if (offersData) {
           setOffers(offersData)
+        }
+
+        // Load partner package info
+        const { data: paketData } = await sb
+          .from('partner_paketi')
+          .select('*')
+          .eq('obrtnik_id', partnerData.id)
+          .single()
+
+        if (paketData) {
+          setPaket(paketData)
         }
       }
 
@@ -95,7 +107,7 @@ export default function PartnerDashboard() {
 
   return (
     <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partner} />
+      <PartnerSidebar partner={partner} paket={paket} />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 lg:p-8">
           <div className="mb-8">
