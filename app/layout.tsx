@@ -292,8 +292,8 @@ export default function RootLayout({
         {/* SW registracija — po page load, ne blokira renderiranja */}
         <ServiceWorkerRegistration />
 
-        {/* PWA Install Prompt — mobile devices only */}
-        <InstallPromptWrapper />
+        {/* PWA Install Prompt — temporarily disabled due to stability issues */}
+        {/* <InstallPromptWrapper /> */}
 
         {/* Chat — prikaže se samo avtenticiranim uporabnikom */}
         <AgentChatButton />
