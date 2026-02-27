@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { NarocnikSidebar } from '@/components/narocnik/sidebar'
 import { NarocnikBottomNav } from '@/components/narocnik/bottom-nav'
 import { NotificationBell } from '@/components/liftgo/NotificationBell'
-import { InstallPWA } from '@/components/liftgo/InstallPWA'
-import { PushPermission } from '@/components/liftgo/PushPermission'
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
@@ -59,12 +57,6 @@ export default async function NarocnikLayout({
       <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background">
         <NarocnikBottomNav />
       </div>
-
-      {/* PWA Install Banner */}
-      <InstallPWA />
-
-      {/* Push Permission Banner */}
-      <PushPermission userId={session.user.id} />
     </div>
   )
 }

@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { ObrtknikSidebar } from '@/components/obrtnik/sidebar'
 import { ObrtknikBottomNav } from '@/components/obrtnik/bottom-nav'
 import { NotificationBell } from '@/components/liftgo/NotificationBell'
-import { InstallPWA } from '@/components/liftgo/InstallPWA'
-import { PushPermission } from '@/components/liftgo/PushPermission'
 
 export const metadata = {
   title: 'LiftGO - Obrtnik',
@@ -57,12 +55,6 @@ export default async function ObrtknikLayout({
       <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background">
         <ObrtknikBottomNav />
       </div>
-
-      {/* PWA Install Banner */}
-      <InstallPWA />
-
-      {/* Push Permission Banner */}
-      <PushPermission userId={user.id} />
     </div>
   )
 }
