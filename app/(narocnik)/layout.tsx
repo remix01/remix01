@@ -1,8 +1,15 @@
+import dynamic from 'next/dynamic'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { NarocnikSidebar } from '@/components/narocnik/sidebar'
 import { NarocnikBottomNav } from '@/components/narocnik/bottom-nav'
-import { NotificationBell } from '@/components/liftgo/NotificationBell'
+
+// Wrap NotificationBell with dynamic import to prevent SSR hydration mismatch
+const NotificationBell = dynamic(
+  () => import('@/components/liftgo/NotificationBell')
+    .then(m => ({ default: m.NotificationBell })),
+  { ssr: false }
+)
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
