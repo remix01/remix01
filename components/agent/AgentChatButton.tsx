@@ -36,7 +36,8 @@ export function AgentChatButton() {
       <button
         onClick={() => setIsOpen()}
         // FIX 2: Dodan 'group' za hover child animacije
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 flex items-center justify-center transition-all duration-200 z-50 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 group"
+        // FIX 8: Na mobilnih je button nižje (bottom-20 -> bottom-24) da se ne prekriva s chat panelom ko je odprt
+        className="fixed bottom-24 md:bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 flex items-center justify-center transition-all duration-200 z-50 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 group"
         // FIX 3: aria-label dinamično glede na stanje (odprt/zaprt)
         aria-label={isOpen ? 'Zapri chat' : 'Odpri chat z LiftGO asistentom'}
         aria-expanded={isOpen}

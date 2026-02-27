@@ -50,9 +50,17 @@ export function AgentChat() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed bottom-20 right-4 w-96 h-[600px] bg-white rounded-xl shadow-lg border border-slate-200 flex flex-col z-50">
+    <>
+      {/* Mobile overlay backdrop — zapira chat na klik zunaj */}
+      <div
+        className="fixed inset-0 bg-black/20 z-40 md:hidden"
+        onClick={closeChat}
+        aria-hidden="true"
+      />
+      
+      <div className="fixed bottom-0 right-0 w-full h-[70vh] md:bottom-20 md:right-4 md:w-96 md:h-[600px] bg-white rounded-t-xl md:rounded-xl shadow-lg border border-slate-200 flex flex-col z-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl">
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl md:rounded-t-xl">
         <h2 className="font-semibold text-slate-900">LiftGO Assistant</h2>
         <button
           onClick={closeChat}
@@ -102,7 +110,7 @@ export function AgentChat() {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-slate-200 bg-white rounded-b-xl">
+      <div className="p-4 border-t border-slate-200 bg-white rounded-b-xl md:rounded-b-xl">
         <div className="flex gap-2">
           <textarea
             ref={inputRef}
