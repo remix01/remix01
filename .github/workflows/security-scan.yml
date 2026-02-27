@@ -1,0 +1,27 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2am
+  push:
+    branches: [main]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install
+      - name: Dependency vulnerability scan
+        run: pnpm audit --audit-level=moderate
+      - name: Check for hardcoded secrets
+        run: pnpm dlx secretlint "**/*"
+        # Fails if any API keys or secrets found in code
+      - name: OWASP dependency check
+        run: |
+          # Check for known CVEs in dependencies
+          pnpm dlx better-npm-audit audit
