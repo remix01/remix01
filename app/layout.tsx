@@ -7,7 +7,6 @@ import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
-import { InstallPromptWrapper } from '@/components/pwa/InstallPromptWrapper'
 
 import './globals.css'
 
