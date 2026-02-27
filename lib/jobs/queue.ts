@@ -15,7 +15,7 @@
  */
 
 import { Client } from '@upstash/qstash'
-import { env } from '../env'
+import { env, hasQStash } from '../env'
 
 // ── TYPES
 export type JobType =
@@ -34,12 +34,11 @@ export interface Job<T = any> {
 let qstash: Client | null = null
 
 function getQStash(): Client | null {
-  if (!env.QSTASH_TOKEN) {
-    console.warn('[v0] QStash token not configured, queueing disabled')
+  if (!hasQStash()) {
     return null
   }
   if (!qstash) {
-    qstash = new Client({ token: env.QSTASH_TOKEN })
+    qstash = new Client({ token: env.QSTASH_TOKEN! })
   }
   return qstash
 }
@@ -47,15 +46,7 @@ function getQStash(): Client | null {
 // ── ENQUEUE JOB
 /**
  * Add a job to the queue via QStash. Returns job ID for tracking.
- * 
- * Usage:
- * ```ts
- * const jobId = await enqueue('sendEmail', {
- *   to: 'user@example.com',
- *   template: 'escrow_released',
- *   escrowId: '123',
- * })
- * ```
+ * If QStash not configured, logs a warning and returns 'no-op'.
  */
 export async function enqueue<T extends Record<string, any>>(
   jobType: JobType,
@@ -68,8 +59,16 @@ export async function enqueue<T extends Record<string, any>>(
   const client = getQStash()
   const baseUrl = env.NEXT_PUBLIC_APP_URL
 
-  if (!client || !baseUrl) {
-    console.warn(`[v0] Job queuing disabled: QStash=${!!client}, APP_URL=${!!baseUrl}`)
+  if (!client) {
+    console.warn(`[Queue] QStash not configured — job skipped: ${jobType}`, payload)
+    if (env.NODE_ENV === 'development') {
+      console.log('[Queue] In development: job would execute:', jobType, payload)
+    }
+    return 'no-op'
+  }
+
+  if (!baseUrl) {
+    console.warn(`[Queue] NEXT_PUBLIC_APP_URL not configured — job skipped`)
     return 'no-op'
   }
 
