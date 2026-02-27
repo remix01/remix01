@@ -43,6 +43,10 @@ export function Navbar() {
     const getUser = async () => {
       try {
         const supabase = createClient()
+        if (!supabase) {
+          console.warn('[v0] Supabase client not available')
+          return
+        }
         const { data: { user }, error } = await supabase.auth.getUser()
         if (!error && user) {
           setUserId(user.id)

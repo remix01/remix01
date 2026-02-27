@@ -51,14 +51,16 @@ const envSchema = z.object({
 function validateEnv() {
   const result = envSchema.safeParse(process.env)
   if (!result.success) {
-    console.error('❌ Invalid environment variables:')
-    console.error(result.error.flatten().fieldErrors)
+    console.warn('[v0] Some environment variables are missing:')
+    console.warn(result.error.flatten().fieldErrors)
     // In production: throw to prevent startup with missing config
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Missing required environment variables')
     }
+    // In development: return partial object to avoid crashes
   }
-  return result.data ?? ({} as z.infer<typeof envSchema>)
+  // Return what we have, with defaults for missing vars
+  return result.data ?? ({} as Partial<z.infer<typeof envSchema>>)
 }
 
 export const env = validateEnv()
