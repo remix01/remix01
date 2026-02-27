@@ -1,15 +1,4 @@
 import type { NextConfig } from 'next'
-import withPWA from '@ducanh2912/next-pwa'
-
-const withPWAConfig = withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-  workboxOptions: {
-    disableDevLogs: true,
-  },
-})
 
 const nextConfig: NextConfig = {
   typescript: {
@@ -32,4 +21,4 @@ const nextConfig: NextConfig = {
   turbopack: {},
 }
 
-export default withPWAConfig(nextConfig)
+export default nextConfig
