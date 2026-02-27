@@ -19,7 +19,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching profile:', error)
@@ -39,7 +39,7 @@ export async function getProfileByEmail(email: string): Promise<Profile | null> 
     .from('profiles')
     .select('*')
     .eq('email', email)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching profile by email:', error)
@@ -59,7 +59,7 @@ export async function createProfile(profile: ProfileInsert): Promise<Profile | n
     .from('profiles')
     .insert(profile)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error creating profile:', error)
@@ -80,7 +80,7 @@ export async function updateProfile(userId: string, updates: ProfileUpdate): Pro
     .update(updates)
     .eq('id', userId)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error updating profile:', error)
@@ -103,7 +103,7 @@ export async function getObrtnikProfile(obrtnikId: string): Promise<ObrtnikProfi
       profile:profiles(*)
     `)
     .eq('id', obrtnikId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching obrtnik profile:', error)
@@ -129,7 +129,7 @@ export async function getObrtnikWithCategories(obrtnikId: string): Promise<Obrtn
       )
     `)
     .eq('id', obrtnikId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching obrtnik with categories:', error)
@@ -219,7 +219,7 @@ export async function createObrtnikProfile(profile: ObrtnikProfileInsert): Promi
     .from('obrtnik_profiles')
     .insert(profile)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error creating obrtnik profile:', error)
@@ -240,7 +240,7 @@ export async function updateObrtnikProfile(obrtnikId: string, updates: ObrtnikPr
     .update(updates)
     .eq('id', obrtnikId)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error updating obrtnik profile:', error)

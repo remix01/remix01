@@ -57,7 +57,7 @@ export async function updateSession(request: NextRequest) {
       .from('partners')
       .select('id')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     // If no old system partner, check new system profiles/obrtnik table
     if (!partner) {
@@ -65,7 +65,7 @@ export async function updateSession(request: NextRequest) {
         .from('profiles')
         .select('id')
         .eq('auth_user_id', user.id)
-        .single()
+        .maybeSingle()
 
       // If neither partner nor obrtnik profile exists, redirect to signup
       if (!obrtnikProfile) {

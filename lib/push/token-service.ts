@@ -41,10 +41,14 @@ export class TokenService {
         }
       )
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       throw new Error(`Failed to register device token: ${error.message}`)
+    }
+
+    if (!data) {
+      throw new Error('Failed to register device token: no data returned')
     }
 
     return data
