@@ -1,15 +1,8 @@
-import dynamic from 'next/dynamic'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ObrtknikSidebar } from '@/components/obrtnik/sidebar'
 import { ObrtknikBottomNav } from '@/components/obrtnik/bottom-nav'
-
-// Wrap NotificationBell with dynamic import to prevent SSR hydration mismatch
-const NotificationBell = dynamic(
-  () => import('@/components/liftgo/NotificationBell')
-    .then(m => ({ default: m.NotificationBell })),
-  { ssr: false }
-)
+import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
 
 export const metadata = {
   title: 'LiftGO - Obrtnik',
@@ -50,7 +43,7 @@ export default async function ObrtknikLayout({
       <div className="flex flex-col flex-1 md:ml-64 md:pb-0 pb-20">
         {/* Top Bar with Notification Bell */}
         <div className="flex items-center justify-end p-4 md:p-6 border-b md:border-b-0">
-          <NotificationBell userId={user.id} />
+          <NotificationBellClient userId={user.id} />
         </div>
 
         <main className="flex-1 p-4 md:p-6">
