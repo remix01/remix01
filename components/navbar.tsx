@@ -4,9 +4,12 @@ import { Menu, X } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
+import { NotificationBell } from "@/components/notifications/NotificationBell"
+import { createClient } from "@/lib/supabase/client"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   const scrollToForm = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -34,6 +37,18 @@ export function Navbar() {
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [isOpen])
+
+  // Get current user
+  useEffect(() => {
+    const getUser = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+      }
+    }
+    getUser()
+  }, [])
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60" ref={mobileMenuRef}>
@@ -72,7 +87,8 @@ export function Navbar() {
           </div>
 
           {/* Desktop CTA */}
-          <div className="hidden gap-3 lg:flex">
+          <div className="hidden gap-3 lg:flex items-center">
+            <NotificationBell userId={userId} />
             <Button variant="outline" asChild className="min-h-[48px]">
               <Link href="/prijava">Prijava</Link>
             </Button>

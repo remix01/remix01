@@ -15,6 +15,7 @@ interface EmailJobPayload {
   transactionId: string
   recipientEmail: string
   recipientName?: string
+  recipientUserId?: string
   partnerName?: string
   amount?: number
   reason?: string
@@ -23,7 +24,7 @@ interface EmailJobPayload {
 
 export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
   const { type, payload } = job
-  const { transactionId, recipientEmail, recipientName, partnerName, amount, reason, metadata } = payload
+  const { transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
 
   // Fetch transaction details if needed
   const { data: escrow } = await supabaseAdmin
@@ -38,6 +39,9 @@ export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
 
   let subject = ''
   let htmlBody = ''
+  let notificationType = ''
+  let notificationTitle = ''
+  let notificationBody = ''
 
   // Build email based on job type
   switch (type) {
@@ -48,6 +52,9 @@ export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
         partnerName || 'Partner',
         amount || escrow.amount_cents
       )
+      notificationType = 'escrow_released'
+      notificationTitle = 'Payment Released'
+      notificationBody = `Your payment of $${((amount || escrow.amount_cents) / 100).toFixed(2)} has been released.`
       break
 
     case 'send_refund_email':
@@ -57,6 +64,9 @@ export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
         amount || escrow.amount_cents,
         reason || 'Your request'
       )
+      notificationType = 'escrow_released'
+      notificationTitle = 'Refund Processed'
+      notificationBody = `Your refund of $${((amount || escrow.amount_cents) / 100).toFixed(2)} has been processed.`
       break
 
     case 'send_dispute_email':
@@ -65,6 +75,9 @@ export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
         recipientName || 'Valued Customer',
         reason || 'A dispute has been opened'
       )
+      notificationType = 'dispute_opened'
+      notificationTitle = 'Dispute Opened'
+      notificationBody = reason || 'A dispute has been opened on your transaction.'
       break
 
     case 'send_payment_confirmed_email':
@@ -74,6 +87,9 @@ export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
         partnerName || 'Partner',
         amount || escrow.amount_cents
       )
+      notificationType = 'escrow_captured'
+      notificationTitle = 'Payment Confirmed'
+      notificationBody = `Your payment of $${((amount || escrow.amount_cents) / 100).toFixed(2)} has been confirmed.`
       break
 
     default:
@@ -81,12 +97,30 @@ export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
   }
 
   // Send email via Resend or similar provider
-  // For now, we'll just log it (integrate your email provider)
   console.log(`[EMAIL] Sending ${type} to ${recipientEmail}`, {
     subject,
     transactionId,
     metadata,
   })
+
+  // Insert notification record if we have a user ID
+  if (recipientUserId && notificationType) {
+    try {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: recipientUserId,
+        type: notificationType,
+        title: notificationTitle,
+        body: notificationBody,
+        message: notificationBody,
+        resource_id: transactionId,
+        resource_type: 'escrow',
+        metadata: metadata || {},
+      })
+    } catch (error) {
+      console.error('[EMAIL] Failed to insert notification:', error)
+      // Don't fail the email sending if notification insertion fails
+    }
+  }
 
   // TODO: Integrate with Resend or your email provider
   // const { error } = await resend.emails.send({
