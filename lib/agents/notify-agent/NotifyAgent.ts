@@ -2,7 +2,7 @@ import { BaseAgent } from '../base/BaseAgent'
 import type { AgentType, AgentMessage, AgentResponse } from '../base/types'
 import { checkPermission, type Session } from '@/lib/agent/permissions'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { enqueueJob } from '@/lib/jobs/queue'
+import { enqueue } from '@/lib/jobs/queue'
 import { v4 as uuidv4 } from 'uuid'
 
 export class NotifyAgent extends BaseAgent {
@@ -119,7 +119,7 @@ export class NotifyAgent extends BaseAgent {
       }
 
       // Enqueue email job
-      await enqueueJob('send_release_email', {
+      await enqueue('send_release_email', {
         recipientEmail: profile.email,
         template,
         templateData,
@@ -193,7 +193,7 @@ export class NotifyAgent extends BaseAgent {
         .single()
 
       if (profile?.email) {
-        await enqueueJob('send_release_email', {
+        await enqueue('send_release_email', {
           recipientEmail: profile.email,
           template: 'inquiry_created',
           templateData: { inquiryId, title },
@@ -231,7 +231,7 @@ export class NotifyAgent extends BaseAgent {
         .in('id', [customerId, partnerId])
 
       for (const profile of profiles.data || []) {
-        await enqueueJob('send_payment_confirmed_email', {
+        await enqueue('send_payment_confirmed_email', {
           recipientEmail: profile.email,
           template: 'escrow_captured',
           templateData: { escrowId, amount },
@@ -263,7 +263,7 @@ export class NotifyAgent extends BaseAgent {
         .in('id', [customerId, partnerId])
 
       for (const profile of profiles.data || []) {
-        await enqueueJob('send_release_email', {
+        await enqueue('send_release_email', {
           recipientEmail: profile.email,
           template: 'escrow_released',
           templateData: { escrowId, amount },
@@ -295,7 +295,7 @@ export class NotifyAgent extends BaseAgent {
         .in('id', [customerId, partnerId])
 
       for (const profile of profiles.data || []) {
-        await enqueueJob('send_refund_email', {
+        await enqueue('send_refund_email', {
           recipientEmail: profile.email,
           template: 'escrow_refunded',
           templateData: { escrowId, amount },
@@ -332,7 +332,7 @@ export class NotifyAgent extends BaseAgent {
         // Email to both parties
         for (const email of [escrow.customer_email, escrow.partner_email]) {
           if (email) {
-            await enqueueJob('send_dispute_email', {
+            await enqueue('send_dispute_email', {
               recipientEmail: email,
               template: 'dispute_opened',
               templateData: { disputeId, escrowId, reason },
@@ -342,7 +342,7 @@ export class NotifyAgent extends BaseAgent {
       }
 
       // Alert admin (send to admin alert email)
-      await enqueueJob('send_dispute_email', {
+      await enqueue('send_dispute_email', {
         recipientEmail: 'admin@liftgo.com', // TODO: config
         template: 'dispute_opened_admin_alert',
         templateData: { disputeId, escrowId, openedBy: userId, reason },
@@ -376,7 +376,7 @@ export class NotifyAgent extends BaseAgent {
       if (escrow) {
         for (const email of [escrow.customer_email, escrow.partner_email]) {
           if (email) {
-            await enqueueJob('notify_dispute_resolved', {
+            await enqueue('notify_dispute_resolved', {
               recipientEmail: email,
               template: 'dispute_resolved',
               templateData: { disputeId, escrowId, resolution, newStatus },
