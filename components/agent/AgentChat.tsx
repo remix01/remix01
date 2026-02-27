@@ -71,6 +71,7 @@ export function AgentChat() {
             <X className="w-5 h-5 text-slate-600" />
           </button>
         </div>
+      </div>
 
       {/* Messages List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
