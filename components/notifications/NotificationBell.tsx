@@ -28,6 +28,11 @@ const notificationColors: Record<NotificationType, string> = {
 }
 
 export function NotificationBell({ userId }: NotificationBellProps) {
+  // Only render bell if user is authenticated
+  if (!userId) {
+    return null
+  }
+
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useRealtimeNotifications(userId)
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
