@@ -6,7 +6,7 @@ import { assertTransition } from '@/lib/agent/state-machine'
 import { workingMemory } from '@/lib/agent/memory/workingMemory'
 import { messageBus } from '../base/MessageBus'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { enqueueJob } from '@/lib/jobs/queue'
+import { enqueue } from '@/lib/jobs/queue'
 import { v4 as uuidv4 } from 'uuid'
 
 export class EscrowAgent extends BaseAgent {
@@ -298,9 +298,8 @@ export class EscrowAgent extends BaseAgent {
 
       // 3. Enqueue Stripe capture job
       try {
-        await enqueueJob('stripe_capture_payment', {
+        await enqueue('stripe_capture_payment', {
           escrowId: payload.escrowId,
-          dedupeKey: `escrow-${payload.escrowId}-capture`,
         })
       } catch (err) {
         console.warn('[EscrowAgent] Failed to enqueue stripe_capture_payment:', err)
@@ -388,9 +387,8 @@ export class EscrowAgent extends BaseAgent {
 
       // 3. Enqueue Stripe release job
       try {
-        await enqueueJob('stripe_release_payment', {
+        await enqueue('stripe_release_payment', {
           escrowId: payload.escrowId,
-          dedupeKey: `escrow-${payload.escrowId}-release`,
         })
       } catch (err) {
         console.warn('[EscrowAgent] Failed to enqueue stripe_release_payment:', err)
@@ -478,10 +476,9 @@ export class EscrowAgent extends BaseAgent {
 
       // 3. Enqueue Stripe refund job
       try {
-        await enqueueJob('stripe_refund_payment', {
+        await enqueue('stripe_refund_payment', {
           escrowId: payload.escrowId,
           reason: payload.reason,
-          dedupeKey: `escrow-${payload.escrowId}-refund`,
         })
       } catch (err) {
         console.warn('[EscrowAgent] Failed to enqueue stripe_refund_payment:', err)

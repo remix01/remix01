@@ -7,7 +7,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { validateStringLength, collectErrors } from '@/lib/validation'
 import { badRequest, unauthorized, conflict, internalError, apiSuccess } from '@/lib/api-response'
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
-import { enqueueJob } from '@/lib/jobs/queue'
+import { enqueue } from '@/lib/jobs/queue'
 
 export async function POST(request: NextRequest) {
   try {
@@ -110,29 +110,23 @@ export async function POST(request: NextRequest) {
     // - Alert admin
     // - Log to webhook
     Promise.all([
-      enqueueJob('send_dispute_email', {
+      enqueue('send_dispute_email', {
         transactionId: escrow.id,
         recipientEmail: escrow.customer_email,
         recipientName: escrow.customer_name,
         reason: `${openedBy === 'partner' ? 'Partner' : 'Customer'} opened a dispute: ${reason}`,
-      }, {
-        dedupeKey: `escrow-${escrow.id}-dispute-customer`,
       }),
-      enqueueJob('send_dispute_email', {
+      enqueue('send_dispute_email', {
         transactionId: escrow.id,
         recipientEmail: escrow.partner_email,
         recipientName: escrow.partner_name,
         reason: `${openedBy === 'partner' ? 'You' : 'Customer'} opened a dispute: ${reason}`,
-      }, {
-        dedupeKey: `escrow-${escrow.id}-dispute-partner`,
       }),
-      enqueueJob('webhook_escrow_status_changed', {
+      enqueue('webhook_escrow_status_changed', {
         transactionId: escrow.id,
         statusBefore: 'paid',
         statusAfter: 'disputed',
         metadata: { openedBy, reason, description },
-      }, {
-        dedupeKey: `escrow-${escrow.id}-webhook-disputed`,
       }),
     ]).catch(err => {
       console.error('[ESCROW DISPUTE] Error enqueueing jobs:', err)

@@ -5,7 +5,7 @@ import { checkPermission, assertOwnership, type Session } from '@/lib/agent/perm
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
 import { messageBus } from '../base/MessageBus'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { enqueueJob } from '@/lib/jobs/queue'
+import { enqueue } from '@/lib/jobs/queue'
 import { v4 as uuidv4 } from 'uuid'
 
 export class DisputeAgent extends BaseAgent {
@@ -274,7 +274,7 @@ export class DisputeAgent extends BaseAgent {
     // 5. Enqueue appropriate Stripe job
     if (resolution === 'refund') {
       try {
-        await enqueueJob('stripe_refund_payment', {
+        await enqueue('stripe_refund_payment', {
           escrowId,
           amountCents: refundAmount,
           reason: 'Dispute resolution — refund to customer',
@@ -285,7 +285,7 @@ export class DisputeAgent extends BaseAgent {
       }
     } else if (resolution === 'release') {
       try {
-        await enqueueJob('stripe_capture_payment', {
+        await enqueue('stripe_capture_payment', {
           escrowId,
           reason: 'Dispute resolution — release to partner',
         })
