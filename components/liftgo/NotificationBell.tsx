@@ -23,6 +23,11 @@ const notificationColors: Record<string, string> = {
 }
 
 export function NotificationBell({ userId }: NotificationBellProps) {
+  // Guard: if no user, render nothing — no errors, no subscriptions
+  if (!userId) {
+    return null
+  }
+
   const supabase = createClient()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
