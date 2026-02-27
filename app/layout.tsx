@@ -1,6 +1,5 @@
 import React from 'react'
 import type { Metadata, Viewport } from 'next'
-import dynamic from 'next/dynamic'
 import { Inter, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
 import { env } from '@/lib/env'
@@ -8,12 +7,7 @@ import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
-
-// Client-only components: prevent SSR
-const InstallPrompt = dynamic(
-  () => import('@/components/pwa/InstallPrompt').then(m => m.InstallPrompt),
-  { ssr: false }
-)
+import { InstallPromptWrapper } from '@/components/pwa/InstallPromptWrapper'
 
 import './globals.css'
 
@@ -299,7 +293,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
 
         {/* PWA Install Prompt — mobile devices only */}
-        <InstallPrompt />
+        <InstallPromptWrapper />
 
         {/* Chat — prikaže se samo avtenticiranim uporabnikom */}
         <AgentChatButton />
