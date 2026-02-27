@@ -1,55 +1,50 @@
 /**
- * Job Queue — Async side effects via Upstash QStash
+ * Job Queue — Async side effects via Supabase
  * 
  * All escrow operations have side effects (emails, webhooks, auditing, etc).
  * This queue decouples them from the HTTP request so operations complete faster
  * and failures don't crash the main transaction.
  * 
- * QStash provides:
- * - HTTP-based, serverless job processing
+ * Uses Supabase job_queue table + Edge Function (stripe-worker):
+ * - Durable job storage (persisted in Supabase)
+ * - pg_cron picks up jobs every minute
+ * - stripe-worker Edge Function processes Stripe operations
  * - Automatic retries with exponential backoff
- * - Deduplication support
- * - Type-safe job definitions
- * - Observable status tracking
- * - Persistence across Vercel serverless restarts
+ * - Observable status tracking in database
+ * - No external dependencies needed
  */
 
-import { Client } from '@upstash/qstash'
-import { env } from '../env'
+import { createClient } from '@/lib/supabase/server'
 
 // ── TYPES
 export type JobType =
   | 'stripeCapture'
   | 'stripeRelease'
   | 'stripeCancel'
+  | 'stripeRefund'
   | 'sendEmail'
   | 'auditLog'
   | 'webhook'
 
 export interface Job<T = any> {
-  data: T
+  id: string
+  type: JobType
+  payload: T
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  attempts: number
+  last_error?: string
+  completed_at?: string
+  created_at: string
 }
 
-// ── QSTASH CLIENT
-let qstash: Client | null = null
-
-function getQStash(): Client {
-  if (!qstash) {
-    qstash = new Client({ token: env.QSTASH_TOKEN })
-  }
-  return qstash
-}
-
-// ── ENQUEUE JOB
 /**
- * Add a job to the queue via QStash. Returns job ID for tracking.
+ * Add a job to the queue via Supabase. Returns job ID for tracking.
  * 
  * Usage:
  * ```ts
- * const jobId = await enqueue('sendEmail', {
- *   to: 'user@example.com',
- *   template: 'escrow_released',
- *   escrowId: '123',
+ * const jobId = await enqueue('stripeCapture', {
+ *   paymentIntentId: 'pi_123',
+ *   amount: 5000,
  * })
  * ```
  */
@@ -61,74 +56,201 @@ export async function enqueue<T extends Record<string, any>>(
     retries?: number
   }
 ): Promise<string> {
-  const client = getQStash()
-  const baseUrl = env.NEXT_PUBLIC_APP_URL
+  try {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('job_queue')
+      .insert({
+        type: jobType,
+        payload,
+        status: 'pending',
+        attempts: 0,
+      })
+      .select('id')
+      .single()
 
-  const result = await client.publishJSON({
-    url: `${baseUrl}/api/jobs/process`,
-    body: { jobType, payload, enqueuedAt: Date.now() },
-    retries: options?.retries ?? 3,
-    delay: options?.delay,
-  })
+    if (error) {
+      console.error('[Queue] Error enqueueing job:', jobType, error)
+      throw error
+    }
 
-  console.log(`[JOB ENQUEUED] ${jobType} (${result.messageId})`, { payload })
-  return result.messageId
+    console.log(`[JOB ENQUEUED] ${jobType} (${data.id})`, { payload })
+    return data.id
+  } catch (err) {
+    console.error('[Queue] Failed to enqueue job:', jobType, err)
+    throw err
+  }
 }
 
-// ── CHECK JOB STATUS
 /**
  * Get current status of a job by ID.
- * Note: QStash provides basic status through message IDs.
  */
 export async function getJobStatus(jobId: string): Promise<Job | null> {
-  // QStash doesn't provide direct job status queries
-  // Job status is managed via our endpoint responses
-  console.log(`[JOB STATUS] Checking status for ${jobId}`)
-  return null
+  try {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('job_queue')
+      .select('*')
+      .eq('id', jobId)
+      .single()
+
+    if (error) {
+      console.error('[Queue] Error getting job status:', error)
+      return null
+    }
+
+    return data as Job
+  } catch (err) {
+    console.error('[Queue] Failed to get job status:', jobId, err)
+    return null
+  }
 }
 
-// ── GET QUEUE LENGTH
 /**
- * QStash doesn't expose queue length directly.
- * This is a placeholder for compatibility.
+ * Get pending job count by type.
  */
 export async function getQueueLength(type: JobType): Promise<number> {
-  console.warn(`[QUEUE LENGTH] QStash doesn't expose queue length directly`)
-  return 0
+  try {
+    const supabase = createClient()
+    
+    const { count, error } = await supabase
+      .from('job_queue')
+      .select('*', { count: 'exact', head: true })
+      .eq('type', type)
+      .eq('status', 'pending')
+
+    if (error) {
+      console.error('[Queue] Error getting queue length:', error)
+      return 0
+    }
+
+    return count ?? 0
+  } catch (err) {
+    console.error('[Queue] Failed to get queue length:', err)
+    return 0
+  }
 }
 
-// ── LIST DEAD LETTER QUEUE
 /**
- * Get failed jobs from QStash.
- * QStash handles dead lettering automatically.
+ * Get failed jobs.
  */
 export async function getDeadLetterJobs(limit = 100): Promise<Job[]> {
-  console.log(`[DEAD LETTER] Querying failed jobs (limit: ${limit})`)
-  return []
+  try {
+    const supabase = createClient()
+    
+    const { data, error } = await supabase
+      .from('job_queue')
+      .select('*')
+      .eq('status', 'failed')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      console.error('[Queue] Error getting dead letter jobs:', error)
+      return []
+    }
+
+    return data as Job[]
+  } catch (err) {
+    console.error('[Queue] Failed to get dead letter jobs:', err)
+    return []
+  }
 }
 
-// ── STATS
 /**
  * Get queue statistics for monitoring.
- * With QStash, monitoring is done via dashboard/API.
  */
 export async function getQueueStats(): Promise<{
   [key in JobType]: number
-} & { dead_letter: number }> {
-  const stats: any = {}
-  const types: JobType[] = ['stripeCapture', 'stripeRelease', 'stripeCancel', 'sendEmail', 'auditLog', 'webhook']
-  
-  for (const type of types) {
-    stats[type] = 0 // QStash doesn't expose per-type queue stats
+} & { dead_letter: number; total: number }> {
+  try {
+    const supabase = createClient()
+    
+    // Get counts for each job type
+    const { data, error } = await supabase
+      .from('job_queue')
+      .select('type, status, count(*)', { count: 'exact' })
+      .in('status', ['pending', 'failed'])
+      .returns<Array<{ type: JobType; status: string; count: number }>>()
+
+    if (error) {
+      console.error('[Queue] Error getting queue stats:', error)
+      return {
+        stripeCapture: 0,
+        stripeRelease: 0,
+        stripeCancel: 0,
+        stripeRefund: 0,
+        sendEmail: 0,
+        auditLog: 0,
+        webhook: 0,
+        dead_letter: 0,
+        total: 0,
+      }
+    }
+
+    const stats: any = {
+      stripeCapture: 0,
+      stripeRelease: 0,
+      stripeCancel: 0,
+      stripeRefund: 0,
+      sendEmail: 0,
+      auditLog: 0,
+      webhook: 0,
+      dead_letter: 0,
+      total: 0,
+    }
+
+    if (data) {
+      for (const row of data) {
+        if (row.status === 'failed') {
+          stats.dead_letter += row.count
+        } else {
+          stats[row.type] = (stats[row.type] ?? 0) + row.count
+        }
+        stats.total += row.count
+      }
+    }
+
+    return stats
+  } catch (err) {
+    console.error('[Queue] Failed to get queue stats:', err)
+    return {
+      stripeCapture: 0,
+      stripeRelease: 0,
+      stripeCancel: 0,
+      stripeRefund: 0,
+      sendEmail: 0,
+      auditLog: 0,
+      webhook: 0,
+      dead_letter: 0,
+      total: 0,
+    }
   }
-  
-  stats.dead_letter = 0
-  
-  return stats
 }
 
-// ── CLEAR QUEUE (for testing)
+/**
+ * Clear queue (for testing) — be careful!
+ */
 export async function clearQueue(type: JobType): Promise<void> {
-  console.warn(`[CLEAR QUEUE] QStash doesn't support manual queue clearing`)
+  try {
+    const supabase = createClient()
+    
+    const { error } = await supabase
+      .from('job_queue')
+      .delete()
+      .eq('type', type)
+
+    if (error) {
+      console.error('[Queue] Error clearing queue:', error)
+      throw error
+    }
+
+    console.warn(`[CLEAR QUEUE] Cleared all ${type} jobs`)
+  } catch (err) {
+    console.error('[Queue] Failed to clear queue:', err)
+  }
 }
+
 
