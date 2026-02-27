@@ -1,17 +1,16 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-
-const NotificationBell = dynamic(
-  () => import('@/components/liftgo/NotificationBell')
-    .then(m => ({ default: m.NotificationBell })),
-  {
-    ssr: false,
-    loading: () => null,
-  }
-)
+import { useState, useEffect } from 'react'
+import { NotificationBell } from '@/components/liftgo/NotificationBell'
 
 export function NotificationBellClient({ userId }: { userId?: string | null }) {
-  if (!userId) return null
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || !userId) return null
+
   return <NotificationBell userId={userId} />
 }
