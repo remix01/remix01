@@ -123,7 +123,7 @@ export const metadata: Metadata = {
   },
 
   // ─── PWA ────────────────────────────────────────────────────────────────
-  manifest: '/manifest.json',
+  // manifest is auto-served via /app/manifest.ts — do NOT manually specify here
 
   // ─── Apple PWA ──────────────────────────────────────────────────────────
   appleWebApp: {
