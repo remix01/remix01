@@ -112,7 +112,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         .select('*')
         .eq('auth_user_id', authUserId)
         .eq('aktiven', true)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('[v0] Error fetching admin user:', error)

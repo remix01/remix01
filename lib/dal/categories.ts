@@ -66,7 +66,7 @@ export async function getCategory(categoryId: string): Promise<Category | null> 
     .from('categories')
     .select('*')
     .eq('id', categoryId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching category:', error)

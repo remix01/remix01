@@ -29,7 +29,7 @@ export async function submitOffer(
       .from('povprasevanja')
       .select('id, status')
       .eq('id', inquiryId)
-      .single()
+      .maybeSingle()
 
     if (inquiryError || !inquiry) {
       throw {
@@ -52,7 +52,7 @@ export async function submitOffer(
       .from('obrtnik_profiles')
       .select('id')
       .eq('user_id', context.userId)
-      .single()
+      .maybeSingle()
 
     if (partnerError || !partnerProfile) {
       throw {
@@ -74,7 +74,7 @@ export async function submitOffer(
         status: 'pending',
       })
       .select('id')
-      .single()
+      .maybeSingle()
 
     if (createError || !offer) {
       throw {

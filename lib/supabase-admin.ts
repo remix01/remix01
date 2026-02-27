@@ -28,7 +28,7 @@ export async function verifyAdmin(request: Request) {
     .from('admin_users')
     .select('*')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
   return admin
 }
 

@@ -26,7 +26,7 @@ export async function getPovprasevanje(id: string): Promise<Povprasevanje | null
       )
     `)
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching povprasevanje:', error)
@@ -206,7 +206,7 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),
       category:categories(*)
     `)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error creating povprasevanje:', error)
@@ -248,7 +248,7 @@ export async function updatePovprasevanje(id: string, updates: PovprasevanjeUpda
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),
       category:categories(*)
     `)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error updating povprasevanje:', error)

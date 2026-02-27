@@ -38,7 +38,7 @@ export async function getPartner() {
     .from('obrtniki')
     .select('*, partner_paketi(*)')
     .eq('user_id', session.user.id)
-    .single()
+    .maybeSingle()
 
   return obrtnik
 }
