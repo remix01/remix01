@@ -1,66 +1,63 @@
 import { z } from 'zod'
 
 const envSchema = z.object({
-  // Supabase
+  // ─── REQUIRED — app cannot function without these ───
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
-  // Stripe
-  STRIPE_SECRET_KEY: z.string().startsWith('sk_'),
-  STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_'),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().startsWith('pk_'),
-  STRIPE_PLATFORM_COMMISSION_PCT: z.string().optional(),
+  // ─── OPTIONAL — features degrade gracefully if missing ───
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 
-  // QStash (job queue)
-  QSTASH_TOKEN: z.string().min(1),
-  QSTASH_CURRENT_SIGNING_KEY: z.string().min(1),
-  QSTASH_NEXT_SIGNING_KEY: z.string().min(1),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 
-  // App
-  NEXT_PUBLIC_APP_URL: z.string().url(),
-  NEXT_PUBLIC_URL: z.string().url().optional(),
-  NEXT_PUBLIC_FROM_EMAIL: z.string().email().optional(),
-  ADMIN_EMAIL: z.string().email().optional(),
+  QSTASH_TOKEN: z.string().optional(),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
 
-  // Web Push
-  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
-  VAPID_PRIVATE_KEY: z.string().optional(),
-  VAPID_SUBJECT: z.string().optional(),
+  NEXT_PUBLIC_APP_URL: z.string().optional().default('https://liftgo.net'),
 
-  // Email
-  RESEND_API_KEY: z.string().optional(),
+  ADMIN_ALERT_EMAIL: z.string().optional(),
 
-  // Google Calendar
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  LANGFUSE_SECRET_KEY: z.string().optional(),
+  LANGFUSE_PUBLIC_KEY: z.string().optional(),
+  LANGFUSE_HOST: z.string().optional(),
 
-  // Twilio
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  TWILIO_CONVERSATIONS_SERVICE_SID: z.string().optional(),
-  TWILIO_PROXY_NUMBERS: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
 
-  // Analytics
-  NEXT_PUBLIC_GA_ID: z.string().optional(),
-
-  // Build/Runtime
-  NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('production'),
 })
 
 function validateEnv() {
   const result = envSchema.safeParse(process.env)
+
   if (!result.success) {
-    console.warn('[v0] Some environment variables are missing:')
-    console.warn(result.error.flatten().fieldErrors)
-    // In production: throw to prevent startup with missing config
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('Missing required environment variables')
+    const missing = Object.entries(result.error.flatten().fieldErrors)
+      .map(([k, v]) => `  - ${k}: ${v}`)
+      .join('\n')
+
+    // Only REQUIRED vars cause a hard crash
+    const requiredMissing = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY']
+      .filter(k => !process.env[k])
+
+    if (requiredMissing.length > 0) {
+      throw new Error(
+        `Missing REQUIRED environment variables:\n${requiredMissing.map(k => `  - ${k}`).join('\n')}`
+      )
     }
-    // In development: return partial object to avoid crashes
+
+    // Optional vars just warn
+    console.warn('[env] Some optional environment variables are missing:\n' + missing)
   }
-  // Return what we have, with defaults for missing vars
-  return result.data ?? ({} as Partial<z.infer<typeof envSchema>>)
+
+  return result.data ?? ({} as z.infer<typeof envSchema>)
 }
 
 export const env = validateEnv()
+
+// Helper functions — check before using optional features
+export const hasStripe = () => !!env.STRIPE_SECRET_KEY
+export const hasQStash = () => !!env.QSTASH_TOKEN
+export const hasLangfuse = () => !!env.LANGFUSE_SECRET_KEY
+export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
