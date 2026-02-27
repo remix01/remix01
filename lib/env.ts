@@ -2,8 +2,8 @@ import { z } from 'zod'
 
 const envSchema = z.object({
   // ─── REQUIRED — app cannot function without these ───
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url('NEXT_PUBLIC_SUPABASE_URL must be a valid URL'),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
 
   // ─── OPTIONAL — features degrade gracefully if missing ───
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
@@ -16,7 +16,7 @@ const envSchema = z.object({
   QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
   QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
 
-  NEXT_PUBLIC_APP_URL: z.string().optional().default('https://liftgo.net'),
+  NEXT_PUBLIC_APP_URL: z.string().default('https://liftgo.net'),
 
   ADMIN_ALERT_EMAIL: z.string().optional(),
 
@@ -27,17 +27,12 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
 
   NODE_ENV: z.enum(['development', 'test', 'production']).default('production'),
-})
+}).passthrough() // Allow extra env vars to pass through
 
 function validateEnv() {
   const result = envSchema.safeParse(process.env)
 
   if (!result.success) {
-    const missing = Object.entries(result.error.flatten().fieldErrors)
-      .map(([k, v]) => `  - ${k}: ${v}`)
-      .join('\n')
-
-    // Only REQUIRED vars cause a hard crash
     const requiredMissing = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY']
       .filter(k => !process.env[k])
 
@@ -47,8 +42,15 @@ function validateEnv() {
       )
     }
 
-    // Optional vars just warn
-    console.warn('[env] Some optional environment variables are missing:\n' + missing)
+    // Optional vars just warn — don't spam console with validation messages
+    const optionalMissing = Object.entries(result.error.flatten().fieldErrors)
+      .filter(([key]) => !['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'].includes(key))
+    
+    if (optionalMissing.length > 0 && process.env.NODE_ENV === 'development') {
+      console.warn('[env] Optional environment variables missing (features may be disabled):', 
+        optionalMissing.map(([k]) => k).join(', ')
+      )
+    }
   }
 
   return result.data ?? ({} as z.infer<typeof envSchema>)
