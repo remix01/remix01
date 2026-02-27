@@ -32,7 +32,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const roleHierarchy: Record<AdminRole, number> = {
     SUPER_ADMIN: 3,
@@ -44,11 +43,18 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session
     const initAuth = async () => {
       try {
+        const supabase = createClient()
+        if (!supabase) {
+          console.warn('[v0] Supabase client not available')
+          setLoading(false)
+          return
+        }
+        
         const { data: { session } } = await supabase.auth.getSession()
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          await fetchAdminUser(session.user.id)
+          await fetchAdminUser(session.user.id, supabase)
         }
       } catch (error) {
         console.error('[v0] Error initializing auth:', error)
@@ -58,27 +64,49 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initAuth()
+  }, [])
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          await fetchAdminUser(session.user.id)
-        } else {
-          setAdminUser(null)
+  useEffect(() => {
+    const setupAuthListener = async () => {
+      try {
+        const supabase = createClient()
+        if (!supabase) return
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (_event, session) => {
+            setUser(session?.user ?? null)
+            
+            if (session?.user) {
+              await fetchAdminUser(session.user.id, supabase)
+            } else {
+              setAdminUser(null)
+            }
+          }
+        )
+
+        return () => {
+          subscription.unsubscribe()
         }
+      } catch (error) {
+        console.error('[v0] Error setting up auth listener:', error)
       }
-    )
+    }
 
+    const unsubscribe = setupAuthListener()
     return () => {
-      subscription.unsubscribe()
+      unsubscribe.then(unsub => unsub?.())
     }
   }, [])
 
-  const fetchAdminUser = async (authUserId: string) => {
+  const fetchAdminUser = async (authUserId: string, supabase: ReturnType<typeof createClient>) => {
     try {
+      if (!supabase) {
+        console.warn('[v0] Supabase client not available')
+        setAdminUser(null)
+        return
+      }
+      
       const { data, error } = await supabase
         .from('admin_users')
         .select('*')
@@ -100,22 +128,42 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const supabase = createClient()
+      if (!supabase) {
+        throw new Error('Supabase client not available')
+      }
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) throw error
-    
-    if (data.user) {
-      await fetchAdminUser(data.user.id)
+      if (error) throw error
+      
+      if (data.user) {
+        await fetchAdminUser(data.user.id, supabase)
+      }
+    } catch (error) {
+      console.error('[v0] Sign in error:', error)
+      throw error
     }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setAdminUser(null)
+    try {
+      const supabase = createClient()
+      if (!supabase) {
+        throw new Error('Supabase client not available')
+      }
+      
+      await supabase.auth.signOut()
+      setUser(null)
+      setAdminUser(null)
+    } catch (error) {
+      console.error('[v0] Sign out error:', error)
+      throw error
+    }
   }
 
   const hasRole = (role: AdminRole): boolean => {
