@@ -138,7 +138,8 @@ export default function Page() {
         suppressHydrationWarning
       />
       <Navbar />
-      <main className="flex-1">
+      {/* FIX: Na mobilnih dodaj pb-20 da gumb ne prekriva vsebine, na md+ pa pb-0 */}
+      <main className="flex-1 pb-20 sm:pb-0">
         <Hero />
         <Stats />
         <OfferPreview />

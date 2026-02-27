@@ -50,80 +50,90 @@ export function AgentChat() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed bottom-20 right-4 w-96 h-[600px] bg-white rounded-xl shadow-lg border border-slate-200 flex flex-col z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl">
-        <h2 className="font-semibold text-slate-900">LiftGO Assistant</h2>
-        <button
-          onClick={closeChat}
-          className="p-1 hover:bg-slate-200 rounded-md transition-colors"
-          aria-label="Close chat"
-        >
-          <X className="w-5 h-5 text-slate-600" />
-        </button>
-      </div>
-
-      {/* Messages List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-slate-500">
-              <p className="text-sm">Hello! I can help you manage your inquiries, offers, and escrow. What would you like to do?</p>
-            </div>
-          </div>
-        )}
-
-        {messages.map((message) => (
-          <AgentMessage
-            key={message.id}
-            message={message}
-            onRetry={() => {
-              if (message.status === 'error' && message.role === 'user') {
-                sendMessage(message.content)
-              }
-            }}
-          />
-        ))}
-
-        {isLoading && (
-          <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-              LA
-            </div>
-            <div className="bg-slate-700 text-white px-4 py-2 rounded-lg flex gap-1 items-center">
-              <div className="w-2 h-2 bg-white rounded-full animate-bounce" />
-              <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-              <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="p-4 border-t border-slate-200 bg-white rounded-b-xl">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
-            disabled={isLoading}
-            className="flex-1 p-2 border border-slate-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
-            rows={1}
-          />
+    <>
+      {/* Mobile overlay backdrop — zapira chat na klik zunaj (z-40 < z-50 chat) */}
+      <div
+        className="fixed inset-0 bg-black/20 z-40 md:hidden"
+        onClick={closeChat}
+        aria-hidden="true"
+      />
+      
+      {/* FIX: z-50 za chat okno — mora biti nad gumbom (z-40) */}
+      <div className="fixed bottom-0 right-0 w-full h-[70vh] md:bottom-6 md:right-6 md:w-96 md:h-[600px] bg-white rounded-t-xl md:rounded-xl shadow-2xl border border-slate-200 flex flex-col z-50">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl md:rounded-t-xl">
+          <h2 className="font-semibold text-slate-900">LiftGO Assistant</h2>
           <button
-            onClick={handleSendMessage}
-            disabled={isLoading || !input.trim()}
-            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 transition-colors"
-            aria-label="Send message"
+            onClick={closeChat}
+            className="p-1 hover:bg-slate-200 rounded-md transition-colors"
+            aria-label="Close chat"
           >
-            <Send className="w-4 h-4" />
+            <X className="w-5 h-5 text-slate-600" />
           </button>
         </div>
+
+        {/* Messages List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-slate-500">
+                <p className="text-sm">Hello! I can help you manage your inquiries, offers, and escrow. What would you like to do?</p>
+              </div>
+            </div>
+          )}
+
+          {messages.map((message) => (
+            <AgentMessage
+              key={message.id}
+              message={message}
+              onRetry={() => {
+                if (message.status === 'error' && message.role === 'user') {
+                  sendMessage(message.content)
+                }
+              }}
+            />
+          ))}
+
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                LA
+              </div>
+              <div className="bg-slate-700 text-white px-4 py-2 rounded-lg flex gap-1 items-center">
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="p-4 border-t border-slate-200 bg-white rounded-b-xl md:rounded-b-xl">
+          <div className="flex gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your message..."
+              disabled={isLoading}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+              rows={1}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || !input.trim()}
+              className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 transition-colors"
+              aria-label="Send message"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
