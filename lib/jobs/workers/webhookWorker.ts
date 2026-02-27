@@ -1,8 +1,5 @@
 /**
  * Webhook Worker — Send webhooks to partners about escrow status changes
- * 
- * Jobs:
- * - webhook_escrow_status_changed: Notify partner's webhook endpoint
  */
 
 import { Job } from '../queue'
@@ -16,9 +13,8 @@ interface WebhookJobPayload {
   metadata?: Record<string, any>
 }
 
-export async function handleWebhookJob(job: Job<WebhookJobPayload>): Promise<void> {
-  const { payload } = job
-  const { transactionId, statusBefore, statusAfter, partnerWebhookUrl, metadata } = payload
+export async function handleWebhook(job: Job<WebhookJobPayload>): Promise<void> {
+  const { transactionId, statusBefore, statusAfter, partnerWebhookUrl, metadata } = job.data
 
   // Fetch escrow transaction
   const { data: escrow } = await supabaseAdmin
