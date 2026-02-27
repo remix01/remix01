@@ -45,20 +45,27 @@ export function InstallPrompt() {
   }, [])
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e)
+    try {
+      if (typeof window === 'undefined') return
 
-      // Only show if on mobile and time has passed
-      if (isMobile && showAfterDelay && !isVisible) {
-        setIsVisible(true)
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault()
+        setInstallPrompt(e)
+
+        // Only show if on mobile and time has passed
+        if (isMobile && showAfterDelay && !isVisible) {
+          setIsVisible(true)
+        }
       }
-    }
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      }
+    } catch (error) {
+      console.error('[v0] Error in beforeinstallprompt handler:', error)
+      return () => {}
     }
   }, [isMobile, showAfterDelay, isVisible])
 
