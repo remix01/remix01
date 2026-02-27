@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
+import { env } from '@/lib/env'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { writeAuditLog, isStripeEventProcessed } from '@/lib/escrow'
@@ -11,7 +12,7 @@ import {
   sendStripeOnboardingNotification,
 } from '@/lib/email'
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const webhookSecret = env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(req: NextRequest) {
   const body = await req.text()

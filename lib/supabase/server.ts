@@ -1,5 +1,6 @@
 import { createServerClient as createServerClientSSR } from '@supabase/ssr'
 import type { Database } from '@/types/supabase'
+import { env } from '../env'
 
 /**
  * Creates a Supabase client for server-side use with RLS enforced.
@@ -13,8 +14,8 @@ export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClientSSR<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -50,8 +51,8 @@ export async function createClient() {
  */
 export function createAdminClient() {
   return createServerClientSSR<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
     {
       cookies: {
         getAll() {
