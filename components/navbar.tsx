@@ -41,10 +41,14 @@ export function Navbar() {
   // Get current user
   useEffect(() => {
     const getUser = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUserId(user.id)
+      try {
+        const supabase = createClient()
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (!error && user) {
+          setUserId(user.id)
+        }
+      } catch (err) {
+        console.error('[v0] Error getting user:', err)
       }
     }
     getUser()

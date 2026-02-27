@@ -73,24 +73,34 @@ export function InstallPrompt() {
     if (!installPrompt) return
 
     try {
-      installPrompt.prompt()
+      await installPrompt.prompt()
       const { outcome } = await installPrompt.userChoice
       if (outcome === 'accepted') {
-        // User accepted the install prompt
         setIsVisible(false)
         if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem('pwa-install-dismissed', 'true')
+          try {
+            sessionStorage.setItem('pwa-install-dismissed', 'true')
+          } catch (e) {
+            console.error('[v0] sessionStorage write failed:', e)
+          }
         }
       }
+      setInstallPrompt(null)
     } catch (error) {
       console.error('[v0] Install prompt error:', error)
+      setInstallPrompt(null)
     }
   }
 
   const handleDismiss = () => {
     setIsVisible(false)
+    setInstallPrompt(null)
     if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('pwa-install-dismissed', 'true')
+      try {
+        sessionStorage.setItem('pwa-install-dismissed', 'true')
+      } catch (e) {
+        console.error('[v0] sessionStorage write failed:', e)
+      }
     }
   }
 
