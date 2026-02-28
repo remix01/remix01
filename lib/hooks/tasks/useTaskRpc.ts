@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { RpcResponse, RpcError } from '../task-engine/types'
+import type { RpcResponse, RpcError } from '@/lib/task-engine/types'
 
 interface UseTaskRpcOptions {
   onSuccess?: (data: any) => void

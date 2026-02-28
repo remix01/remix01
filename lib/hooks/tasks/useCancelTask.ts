@@ -9,7 +9,6 @@
 
 import { useCallback } from 'react'
 import { useTaskRpc } from './useTaskRpc'
-import { assertTransition } from '@/lib/guards/state-machine-guard'
 import type { Task, CancelTaskParams } from '@/lib/task-engine/types'
 
 interface UseCancelTaskOptions {
@@ -32,10 +31,7 @@ export function useCancelTask(options?: UseCancelTaskOptions) {
   const cancelTask = useCallback(
     async (taskId: string, reason: string) => {
       try {
-        // 1. Validate state transition
-        await assertTransition('task', taskId, 'cancelled')
-
-        // 2. Call RPC
+        // Call RPC directly - state machine validation happens in backend
         const params: CancelTaskParams = {
           task_id: taskId,
           reason,

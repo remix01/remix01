@@ -9,7 +9,6 @@
 
 import { useCallback } from 'react'
 import { useTaskRpc } from './useTaskRpc'
-import { assertTransition } from '@/lib/guards/state-machine-guard'
 import type { Task, PublishTaskParams } from '@/lib/task-engine/types'
 
 interface UsePublishTaskOptions {
@@ -32,10 +31,7 @@ export function usePublishTask(options?: UsePublishTaskOptions) {
   const publishTask = useCallback(
     async (taskId: string, slaHours: number) => {
       try {
-        // 1. Validate state transition
-        await assertTransition('task', taskId, 'published')
-
-        // 2. Call RPC
+        // Call RPC directly - state machine validation happens in backend
         const params: PublishTaskParams = {
           task_id: taskId,
           sla_hours: slaHours,

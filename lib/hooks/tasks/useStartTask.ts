@@ -9,7 +9,6 @@
 
 import { useCallback } from 'react'
 import { useTaskRpc } from './useTaskRpc'
-import { assertTransition } from '@/lib/guards/state-machine-guard'
 import type { Task, StartTaskParams } from '@/lib/task-engine/types'
 
 interface UseStartTaskOptions {
@@ -32,10 +31,7 @@ export function useStartTask(options?: UseStartTaskOptions) {
   const startTask = useCallback(
     async (taskId: string) => {
       try {
-        // 1. Validate state transition
-        await assertTransition('task', taskId, 'in_progress')
-
-        // 2. Call RPC
+        // Call RPC directly - state machine validation happens in backend
         const params: StartTaskParams = {
           task_id: taskId,
         }

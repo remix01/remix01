@@ -9,7 +9,6 @@
 
 import { useCallback } from 'react'
 import { useTaskRpc } from './useTaskRpc'
-import { assertTransition } from '@/lib/guards/state-machine-guard'
 import type { Task, CompleteTaskParams } from '@/lib/task-engine/types'
 
 interface UseCompleteTaskOptions {
@@ -32,10 +31,7 @@ export function useCompleteTask(options?: UseCompleteTaskOptions) {
   const completeTask = useCallback(
     async (taskId: string, notes?: string) => {
       try {
-        // 1. Validate state transition
-        await assertTransition('task', taskId, 'completed')
-
-        // 2. Call RPC
+        // Call RPC directly - state machine validation happens in backend
         const params: CompleteTaskParams = {
           task_id: taskId,
           notes,

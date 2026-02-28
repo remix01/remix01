@@ -7,7 +7,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { checkPermission } from '@/lib/layers/permission-layer'
 
 type FilterType = 'my_tasks' | 'available' | 'overdue' | 'completed' | 'all'
 

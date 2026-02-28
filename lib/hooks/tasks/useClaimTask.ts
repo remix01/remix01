@@ -9,7 +9,6 @@
 
 import { useCallback } from 'react'
 import { useTaskRpc } from './useTaskRpc'
-import { assertTransition } from '@/lib/guards/state-machine-guard'
 import type { Task, ClaimTaskParams } from '@/lib/task-engine/types'
 
 interface UseClaimTaskOptions {
@@ -32,10 +31,7 @@ export function useClaimTask(options?: UseClaimTaskOptions) {
   const claimTask = useCallback(
     async (taskId: string, workerId: string) => {
       try {
-        // 1. Validate state transition
-        await assertTransition('task', taskId, 'claimed')
-
-        // 2. Call RPC
+        // Call RPC directly - state machine validation happens in backend
         const params: ClaimTaskParams = {
           task_id: taskId,
           worker_id: workerId,
