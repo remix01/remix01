@@ -8,13 +8,11 @@ export type ChatMessage = {
   content: string
   timestamp: number
   status: 'sending' | 'sent' | 'error'
-  toolUsed?: string
 }
 
 export function useAgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [sessionId] = useState(() => crypto.randomUUID())
   const [isOpen, setIsOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
 
@@ -36,18 +34,22 @@ export function useAgentChat() {
       setIsLoading(true)
 
       try {
-        // 2. POST to /api/agent with { message: content, sessionId }
-        const response = await fetch('/api/agent', {
+        // 2. POST to /api/agent/chat with { message, conversationHistory }
+        const response = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: content,
-            sessionId,
+            conversationHistory: messages.map(msg => ({
+              role: msg.role === 'agent' ? 'assistant' : 'user',
+              content: msg.content
+            }))
           }),
         })
 
         if (!response.ok) {
-          throw new Error('Failed to send message')
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to send message')
         }
 
         const data = await response.json()
@@ -56,10 +58,9 @@ export function useAgentChat() {
         const agentMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'agent',
-          content: data.response || 'Unable to process your request.',
+          content: data.message || 'Unable to process your request.',
           timestamp: Date.now(),
           status: 'sent',
-          toolUsed: data.toolUsed,
         }
 
         // Update user message status to sent
@@ -77,7 +78,7 @@ export function useAgentChat() {
           setUnreadCount((prev) => prev + 1)
         }
       } catch (error) {
-        console.error('Error sending message:', error)
+        console.error('[v0] Error sending message:', error)
 
         // 4. On error: mark message as error, show retry option
         setMessages((prev) =>
@@ -89,7 +90,7 @@ export function useAgentChat() {
         setIsLoading(false)
       }
     },
-    [isLoading, sessionId, isOpen]
+    [isLoading, messages, isOpen]
   )
 
   const handleOpen = useCallback(() => {
@@ -108,7 +109,6 @@ export function useAgentChat() {
     isOpen,
     setIsOpen: handleOpen,
     closeChat: handleClose,
-    sessionId,
     unreadCount,
   }
 }

@@ -6,7 +6,7 @@ import { useAgentChat } from './useAgentChat'
 import { AgentMessage } from './AgentMessage'
 
 export function AgentChat() {
-  const { messages, isLoading, sendMessage, closeChat, isOpen, sessionId } = useAgentChat()
+  const { messages, isLoading, sendMessage, closeChat, isOpen } = useAgentChat()
   const [input, setInput] = React.useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
