@@ -100,7 +100,7 @@ export async function matchObrtnikiForPovprasevanje(
       .order('avg_rating', { ascending: false })
       .limit(20)
 
-    if (obrError || !obrnikaData) {
+    if (obrError || !obrtnikiData) {
       return {
         topMatches: [],
         reasoning: '',
@@ -108,7 +108,7 @@ export async function matchObrtnikiForPovprasevanje(
       }
     }
 
-    if (!obrnikaData || obrnikaData.length === 0) {
+    if (!obrtnikiData || obrtnikiData.length === 0) {
       return {
         topMatches: [],
         reasoning: 'V tej kategoriji trenutno ni razpoložljivih obrtnov.',
@@ -117,7 +117,7 @@ export async function matchObrtnikiForPovprasevanje(
     }
 
     // 3. Filter obrtniki by minimum requirements and urgency
-    let filteredObrtniki = (obrnikaData || []).filter((o: any) => {
+    let filteredObrtniki = (obrtnikiData || []).filter((o: any) => {
       // Minimum rating requirement
       if ((o.avg_rating || 0) < MATCHING_RULES.minimumRequirements.minRating) {
         return false
@@ -144,7 +144,7 @@ export async function matchObrtnikiForPovprasevanje(
       return true
     })
 
-    if (!filteredObrtnuki || filteredObrtnuki.length === 0) {
+    if (!filteredObrtniki || filteredObrtniki.length === 0) {
       return {
         topMatches: [],
         reasoning: 'V tej kategoriji in nujnosti trenutno ni razpoložljivih obrtnov.',
@@ -208,15 +208,33 @@ Vrni JSON v tej obliki (SAMO JSON, brez drugega teksta):
   "reasoning": "Kratka razlaga izbire v slovenščini (2-3 stavki)"
 }`
 
-    // 4. Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: userPrompt }],
-      system: systemPrompt,
-    })
+    // 6. Call Claude API with error handling for missing API key
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return {
+        topMatches: [],
+        reasoning: '',
+        error: 'Agent ni konfiguriran — manka API ključ',
+      }
+    }
 
-    // 5. Parse JSON response
+    let response
+    try {
+      response = await anthropic.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: userPrompt }],
+        system: systemPrompt,
+      })
+    } catch (apiError) {
+      console.error('[v0] Claude API error:', apiError)
+      return {
+        topMatches: [],
+        reasoning: '',
+        error: 'Napaka pri komunikaciji z agentom — poskusite znova',
+      }
+    }
+
+    // 7. Parse JSON response
     const content = response.content[0]
     if (content.type !== 'text') {
       return {
