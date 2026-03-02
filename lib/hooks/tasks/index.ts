@@ -18,3 +18,12 @@ export { useCancelTask } from './useCancelTask'
 // Realtime & Filters
 export { useTaskEvents } from './useTaskEvents'
 export { useTaskFilters } from './useTaskFilters'
+
+// SLA & Expiry
+export { useExpireTask } from './useExpireTask'
+export { useSlaMonitor } from './useSlaMonitor'
+
+// Worker Matching & Assignment
+export { useMatchedTasks } from './useMatchedTasks'
+export { useAssignTask } from './useAssignTask'
+export { useExpiredTaskRecovery } from './useExpiredTaskRecovery'

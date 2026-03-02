@@ -201,3 +201,71 @@ export interface RpcResponse<T> {
   data?: T
   error?: RpcError
 }
+
+// SLA-related types
+export type SLAStatus = 'urgent' | 'warning' | 'on_track' | 'expired' | 'no_deadline'
+
+export interface SLAMonitorInfo {
+  taskId: string
+  status: SLAStatus
+  deadline: string | null
+  timeRemaining: {
+    milliseconds: number | null
+    seconds: number | null
+    minutes: number | null
+    hours: number | null
+    days: number | null
+    isExpired: boolean
+    formattedTime: string
+  }
+  usagePercentage: number
+  isWarning: boolean
+}
+
+// Task expiry types
+export interface ExpireTaskParams {
+  task_id: string
+  reason?: string
+}
+
+export interface ExpireTaskResult {
+  success: boolean
+  task: Task
+  message: string
+}
+
+// Task assignment types
+export interface AssignTaskParams {
+  task_id: string
+  worker_id: string
+  auto_assign?: boolean
+}
+
+export interface AssignTaskResult {
+  success: boolean
+  task: Task
+  assignment_id: string
+  message: string
+}
+
+// Assignment info
+export interface TaskAssignment {
+  id: string
+  task_id: string
+  worker_id: string
+  assigned_at: string
+  assigned_by: string
+  match_score: number
+  assignment_reason?: string
+  accepted: boolean
+  accepted_at?: string
+}
+
+// Matched workers for task
+export interface MatchedWorker {
+  worker_id: string
+  score: number
+  reasons: string[]
+  match_rank: number
+  stats: WorkerStats
+}
