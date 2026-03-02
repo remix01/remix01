@@ -8,6 +8,7 @@ export type ChatMessage = {
   content: string
   timestamp: number
   status: 'sending' | 'sent' | 'error'
+  toolUsed?: string // Optional field for tracking which tool was used
 }
 
 export function useAgentChat() {
