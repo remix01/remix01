@@ -19,6 +19,24 @@ const nextConfig: NextConfig = {
     },
   },
   turbopack: {},
+  
+  // FIX: Add headers for static files caching
+  async headers() {
+    return [
+      {
+        source: '/favicon.ico',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
+        source: '/apple-touch-icon.png',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
+        source: '/manifest.json',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=3600' }],
+      },
+    ]
+  },
 }
 
 export default nextConfig
