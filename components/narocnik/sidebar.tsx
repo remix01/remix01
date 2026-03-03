@@ -19,11 +19,11 @@ export function NarocnikSidebar({ fullName }: NarocnikSidebarProps) {
   }
 
   const navLinks = [
-    { href: '/narocnik/dashboard', icon: '🏠', label: 'Dashboard' },
-    { href: '/narocnik/novo-povprasevanje', icon: '➕', label: 'Novo povpraševanje' },
-    { href: '/narocnik/povprasevanja', icon: '📋', label: 'Moja povpraševanja' },
-    { href: '/narocnik/obvestila', icon: '🔔', label: 'Obvestila' },
-    { href: '/narocnik/profil', icon: '👤', label: 'Profil' },
+    { href: '/dashboard', icon: '🏠', label: 'Dashboard' },
+    { href: '/novo-povprasevanje', icon: '➕', label: 'Novo povpraševanje' },
+    { href: '/povprasevanja', icon: '📋', label: 'Moja povpraševanja' },
+    { href: '/obvestila', icon: '🔔', label: 'Obvestila' },
+    { href: '/profil', icon: '👤', label: 'Profil' },
   ]
 
   const isActive = (href: string) => pathname === href
@@ -32,7 +32,7 @@ export function NarocnikSidebar({ fullName }: NarocnikSidebarProps) {
     <div className="flex flex-col h-full bg-[#001a33] text-white p-6">
       {/* Logo */}
       <div className="mb-8">
-        <Link href="/narocnik/dashboard" className="text-2xl font-bold text-white">
+        <Link href="/dashboard" className="text-2xl font-bold text-white">
           LiftGO
         </Link>
       </div>

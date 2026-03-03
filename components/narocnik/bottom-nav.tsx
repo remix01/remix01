@@ -7,10 +7,10 @@ export function NarocnikBottomNav() {
   const pathname = usePathname()
 
   const navLinks = [
-    { href: '/narocnik/dashboard', icon: '🏠', label: 'Domov' },
-    { href: '/narocnik/novo-povprasevanje', icon: '➕', label: 'Novo' },
-    { href: '/narocnik/povprasevanja', icon: '📋', label: 'Povpraševanja' },
-    { href: '/narocnik/profil', icon: '👤', label: 'Profil' },
+    { href: '/dashboard', icon: '🏠', label: 'Domov' },
+    { href: '/novo-povprasevanje', icon: '➕', label: 'Novo' },
+    { href: '/povprasevanja', icon: '📋', label: 'Povpraševanja' },
+    { href: '/profil', icon: '👤', label: 'Profil' },
   ]
 
   const isActive = (href: string) => pathname === href

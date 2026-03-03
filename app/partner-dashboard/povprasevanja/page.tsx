@@ -144,7 +144,7 @@ export default async function PovprasevanjePage() {
 
                       {/* CTA Button */}
                       <div className="pt-2">
-                        <Link href="/obrtnik/povprasevanja">
+                        <Link href="/partner-dashboard">
                           <Button className="gap-2 w-full sm:w-auto">
                             Pošlji ponudbo
                             <ArrowRight className="w-4 h-4" />
