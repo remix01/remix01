@@ -97,7 +97,7 @@ export async function proxy(request: NextRequest) {
     const { data: adminUser } = await supabase
       .from('admin_users')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('auth_user_id', user.id)
       .single()
 
     if (!adminUser) {
@@ -125,7 +125,7 @@ export async function proxy(request: NextRequest) {
       const { data: adminUser } = await supabase
         .from('admin_users')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('auth_user_id', user.id)
         .single()
 
       if (adminUser) {

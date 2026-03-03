@@ -47,7 +47,7 @@ export async function createZaposleni(input: CreateZaposleniInput) {
 
     // Check if email already exists
     const { data: existingZaposleni } = await supabase
-      .from('Zaposleni')
+      .from('zaposleni')
       .select('*')
       .eq('email', input.email)
       .single()
@@ -60,7 +60,7 @@ export async function createZaposleni(input: CreateZaposleniInput) {
     }
 
     const { data: zaposleni, error } = await supabase
-      .from('Zaposleni')
+      .from('zaposleni')
       .insert([{
         email: input.email,
         ime: input.ime,
@@ -99,7 +99,7 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
     if (input.aktiven !== undefined) updateData.aktiven = input.aktiven
 
     const { data: zaposleni, error } = await supabase
-      .from('Zaposleni')
+      .from('zaposleni')
       .update(updateData)
       .eq('id', input.id)
       .select()
@@ -127,7 +127,7 @@ export async function deleteZaposleni(id: string) {
     const supabase = await createClient()
 
     const { error } = await supabase
-      .from('Zaposleni')
+      .from('zaposleni')
       .delete()
       .eq('id', id)
 
@@ -166,7 +166,7 @@ export async function getZaposleniList() {
     }
 
     const { data: zaposlenci, error } = await supabase
-      .from('Zaposleni')
+      .from('zaposleni')
       .select('*')
       .order('id', { ascending: false })
 
@@ -204,7 +204,7 @@ export async function getZaposleniById(id: string) {
     }
 
     const { data: zaposleni, error } = await supabase
-      .from('Zaposleni')
+      .from('zaposleni')
       .select('*')
       .eq('id', id)
       .single()
