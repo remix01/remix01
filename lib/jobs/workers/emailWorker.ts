@@ -1,30 +1,85 @@
 /**
- * Email Worker — Send escrow-related emails
+ * Email Worker — Send escrow-related and povprasevanja emails
  * 
  * Jobs:
  * - send_release_email: Notify customer & partner of release
  * - send_refund_email: Notify customer of refund
  * - send_dispute_email: Notify both parties of dispute
  * - send_payment_confirmed_email: Confirm payment received
+ * - povprasevanje_confirmation: Confirm povprasevanje submitted
  */
 
 import { Job } from '../queue'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 interface EmailJobPayload {
-  transactionId: string
-  recipientEmail: string
+  transactionId?: string
+  recipientEmail?: string
   recipientName?: string
   recipientUserId?: string
   partnerName?: string
   amount?: number
   reason?: string
   metadata?: Record<string, any>
+  // povprasevanje fields
+  jobType?: string
+  povprasevanjeId?: string
+  narocnikId?: string
+  title?: string
+  category?: string
+  location?: string
+  urgency?: string
+  budget?: number
 }
 
 export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
   const { type, payload } = job
-  const { transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
+  const { jobType, povprasevanjeId, narocnikId, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
+
+  // Handle povprasevanje confirmation
+  if (jobType === 'povprasevanje_confirmation' && povprasevanjeId && narocnikId) {
+    try {
+      // Fetch narocnik profile
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email, ime')
+        .eq('id', narocnikId)
+        .single()
+
+      if (!profile?.email) {
+        console.error('[EMAIL] Narocnik profile not found:', narocnikId)
+        return
+      }
+
+      const firstName = profile.ime || 'Naročnik'
+      const resend = await getResendClient()
+      
+      if (!resend) {
+        console.error('[EMAIL] Resend client not initialized')
+        return
+      }
+
+      const htmlBody = buildPovprasevanjeConfirmationEmail(firstName, title || '', category || '', location || '', urgency || '', budget)
+
+      await resend.emails.send({
+        from: 'LiftGO <info@liftgo.net>',
+        to: profile.email,
+        subject: `✅ Povpraševanje oddano: ${title}`,
+        html: htmlBody,
+      })
+
+      console.log(`[EMAIL] Povprasevanje confirmation sent to ${profile.email}`)
+      return
+    } catch (error) {
+      console.error('[EMAIL] Error sending povprasevanje confirmation:', error)
+      throw error
+    }
+  }
+
+  // Handle escrow emails (existing logic)
+  if (!transactionId) {
+    throw new Error('[EMAIL] No transaction ID or povprasevanje ID provided')
+  }
 
   // Fetch transaction details if needed
   const { data: escrow } = await supabaseAdmin
@@ -132,7 +187,55 @@ export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
   // if (error) throw new Error(`Email send failed: ${error.message}`)
 }
 
+// ── GET RESEND CLIENT
+async function getResendClient() {
+  try {
+    const { Resend } = await import('resend')
+    if (!process.env.RESEND_API_KEY) {
+      console.error('[EMAIL] RESEND_API_KEY is not set')
+      return null
+    }
+    return new Resend(process.env.RESEND_API_KEY)
+  } catch (error) {
+    console.error('[EMAIL] Failed to initialize Resend client:', error)
+    return null
+  }
+}
+
 // ── EMAIL TEMPLATES
+function buildPovprasevanjeConfirmationEmail(firstName: string, title: string, category: string, location: string, urgency: string, budget?: number): string {
+  return `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #0d9488;">Vaše povpraševanje je bilo uspešno oddano!</h2>
+      <p>Pozdravljeni ${firstName},</p>
+      <p>Vaše povpraševanje <strong>${title}</strong> je bilo oddano.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: #64748b;">Kategorija:</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>${category}</strong></td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: #64748b;">Lokacija:</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>${location}</strong></td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: #64748b;">Nujnost:</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>${urgency}</strong></td>
+        </tr>
+        ${budget ? `<tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: #64748b;">Proračun:</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;"><strong>€${budget}</strong></td>
+        </tr>` : ''}
+      </table>
+      <p style="color: #64748b; margin-top: 24px; font-size: 14px;">
+        Obrtniki bodo kmalu kontaktirali. Povprečni odzivni čas je manj kot 2 uri.
+      </p>
+      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+      <p style="color: #94a3b8; font-size: 12px;">LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah</p>
+    </div>
+  `
+}
+
 function buildReleaseEmail(customerName: string, partnerName: string, amountCents: number): string {
   const amount = (amountCents / 100).toFixed(2)
   return `
