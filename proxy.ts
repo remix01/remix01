@@ -102,7 +102,7 @@ export async function proxy(request: NextRequest) {
 
     if (!adminUser) {
       return NextResponse.redirect(
-        new URL('/admin/login?error=unauthorized', request.url)
+        new URL('/prijava', request.url)
       )
     }
   }
