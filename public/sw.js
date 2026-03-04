@@ -20,10 +20,8 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     fetch(event.request).catch(() => {
-      return new Response('Offline - please check your connection', {
-        status: 503,
-        statusText: 'Service Unavailable',
-      })
+      return caches.match('/offline.html')
+        .then(response => response || new Response('Offline', { status: 503 }))
     })
   )
 })

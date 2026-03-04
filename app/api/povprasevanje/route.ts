@@ -5,6 +5,13 @@ import { NextResponse } from 'next/server'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: Request) {
+  // ── SECURITY: Verify user is authenticated ─────────────────────────────
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const body = await req.json()
   const { storitev, lokacija, opis, stranka_ime,
           stranka_email, stranka_telefon,
@@ -14,9 +21,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
   }
 
+  // Force narocnik_id to be the authenticated user's ID
+  // Never trust narocnik_id from request body
+  const narocnik_id = user.id
+
   const { data, error } = await supabaseAdmin
     .from('povprasevanja')
     .insert({
+      narocnik_id,
       storitev, lokacija, opis, stranka_ime,
       stranka_email, stranka_telefon,
       obrtnik_id: obrtnik_id || null,
