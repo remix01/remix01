@@ -145,9 +145,26 @@ export function CTA() {
     setIsLoading(true)
     setSubmitError(false)
     try {
-      await new Promise((r) => setTimeout(r, 1500))
+      const response = await fetch('/api/povprasevanje/public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storitev: formData.storitev,
+          lokacija: formData.lokacija,
+          opis: formData.opis || '',
+          stranka_email: formData.email,
+          stranka_telefon: formData.telefon,
+          stranka_ime: formData.email?.split('@')[0] || 'Stranka',
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Submission failed')
+      }
+      
       setSubmitted(true)
-    } catch {
+    } catch (error) {
+      console.error('[v0] Form submission error:', error)
       setSubmitError(true)
     } finally {
       setIsLoading(false)

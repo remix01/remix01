@@ -25,6 +25,8 @@ interface EmailJobPayload {
   jobType?: string
   povprasevanjeId?: string
   narocnikId?: string
+  narocnikEmail?: string
+  narocnikName?: string
   title?: string
   category?: string
   location?: string
@@ -34,41 +36,49 @@ interface EmailJobPayload {
 
 export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
   const { type, payload } = job
-  const { jobType, povprasevanjeId, narocnikId, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
+  const { jobType, povprasevanjeId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
 
-  // Handle povprasevanje confirmation
-  if (jobType === 'povprasevanje_confirmation' && povprasevanjeId && narocnikId) {
+  // Handle povprasevanje confirmation (both authenticated and public)
+  if ((jobType === 'povprasevanje_confirmation' || jobType === 'povprasevanje_confirmation_public') && povprasevanjeId) {
     try {
-      // Fetch narocnik profile
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('email, ime')
-        .eq('id', narocnikId)
-        .single()
+      let emailAddress = narocnikEmail
+      let fullName = narocnikName
 
-      if (!profile?.email) {
-        console.error('[EMAIL] Narocnik profile not found:', narocnikId)
+      // For authenticated submissions, fetch from profile if email not provided
+      if (narocnikId && !emailAddress) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('email, ime')
+          .eq('id', narocnikId)
+          .single()
+
+        if (profile?.email) {
+          emailAddress = profile.email
+          fullName = profile.ime || fullName
+        }
+      }
+
+      if (!emailAddress) {
+        console.error('[EMAIL] No email address found for povprasevanje:', povprasevanjeId)
         return
       }
 
-      const firstName = profile.ime || 'Naročnik'
       const resend = await getResendClient()
-      
       if (!resend) {
         console.error('[EMAIL] Resend client not initialized')
         return
       }
 
-      const htmlBody = buildPovprasevanjeConfirmationEmail(firstName, title || '', category || '', location || '', urgency || '', budget)
+      const htmlBody = buildPovprasevanjeConfirmationEmail(fullName || 'Naročnik', title || '', category || '', location || '', urgency || '', budget)
 
       await resend.emails.send({
         from: 'LiftGO <info@liftgo.net>',
-        to: profile.email,
+        to: emailAddress,
         subject: `✅ Povpraševanje oddano: ${title}`,
         html: htmlBody,
       })
 
-      console.log(`[EMAIL] Povprasevanje confirmation sent to ${profile.email}`)
+      console.log(`[EMAIL] Povprasevanje confirmation sent to ${emailAddress}`)
       return
     } catch (error) {
       console.error('[EMAIL] Error sending povprasevanje confirmation:', error)
