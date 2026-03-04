@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         povprasevanja_id(
           profiles(ime, priimek)
         ),
-        craftsman_id(ime, priimek)
+        partner_id(ime, priimek)
       `)
       .not('payment_status', 'is', null)
       .order('created_at', { ascending: false })
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       id: offer.id,
       date: offer.created_at,
       customer_name: offer.povprasevanja_id?.profiles ? `${offer.povprasevanja_id.profiles.ime} ${offer.povprasevanja_id.profiles.priimek}` : 'N/A',
-      obrtnik_name: offer.craftsman_id ? `${offer.craftsman_id.ime} ${offer.craftsman_id.priimek}` : 'N/A',
+      obrtnik_name: offer.partner_id ? `${offer.partner_id.ime} ${offer.partner_id.priimek}` : 'N/A',
       amount: offer.price || 0,
       payment_status: offer.payment_status,
     }))
