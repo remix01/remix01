@@ -1,6 +1,7 @@
 // Data Access Layer - Povprasevanja
 import { createClient } from '@/lib/supabase/server'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import { enqueue } from '@/lib/jobs/queue'
 import type { 
   Povprasevanje, 
   PovprasevanjeInsert, 
@@ -227,6 +228,25 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
     } catch (pushError) {
       // Don't fail the main operation if push fails
       console.error('[v0] Error sending push to obrtniki:', pushError)
+    }
+  }
+
+  // Enqueue confirmation email to naročnik
+  if (result.narocnik_id) {
+    try {
+      await enqueue('sendEmail', {
+        jobType: 'povprasevanje_confirmation',
+        povprasevanjeId: result.id,
+        narocnikId: result.narocnik_id,
+        title: result.title,
+        category: result.category?.name,
+        location: result.location_city,
+        urgency: result.urgency,
+        budget: result.budget_max,
+      })
+    } catch (emailError) {
+      // Don't fail the main operation if email enqueue fails
+      console.error('[v0] Error enqueueing confirmation email:', emailError)
     }
   }
 
