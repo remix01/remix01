@@ -21,7 +21,6 @@ interface Payout {
   obrtnik_name: string
   amount: number
   stripe_transfer_id: string
-  status: string
 }
 
 interface Stats {
@@ -178,7 +177,6 @@ export function PaymentsTable() {
                     <th className="px-6 py-3 text-left font-medium">Obrtnik</th>
                     <th className="px-6 py-3 text-left font-medium">Znesek</th>
                     <th className="px-6 py-3 text-left font-medium">Stripe ID</th>
-                    <th className="px-6 py-3 text-left font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -190,7 +188,6 @@ export function PaymentsTable() {
                       <td className="px-6 py-3">{payout.obrtnik_name}</td>
                       <td className="px-6 py-3 font-medium">€{payout.amount.toFixed(2)}</td>
                       <td className="px-6 py-3 text-xs font-mono">{payout.stripe_transfer_id}</td>
-                      <td className="px-6 py-3">{getStatusBadge(payout.status)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -28,12 +28,12 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         created_at,
-        payment_amount,
+        price,
         payment_status,
-        povprasevanje:povprasevanja_id(
-          narocnik:profiles(ime, priimek)
+        povprasevanja_id(
+          profiles(ime, priimek)
         ),
-        obrtnik:obrtnik_id(ime, priimek)
+        craftsman_id(ime, priimek)
       `)
       .not('payment_status', 'is', null)
       .order('created_at', { ascending: false })
@@ -46,8 +46,7 @@ export async function GET(request: NextRequest) {
         created_at,
         amount,
         stripe_transfer_id,
-        status,
-        obrtnik:obrtnik_id(ime, priimek)
+        craftsman_id(ime, priimek)
       `)
       .order('created_at', { ascending: false })
 
@@ -59,9 +58,9 @@ export async function GET(request: NextRequest) {
     const transactions = (offers || []).map((offer: any) => ({
       id: offer.id,
       date: offer.created_at,
-      customer_name: offer.povprasevanje?.narocnik ? `${offer.povprasevanje.narocnik.ime} ${offer.povprasevanja.narocnik.priimek}` : 'N/A',
-      obrtnik_name: offer.obrtnik ? `${offer.obrtnik.ime} ${offer.obrtnik.priimek}` : 'N/A',
-      amount: offer.payment_amount || 0,
+      customer_name: offer.povprasevanja_id?.profiles ? `${offer.povprasevanja_id.profiles.ime} ${offer.povprasevanja_id.profiles.priimek}` : 'N/A',
+      obrtnik_name: offer.craftsman_id ? `${offer.craftsman_id.ime} ${offer.craftsman_id.priimek}` : 'N/A',
+      amount: offer.price || 0,
       payment_status: offer.payment_status,
     }))
 
@@ -69,19 +68,20 @@ export async function GET(request: NextRequest) {
     const formattedPayouts = (payouts || []).map((payout: any) => ({
       id: payout.id,
       date: payout.created_at,
-      obrtnik_name: payout.obrtnik ? `${payout.obrtnik.ime} ${payout.obrtnik.priimek}` : 'N/A',
+      obrtnik_name: payout.craftsman_id ? `${payout.craftsman_id.ime} ${payout.craftsman_id.priimek}` : 'N/A',
       amount: payout.amount || 0,
       stripe_transfer_id: payout.stripe_transfer_id || 'N/A',
-      status: payout.status,
     }))
 
     // Calculate stats
     const stats = {
       totalTransactions: transactions.length,
-      totalRevenue: transactions.reduce((sum, tx) => sum + tx.amount, 0),
+      totalRevenue: transactions
+        .filter(tx => tx.payment_status === 'paid')
+        .reduce((sum, tx) => sum + tx.amount, 0),
       pendingEscrow: transactions
         .filter(tx => tx.payment_status === 'pending')
-        .reduce((sum, tx) => sum + tx.amount, 0),
+        .length,
       totalPayouts: formattedPayouts.reduce((sum, p) => sum + p.amount, 0),
     }
 
@@ -120,10 +120,10 @@ function generateCSV(transactions: any[], payouts: any[]): string {
   })
 
   csv += '\n\nIZPLAČILA OBRTNIKOV\n'
-  csv += 'Datum,Obrtnik,Znesek,Stripe ID,Status\n'
+  csv += 'Datum,Obrtnik,Znesek,Stripe ID\n'
 
   payouts.forEach(p => {
-    csv += `"${new Date(p.date).toLocaleDateString('sl-SI')}","${p.obrtnik_name}","€${p.amount.toFixed(2)}","${p.stripe_transfer_id}","${p.status}"\n`
+    csv += `"${new Date(p.date).toLocaleDateString('sl-SI')}","${p.obrtnik_name}","€${p.amount.toFixed(2)}","${p.stripe_transfer_id}"\n`
   })
 
   return csv
