@@ -222,6 +222,9 @@ export default function RootLayout({
             Nove verzije iOS že berejo metadata.icons.apple zgoraj. */}
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
+        {/* Manifest link for PWA installability */}
+        <link rel="manifest" href="/manifest.json" />
+
         {/* FIX 16: apple-mobile-web-app-capable in mobile-web-app-capable
             sta bila v originalu ročno dodana — Next.js ju že generira
             iz appleWebApp: { capable: true }. Odstranjeni — bili so duplicate. */}
