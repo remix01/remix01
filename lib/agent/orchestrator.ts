@@ -22,6 +22,12 @@ import {
   formatWorkingContextForPrompt,
 } from './memory'
 
+// ── VALIDATE REQUIRED ENVIRONMENT VARIABLES ────────────────────────────────
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error('[Orchestrator] ANTHROPIC_API_KEY is not set')
+  throw new Error('ANTHROPIC_API_KEY environment variable is required')
+}
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
@@ -291,9 +297,10 @@ export async function orchestrate(
         ),
         timestamp: Date.now(),
         success: true,
-      }).catch(err =>
-        console.error('[ORCHESTRATOR] Long-term memory flush error:', err)
-      )
+      }).catch(err => {
+        console.error('[Orchestrator] Memory write failed:', err)
+        // Don't throw - memory failure should not break the response
+      })
     }
 
     // Reject tool="chat" — agent should only call tools

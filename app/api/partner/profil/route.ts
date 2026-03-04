@@ -25,9 +25,9 @@ export async function PATCH(req: Request) {
   allowed.forEach(k => { if (body[k] !== undefined) updates[k] = body[k] })
 
   const { data, error } = await supabaseAdmin
-    .from('obrtniki')
+    .from('partners')
     .update(updates)
-    .eq('id', partner.id)
+    .eq('user_id', partner.user_id)
     .select()
     .single()
 
