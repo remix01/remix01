@@ -66,8 +66,24 @@ export default function Page() {
         }
       }
       
-      // Uspešna registracija
+      // Uspešna registracija — create partner record
       if (data.user) {
+        // Create partner record linked to the new user
+        const response = await fetch('/api/partner/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: data.user.id,
+            company_name: companyName,
+            email,
+          }),
+        })
+        
+        if (!response.ok) {
+          console.error('[v0] Failed to create partner record')
+          // Don't fail signup if partner record creation fails
+        }
+        
         router.push('/partner-auth/sign-up-success')
       }
     } catch (error: unknown) {

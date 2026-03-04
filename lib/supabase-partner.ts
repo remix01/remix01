@@ -6,7 +6,7 @@ import { env } from './env'
 import { supabaseAdmin } from './supabase-admin'
 
 /**
- * Get current logged-in partner (obrtnik) from session
+ * Get current logged-in partner from session
  */
 export async function getPartner() {
   const cookieStore = await cookies()
@@ -34,19 +34,19 @@ export async function getPartner() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
 
-  const { data: obrtnik } = await supabaseAdmin
-    .from('obrtniki')
+  const { data: partner } = await supabaseAdmin
+    .from('partners')
     .select('*, partner_paketi(*)')
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  return obrtnik
+  return partner
 }
 
 /**
  * Get partner's stats for dashboard
  */
-export async function getPartnerStats(obrtnikId: string) {
+export async function getPartnerStats(partnerId: string) {
   const [
     { count: skupaj },
     { count: nova },
@@ -57,24 +57,24 @@ export async function getPartnerStats(obrtnikId: string) {
   ] = await Promise.all([
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('obrtnik_id', obrtnikId),
+      .eq('partner_id', partnerId),
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('obrtnik_id', obrtnikId).eq('status', 'dodeljeno'),
+      .eq('partner_id', partnerId).eq('status', 'dodeljeno'),
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('obrtnik_id', obrtnikId)
+      .eq('partner_id', partnerId)
       .in('status', ['sprejeto', 'v_izvajanju']),
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('obrtnik_id', obrtnikId).eq('status', 'zakljuceno'),
+      .eq('partner_id', partnerId).eq('status', 'zakljuceno'),
     supabaseAdmin.from('povprasevanja')
       .select('created_at, status')
-      .eq('obrtnik_id', obrtnikId)
+      .eq('partner_id', partnerId)
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     supabaseAdmin.from('ocene')
       .select('ocena')
-      .eq('obrtnik_id', obrtnikId),
+      .eq('partner_id', partnerId),
   ])
 
   const povprecnaOcena = ocene && ocene.length > 0
@@ -95,13 +95,13 @@ export async function getPartnerStats(obrtnikId: string) {
 /**
  * Get partner's inquiries with filtering
  */
-export async function getPartnerInquiries(obrtnikId: string, status?: string, page = 1, limit = 10) {
+export async function getPartnerInquiries(partnerId: string, status?: string, page = 1, limit = 10) {
   const offset = (page - 1) * limit
 
   let query = supabaseAdmin
     .from('povprasevanja')
     .select('*', { count: 'exact' })
-    .eq('obrtnik_id', obrtnikId)
+    .eq('partner_id', partnerId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -115,11 +115,11 @@ export async function getPartnerInquiries(obrtnikId: string, status?: string, pa
 /**
  * Get partner's reviews
  */
-export async function getPartnerReviews(obrtnikId: string, limit = 10) {
+export async function getPartnerReviews(partnerId: string, limit = 10) {
   const { data, error } = await supabaseAdmin
     .from('ocene')
     .select('*')
-    .eq('obrtnik_id', obrtnikId)
+    .eq('partner_id', partnerId)
     .order('created_at', { ascending: false })
     .limit(limit)
 
