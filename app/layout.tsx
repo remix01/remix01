@@ -2,6 +2,7 @@ import React from 'react'
 import type { Metadata, Viewport } from 'next'
 import { Inter, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
+import { Analytics } from '@vercel/analytics/next'
 import { env } from '@/lib/env'
 import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
@@ -263,6 +264,9 @@ export default function RootLayout({
             </Script>
           </>
         )}
+
+        {/* Vercel Web Analytics */}
+        <Analytics />
       </body>
     </html>
   )
