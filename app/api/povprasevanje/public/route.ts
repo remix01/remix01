@@ -1,78 +1,86 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
-import { enqueue } from '@/lib/jobs/queue'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { Resend } from 'resend'
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json()
+    const body = await request.json()
     const { storitev, lokacija, opis, stranka_email, stranka_telefon, stranka_ime } = body
 
-    // Validation
-    if (!storitev || !lokacija || !stranka_email || !stranka_ime) {
-      return NextResponse.json(
-        { error: 'Manjkajo obvezna polja' },
-        { status: 400 }
-      )
+    if (!storitev || !lokacija) {
+      return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
     }
 
-    // Check if povprasevanja table has stranka_email and stranka_telefon columns
-    // If not, we still save the inquiry but without these fields
-    const insertData: any = {
-      storitev,
-      lokacija,
-      opis: opis || '',
-      stranka_ime,
-      status: 'novo',
-    }
-
-    // Add email and telefon fields if they exist in the table schema
-    // The table should have these columns for public submissions
-    insertData.stranka_email = stranka_email || null
-    insertData.stranka_telefon = stranka_telefon || null
-
-    // Insert into database
-    const { data, error } = await supabaseAdmin
+    const supabase = await createClient()
+    const { data, error } = await supabase
       .from('povprasevanja')
-      .insert([insertData])
-      .select()
+      .insert({
+        title: storitev,
+        description: opis || '',
+        location_city: lokacija,
+        status: 'novo',
+        stranka_email: stranka_email || null,
+        stranka_telefon: stranka_telefon || null,
+      })
+      .select('id')
       .single()
 
     if (error) {
-      console.error('[v0] Database insert error:', error)
-      return NextResponse.json(
-        { error: 'Napaka pri hrambi povpraševanja' },
-        { status: 500 }
-      )
+      console.error('[public] DB error:', error)
+      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
     }
 
-    // Send confirmation email to customer
-    // Email failure must NOT prevent success response
-    if (stranka_email) {
+    if (stranka_email && process.env.RESEND_API_KEY) {
       try {
-        await enqueue('sendEmail', {
-          jobType: 'povprasevanje_confirmation_public',
-          povprasevanjeId: data.id,
-          narocnikEmail: stranka_email,
-          narocnikName: stranka_ime,
-          title: storitev,
-          location: lokacija,
-          category: null,
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        await resend.emails.send({
+          from: 'LiftGO <info@liftgo.net>',
+          to: stranka_email,
+          subject: `✅ Povpraševanje oddano: ${storitev}`,
+          html: `
+            <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <h2 style="color:#0d9488;">Vaše povpraševanje je bilo uspešno oddano!</h2>
+              <p>Pozdravljeni${stranka_ime ? ' ' + stranka_ime : ''},</p>
+              <p>Prejeli smo vaše povpraševanje za <strong>${storitev}</strong> v kraju <strong>${lokacija}</strong>.</p>
+              <p style="background:#f0fdf4;border-left:4px solid #0d9488;padding:12px;border-radius:4px;">
+                ⏱️ Preverjen mojster vas bo kontaktiral v <strong>manj kot 2 urah</strong>.
+              </p>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+              <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="https://liftgo.net" style="color:#0d9488;">liftgo.net</a></p>
+            </div>
+          `
         })
       } catch (emailError) {
-        // Log but don't fail the request
-        console.error('[v0] Error enqueueing confirmation email:', emailError)
+        console.error('[public] Email error:', emailError)
       }
     }
 
-    return NextResponse.json(
-      { id: data.id, status: data.status },
-      { status: 201 }
-    )
-  } catch (error) {
-    console.error('[v0] Public povprasevanje error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri obdelavi povpraševanja' },
-      { status: 500 }
-    )
+    // Notify admin
+    if (process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        await resend.emails.send({
+          from: 'LiftGO <info@liftgo.net>',
+          to: process.env.ADMIN_EMAIL,
+          subject: `🔔 Novo povpraševanje: ${storitev}`,
+          html: `
+            <h3>Novo povpraševanje prejeto</h3>
+            <p><strong>Storitev:</strong> ${storitev}</p>
+            <p><strong>Lokacija:</strong> ${lokacija}</p>
+            <p><strong>Email:</strong> ${stranka_email || 'N/A'}</p>
+            <p><strong>Telefon:</strong> ${stranka_telefon || 'N/A'}</p>
+            <a href="https://liftgo.net/admin/povprasevanja">Poglej v admin →</a>
+          `
+        })
+      } catch (e) { 
+        console.error('[admin notify]', e)
+      }
+    }
+
+    return NextResponse.json({ success: true, id: data.id })
+
+  } catch (err) {
+    console.error('[public] Unexpected error:', err)
+    return NextResponse.json({ error: 'Napaka strežnika' }, { status: 500 })
   }
 }
