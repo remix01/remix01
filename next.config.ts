@@ -37,6 +37,17 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+
+  // FIX: Redirect blog article with typo slug
+  async redirects() {
+    return [
+      {
+        source: '/blog/kako-izbrati-elektroinatalaterja',
+        destination: '/blog/kako-izbrati-elektroinatalaterja',
+        permanent: false,
+      },
+    ]
+  },
 }
 
 export default nextConfig
