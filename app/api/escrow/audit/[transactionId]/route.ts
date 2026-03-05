@@ -15,8 +15,8 @@ export async function GET(
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (!user) {
       return NextResponse.json({ success: false }, { status: 401 })
     }
 
@@ -35,12 +35,12 @@ export async function GET(
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .maybeSingle()
 
     const isAdmin = profile?.role === 'admin'
-    const isPartner = escrow.partner_id === session.user.id
-    const isCustomer = escrow.customer_email === session.user.email
+    const isPartner = escrow.partner_id === user.id
+    const isCustomer = escrow.customer_email === user.email
 
     if (!isAdmin && !isPartner && !isCustomer) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })

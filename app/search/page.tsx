@@ -6,6 +6,9 @@ import SearchContent from './search-content'
 import { getMetadataForCategory } from './metadata'
 import { JsonLd } from '../components/JsonLd'
 
+// Cache search page for 5 minutes
+export const revalidate = 300
+
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }

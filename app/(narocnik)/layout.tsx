@@ -16,9 +16,9 @@ export default async function NarocnikLayout({
   const supabase = await createClient()
 
   // Check authentication
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect('/prijava')
   }
 
@@ -26,7 +26,7 @@ export default async function NarocnikLayout({
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role, full_name')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single()
 
   // Check profile exists and has correct role
@@ -45,7 +45,7 @@ export default async function NarocnikLayout({
       <div className="flex flex-col flex-1 md:ml-64 md:pb-0 pb-20">
         {/* Top Bar with Notification Bell */}
         <div className="flex items-center justify-end p-4 md:p-6 border-b md:border-b-0">
-          <NotificationBellClient userId={session.user.id} />
+          <NotificationBellClient userId={user.id} />
         </div>
 
         <main className="flex-1 p-4 md:p-6 pb-24 md:pb-0">
