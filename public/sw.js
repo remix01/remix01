@@ -1,6 +1,11 @@
 // Service Worker for LiftGO with Workbox caching strategies
 // Import Workbox from CDN (no build step needed)
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js')
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js')
+
+// CRITICAL: prevent page reload when coming back online - this prevents losing form data
+workbox.core.skipWaiting()
+workbox.core.clientsClaim()
+workbox.navigationPreload.enable()
 
 const { registerRoute } = workbox.routing
 const { CacheFirst, NetworkFirst, StaleWhileRevalidate } = workbox.strategies

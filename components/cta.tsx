@@ -170,29 +170,29 @@ export function CTA() {
       } else {
         setSubmitted(true)
       }
-    } catch (error) {
-      console.error('[v0] Form submission error:', error)
-      // Try to save to IndexedDB for offline sync
-      try {
-        const { savePendingSubmission } = await import('@/lib/pwa/indexeddb')
-        await savePendingSubmission({
-          storitev: formData.storitev,
-          lokacija: formData.lokacija,
-          opis: formData.opis || '',
-          stranka_email: formData.email,
-          stranka_telefon: formData.telefon,
-          stranka_ime: formData.email?.split('@')[0] || 'Stranka',
-        })
-        setSubmitted(true)
-        setOfflineQueued(true)
-      } catch (dbError) {
-        console.error('[v0] IndexedDB save failed:', dbError)
-        setSubmitError(true)
+      } catch (error) {
+        console.error('[v0] Form submission error:', error)
+        // Try to save to IndexedDB for offline sync
+        try {
+          const { savePendingSubmission } = await import('@/lib/pwa/db')
+          await savePendingSubmission({
+            storitev: formData.storitev,
+            lokacija: formData.lokacija,
+            opis: formData.opis || '',
+            stranka_email: formData.email,
+            stranka_telefon: formData.telefon,
+            stranka_ime: formData.email?.split('@')[0] || 'Stranka',
+          })
+          setSubmitted(true)
+          setOfflineQueued(true)
+        } catch (dbError) {
+          console.error('[v0] IndexedDB save failed:', dbError)
+          setSubmitError(true)
+        }
+      } finally {
+        setIsLoading(false)
       }
-    } finally {
-      setIsLoading(false)
     }
-  }
 
   return (
     <section id="oddaj-povprasevanje" className="scroll-mt-20 py-20 lg:py-28">

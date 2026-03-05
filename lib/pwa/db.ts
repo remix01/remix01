@@ -1,5 +1,5 @@
 // IndexedDB utilities for offline data storage
-// lib/pwa/indexeddb.ts
+// lib/pwa/db.ts
 
 const DB_NAME = 'liftgo-offline-db'
 const DB_VERSION = 1
@@ -70,6 +70,33 @@ export async function savePendingSubmission(data: any): Promise<void> {
 
 export async function getPendingSubmissions(): Promise<any[]> {
   return getFromOfflineDB('pending-submissions')
+}
+
+export async function getSyncQueueCount(): Promise<number> {
+  const submissions = await getPendingSubmissions()
+  return submissions.length
+}
+
+export async function processSyncQueue(): Promise<void> {
+  const submissions = await getPendingSubmissions()
+  
+  for (const submission of submissions) {
+    try {
+      const response = await fetch('/api/povprasevanje/public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission),
+      })
+      
+      if (response.ok) {
+        await clearPendingSubmission(submission.id)
+        console.log('[v0] Synced submission:', submission.id)
+      }
+    } catch (error) {
+      console.error('[v0] Failed to sync submission:', error)
+      // Leave in queue for retry
+    }
+  }
 }
 
 export async function clearPendingSubmission(id: number): Promise<void> {
