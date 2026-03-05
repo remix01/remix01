@@ -55,6 +55,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Notify admin
+    if (process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        await resend.emails.send({
+          from: 'LiftGO <info@liftgo.net>',
+          to: process.env.ADMIN_EMAIL,
+          subject: `🔔 Novo povpraševanje: ${storitev}`,
+          html: `
+            <h3>Novo povpraševanje prejeto</h3>
+            <p><strong>Storitev:</strong> ${storitev}</p>
+            <p><strong>Lokacija:</strong> ${lokacija}</p>
+            <p><strong>Email:</strong> ${stranka_email || 'N/A'}</p>
+            <p><strong>Telefon:</strong> ${stranka_telefon || 'N/A'}</p>
+            <a href="https://liftgo.net/admin/povprasevanja">Poglej v admin →</a>
+          `
+        })
+      } catch (e) { 
+        console.error('[admin notify]', e)
+      }
+    }
+
     return NextResponse.json({ success: true, id: data.id })
 
   } catch (err) {

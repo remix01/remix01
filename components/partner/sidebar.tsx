@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap } from 'lucide-react'
+import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell } from 'lucide-react'
 
 interface PartnerSidebarProps {
   partner: {
@@ -89,6 +89,13 @@ export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
         >
           <FileText className="h-4 w-4" />
           Ponudbe
+        </Link>
+        <Link
+          href="/partner-dashboard/notifications"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
+        >
+          <Bell className="h-4 w-4" />
+          Obvestila
         </Link>
         <Link
           href="/partner-dashboard/account"
