@@ -6,6 +6,7 @@ import { env } from '@/lib/env'
 import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
+import { OfflineBanner } from '@/components/liftgo/OfflineBanner'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalErrorHandler } from '@/components/GlobalErrorHandler'
@@ -236,6 +237,7 @@ export default function RootLayout({
       </head>
 
       <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>
+        <OfflineBanner />
         <GlobalErrorHandler />
         <ErrorBoundary>
           {children}
