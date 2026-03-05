@@ -67,6 +67,36 @@ function buildEmailContent(
         subject: 'LiftGO - Dispute Opened',
         html: `<p>A dispute has been opened for your escrow. Escrow ID: ${data.escrowId}</p>`,
       }
+    case 'povprasevanje_confirmation_public':
+    case 'povprasevanje_confirmation':
+      return {
+        subject: `✅ Povpraševanje oddano: ${data.title || data.storitev || 'Novo povpraševanje'}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #0d9488;">Vaše povpraševanje je bilo uspešno oddano!</h2>
+            <p>Pozdravljeni${data.narocnikName ? ' ' + data.narocnikName : ''},</p>
+            <p>Prejeli smo vaše povpraševanje in ga posredujemo preverjenim mojstrom.</p>
+            <table style="width:100%; border-collapse:collapse; margin: 20px 0;">
+              <tr>
+                <td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b; width:40%;">Storitev:</td>
+                <td style="padding:8px; border-bottom:1px solid #e2e8f0;"><strong>${data.title || data.storitev || 'N/A'}</strong></td>
+              </tr>
+              <tr>
+                <td style="padding:8px; border-bottom:1px solid #e2e8f0; color:#64748b;">Lokacija:</td>
+                <td style="padding:8px; border-bottom:1px solid #e2e8f0;"><strong>${data.location || data.lokacija || 'N/A'}</strong></td>
+              </tr>
+            </table>
+            <p style="background:#f0fdf4; border-left:4px solid #0d9488; padding:12px; border-radius:4px;">
+              ⏱️ Preverjen mojster vas bo kontaktiral v <strong>manj kot 2 urah</strong> na vaš email ali telefon.
+            </p>
+            <hr style="border:none; border-top:1px solid #e2e8f0; margin:24px 0;">
+            <p style="color:#94a3b8; font-size:12px;">
+              LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah<br>
+              <a href="https://liftgo.net" style="color:#0d9488;">liftgo.net</a>
+            </p>
+          </div>
+        `,
+      }
     default:
       throw new Error(`Unknown email template: ${template}`)
   }
