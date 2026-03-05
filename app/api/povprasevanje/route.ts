@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     if (obrtnik?.email) {
       try {
         await resend.emails.send({
-          from: 'LiftGO <noreply@liftgo.net>',
+          from: 'LiftGO <info@liftgo.net>',
           to: obrtnik.email,
           subject: `Novo povpraševanje — ${storitev}`,
           html: `
