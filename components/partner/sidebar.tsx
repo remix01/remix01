@@ -112,15 +112,14 @@ export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
           <p className="font-semibold text-foreground">{partner.company_name}</p>
           <p className="text-xs text-muted-foreground">{partner.category}</p>
         </div>
-        <Button 
+        <button 
           onClick={handleLogout}
           disabled={isLoading}
-          variant="outline" 
-          className="w-full justify-start gap-2 bg-transparent"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 w-full transition-colors disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" />
           {isLoading ? 'Odjavljam...' : 'Odjava'}
-        </Button>
+        </button>
       </div>
     </aside>
   )

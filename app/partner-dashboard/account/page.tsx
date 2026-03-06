@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { env } from '@/lib/env'
 import { createClient } from '@/lib/supabase/client'
 import { PartnerSidebar } from '@/components/partner/sidebar'
+import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -97,7 +98,7 @@ export default function AccountPage() {
     return (
       <div className="flex h-screen">
         <PartnerSidebar partner={{ company_name: account.company_name, category: account.category }} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="mx-auto max-w-4xl p-6 lg:p-8">
             <div className="mb-6">
               <Button
@@ -125,6 +126,7 @@ export default function AccountPage() {
             </div>
           </div>
         </main>
+        <PartnerBottomNav />
       </div>
     )
   }
@@ -132,7 +134,7 @@ export default function AccountPage() {
   return (
     <div className="flex h-screen">
       <PartnerSidebar partner={{ company_name: account.company_name, category: account.category }} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="mx-auto max-w-5xl p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold text-foreground">
@@ -254,6 +256,7 @@ export default function AccountPage() {
           </Card>
         </div>
       </main>
+      <PartnerBottomNav />
     </div>
   )
 }
