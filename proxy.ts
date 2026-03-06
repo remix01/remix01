@@ -5,11 +5,19 @@ export async function proxy(request: NextRequest) {
   // Block common WordPress/scanner attack paths
   const blockedPaths = [
     '/wp-login.php', '/wp-admin', '/xmlrpc.php', 
-    '/.env', '/admin.php', '/phpmyadmin'
+    '/.env', '/admin.php', '/phpmyadmin', '/wp-content', '/wp-includes'
   ]
-  const pathname = request.nextUrl.pathname
-  if (blockedPaths.some(p => pathname.startsWith(p))) {
+  if (blockedPaths.some(p => request.nextUrl.pathname.startsWith(p))) {
     return new NextResponse(null, { status: 404 })
+  }
+
+  // Force canonical domain
+  const host = request.headers.get('host') || ''
+  if (host.includes('vercel.app') && !host.includes('localhost')) {
+    const url = request.nextUrl.clone()
+    url.host = 'liftgo.net'
+    url.protocol = 'https'
+    return NextResponse.redirect(url, { status: 301 })
   }
 
   let supabaseResponse = NextResponse.next({ request })
