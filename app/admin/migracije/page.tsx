@@ -15,6 +15,9 @@ import { MigratePartnerAction } from '@/components/admin/MigratePartnerAction'
 import { MigrateAllPartnersAction } from '@/components/admin/MigrateAllPartnersAction'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
+// Force dynamic rendering since this page uses cookies internally via createClient()
+export const dynamic = 'force-dynamic'
+
 async function getMigrationStats() {
   try {
     const supabase = await createClient()
