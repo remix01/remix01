@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
         description: opis || '',
         location_city: lokacija,
         status: 'novo',
+        narocnik_id: null,
         stranka_email: stranka_email || null,
         stranka_telefon: stranka_telefon || null,
       })
