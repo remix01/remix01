@@ -86,11 +86,9 @@ export async function proxy(request: NextRequest) {
 
   // ── ADMIN zaščita ───────────────────────────────────────
   if (path.startsWith('/admin')) {
-    if (path === '/admin/login') return supabaseResponse
-
     if (!user) {
       return NextResponse.redirect(
-        new URL('/admin/login', request.url)
+        new URL('/prijava', request.url)
       )
     }
 
