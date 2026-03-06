@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 
 export default async function PartnerNotificationsPage() {
   const supabase = await createClient()
@@ -29,34 +30,39 @@ export default async function PartnerNotificationsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Obvestila</h1>
-      
-      {(!notifications || notifications.length === 0) ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-4xl mb-4">🔔</p>
-          <p>Ni novih obvestil</p>
+    <div className="flex h-screen bg-background">
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-0 w-full">
+        <div className="max-w-2xl mx-auto p-6">
+          <h1 className="text-2xl font-bold mb-6">Obvestila</h1>
+          
+          {(!notifications || notifications.length === 0) ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-4xl mb-4">🔔</p>
+              <p>Ni novih obvestil</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {notifications.map(n => {
+                const type = typeLabels[n.type] || { label: n.type, icon: '📬', color: 'gray' }
+                return (
+                  <div key={n.id} className={`bg-white rounded-xl border p-4 flex gap-3 ${!n.read ? 'border-teal-200 bg-teal-50' : ''}`}>
+                    <span className="text-2xl">{type.icon}</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{type.label}</p>
+                      <p className="text-sm text-muted-foreground">{n.message || n.body}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(n.created_at).toLocaleString('sl-SI')}
+                      </p>
+                    </div>
+                    {!n.read && <div className="w-2 h-2 rounded-full bg-teal-500 mt-1 flex-shrink-0" />}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {notifications.map(n => {
-            const type = typeLabels[n.type] || { label: n.type, icon: '📬', color: 'gray' }
-            return (
-              <div key={n.id} className={`bg-white rounded-xl border p-4 flex gap-3 ${!n.read ? 'border-teal-200 bg-teal-50' : ''}`}>
-                <span className="text-2xl">{type.icon}</span>
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{type.label}</p>
-                  <p className="text-sm text-muted-foreground">{n.message || n.body}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(n.created_at).toLocaleString('sl-SI')}
-                  </p>
-                </div>
-                {!n.read && <div className="w-2 h-2 rounded-full bg-teal-500 mt-1 flex-shrink-0" />}
-              </div>
-            )
-          })}
-        </div>
-      )}
+      </main>
+      <PartnerBottomNav />
     </div>
   )
 }
