@@ -90,8 +90,11 @@ self.addEventListener('fetch', (event) => {
   ) {
     const bgSyncLogic = async () => {
       try {
-        return await fetch(event.request.clone())
+        const response = await fetch(event.request.clone())
+        // Online and got response — return it directly
+        return response
       } catch (error) {
+        // ONLY queue when truly offline (fetch failed)
         await bgSyncQueue.pushRequest({ request: event.request.clone() })
         return new Response(
           JSON.stringify({ 
@@ -139,13 +142,16 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating...')
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
-      Promise.all(
-        cacheNames
-          .filter((name) => name.startsWith('liftgo-') && name !== 'liftgo-precache-v1')
-          .map((name) => caches.delete(name))
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          // Clear old caches that might have stale responses
+          if (!cacheName.includes('liftgo-')) {
+            return caches.delete(cacheName)
+          }
+        })
       )
-    )
+    })
   )
   self.clients.claim()
 })
