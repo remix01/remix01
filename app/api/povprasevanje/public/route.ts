@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         title: storitev,
         description: opis || '',
         location_city: lokacija,
-        status: 'novo',
+        status: 'odprto',
         narocnik_id: null,
         stranka_email: stranka_email || null,
         stranka_telefon: stranka_telefon || null,

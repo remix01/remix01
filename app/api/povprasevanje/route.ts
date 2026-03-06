@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       obrtnik_id: obrtnik_id || null,
       termin_datum: termin_datum || null,
       termin_ura: termin_ura || null,
-      status: obrtnik_id ? 'dodeljeno' : 'novo',
+      status: obrtnik_id ? 'dodeljeno' : 'odprto',
     })
     .select()
     .single()
