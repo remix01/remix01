@@ -2,6 +2,16 @@ import { createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+  // Block common WordPress/scanner attack paths
+  const blockedPaths = [
+    '/wp-login.php', '/wp-admin', '/xmlrpc.php', 
+    '/.env', '/admin.php', '/phpmyadmin'
+  ]
+  const pathname = request.nextUrl.pathname
+  if (blockedPaths.some(p => pathname.startsWith(p))) {
+    return new NextResponse(null, { status: 404 })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
