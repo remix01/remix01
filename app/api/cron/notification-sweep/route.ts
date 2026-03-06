@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         status
       `
       )
-      .eq('status', 'novo')
+      .eq('status', 'odprto')
       .order('created_at', { ascending: true })
 
     if (fetchError) {
