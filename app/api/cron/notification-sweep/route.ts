@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         status
       `
       )
-      .eq('status', 'novo')
+      .eq('status', 'odprto')
       .order('created_at', { ascending: true })
 
     if (fetchError) {
@@ -138,11 +138,11 @@ export async function GET(request: NextRequest) {
       notifications_sent: notificationsSent,
     })
   } catch (error) {
-    console.error('[notification-sweep] Cron error:', error)
-    return NextResponse.json(
-      { error: 'Cron job failed' },
-      { status: 500 }
-    )
+    console.error('[notification-sweep] DETAILED ERROR:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
 
