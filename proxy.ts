@@ -25,7 +25,29 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data: { user: authUser }, error } = await supabase.auth.getUser()
+    
+    // Handle expired/invalid refresh token
+    if (error?.code === 'refresh_token_not_found' ||
+        error?.message?.includes('Refresh Token Not Found') ||
+        error?.message?.includes('Invalid Refresh Token')) {
+      // Clear invalid session and redirect to login
+      const response = NextResponse.redirect(
+        new URL('/prijava', request.url)
+      )
+      response.cookies.delete('sb-access-token')
+      response.cookies.delete('sb-refresh-token')
+      return response
+    }
+    
+    user = authUser
+  } catch (e) {
+    // Silent fail — don't crash middleware
+    console.error('[v0] Proxy middleware error:', e instanceof Error ? e.message : String(e))
+  }
+
   const path = request.nextUrl.pathname
 
   // ── NAROČNIK dashboard zaščita ──────────────────────────
@@ -50,16 +72,20 @@ export async function proxy(request: NextRequest) {
     }
 
     // Preveri da je res naročnik (ne obrtnik, ne admin)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-    if (profile?.role === 'obrtnik') {
-      return NextResponse.redirect(
-        new URL('/obrtnik/dashboard', request.url)
-      )
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(
+          new URL('/obrtnik/dashboard', request.url)
+        )
+      }
+    } catch (e) {
+      console.error('[v0] Profile check error:', e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -71,15 +97,22 @@ export async function proxy(request: NextRequest) {
       )
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-    if (!profile || profile.role !== 'obrtnik') {
+      if (!profile || profile.role !== 'obrtnik') {
+        return NextResponse.redirect(
+          new URL('/prijava?error=not_obrtnik', request.url)
+        )
+      }
+    } catch (e) {
+      console.error('[v0] Obrtnik check error:', e instanceof Error ? e.message : String(e))
       return NextResponse.redirect(
-        new URL('/prijava?error=not_obrtnik', request.url)
+        new URL('/prijava?error=auth_failed', request.url)
       )
     }
   }
@@ -94,15 +127,22 @@ export async function proxy(request: NextRequest) {
       )
     }
 
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .single()
+    try {
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single()
 
-    if (!adminUser) {
+      if (!adminUser) {
+        return NextResponse.redirect(
+          new URL('/prijava', request.url)
+        )
+      }
+    } catch (e) {
+      console.error('[v0] Admin check error:', e instanceof Error ? e.message : String(e))
       return NextResponse.redirect(
-        new URL('/prijava', request.url)
+        new URL('/admin/login', request.url)
       )
     }
   }
@@ -110,33 +150,37 @@ export async function proxy(request: NextRequest) {
   // ── Preusmeritev prijavljenih stran od /prijava ─────────
   if (path === '/prijava' || path === '/registracija') {
     if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
 
-      if (profile?.role === 'obrtnik') {
+        if (profile?.role === 'obrtnik') {
+          return NextResponse.redirect(
+            new URL('/obrtnik/dashboard', request.url)
+          )
+        }
+
+        const { data: adminUser } = await supabase
+          .from('admin_users')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .single()
+
+        if (adminUser) {
+          return NextResponse.redirect(new URL('/admin', request.url))
+        }
+
+        // Naročnik
+        const redirect = request.nextUrl.searchParams.get('redirect')
         return NextResponse.redirect(
-          new URL('/obrtnik/dashboard', request.url)
+          new URL(redirect || '/dashboard', request.url)
         )
+      } catch (e) {
+        console.error('[v0] Redirect check error:', e instanceof Error ? e.message : String(e))
       }
-
-      const { data: adminUser } = await supabase
-        .from('admin_users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single()
-
-      if (adminUser) {
-        return NextResponse.redirect(new URL('/admin', request.url))
-      }
-
-      // Naročnik
-      const redirect = request.nextUrl.searchParams.get('redirect')
-      return NextResponse.redirect(
-        new URL(redirect || '/dashboard', request.url)
-      )
     }
   }
 
