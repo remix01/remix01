@@ -1,4 +1,7 @@
-import { notFound, redirect } from 'next/navigation'
+'use client'
+
+import { notFound, redirect, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { getPovprasevanje } from '@/lib/dal/povprasevanja'
 import { getPonudbeForPovprasevanje } from '@/lib/dal/ponudbe'
@@ -6,6 +9,7 @@ import PonudbeList from '@/components/narocnik/ponudbe-list'
 import { AgentMatchResults } from '@/components/liftgo/AgentMatchResults'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -67,6 +71,78 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
     'normalno': 'bg-blue-100 text-blue-800',
     'kmalu': 'bg-orange-100 text-orange-800',
     'nujno': 'bg-red-100 text-red-800',
+  }
+
+  return (
+    <PovprasevanjeDetailClient 
+      povprasevanje={povprasevanje}
+      ponudbe={ponudbe}
+      id={id}
+      createdDate={createdDate}
+      urgencyLabels={urgencyLabels}
+      statusLabels={statusLabels}
+      statusColors={statusColors}
+      urgencyColors={urgencyColors}
+    />
+  )
+}
+
+function PovprasevanjeDetailClient({
+  povprasevanje,
+  ponudbe,
+  id,
+  createdDate,
+  urgencyLabels,
+  statusLabels,
+  statusColors,
+  urgencyColors,
+}: any) {
+  const router = useRouter()
+  const [releasing, setReleasing] = useState(false)
+  const [activePonudba, setActivePonudba] = useState<any>(null)
+
+  useEffect(() => {
+    // Subscribe to realtime changes
+    const supabase = createClient()
+    const channel = supabase
+      .channel('ponudbe-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ponudbe',
+        filter: `povprasevanje_id=eq.${id}`
+      }, () => {
+        router.refresh()
+      })
+      .subscribe()
+
+    // Find accepted ponudba
+    const accepted = ponudbe.find((p: any) => p.status === 'sprejeta')
+    setActivePonudba(accepted)
+
+    return () => { supabase.removeChannel(channel) }
+  }, [id, ponudbe, router])
+
+  const handleReleasePayment = async () => {
+    if (!confirm('Ste prepričani da je delo opravljeno? Plačilo bo sproščeno mojstru.')) return
+    setReleasing(true)
+    try {
+      const res = await fetch('/api/escrow/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ponudbaId: activePonudba.id })
+      })
+      if (res.ok) {
+        alert('✅ Plačilo uspešno sproščeno!')
+        router.refresh()
+      } else {
+        alert('Napaka pri sproščanju plačila.')
+      }
+    } catch {
+      alert('Napaka pri sproščanju plačila.')
+    } finally {
+      setReleasing(false)
+    }
   }
 
   return (
@@ -137,6 +213,23 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
             povprasevanjeStatus={povprasevanje.status}
           />
         </div>
+
+        {/* Section 4: Payment Release UI */}
+        {activePonudba?.status === 'sprejeta' && (
+          <div className="border border-green-200 bg-green-50 rounded-xl p-6">
+            <h3 className="font-semibold text-green-900 mb-2">✅ Je mojster opravil delo?</h3>
+            <p className="text-sm text-green-700 mb-4">
+              Ko potrdite opravljeno delo, se plačilo sprosti mojstru.
+            </p>
+            <button
+              onClick={handleReleasePayment}
+              disabled={releasing}
+              className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 w-full"
+            >
+              {releasing ? 'Sproščam plačilo...' : '✅ Potrdi opravljeno delo'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -40,7 +40,7 @@ export async function PATCH(
   if (body.status === 'verified' && current.email) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <noreply@liftgo.net>',
+        from: 'LiftGO <info@liftgo.net>',
         to: current.email,
         subject: '✓ Vaš profil je verificiran na LiftGO!',
         html: `
@@ -59,7 +59,7 @@ export async function PATCH(
   if (body.status === 'blocked' && current.email) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <noreply@liftgo.net>',
+        from: 'LiftGO <info@liftgo.net>',
         to: current.email,
         subject: 'LiftGO — Vaš račun je bil blokiran',
         html: `

@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user.user_metadata?.role !== 'admin') {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (user?.user_metadata?.role !== 'admin') {
       return NextResponse.json({ success: false, message: 'Samo admin.' }, { status: 403 })
     }
 
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       transactionId: claimed.id,
       newStatus:     newEscrowStatus,
       actor:         'admin',
-      actorId:       session.user.id,
+      actorId:       user.id,
       extraFields: {
         ...(newEscrowStatus === 'refunded'  && { refunded_at: new Date().toISOString() }),
         ...(newEscrowStatus === 'released'  && { released_at: new Date().toISOString() }),

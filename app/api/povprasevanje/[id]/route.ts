@@ -60,7 +60,7 @@ export async function PATCH(
     if (obrtnik?.email) {
       try {
         await resend.emails.send({
-          from: 'LiftGO <noreply@liftgo.net>',
+          from: 'LiftGO <info@liftgo.net>',
           to: obrtnik.email,
           subject: `LiftGO — Dodeljeno vam je novo povpraševanje`,
           html: `

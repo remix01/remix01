@@ -61,7 +61,7 @@ export async function PATCH(
   if (status === 'sprejeto' && inquiry.stranka_email) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <noreply@liftgo.net>',
+        from: 'LiftGO <info@liftgo.net>',
         to: inquiry.stranka_email,
         subject: `✓ ${partner.ime} je sprejel vaše povpraševanje`,
         html: `
@@ -81,7 +81,7 @@ export async function PATCH(
   if (status === 'zavrnjeno' && inquiry.stranka_email) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <noreply@liftgo.net>',
+        from: 'LiftGO <info@liftgo.net>',
         to: inquiry.stranka_email,
         subject: 'LiftGO — Iščemo vam novega mojstra',
         html: `

@@ -2,6 +2,24 @@ import { createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+  // Block common WordPress/scanner attack paths
+  const blockedPaths = [
+    '/wp-login.php', '/wp-admin', '/xmlrpc.php', 
+    '/.env', '/admin.php', '/phpmyadmin', '/wp-content', '/wp-includes'
+  ]
+  if (blockedPaths.some(p => request.nextUrl.pathname.startsWith(p))) {
+    return new NextResponse(null, { status: 404 })
+  }
+
+  // Force canonical domain
+  const host = request.headers.get('host') || ''
+  if (host.includes('vercel.app') && !host.includes('localhost')) {
+    const url = request.nextUrl.clone()
+    url.host = 'liftgo.net'
+    url.protocol = 'https'
+    return NextResponse.redirect(url, { status: 301 })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -119,11 +137,9 @@ export async function proxy(request: NextRequest) {
 
   // ── ADMIN zaščita ───────────────────────────────────────
   if (path.startsWith('/admin')) {
-    if (path === '/admin/login') return supabaseResponse
-
     if (!user) {
       return NextResponse.redirect(
-        new URL('/admin/login', request.url)
+        new URL('/prijava', request.url)
       )
     }
 

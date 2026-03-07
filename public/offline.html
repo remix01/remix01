@@ -3,29 +3,152 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Offline — LiftGO</title>
+  <title>Brez povezave — LiftGO</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; }
-    .container { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-    .card { background: white; border-radius: 16px; padding: 48px 40px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-    .icon { font-size: 56px; margin-bottom: 24px; }
-    h1 { color: #0f172a; margin-bottom: 12px; font-size: 24px; font-weight: 700; }
-    p { color: #64748b; margin-bottom: 32px; line-height: 1.6; font-size: 15px; }
-    button { background: #0d9488; color: white; border: none; padding: 14px 32px; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600; width: 100%; }
-    button:hover { background: #0f766e; }
-    .logo { color: #0d9488; font-weight: 800; font-size: 20px; margin-bottom: 32px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f8fafc; min-height: 100vh; }
+    .header { background: white; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px; }
+    .logo { color: #0d9488; font-weight: 800; font-size: 20px; }
+    .badge { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .container { max-width: 600px; margin: 0 auto; padding: 24px 20px; }
+    .card { background: white; border-radius: 16px; padding: 32px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { color: #0f172a; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    p { color: #64748b; line-height: 1.6; margin-bottom: 20px; }
+    .btn { background: #0d9488; color: white; border: none; padding: 14px 28px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 12px; }
+    .btn-outline { background: transparent; color: #0d9488; border: 2px solid #0d9488; }
+    .saved-section { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+    .saved-title { font-weight: 700; color: #0f172a; margin-bottom: 16px; font-size: 16px; }
+    .saved-item { padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 8px; text-align: left; }
+    .saved-item-title { font-weight: 600; color: #0f172a; font-size: 14px; }
+    .saved-item-sub { color: #64748b; font-size: 12px; margin-top: 4px; }
+    .empty { color: #94a3b8; font-size: 14px; text-align: center; padding: 20px; }
+    .pending-badge { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
   </style>
 </head>
 <body>
+  <div class="header">
+    <span class="logo">LiftGO</span>
+    <span class="badge">📡 Brez povezave</span>
+  </div>
+  
   <div class="container">
     <div class="card">
-      <div class="logo">LiftGO</div>
       <div class="icon">📡</div>
       <h1>Ni internetne povezave</h1>
-      <p>Preverite svojo internetno povezavo in poskusite znova.</p>
-      <button onclick="window.location.reload()">Poskusi znova</button>
+      <p>Preverite svojo internetno povezavo. Medtem si lahko ogledate shranjene podatke.</p>
+      <button class="btn" onclick="window.location.reload()">🔄 Poskusi znova</button>
+      <button class="btn btn-outline" onclick="window.history.back()">← Nazaj</button>
+    </div>
+
+    <!-- Pending submissions -->
+    <div class="saved-section" id="pending-section" style="display:none; margin-bottom: 20px;">
+      <div class="saved-title">⏳ Čakajoča povpraševanja <span class="pending-badge" id="pending-count"></span></div>
+      <div id="pending-list"></div>
+      <p style="font-size:12px; color:#64748b; margin-top:8px;">Samodejno poslano, ko bo vzpostavljena povezava.</p>
+    </div>
+
+    <!-- Cached data -->
+    <div class="saved-section">
+      <div class="saved-title">💾 Shranjeni podatki</div>
+      <div id="cached-data">
+        <div class="empty">Ni shranjenih podatkov</div>
+      </div>
     </div>
   </div>
+
+  <script>
+    // Helper to open offline database
+    async function openOfflineDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('liftgo-offline-db')
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+    }
+
+    // Show pending background sync requests
+    async function loadPendingRequests() {
+      try {
+        const db = await openOfflineDB()
+        const tx = db.transaction('pending-submissions', 'readonly')
+        const store = tx.objectStore('pending-submissions')
+        
+        return new Promise((resolve) => {
+          const request = store.getAll()
+          request.onsuccess = () => {
+            const requests = request.result || []
+            if (requests && requests.length > 0) {
+              document.getElementById('pending-section').style.display = 'block'
+              document.getElementById('pending-count').textContent = requests.length
+              const list = document.getElementById('pending-list')
+              list.innerHTML = ''
+              requests.forEach(req => {
+                list.innerHTML += `
+                  <div class="saved-item">
+                    <div class="saved-item-title">Povpraševanje v čakalni vrsti</div>
+                    <div class="saved-item-sub">Čaka na pošiljanje... • ${new Date(req.timestamp).toLocaleString('sl')}</div>
+                  </div>
+                `
+              })
+            }
+            resolve()
+          }
+          request.onerror = () => resolve()
+        })
+      } catch (e) {
+        console.log('[Offline] No pending requests:', e.message)
+      }
+    }
+
+    // Load cached API data
+    async function loadCachedData() {
+      try {
+        const cache = await caches.open('liftgo-user-data-v1')
+        const requests = await cache.keys()
+        const container = document.getElementById('cached-data')
+        
+        if (requests.length === 0) {
+          return
+        }
+
+        container.innerHTML = ''
+        let count = 0
+        for (const request of requests) {
+          if (count >= 5) break
+          try {
+            const response = await cache.match(request)
+            if (response && response.headers.get('content-type')?.includes('json')) {
+              const data = await response.json()
+              const url = new URL(request.url)
+              container.innerHTML += `
+                <div class="saved-item">
+                  <div class="saved-item-title">${url.pathname.split('/').pop() || 'API'}</div>
+                  <div class="saved-item-sub">Shranjeno • ${new Date(response.headers.get('date') || Date.now()).toLocaleString('sl')}</div>
+                </div>
+              `
+              count++
+            }
+          } catch (err) {
+            console.log('[Offline] Error reading cache:', err.message)
+          }
+        }
+      } catch (e) {
+        console.log('[Offline] Cache not available:', e.message)
+      }
+    }
+
+    // Load everything on page load
+    async function loadData() {
+      await loadPendingRequests()
+      await loadCachedData()
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadData)
+    } else {
+      loadData()
+    }
+  </script>
 </body>
 </html>

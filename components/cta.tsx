@@ -75,6 +75,7 @@ export function CTA() {
   const [submitError, setSubmitError] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [gdprChecked, setGdprChecked] = useState(false)
+  const [offlineQueued, setOfflineQueued] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
     storitev: "",
@@ -158,18 +159,42 @@ export function CTA() {
         }),
       })
       
+      const data = await response.json()
+      
+      // Show offline message only if SW explicitly signals offline
+      if (data.offline === true) {
+        setOfflineQueued(true)
+      }
+      
       if (!response.ok) {
         throw new Error('Submission failed')
       }
       
       setSubmitted(true)
-    } catch (error) {
-      console.error('[v0] Form submission error:', error)
-      setSubmitError(true)
-    } finally {
-      setIsLoading(false)
+      // Always show success — email sent server-side
+      } catch (error) {
+        console.error('[v0] Form submission error:', error)
+        // Try to save to IndexedDB for offline sync
+        try {
+          const { savePendingSubmission } = await import('@/lib/pwa/db')
+          await savePendingSubmission({
+            storitev: formData.storitev,
+            lokacija: formData.lokacija,
+            opis: formData.opis || '',
+            stranka_email: formData.email,
+            stranka_telefon: formData.telefon,
+            stranka_ime: formData.email?.split('@')[0] || 'Stranka',
+          })
+          setSubmitted(true)
+          setOfflineQueued(true)
+        } catch (dbError) {
+          console.error('[v0] IndexedDB save failed:', dbError)
+          setSubmitError(true)
+        }
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }
 
   return (
     <section id="oddaj-povprasevanje" className="scroll-mt-20 py-20 lg:py-28">
@@ -198,6 +223,11 @@ export function CTA() {
                 <p className="max-w-sm text-sm text-green-700 dark:text-green-300">
                   Preverjen mojster vas bo kontaktiral v manj kot 2 urah na vašo telefonsko številko ali email.
                 </p>
+                {offlineQueued && (
+                  <p className="text-amber-700 dark:text-amber-300 text-sm mt-2">
+                    📡 Shranjeno lokalno. Samodejno poslano, ko bo vzpostavljena povezava.
+                  </p>
+                )}
                 <p className="text-xs text-green-600 dark:text-green-400">
                   Hvala za zaupanje. Ekipa LiftGO
                 </p>
