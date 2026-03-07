@@ -20,6 +20,22 @@ const nextConfig: NextConfig = {
   },
   turbopack: {},
   
+  // FIX: Add redirects for missing apple-touch-icon files
+  async redirects() {
+    return [
+      {
+        source: '/apple-touch-icon.png',
+        destination: '/icons/icon-180x180.png',
+        permanent: false,
+      },
+      {
+        source: '/apple-touch-icon-precomposed.png',
+        destination: '/icons/icon-180x180.png',
+        permanent: false,
+      },
+    ]
+  },
+  
   // FIX: Add headers for static files caching
   async headers() {
     return [
