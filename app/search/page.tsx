@@ -8,7 +8,6 @@ import { JsonLd } from '../components/JsonLd'
 
 // Cache search results for 5 minutes
 export const revalidate = 300
-export const dynamic = 'force-static'
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
