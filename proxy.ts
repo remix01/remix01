@@ -179,6 +179,92 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
+  // ── Preusmeritev prijavljenih stran od /registracija ─────────
+  if (path === '/registracija') {
+    if (!user) return NextResponse.next()
+
+    try {
+      const redirectTo = request.nextUrl.searchParams.get('redirectTo')
+      
+      // If redirectTo is /admin/* — check admin status before redirecting
+      if (redirectTo?.startsWith('/admin')) {
+        try {
+          const { data: adminUser } = await supabaseAdmin
+            .from('admin_users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .single()
+          
+          if (adminUser) {
+            return NextResponse.redirect(new URL(redirectTo, request.url))
+          }
+        } catch (e) {
+          // Admin check failed
+        }
+        return NextResponse.redirect(new URL('/', request.url))
+      }
+      
+      // For other redirectTo paths — redirect directly if valid
+      if (redirectTo?.startsWith('/')) {
+        return NextResponse.redirect(new URL(redirectTo, request.url))
+      }
+      
+      // Default — check role and redirect to appropriate dashboard
+      // First check if partner (old system)
+      try {
+        const { data: partner } = await supabaseAdmin
+          .from('partners')
+          .select('id')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (partner) {
+          return NextResponse.redirect(
+            new URL('/partner-dashboard', request.url)
+          )
+        }
+      } catch (e) {
+        // Partner check failed or no partner
+      }
+
+      // Check if obrtnik (new system)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(
+          new URL('/obrtnik/dashboard', request.url)
+        )
+      }
+
+      // Check if admin
+      const { data: adminUser } = await supabaseAdmin
+        .from('admin_users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single()
+
+      if (adminUser) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+
+      // Default to naročnik dashboard
+      const redirect = request.nextUrl.searchParams.get('redirect')
+      return NextResponse.redirect(
+        new URL(redirect || '/dashboard', request.url)
+      )
+    } catch (e) {
+      console.error('[v0] Redirect check error:', e instanceof Error ? e.message : String(e))
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+    
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
     try {
       const redirectTo = request.nextUrl.searchParams.get('redirectTo')
       
