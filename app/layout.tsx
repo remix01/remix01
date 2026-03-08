@@ -267,6 +267,9 @@ export default function RootLayout({
             </Script>
           </>
         )}
+
+        {/* Vercel Speed Insights */}
+        <SpeedInsights />
       </body>
     </html>
   )
