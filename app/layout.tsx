@@ -2,6 +2,7 @@ import React from 'react'
 import type { Metadata, Viewport } from 'next'
 import { Inter, DM_Sans } from 'next/font/google'
 import Script from 'next/script'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { env } from '@/lib/env'
 import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
@@ -250,6 +251,9 @@ export default function RootLayout({
 
         {/* Chat — prikaže se samo avtenticiranim uporabnikom */}
         <AgentChatButton />
+
+        {/* Vercel Speed Insights */}
+        <SpeedInsights />
 
         {/* Google Analytics — afterInteractive, ne vpliva na LCP/FID */}
         {env.NEXT_PUBLIC_GA_ID && (
