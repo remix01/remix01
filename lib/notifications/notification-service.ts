@@ -44,7 +44,7 @@ export class NotificationService {
           data: data || {},
         })
         .select()
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('[NotificationService] Create error:', error)

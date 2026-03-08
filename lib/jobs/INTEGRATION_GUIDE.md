@@ -116,7 +116,7 @@ export async function NEW_PATTERN_EXAMPLE() {
  * EXAMPLE: Refactored /api/escrow/release route
  */
 import { enqueue } from '@/lib/jobs'
-import { assertTransition } from '@/lib/state-machine'
+import { assertTransition } from '@/lib/agent/state-machine'
 
 export async function POST_REFACTORED(request: Request) {
   const { escrowId } = await request.json()

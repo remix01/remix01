@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { env } from '@/lib/env'
 import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-response'
 
 const registrationSchema = z.object({
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       email: validatedData.email,
       password: validatedData.password,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/partner-dashboard`,
+        emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/partner-dashboard`,
         data: {
           first_name: validatedData.firstName,
           last_name: validatedData.lastName,
@@ -58,16 +59,16 @@ export async function POST(request: NextRequest) {
     }
     
     // Send welcome email using Resend
-    if (process.env.RESEND_API_KEY) {
+    if (env.RESEND_API_KEY) {
       try {
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net',
+            from: env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net',
             to: validatedData.email,
             subject: 'Dobrodošli na LiftGO - Potrdite vaš račun',
             html: `

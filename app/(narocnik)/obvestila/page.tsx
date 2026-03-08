@@ -30,7 +30,7 @@ export default async function NotificationsPage() {
   const supabase = await createClient()
 
   // Check authentication
-  const { data: { user } } = await supabase.auth.getSession()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (!user) {
     redirect('/prijava')
   }

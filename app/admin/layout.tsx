@@ -14,7 +14,7 @@ export default async function AdminLayout({
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/auth/login')
+    redirect('/prijava')
   }
 
   // Check if user is an admin in database
@@ -26,7 +26,7 @@ export default async function AdminLayout({
     .single()
 
   if (error || !adminUser) {
-    redirect('/auth/login')
+    redirect('/prijava')
   }
 
   return (

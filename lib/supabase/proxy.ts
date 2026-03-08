@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { env } from '../env'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -9,8 +10,8 @@ export async function updateSession(request: NextRequest) {
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -37,9 +38,29 @@ export async function updateSession(request: NextRequest) {
 
   // IMPORTANT: If you remove getUser() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  
+  let user = null
+  try {
+    const { data: { user: authUser }, error } = await supabase.auth.getUser()
+    
+    // Handle expired/invalid refresh token
+    if (error?.code === 'refresh_token_not_found' ||
+        error?.message?.includes('Refresh Token Not Found') ||
+        error?.message?.includes('Invalid Refresh Token')) {
+      // Clear invalid session and redirect to login
+      const response = NextResponse.redirect(
+        new URL('/partner-auth/login', request.url)
+      )
+      response.cookies.delete('sb-access-token')
+      response.cookies.delete('sb-refresh-token')
+      return response
+    }
+    
+    user = authUser
+  } catch (e) {
+    // Silent fail — don't crash middleware
+    console.error('[v0] UpdateSession error:', e instanceof Error ? e.message : String(e))
+  }
 
   if (!user) {
     if (request.nextUrl.pathname.startsWith('/partner-dashboard')) {
@@ -51,30 +72,35 @@ export async function updateSession(request: NextRequest) {
 
   // Verify partner access for /partner-dashboard
   if (user && request.nextUrl.pathname.startsWith('/partner-dashboard')) {
-    // Check for partner record in old system
-    const { data: partner } = await supabase
-      .from('partners')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    // If no old system partner, check new system profiles/obrtnik table
-    if (!partner) {
-      const { data: obrtnikProfile } = await supabase
-        .from('profiles')
+    try {
+      // Check for partner record in old system
+      const { data: partner } = await supabase
+        .from('partners')
         .select('id')
-        .eq('auth_user_id', user.id)
-        .single()
+        .eq('id', user.id)
+        .maybeSingle()
 
-      // If neither partner nor obrtnik profile exists, redirect to signup
-      if (!obrtnikProfile) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/partner-auth/sign-up'
-        return NextResponse.redirect(url)
+      // If no old system partner, check new system profiles/obrtnik table
+      if (!partner) {
+        const { data: obrtnikProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle()
+
+        // If neither partner nor obrtnik profile exists, redirect to signup
+        if (!obrtnikProfile) {
+          const url = request.nextUrl.clone()
+          url.pathname = '/partner-auth/sign-up'
+          return NextResponse.redirect(url)
+        }
+        // Has obrtnik profile in new system - allow access
       }
-      // Has obrtnik profile in new system - allow access
+      // Has partner record in old system - allow access
+    } catch (e) {
+      console.error('[v0] Partner check error:', e instanceof Error ? e.message : String(e))
+      // Allow access on error — don't block user
     }
-    // Has partner record in old system - allow access
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

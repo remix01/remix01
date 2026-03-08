@@ -1,15 +1,13 @@
 import Stripe from 'stripe'
 import { NextResponse } from 'next/server'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
-})
+import { stripe } from '@/lib/stripe'
+import { env } from '@/lib/env'
 
 // Robustna funkcija za sestavo URL — nikoli ne vrne "undefined/pot"
 function getBaseUrl(req: Request): string {
   // 1. Najprej vzame iz env (najboljša opcija za produkcijo)
-  if (process.env.NEXT_PUBLIC_URL) {
-    const url = process.env.NEXT_PUBLIC_URL.trim()
+  if (env.NEXT_PUBLIC_URL) {
+    const url = env.NEXT_PUBLIC_URL.trim()
     // Zagotovi da ima https://
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url.replace(/\/$/, '') // Odstrani trailing slash

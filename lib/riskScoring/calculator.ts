@@ -39,7 +39,7 @@ export async function calculateJobRisk(jobId: string): Promise<RiskResult> {
       payment:payment_id(*)
     `)
     .eq('id', jobId)
-    .single()
+    .maybeSingle()
 
   if (jobError || !job) {
     throw new Error(`Job ${jobId} not found`)

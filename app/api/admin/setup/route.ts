@@ -14,11 +14,12 @@ export async function POST(request: Request) {
     }
 
     // Check if super admin already exists
-    const superAdminCount = await prisma.zaposleni.count({
-      where: { vloga: 'SUPER_ADMIN' },
-    });
+    const { count } = await supabase
+      .from('admin_users')
+      .select('*', { count: 'exact', head: true })
+      .eq('vloga', 'SUPER_ADMIN')
 
-    if (superAdminCount > 0) {
+    if ((count ?? 0) > 0) {
       return NextResponse.json(
         { error: 'Super admin already exists' },
         { status: 400 }
@@ -35,19 +36,29 @@ export async function POST(request: Request) {
     }
 
     // Create super admin from current user
-    const zaposleni = await prisma.zaposleni.create({
-      data: {
-        email: session.user.email,
+    const { data: adminUser, error } = await supabase
+      .from('admin_users')
+      .insert({
+        auth_user_id: user.id,
+        email: user.email,
         ime,
         priimek,
         vloga: 'SUPER_ADMIN',
-        createdBy: 'system', // Initial setup
-      },
-    });
+        aktiven: true,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      data: zaposleni,
+      data: adminUser,
     });
   } catch (error) {
     console.error('Error setting up admin:', error);

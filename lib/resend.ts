@@ -1,9 +1,7 @@
 import { Resend } from 'resend'
+import { env } from './env'
 
-if (!process.env.RESEND_API_KEY) {
-  throw new Error('RESEND_API_KEY is missing from environment variables')
-}
+export const resend = new Resend(env.RESEND_API_KEY)
 
-export const resend = new Resend(process.env.RESEND_API_KEY)
+export const FROM_EMAIL = env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net'
 
-export const FROM_EMAIL = process.env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net'

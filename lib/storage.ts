@@ -1,10 +1,11 @@
 'use client'
 
 import { createClient } from '@supabase/supabase-js'
+import { env } from './env'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  env.NEXT_PUBLIC_SUPABASE_URL,
+  env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
 export async function uploadFile(
@@ -59,8 +60,8 @@ export function uploadWithProgress(
   onProgress: (percent: number) => void
 ): Promise<{ url: string | null; error: string | null }> {
   return new Promise((resolve) => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
+    const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     const url = `${supabaseUrl}/storage/v1/object/${bucket}/${path}`
 
     const xhr = new XMLHttpRequest()

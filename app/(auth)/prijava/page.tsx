@@ -45,11 +45,23 @@ export default function PrijavaPage() {
       const { data: adminUser } = await supabase
         .from('admin_users')
         .select('id')
-        .eq('user_id', data.user.id)
+        .eq('auth_user_id', data.user.id)
         .single()
 
       if (adminUser) {
         router.push('/admin')
+        return
+      }
+
+      // Check for partner
+      const { data: partner } = await supabase
+        .from('partners')
+        .select('id')
+        .eq('user_id', data.user.id)
+        .single()
+
+      if (partner) {
+        router.push('/partner-dashboard')
         return
       }
 

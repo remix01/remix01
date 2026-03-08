@@ -5,16 +5,19 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { LogOut, BarChart3, FileText, Home, User } from 'lucide-react'
+import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell } from 'lucide-react'
 
 interface PartnerSidebarProps {
   partner: {
     company_name: string
     category: string
   }
+  paket?: {
+    paket: 'start' | 'pro'
+  }
 }
 
-export function PartnerSidebar({ partner }: PartnerSidebarProps) {
+export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
   const router = useRouter()
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
@@ -59,12 +62,40 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
           <BarChart3 className="h-4 w-4" />
           Statistika
         </Link>
+        
+        {/* PRO Features */}
+        {paket?.paket === 'pro' && (
+          <>
+            <Link
+              href="/partner-dashboard/crm"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
+            >
+              <TrendingUp className="h-4 w-4" />
+              CRM
+            </Link>
+            <Link
+              href="/partner-dashboard/offers/generate"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
+            >
+              <Zap className="h-4 w-4" />
+              Generator Ponudb
+            </Link>
+          </>
+        )}
+
         <Link
           href="/partner-dashboard"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
         >
           <FileText className="h-4 w-4" />
           Ponudbe
+        </Link>
+        <Link
+          href="/partner-dashboard/notifications"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
+        >
+          <Bell className="h-4 w-4" />
+          Obvestila
         </Link>
         <Link
           href="/partner-dashboard/account"
@@ -81,15 +112,14 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
           <p className="font-semibold text-foreground">{partner.company_name}</p>
           <p className="text-xs text-muted-foreground">{partner.category}</p>
         </div>
-        <Button 
+        <button 
           onClick={handleLogout}
           disabled={isLoading}
-          variant="outline" 
-          className="w-full justify-start gap-2 bg-transparent"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 w-full transition-colors disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" />
           {isLoading ? 'Odjavljam...' : 'Odjava'}
-        </Button>
+        </button>
       </div>
     </aside>
   )

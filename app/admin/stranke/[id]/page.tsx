@@ -17,9 +17,9 @@ interface PageProps {
 export default async function StrankaDetailPage({ params }: PageProps) {
   const supabase = await createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const stranka = await getStranka(params.id)
   if (!stranka) redirect('/admin/stranke')

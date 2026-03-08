@@ -1,6 +1,7 @@
 // Data Access Layer - Categories
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createPublicClient } from '@supabase/supabase-js'
+import { env } from '@/lib/env'
 import type { Category } from '@/types/marketplace'
 
 /**
@@ -9,8 +10,8 @@ import type { Category } from '@/types/marketplace'
  */
 export function getPublicSupabaseClient() {
   return createPublicClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 }
 
@@ -65,7 +66,7 @@ export async function getCategory(categoryId: string): Promise<Category | null> 
     .from('categories')
     .select('*')
     .eq('id', categoryId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching category:', error)

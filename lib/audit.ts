@@ -54,7 +54,7 @@ export async function createAuditLog(options: CreateAuditLogOptions) {
         .from('audit_log')
         .select('*')
         .eq('stripe_event_id', stripeEventId)
-        .single()
+        .maybeSingle()
 
       if (fetchError && fetchError.code !== 'PGRST116') throw fetchError
       if (existing) {
@@ -75,9 +75,10 @@ export async function createAuditLog(options: CreateAuditLogOptions) {
         metadata: metadata,
       })
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) throw new Error(error.message)
+    if (!auditLog) throw new Error('Failed to insert audit log')
 
     console.log(`[audit] ${eventType} by ${actor}`, { 
       auditLogId: auditLog.id,
@@ -104,7 +105,7 @@ export async function isStripeEventProcessed(stripeEventId: string): Promise<boo
     .from('audit_log')
     .select('*')
     .eq('stripe_event_id', stripeEventId)
-    .single()
+    .maybeSingle()
 
   if (error && error.code !== 'PGRST116') throw new Error(error.message)
   return existing !== null
