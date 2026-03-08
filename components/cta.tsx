@@ -74,6 +74,7 @@ export function CTA() {
   const [submitted, setSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [gdprChecked, setGdprChecked] = useState(false)
   const [offlineQueued, setOfflineQueued] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -142,7 +143,13 @@ export function CTA() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    
+    // Prevent double-submit
+    if (isSubmitting || isLoading) return
+    
     if (!validate()) return
+    
+    setIsSubmitting(true)
     setIsLoading(true)
     setSubmitError(false)
     try {
@@ -193,6 +200,7 @@ export function CTA() {
         }
       } finally {
         setIsLoading(false)
+        setIsSubmitting(false)
       }
     }
 
