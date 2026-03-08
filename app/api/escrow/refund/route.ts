@@ -18,9 +18,9 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
-    const { data: { session } } = await supabase.auth.getSession()
-    const isAdmin = session?.user.user_metadata?.role === 'admin'
-    if (!session || !isAdmin) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const isAdmin = user?.user_metadata?.role === 'admin'
+    if (!user || !isAdmin) {
       return forbidden('Only admin can refund transactions.')
     }
 
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       transactionId: escrow.id,
       newStatus:     'refunded',
       actor:         'admin',
-      actorId:       session.user.id,
+      actorId:       user.id,
       extraFields: {
         refunded_at:     new Date().toISOString(),
         stripe_refund_id: refund.id,

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap } from 'lucide-react'
+import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell } from 'lucide-react'
 
 interface PartnerSidebarProps {
   partner: {
@@ -91,6 +91,13 @@ export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
           Ponudbe
         </Link>
         <Link
+          href="/partner-dashboard/notifications"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
+        >
+          <Bell className="h-4 w-4" />
+          Obvestila
+        </Link>
+        <Link
           href="/partner-dashboard/account"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
         >
@@ -105,15 +112,14 @@ export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
           <p className="font-semibold text-foreground">{partner.company_name}</p>
           <p className="text-xs text-muted-foreground">{partner.category}</p>
         </div>
-        <Button 
+        <button 
           onClick={handleLogout}
           disabled={isLoading}
-          variant="outline" 
-          className="w-full justify-start gap-2 bg-transparent"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 w-full transition-colors disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" />
           {isLoading ? 'Odjavljam...' : 'Odjava'}
-        </Button>
+        </button>
       </div>
     </aside>
   )

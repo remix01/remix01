@@ -161,15 +161,17 @@ export function CTA() {
       
       const data = await response.json()
       
-      // Check if response indicates offline sync
-      if (data.offline) {
-        setSubmitted(true)
+      // Show offline message only if SW explicitly signals offline
+      if (data.offline === true) {
         setOfflineQueued(true)
-      } else if (!response.ok) {
-        throw new Error('Submission failed')
-      } else {
-        setSubmitted(true)
       }
+      
+      if (!response.ok) {
+        throw new Error('Submission failed')
+      }
+      
+      setSubmitted(true)
+      // Always show success — email sent server-side
       } catch (error) {
         console.error('[v0] Form submission error:', error)
         // Try to save to IndexedDB for offline sync

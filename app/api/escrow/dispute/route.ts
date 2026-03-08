@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (!user) {
       return unauthorized()
     }
 
     // Rate limit check
     const { allowed, retryAfter } = checkRateLimit(
-      `dispute:${session.user.id}`,
+      `dispute:${user.id}`,
       3,       // max 3 disputes
       60_000   // per minute
     )
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. DOLOČI KDO ODPIRA SPOR
-    const isPartner  = escrow.partner_id === session.user.id
+    const isPartner  = escrow.partner_id === user.id
     const openedBy   = isPartner ? 'partner' : 'customer'
 
     // 6. USTVARI SPOR
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       .insert({
         transaction_id: escrowId,
         opened_by:      openedBy,
-        opened_by_id:   session.user.id,
+        opened_by_id:   user.id,
         reason:         trimmedReason,
         description:    description?.trim() ?? null,
         status:         'open',
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       transactionId: escrow.id,
       newStatus:     'disputed',
       actor:         openedBy,
-      actorId:       session.user.id,
+      actorId:       user.id,
       metadata:      { reason: trimmedReason, openedBy },
     })
 

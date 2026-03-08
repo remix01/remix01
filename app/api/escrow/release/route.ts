@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (!user) {
       return unauthorized()
     }
 
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. PREVERI LASTNIŠTVO
-    const isPartner = escrow.partner_id === session.user.id
-    const isAdmin   = session.user.user_metadata?.role === 'admin'
+    const isPartner = escrow.partner_id === user.id
+    const isAdmin   = user.user_metadata?.role === 'admin'
     if (!isPartner && !isAdmin) {
       return forbidden()
     }
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
       transactionId: escrow.id,
       newStatus:     'released',
       actor:         isAdmin ? 'admin' : 'partner',
-      actorId:       session.user.id,
+      actorId:       user.id,
       extraFields:   { released_at: new Date().toISOString() },
       metadata: {
         confirmedByCustomer: confirmedByCustomer ?? false,

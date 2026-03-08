@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PartnerSidebar } from '@/components/partner/sidebar'
+import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { OfferForm } from '@/components/partner/offer-form'
 import { OffersList } from '@/components/partner/offers-list'
 import { PartnerStats } from '@/components/partner/partner-stats'
@@ -109,7 +110,7 @@ export default function PartnerDashboard() {
   return (
     <div className="flex h-screen bg-background">
       <PartnerSidebar partner={partner} paket={paket} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Partner Portal</h1>
@@ -174,6 +175,7 @@ export default function PartnerDashboard() {
           </Tabs>
         </div>
       </main>
+      <PartnerBottomNav paket={paket} />
     </div>
   )
 }

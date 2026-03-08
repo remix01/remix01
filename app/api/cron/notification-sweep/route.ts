@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token || token !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  console.log('[notification-sweep] Starting notification sweep...')
+
+  try {
+    const { data: povprasevanja, error } = await supabaseAdmin
+      .from('povprasevanja')
+      .select('id, title, stranka_email, created_at')
+      .eq('status', 'odprto')
+      .is('notified_at', null)
+      .limit(50)
+
+    if (error) {
+      console.error('[notification-sweep] Query error:', error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    let processed = 0
+    for (const p of povprasevanja || []) {
+      const { error: updateError } = await supabaseAdmin
+        .from('povprasevanja')
+        .update({ notified_at: new Date().toISOString() })
+        .eq('id', p.id)
+      if (!updateError) processed++
+    }
+
+    console.log(`[notification-sweep] Completed: processed=${processed}`)
+    return NextResponse.json({ success: true, processed })
+
+  } catch (error) {
+    console.error('[notification-sweep] Fatal:', error instanceof Error ? error.message : error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}

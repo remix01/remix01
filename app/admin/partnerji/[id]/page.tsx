@@ -29,9 +29,9 @@ interface PageProps {
 export default async function PartnerDetailPage({ params }: PageProps) {
   const supabase = await createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const partner = await getPartner(params.id)
   if (!partner) redirect('/admin/partnerji')

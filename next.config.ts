@@ -20,6 +20,22 @@ const nextConfig: NextConfig = {
   },
   turbopack: {},
   
+  // FIX: Add redirects for missing apple-touch-icon files
+  async redirects() {
+    return [
+      {
+        source: '/apple-touch-icon.png',
+        destination: '/icons/icon-180x180.png',
+        permanent: false,
+      },
+      {
+        source: '/apple-touch-icon-precomposed.png',
+        destination: '/icons/icon-180x180.png',
+        permanent: false,
+      },
+    ]
+  },
+  
   // FIX: Add headers for static files caching
   async headers() {
     return [
@@ -34,6 +50,27 @@ const nextConfig: NextConfig = {
       {
         source: '/manifest.json',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=3600' }],
+      },
+    ]
+  },
+
+  // FIX: Redirect blog article with typo slug
+  async redirects() {
+    return [
+      {
+        source: '/blog/kako-izbrati-elektroinatalaterja',
+        destination: '/blog/kako-izbrati-elektroinatalaterja',
+        permanent: false,
+      },
+      {
+        source: '/logo.png',
+        destination: '/icons/icon-192x192.png',
+        permanent: false,
+      },
+      {
+        source: '/images/og-image.jpg',
+        destination: '/icons/icon-512x512.png',
+        permanent: false,
       },
     ]
   },
