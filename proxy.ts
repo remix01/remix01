@@ -155,6 +155,9 @@ export async function proxy(request: NextRequest) {
           new URL('/prijava', request.url)
         )
       }
+      
+      // ✅ Admin is verified — skip all other checks and allow request
+      return NextResponse.next()
     } catch (e) {
       console.error('[v0] Admin check error:', e instanceof Error ? e.message : String(e))
       return NextResponse.redirect(
