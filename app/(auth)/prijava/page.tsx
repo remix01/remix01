@@ -42,12 +42,17 @@ function PrijavaContent() {
         return
       }
 
+      // Check for custom redirect first
+      const redirectTo = searchParams.get('redirectTo')
+      if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
+        router.push(redirectTo)
+        return
+      }
+
       // Check for admin first
       const adminRes = await fetch('/api/admin/me')
       if (adminRes.ok) {
-        const redirectTo = searchParams.get('redirectTo') || searchParams.get('next') || searchParams.get('redirect')
-        const safeRedirect = redirectTo?.startsWith('/') ? redirectTo : '/admin'
-        router.push(safeRedirect)
+        router.push('/admin')
         return
       }
 
@@ -59,9 +64,7 @@ function PrijavaContent() {
         .single()
 
       if (partner) {
-        const redirectTo = searchParams.get('redirectTo') || searchParams.get('next') || searchParams.get('redirect')
-        const safeRedirect = redirectTo?.startsWith('/') ? redirectTo : '/partner-dashboard'
-        router.push(safeRedirect)
+        router.push('/partner-dashboard')
         return
       }
 
@@ -77,16 +80,12 @@ function PrijavaContent() {
         return
       }
 
-      // Redirect based on role — with safe internal path validation
-      const redirectTo = searchParams.get('redirectTo') || searchParams.get('next') || searchParams.get('redirect')
-      
+      // Redirect based on role
       if (profile.role === 'obrtnik') {
-        const safeRedirect = redirectTo?.startsWith('/') ? redirectTo : '/obrtnik/dashboard'
-        router.push(safeRedirect)
+        router.push('/obrtnik/dashboard')
       } else {
         // Naročnik
-        const safeRedirect = redirectTo?.startsWith('/') ? redirectTo : '/dashboard'
-        router.push(safeRedirect)
+        router.push('/dashboard')
       }
     } catch (err) {
       setError('Napaka pri prijavi. Poskusite znova.')
