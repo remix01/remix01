@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 
 export default function PrijavaPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const [email, setEmail] = useState('')
@@ -77,13 +78,14 @@ export default function PrijavaPage() {
         return
       }
 
-      // Redirect based on role
+      // Redirect based on role — check for redirectTo/next/redirect params
+      const redirectTo = searchParams.get('redirectTo') || searchParams.get('next') || searchParams.get('redirect')
+      
       if (profile.role === 'obrtnik') {
-        router.push('/obrtnik/dashboard')
+        router.push(redirectTo || '/obrtnik/dashboard')
       } else {
-        // Naročnik — check for redirect param
-        const redirect = new URLSearchParams(window.location.search).get('redirect')
-        router.push(redirect || '/dashboard')
+        // Naročnik
+        router.push(redirectTo || '/dashboard')
       }
     } catch (err) {
       setError('Napaka pri prijavi. Poskusite znova.')
