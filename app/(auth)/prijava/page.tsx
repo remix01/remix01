@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,7 +44,7 @@ function PrijavaContent() {
       }
 
       // Check for admin first
-      const { data: adminUser } = await supabase
+      const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
         .select('id')
         .eq('auth_user_id', data.user.id)
