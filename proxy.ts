@@ -168,44 +168,66 @@ export async function proxy(request: NextRequest) {
 
   // ── Preusmeritev prijavljenih stran od /prijava ─────────
   if (path === '/prijava' || path === '/registracija') {
-    if (user) {
-      try {
-        // Preserve redirectTo if present and valid
-        const redirectTo = request.nextUrl.searchParams.get('redirectTo')
-        if (redirectTo?.startsWith('/')) {
-          return NextResponse.redirect(new URL(redirectTo, request.url))
+    if (!user) {
+      return NextResponse.next() // Not logged in — show login page
+    }
+
+    try {
+      const redirectTo = request.nextUrl.searchParams.get('redirectTo')
+      
+      // If redirectTo is /admin/* — check admin status before redirecting
+      if (redirectTo?.startsWith('/admin')) {
+        try {
+          const { data: adminUser } = await supabase
+            .from('admin_users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .single()
+          
+          if (adminUser) {
+            return NextResponse.redirect(new URL(redirectTo, request.url))
+          }
+        } catch (e) {
+          // Admin check failed
         }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-
-        if (profile?.role === 'obrtnik') {
-          return NextResponse.redirect(
-            new URL('/obrtnik/dashboard', request.url)
-          )
-        }
-
-        const { data: adminUser } = await supabase
-          .from('admin_users')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .single()
-
-        if (adminUser) {
-          return NextResponse.redirect(new URL('/admin', request.url))
-        }
-
-        // Naročnik — fallback to redirect or /dashboard
-        const redirect = request.nextUrl.searchParams.get('redirect')
-        return NextResponse.redirect(
-          new URL(redirect || '/dashboard', request.url)
-        )
-      } catch (e) {
-        console.error('[v0] Redirect check error:', e instanceof Error ? e.message : String(e))
+        return NextResponse.redirect(new URL('/prijava', request.url))
       }
+      
+      // For other redirectTo paths — redirect directly if valid
+      if (redirectTo?.startsWith('/')) {
+        return NextResponse.redirect(new URL(redirectTo, request.url))
+      }
+      
+      // Default — check role and redirect to appropriate dashboard
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(
+          new URL('/obrtnik/dashboard', request.url)
+        )
+      }
+
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single()
+
+      if (adminUser) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+
+      // Naročnik
+      const redirect = request.nextUrl.searchParams.get('redirect')
+      return NextResponse.redirect(
+        new URL(redirect || '/dashboard', request.url)
+      )
+    } catch (e) {
+      console.error('[v0] Redirect check error:', e instanceof Error ? e.message : String(e))
     }
   }
 
