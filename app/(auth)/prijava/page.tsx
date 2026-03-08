@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-export default function PrijavaPage() {
+function PrijavaContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -158,5 +158,13 @@ export default function PrijavaPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PrijavaPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Nalaganje...</div>}>
+      <PrijavaContent />
+    </Suspense>
   )
 }
