@@ -4,7 +4,6 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { supabaseAdmin } from '@/lib/supabase/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,19 +42,9 @@ function PrijavaContent() {
         return
       }
 
-      // Check for admin first
-      const { data: adminUser } = await supabaseAdmin
-        .from('admin_users')
-        .select('id')
-        .eq('auth_user_id', data.user.id)
-        .single()
-
-      if (adminUser) {
-        const redirectTo = searchParams.get('redirectTo') || searchParams.get('next') || searchParams.get('redirect')
-        const safeRedirect = redirectTo?.startsWith('/') ? redirectTo : '/admin'
-        router.push(safeRedirect)
-        return
-      }
+      // Check for admin first (requires server-side access)
+      // For now, skip admin check in client - it will be done server-side
+      // The user will be redirected appropriately based on their profile role
 
       // Check for partner
       const { data: partner } = await supabase
