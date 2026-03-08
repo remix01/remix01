@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { matchObrtnikiForPovprasevanje } from '@/lib/agent/liftgo-agent'
+import { runGuardrails } from '@/lib/agent/guardrails'
+import type { Role } from '@/lib/agent/permissions'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,21 +28,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Verify role
+    // 2. Get user profile with role
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role !== 'narocnik') {
+    if (!profile) {
       return NextResponse.json(
-        { error: 'Samo naročniki imajo dostop' },
+        { error: 'Forbidden' },
         { status: 403 }
       )
     }
 
-    // 3. Verify ownership
+    // 3. Build session for guardrails
+    const session = {
+      user: {
+        id: user.id,
+        email: user.email,
+        role: (profile.role === 'narocnik' ? 'user' : 'partner') as Role,
+      },
+    }
+
+    // 4. Run guardrails (permissions, schema, injection, amounts, rate limit)
+    try {
+      await runGuardrails('agent.match', { povprasevanjeId }, session)
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: error.error || 'Forbidden' },
+        { status: error.code || 403 }
+      )
+    }
+
+    // 5. Verify ownership (redundant with guardrails but keeping for clarity)
     const { data: povprasevanje } = await supabase
       .from('povprasevanja')
       .select('narocnik_id')

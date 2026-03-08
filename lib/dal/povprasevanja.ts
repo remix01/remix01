@@ -1,6 +1,7 @@
 // Data Access Layer - Povprasevanja
 import { createClient } from '@/lib/supabase/server'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import { enqueue } from '@/lib/jobs/queue'
 import type { 
   Povprasevanje, 
   PovprasevanjeInsert, 
@@ -26,7 +27,7 @@ export async function getPovprasevanje(id: string): Promise<Povprasevanje | null
       )
     `)
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching povprasevanje:', error)
@@ -206,7 +207,7 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),
       category:categories(*)
     `)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error creating povprasevanje:', error)
@@ -230,6 +231,25 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
     }
   }
 
+  // Enqueue confirmation email to naročnik
+  if (result.narocnik_id) {
+    try {
+      await enqueue('sendEmail', {
+        jobType: 'povprasevanje_confirmation',
+        povprasevanjeId: result.id,
+        narocnikId: result.narocnik_id,
+        title: result.title,
+        category: result.category?.name,
+        location: result.location_city,
+        urgency: result.urgency,
+        budget: result.budget_max,
+      })
+    } catch (emailError) {
+      // Don't fail the main operation if email enqueue fails
+      console.error('[v0] Error enqueueing confirmation email:', emailError)
+    }
+  }
+
   return result
 }
 
@@ -248,7 +268,7 @@ export async function updatePovprasevanje(id: string, updates: PovprasevanjeUpda
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),
       category:categories(*)
     `)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error updating povprasevanje:', error)

@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { env } from '@/lib/env'
 import webpush from 'web-push'
 
 // Lazy VAPID configuration function - returns false if not configured
 function getWebPush() {
-  if (!process.env.VAPID_SUBJECT || 
-      !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 
-      !process.env.VAPID_PRIVATE_KEY) {
+  if (!env.VAPID_SUBJECT || 
+      !env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 
+      !env.VAPID_PRIVATE_KEY) {
     return null
   }
   
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
+    env.VAPID_SUBJECT,
+    env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    env.VAPID_PRIVATE_KEY
   )
   return webpush
 }

@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PartnerSidebar } from '@/components/partner/sidebar'
+import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { OfferForm } from '@/components/partner/offer-form'
 import { OffersList } from '@/components/partner/offers-list'
 import { PartnerStats } from '@/components/partner/partner-stats'
 import { PaymentsSection } from '@/components/partner/payments-section'
+import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -16,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export default function PartnerDashboard() {
   const router = useRouter()
   const [partner, setPartner] = useState<any>(null)
+  const [paket, setPaket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState('overview')
@@ -51,6 +54,17 @@ export default function PartnerDashboard() {
 
         if (offersData) {
           setOffers(offersData)
+        }
+
+        // Load partner package info
+        const { data: paketData } = await sb
+          .from('partner_paketi')
+          .select('*')
+          .eq('obrtnik_id', partnerData.id)
+          .single()
+
+        if (paketData) {
+          setPaket(paketData)
         }
       }
 
@@ -95,8 +109,8 @@ export default function PartnerDashboard() {
 
   return (
     <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto">
+      <PartnerSidebar partner={partner} paket={paket} />
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Partner Portal</h1>
@@ -129,6 +143,7 @@ export default function PartnerDashboard() {
               <TabsTrigger value="overview">Pregled</TabsTrigger>
               <TabsTrigger value="offers">Ponudbe ({offers.length})</TabsTrigger>
               <TabsTrigger value="payments">Plačila & zaslužek</TabsTrigger>
+              <TabsTrigger value="notifications">Obvestila</TabsTrigger>
               <TabsTrigger value="new-offer">Nova ponudba</TabsTrigger>
             </TabsList>
 
@@ -147,6 +162,10 @@ export default function PartnerDashboard() {
               <PaymentsSection partnerId={partner.id} />
             </TabsContent>
 
+            <TabsContent value="notifications" className="space-y-6">
+              <NotificationPreferences />
+            </TabsContent>
+
             <TabsContent value="new-offer" className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Oddajte novo ponudbo</h2>
@@ -156,6 +175,7 @@ export default function PartnerDashboard() {
           </Tabs>
         </div>
       </main>
+      <PartnerBottomNav paket={paket} />
     </div>
   )
 }

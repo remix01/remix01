@@ -158,7 +158,7 @@ export default function NovoPoVprasevanjePage() {
       }
 
       // Success - redirect to povprasevanja page
-      router.push(`/narocnik/povprasevanja/${result.id}`)
+      router.push(`/povprasevanja/${result.id}`)
     } catch (err) {
       console.error('[v0] Error submitting povprasevanje:', err)
       setError('Napaka pri oddaji. Poskusite znova.')

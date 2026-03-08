@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   let query = supabaseAdmin
     .from('povprasevanja')
     .select('*', { count: 'exact' })
-    .eq('obrtnik_id', partner.id)
+    .eq('partner_id', partner.id)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 

@@ -27,7 +27,7 @@ export async function getPonudba(id: string): Promise<Ponudba | null> {
       ocena:ocene(*)
     `)
     .eq('id', id)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching ponudba:', error)
@@ -114,7 +114,7 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
         profile:profiles(*)
       )
     `)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error creating ponudba:', error)
@@ -159,7 +159,7 @@ export async function updatePonudba(id: string, updates: PonudbaUpdate): Promise
         profile:profiles(*)
       )
     `)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error updating ponudba:', error)
@@ -245,7 +245,7 @@ export async function getOcenaByPonudba(ponudbaId: string): Promise<Ocena | null
       obrtnik:obrtnik_profiles(*)
     `)
     .eq('ponudba_id', ponudbaId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -313,7 +313,7 @@ export async function createOcena(ocena: OcenaInsert): Promise<Ocena | null> {
       narocnik:profiles!ocene_narocnik_id_fkey(*),
       obrtnik:obrtnik_profiles(*)
     `)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error creating ocena:', error)
@@ -368,7 +368,7 @@ export async function getObrtnikAverageRating(obrtnikId: string): Promise<{ avg_
     .from('obrtnik_profiles')
     .select('avg_rating, total_reviews')
     .eq('id', obrtnikId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('[v0] Error fetching obrtnik rating:', error)

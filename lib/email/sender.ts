@@ -14,7 +14,7 @@ export async function sendEmail(to: string, template: EmailTemplate): Promise<vo
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM || 'LiftGO <noreply@liftgo.net>',
+    from: process.env.RESEND_FROM || 'LiftGO <info@liftgo.net>',
     to,
     subject: template.subject,
     html: template.html,

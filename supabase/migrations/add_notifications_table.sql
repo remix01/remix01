@@ -1,13 +1,18 @@
--- Create notifications table for LiftGO app
+-- Create notifications table for LiftGO app with Realtime support
 CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  type text NOT NULL CHECK (type IN ('NEW_INQUIRY','OFFER_RECEIVED','OFFER_ACCEPTED','STATUS_CHANGED','PAYMENT_RECEIVED','NEW_MESSAGE','REVIEW_RECEIVED','SYSTEM')),
+  type text NOT NULL CHECK (type IN ('NEW_INQUIRY','OFFER_RECEIVED','OFFER_ACCEPTED','STATUS_CHANGED','PAYMENT_RECEIVED','NEW_MESSAGE','REVIEW_RECEIVED','SYSTEM','offer_received','escrow_captured','escrow_released','dispute_opened','message_received')),
   title text NOT NULL,
   body text NOT NULL,
-  data jsonb DEFAULT '{}'::jsonb,
+  message text,
+  resource_id text,
+  resource_type text,
+  link text,
+  metadata jsonb DEFAULT '{}'::jsonb,
   is_read boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 -- Create index for efficient queries
@@ -29,6 +34,5 @@ CREATE POLICY notifications_update_own
   FOR UPDATE 
   USING (auth.uid() = user_id);
 
--- Policy: Only service role can insert notifications
--- (This is handled by the service_role key used in the backend)
--- No INSERT policy needed - service role bypasses RLS
+-- Enable Realtime for real-time notifications
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;

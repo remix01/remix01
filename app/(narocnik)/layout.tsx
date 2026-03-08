@@ -2,9 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { NarocnikSidebar } from '@/components/narocnik/sidebar'
 import { NarocnikBottomNav } from '@/components/narocnik/bottom-nav'
-import { NotificationBell } from '@/components/liftgo/NotificationBell'
-import { InstallPWA } from '@/components/liftgo/InstallPWA'
-import { PushPermission } from '@/components/liftgo/PushPermission'
+import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
@@ -18,9 +16,9 @@ export default async function NarocnikLayout({
   const supabase = await createClient()
 
   // Check authentication
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect('/prijava')
   }
 
@@ -28,7 +26,7 @@ export default async function NarocnikLayout({
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role, full_name')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single()
 
   // Check profile exists and has correct role
@@ -47,10 +45,10 @@ export default async function NarocnikLayout({
       <div className="flex flex-col flex-1 md:ml-64 md:pb-0 pb-20">
         {/* Top Bar with Notification Bell */}
         <div className="flex items-center justify-end p-4 md:p-6 border-b md:border-b-0">
-          <NotificationBell userId={session.user.id} />
+          <NotificationBellClient userId={user.id} />
         </div>
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 pb-24 md:pb-0">
           {children}
         </main>
       </div>
@@ -59,12 +57,6 @@ export default async function NarocnikLayout({
       <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background">
         <NarocnikBottomNav />
       </div>
-
-      {/* PWA Install Banner */}
-      <InstallPWA />
-
-      {/* Push Permission Banner */}
-      <PushPermission userId={session.user.id} />
     </div>
   )
 }

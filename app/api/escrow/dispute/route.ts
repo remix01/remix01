@@ -6,6 +6,8 @@ import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { validateStringLength, collectErrors } from '@/lib/validation'
 import { badRequest, unauthorized, conflict, internalError, apiSuccess } from '@/lib/api-response'
+import { assertEscrowTransition } from '@/lib/agent/state-machine'
+import { enqueue } from '@/lib/jobs/queue'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,14 +18,14 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (!user) {
       return unauthorized()
     }
 
     // Rate limit check
     const { allowed, retryAfter } = checkRateLimit(
-      `dispute:${session.user.id}`,
+      `dispute:${user.id}`,
       3,       // max 3 disputes
       60_000   // per minute
     )
@@ -46,6 +48,21 @@ export async function POST(request: NextRequest) {
     // 2. PREBERI TRANSAKCIJO
     const escrow = await getEscrowTransaction(escrowId)
 
+    // 2.5 STATE MACHINE GUARD — enforce valid transitions
+    // This runs AFTER permission checks, BEFORE DB writes
+    try {
+      await assertEscrowTransition(escrowId, 'disputed')
+    } catch (error: any) {
+      // State machine rejected the transition
+      if (error.code === 409) {
+        return conflict(error.error)
+      }
+      if (error.code === 404) {
+        return badRequest(error.error)
+      }
+      throw error
+    }
+
     // 3. SAMO 'paid' TRANSAKCIJE IMAJO LAHKO SPOR
     if (!['paid'].includes(escrow.status)) {
       return badRequest('Disputes are only allowed for paid transactions.')
@@ -61,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. DOLOČI KDO ODPIRA SPOR
-    const isPartner  = escrow.partner_id === session.user.id
+    const isPartner  = escrow.partner_id === user.id
     const openedBy   = isPartner ? 'partner' : 'customer'
 
     // 6. USTVARI SPOR
@@ -70,7 +87,7 @@ export async function POST(request: NextRequest) {
       .insert({
         transaction_id: escrowId,
         opened_by:      openedBy,
-        opened_by_id:   session.user.id,
+        opened_by_id:   user.id,
         reason:         trimmedReason,
         description:    description?.trim() ?? null,
         status:         'open',
@@ -83,12 +100,37 @@ export async function POST(request: NextRequest) {
       transactionId: escrow.id,
       newStatus:     'disputed',
       actor:         openedBy,
-      actorId:       session.user.id,
+      actorId:       user.id,
       metadata:      { reason: trimmedReason, openedBy },
     })
 
-    // 8. OBVESTI ADMIN (email prek lib/email.ts)
-    // await sendAdminDisputeAlert({ escrowId, openedBy, reason })
+    // 8. ENQUEUE ASYNC SIDE EFFECTS
+    // - Notify customer of dispute
+    // - Notify partner of dispute
+    // - Alert admin
+    // - Log to webhook
+    Promise.all([
+      enqueue('send_dispute_email', {
+        transactionId: escrow.id,
+        recipientEmail: escrow.customer_email,
+        recipientName: escrow.customer_name,
+        reason: `${openedBy === 'partner' ? 'Partner' : 'Customer'} opened a dispute: ${reason}`,
+      }),
+      enqueue('send_dispute_email', {
+        transactionId: escrow.id,
+        recipientEmail: escrow.partner_email,
+        recipientName: escrow.partner_name,
+        reason: `${openedBy === 'partner' ? 'You' : 'Customer'} opened a dispute: ${reason}`,
+      }),
+      enqueue('webhook_escrow_status_changed', {
+        transactionId: escrow.id,
+        statusBefore: 'paid',
+        statusAfter: 'disputed',
+        metadata: { openedBy, reason, description },
+      }),
+    ]).catch(err => {
+      console.error('[ESCROW DISPUTE] Error enqueueing jobs:', err)
+    })
 
     return apiSuccess({ message: 'Dispute opened. Our team will review within 24 hours.' })
 

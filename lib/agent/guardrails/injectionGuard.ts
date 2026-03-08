@@ -3,6 +3,8 @@
  * Scans all parameter values for malicious patterns
  */
 
+import { anomalyDetector } from '@/lib/observability/alerting'
+
 // Patterns to detect
 const INJECTION_PATTERNS = {
   // SQL injection keywords
@@ -56,6 +58,11 @@ export async function injectionGuard(params: unknown): Promise<void> {
 
   if (findings.length > 0) {
     const details = findings.map((f) => `${f.path}: ${f.pattern}`).join('; ')
+    
+    // Record injection attempt for anomaly detection (non-blocking)
+    // Note: userId not available at guardrail level, pass undefined
+    anomalyDetector.record('repeated_injection_attempts', undefined, undefined, details)
+    
     throw {
       success: false,
       error: `Suspicious input detected. Please check your request.`,

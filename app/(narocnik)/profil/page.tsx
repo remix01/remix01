@@ -3,6 +3,7 @@ import { getProfile } from '@/lib/dal/profiles'
 import { redirect } from 'next/navigation'
 import ProfilForm from '@/components/narocnik/profil-form'
 import { CalendarConnect } from '@/components/liftgo/CalendarConnect'
+import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
 
 export default async function ProfilPage() {
   const supabase = await createClient()
@@ -44,6 +45,11 @@ export default async function ProfilPage() {
             role="narocnik"
             isConnected={!!calendarConnection}
           />
+        </div>
+
+        {/* Notification Preferences Section */}
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <NotificationPreferences />
         </div>
       </div>
     </div>

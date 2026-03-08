@@ -11,7 +11,8 @@ import {
   Settings,
   LogOut,
   UserCog,
-  RefreshCw
+  RefreshCw,
+  CreditCard
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -39,10 +40,13 @@ const navItems: NavItem[] = [
   { icon: Users, label: 'Stranke', href: '/admin/stranke' },
   { icon: Briefcase, label: 'Partnerji', href: '/admin/partnerji' },
   { icon: RefreshCw, label: '🔄 Migracije', href: '/admin/migracije', roles: ['SUPER_ADMIN'] },
+  { icon: AlertTriangle, label: 'Povpraševanja', href: '/admin/povprasevanja' },
+  { icon: CreditCard, label: 'Plačila', href: '/admin/placila', roles: ['SUPER_ADMIN', 'MODERATOR'] },
+  { icon: ShieldAlert, label: 'Spori', href: '/admin/disputes' },
   { icon: AlertTriangle, label: 'Violations', href: '/admin/violations' },
   { icon: ShieldAlert, label: 'Risk Alerts', href: '/admin/risk-alerts' },
   { icon: UserCog, label: 'Zaposleni', href: '/admin/zaposleni', roles: ['SUPER_ADMIN'] },
-  { icon: Settings, label: 'Nastavitve', href: '/admin/nastavitve' },
+  { icon: Settings, label: 'Nastavitve', href: '/admin/setup' },
 ]
 
 export function AdminSidebar({ user }: AdminSidebarProps) {

@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowRight, MapPin, Banknote } from 'lucide-react'
+import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 
 interface Povprasevanje {
   id: string
@@ -70,7 +71,7 @@ export default async function PovprasevanjePage() {
 
   return (
     <div className="flex h-screen bg-background">
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Nova povpraševanja</h1>
@@ -144,7 +145,7 @@ export default async function PovprasevanjePage() {
 
                       {/* CTA Button */}
                       <div className="pt-2">
-                        <Link href="/obrtnik/povprasevanja">
+                        <Link href="/partner-dashboard">
                           <Button className="gap-2 w-full sm:w-auto">
                             Pošlji ponudbo
                             <ArrowRight className="w-4 h-4" />
@@ -159,6 +160,7 @@ export default async function PovprasevanjePage() {
           )}
         </div>
       </main>
+      <PartnerBottomNav />
     </div>
   )
 }
