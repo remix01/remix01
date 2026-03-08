@@ -43,13 +43,8 @@ function PrijavaContent() {
       }
 
       // Check for admin first
-      const { data: adminUser } = await supabase
-        .from('admin_users')
-        .select('id')
-        .eq('auth_user_id', data.user.id)
-        .single()
-
-      if (adminUser) {
+      const adminRes = await fetch('/api/admin/me')
+      if (adminRes.ok) {
         const redirectTo = searchParams.get('redirectTo') || searchParams.get('next') || searchParams.get('redirect')
         const safeRedirect = redirectTo?.startsWith('/') ? redirectTo : '/admin'
         router.push(safeRedirect)
