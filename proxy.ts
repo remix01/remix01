@@ -168,10 +168,16 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Preusmeritev prijavljenih stran od /prijava ─────────
-  if (path === '/prijava' || path === '/registracija') {
-    if (!user) {
-      return NextResponse.next() // Not logged in — show login page
+  if (path === '/prijava') {
+    if (!user) return NextResponse.next()
+    
+    const redirectTo = request.nextUrl.searchParams.get('redirectTo')
+    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
+      return NextResponse.redirect(new URL(redirectTo, request.url))
     }
+    
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
     try {
       const redirectTo = request.nextUrl.searchParams.get('redirectTo')
@@ -241,7 +247,7 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL('/admin', request.url))
       }
 
-      // Default to naročnik dashboard
+      // Default to naro��nik dashboard
       const redirect = request.nextUrl.searchParams.get('redirect')
       return NextResponse.redirect(
         new URL(redirect || '/dashboard', request.url)
