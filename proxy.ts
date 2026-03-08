@@ -179,6 +179,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
+  return supabaseResponse
+}
+    
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
   // ── Preusmeritev prijavljenih stran od /registracija ─────────
   if (path === '/registracija') {
     if (!user) return NextResponse.next()
