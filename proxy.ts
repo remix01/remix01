@@ -138,9 +138,9 @@ export async function proxy(request: NextRequest) {
   // ── ADMIN zaščita ───────────────────────────────────────
   if (path.startsWith('/admin')) {
     if (!user) {
-      return NextResponse.redirect(
-        new URL('/prijava', request.url)
-      )
+      const loginUrl = new URL('/prijava', request.url)
+      loginUrl.searchParams.set('redirectTo', path)
+      return NextResponse.redirect(loginUrl)
     }
 
     try {
@@ -151,9 +151,9 @@ export async function proxy(request: NextRequest) {
         .single()
 
       if (!adminUser) {
-        return NextResponse.redirect(
-          new URL('/prijava', request.url)
-        )
+        const loginUrl = new URL('/prijava', request.url)
+        loginUrl.searchParams.set('redirectTo', path)
+        return NextResponse.redirect(loginUrl)
       }
       
       // ✅ Admin is verified — skip all other checks and allow request
