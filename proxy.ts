@@ -200,6 +200,24 @@ export async function proxy(request: NextRequest) {
       }
       
       // Default — check role and redirect to appropriate dashboard
+      // First check if partner (old system)
+      try {
+        const { data: partner } = await supabaseAdmin
+          .from('partners')
+          .select('id')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (partner) {
+          return NextResponse.redirect(
+            new URL('/partner-dashboard', request.url)
+          )
+        }
+      } catch (e) {
+        // Partner check failed or no partner
+      }
+
+      // Check if obrtnik (new system)
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -212,6 +230,7 @@ export async function proxy(request: NextRequest) {
         )
       }
 
+      // Check if admin
       const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
         .select('id')
@@ -222,13 +241,14 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL('/admin', request.url))
       }
 
-      // Naročnik
+      // Default to naročnik dashboard
       const redirect = request.nextUrl.searchParams.get('redirect')
       return NextResponse.redirect(
         new URL(redirect || '/dashboard', request.url)
       )
     } catch (e) {
       console.error('[v0] Redirect check error:', e instanceof Error ? e.message : String(e))
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 
