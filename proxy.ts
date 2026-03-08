@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { type NextRequest, NextResponse } from 'next/server'
 
 export async function proxy(request: NextRequest) {
@@ -144,7 +145,7 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-      const { data: adminUser } = await supabase
+      const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
         .select('id')
         .eq('auth_user_id', user.id)
@@ -161,7 +162,7 @@ export async function proxy(request: NextRequest) {
     } catch (e) {
       console.error('[v0] Admin check error:', e instanceof Error ? e.message : String(e))
       return NextResponse.redirect(
-        new URL('/admin/login', request.url)
+        new URL('/', request.url)
       )
     }
   }
@@ -178,7 +179,7 @@ export async function proxy(request: NextRequest) {
       // If redirectTo is /admin/* — check admin status before redirecting
       if (redirectTo?.startsWith('/admin')) {
         try {
-          const { data: adminUser } = await supabase
+          const { data: adminUser } = await supabaseAdmin
             .from('admin_users')
             .select('id')
             .eq('auth_user_id', user.id)
@@ -190,7 +191,7 @@ export async function proxy(request: NextRequest) {
         } catch (e) {
           // Admin check failed
         }
-        return NextResponse.redirect(new URL('/prijava', request.url))
+        return NextResponse.redirect(new URL('/', request.url))
       }
       
       // For other redirectTo paths — redirect directly if valid
@@ -211,7 +212,7 @@ export async function proxy(request: NextRequest) {
         )
       }
 
-      const { data: adminUser } = await supabase
+      const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
         .select('id')
         .eq('auth_user_id', user.id)
