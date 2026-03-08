@@ -42,9 +42,14 @@ function PrijavaContent() {
         return
       }
 
-      // Check for admin first (requires server-side access)
-      // For now, skip admin check in client - it will be done server-side
-      // The user will be redirected appropriately based on their profile role
+      // Check for admin first
+      const adminRes = await fetch('/api/admin/me')
+      if (adminRes.ok) {
+        const redirectTo = searchParams.get('redirectTo') || searchParams.get('next') || searchParams.get('redirect')
+        const safeRedirect = redirectTo?.startsWith('/') ? redirectTo : '/admin'
+        router.push(safeRedirect)
+        return
+      }
 
       // Check for partner
       const { data: partner } = await supabase
