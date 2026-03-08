@@ -170,6 +170,12 @@ export async function proxy(request: NextRequest) {
   if (path === '/prijava' || path === '/registracija') {
     if (user) {
       try {
+        // Preserve redirectTo if present and valid
+        const redirectTo = request.nextUrl.searchParams.get('redirectTo')
+        if (redirectTo?.startsWith('/')) {
+          return NextResponse.redirect(new URL(redirectTo, request.url))
+        }
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
@@ -192,7 +198,7 @@ export async function proxy(request: NextRequest) {
           return NextResponse.redirect(new URL('/admin', request.url))
         }
 
-        // Naročnik
+        // Naročnik — fallback to redirect or /dashboard
         const redirect = request.nextUrl.searchParams.get('redirect')
         return NextResponse.redirect(
           new URL(redirect || '/dashboard', request.url)
