@@ -40,6 +40,7 @@ export function Navbar() {
 
   // Get current user
   useEffect(() => {
+    let isMounted = true
     const getUser = async () => {
       try {
         const supabase = createClient()
@@ -48,14 +49,20 @@ export function Navbar() {
           return
         }
         const { data: { user }, error } = await supabase.auth.getUser()
-        if (!error && user) {
+        if (isMounted && !error && user) {
           setUserId(user.id)
         }
       } catch (err) {
-        console.error('[v0] Error getting user:', err)
+        if (isMounted) {
+          console.error('[v0] Error getting user:', err)
+        }
       }
     }
     getUser()
+    
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   return (
