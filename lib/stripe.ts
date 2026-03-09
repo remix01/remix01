@@ -25,6 +25,12 @@ export const stripe = {
     capture: (...args: any[]) => getStripeClient().paymentIntents.capture(...args),
     update: (...args: any[]) => getStripeClient().paymentIntents.update(...args),
   },
+  checkout: {
+    sessions: {
+      create: (...args: any[]) => getStripeClient().checkout.sessions.create(...args),
+      retrieve: (...args: any[]) => getStripeClient().checkout.sessions.retrieve(...args),
+    },
+  },
   refunds: {
     create: (...args: any[]) => getStripeClient().refunds.create(...args),
   },
