@@ -176,6 +176,37 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL(redirectTo, request.url))
     }
     
+    // Check for admin first
+    try {
+      const { data: adminUser } = await supabaseAdmin
+        .from('admin_users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .maybeSingle()
+
+      if (adminUser) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+    } catch (e) {
+      console.error('[v0] Admin check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+    }
+
+    // Check for partner
+    try {
+      const { data: partner } = await supabase
+        .from('partners')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (partner) {
+        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+      }
+    } catch (e) {
+      console.error('[v0] Partner check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+    }
+
+    // Default fallback to home
     return NextResponse.redirect(new URL('/', request.url))
   }
 
