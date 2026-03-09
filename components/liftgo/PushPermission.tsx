@@ -11,8 +11,12 @@ interface PushPermissionProps {
 export function PushPermission({ userId }: PushPermissionProps) {
   const [showBanner, setShowBanner] = useState(false)
   const [isSubscribing, setIsSubscribing] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
+    // Mark component as mounted before any conditional rendering logic
+    setIsMounted(true)
+    
     // Check if push permission was already asked
     const hasAsked = localStorage.getItem('push_permission_asked')
     if (hasAsked === 'true') {
@@ -80,7 +84,8 @@ export function PushPermission({ userId }: PushPermissionProps) {
     setShowBanner(false)
   }
 
-  if (!showBanner) {
+  // Don't render until we've mounted and can safely check localStorage
+  if (!isMounted || !showBanner) {
     return null
   }
 
