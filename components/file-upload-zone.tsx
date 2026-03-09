@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Upload, X, FileText, Play, CheckCircle, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -27,6 +27,7 @@ export function FileUploadZone({
 }: FileUploadZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   const { files, addFiles, removeFile, uploadProgress, isUploading, errors } = useFileUpload({
     maxFiles,
@@ -38,6 +39,16 @@ export function FileUploadZone({
       }
     },
   })
+
+  // Check screen size only after mount — prevents hydration mismatch
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()

@@ -6,10 +6,13 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function CookieConsent() {
+  // Initialize as false — will hydrate properly after mount
   const [showBanner, setShowBanner] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    // Check if user has already consented
+    // Only check localStorage after component is mounted on client
+    setIsMounted(true)
     const consent = localStorage.getItem("liftgo-cookie-consent")
     if (!consent) {
       setShowBanner(true)
@@ -26,6 +29,8 @@ export function CookieConsent() {
     setShowBanner(false)
   }
 
+  // Don't render anything until we've hydrated — prevents mismatch
+  if (!isMounted) return null
   if (!showBanner) return null
 
   return (

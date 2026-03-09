@@ -7,6 +7,7 @@ export function useOfflineSync() {
   const [isOnline, setIsOnline] = useState(true)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
   const processPendingQueue = useCallback(async () => {
     try {
@@ -52,7 +53,10 @@ export function useOfflineSync() {
   }
 
   useEffect(() => {
-    // Check initial state
+    // Mark component as mounted to prevent hydration mismatch
+    setIsMounted(true)
+    
+    // Check initial state only after mount
     setIsOnline(navigator.onLine)
     processPendingQueue()
 
@@ -66,9 +70,17 @@ export function useOfflineSync() {
     }
   }, [processPendingQueue, pendingCount])
 
+  // Return safe defaults during SSR to prevent hydration mismatch
+  if (!isMounted) {
+    return {
+      isOnline: true,
+      pendingCount: 0,
+      syncMessage: null,
+    }
+  }
+
   return {
     isOnline,
     pendingCount,
     syncMessage,
   }
-}

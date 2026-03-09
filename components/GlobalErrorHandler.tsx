@@ -18,12 +18,33 @@ export function GlobalErrorHandler() {
       const message = event.reason?.message || String(event.reason) || 'Unknown error'
       addError(message)
       console.error('[GlobalErrorHandler] Unhandled rejection:', event.reason)
+      
+      // Log device info for debugging mobile issues
+      if (typeof window !== 'undefined') {
+        console.log('[v0] Device info:', {
+          userAgent: navigator.userAgent,
+          mobile: /Mobile|Android|iPhone/i.test(navigator.userAgent),
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          memory: (navigator as any).deviceMemory,
+        })
+      }
     }
 
     // Catch global errors
     const handleError = (event: ErrorEvent) => {
       addError(event.message)
       console.error('[GlobalErrorHandler] Global error:', event.error)
+      
+      // Log stack trace for hydration mismatches
+      if (event.message?.includes('Hydration failed') || event.message?.includes('mismatch')) {
+        console.error('[v0] HYDRATION MISMATCH DETECTED:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          stack: event.error?.stack,
+        })
+      }
     }
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection)
