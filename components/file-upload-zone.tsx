@@ -107,8 +107,6 @@ export function FileUploadZone({
     }
   }
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-
   return (
     <div className="grid gap-3">
       <div className="grid gap-1.5">
