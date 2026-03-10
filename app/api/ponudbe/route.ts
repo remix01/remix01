@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createPonudba } from '@/lib/dal/ponudbe'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { validateAmount, validateEnum, validateRequiredString, collectErrors } from '@/lib/validation'
 import { apiSuccess, badRequest, unauthorized, forbidden, tooManyRequests, internalError } from '@/lib/api-response'
+import { offerService, handleServiceError } from '@/lib/services'
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,20 +49,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Verify obrtnik owns this profile
-    const { data: obrtnikProfile } = await supabase
-      .from('obrtnik_profiles')
-      .select('id')
-      .eq('id', obrtnik_id)
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (!obrtnikProfile) {
-      return forbidden('You do not own this obrtnik profile')
-    }
-
-    // Create ponudba
-    const ponudba = await createPonudba({
+    // Delegate to service layer
+    const ponudba = await offerService.createPonudba(user.id, {
       povprasevanje_id,
       obrtnik_id,
       message,
@@ -72,16 +60,9 @@ export async function POST(request: NextRequest) {
       status: 'poslana'
     })
 
-    if (!ponudba) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to create ponudba' },
-        { status: 500 }
-      )
-    }
-
     return apiSuccess(ponudba)
   } catch (error) {
     console.error('[v0] Error creating ponudba:', error)
-    return internalError()
+    return handleServiceError(error)
   }
 }

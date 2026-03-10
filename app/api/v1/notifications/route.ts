@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { NotificationService } from '@/lib/notifications/notification-service'
+import { notificationService, handleServiceError } from '@/lib/services'
 import { z } from 'zod'
 
 const querySchema = z.object({
@@ -35,27 +35,15 @@ export async function GET(request: NextRequest) {
 
     const { page, limit } = validationResult.data
 
-    // Fetch notifications
-    const result = await NotificationService.list(user.id, page, limit)
+    // Delegate to service layer
+    const result = await notificationService.listNotifications(user.id, { page, limit })
 
     return NextResponse.json({
       success: true,
-      data: {
-        notifications: result.notifications,
-        pagination: {
-          page,
-          limit,
-          total: result.total,
-          totalPages: Math.ceil(result.total / limit),
-        },
-        unreadCount: result.unreadCount,
-      },
+      data: result,
     })
   } catch (error) {
     console.error('[notifications] GET error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri pridobivanju obvestil' },
-      { status: 500 }
-    )
+    return handleServiceError(error)
   }
 }

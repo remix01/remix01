@@ -6,3 +6,13 @@ export { handleStripeCancel } from './workers/stripeCancel'
 export { handleSendEmail } from './workers/sendEmail'
 export { handleAuditLog } from './workers/auditLogger'
 export { handleWebhook } from './workers/webhookWorker'
+export {
+  handleMatchRequest,
+  handleNotifyPartners,
+  handleCreateEscrow,
+  handleReleaseEscrow,
+  handleCancelEscrow,
+  handleActivateGuarantee,
+  handleTaskStarted,
+  handleRequestReview,
+} from './workers/taskProcessor'

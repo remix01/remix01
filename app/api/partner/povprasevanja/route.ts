@@ -1,6 +1,6 @@
 import { getPartner } from '@/lib/supabase-partner'
-import { supabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
+import { partnerService, handleServiceError } from '@/lib/services'
 
 /**
  * GET — partner's assigned inquiries with filters
@@ -10,22 +10,21 @@ export async function GET(req: Request) {
   if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status')
+  const status = searchParams.get('status') || undefined
   const page = parseInt(searchParams.get('page') || '1')
   const limit = 10
-  const offset = (page - 1) * limit
 
-  let query = supabaseAdmin
-    .from('povprasevanja')
-    .select('*', { count: 'exact' })
-    .eq('partner_id', partner.id)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+  try {
+    // Delegate to service layer
+    const result = await partnerService.getPartnerInquiries(partner.id, {
+      status,
+      page,
+      limit,
+    })
 
-  if (status && status !== 'vse') query = query.eq('status', status)
-
-  const { data, count, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  return NextResponse.json({ data, count, page, limit })
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error('[partner/povprasevanja] error:', error)
+    return handleServiceError(error)
+  }
 }
