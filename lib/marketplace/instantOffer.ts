@@ -6,7 +6,7 @@
  * Pulls from partner's saved offer templates and request details to create draft.
  */
 
-import { supabaseAdmin } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export interface OfferTemplate {
   id: string
@@ -25,6 +25,7 @@ export const instantOffer = {
    */
   async generateForPartner(requestId: string, partnerId: string): Promise<void> {
     try {
+      const supabaseAdmin = createAdminClient()
       console.log('[InstantOffer] Generating for partner:', { requestId, partnerId })
 
       // 1. Fetch partner's instant offer templates
@@ -156,6 +157,7 @@ export const instantOffer = {
    * Fetch partner's instant offer templates
    */
   async getTemplates(partnerId: string): Promise<OfferTemplate[]> {
+    const supabaseAdmin = createAdminClient()
     const { data: partner } = await supabaseAdmin
       .from('obrtnik_profiles')
       .select('instant_offer_templates')
@@ -172,6 +174,7 @@ export const instantOffer = {
     partnerId: string,
     templates: OfferTemplate[]
   ): Promise<void> {
+    const supabaseAdmin = createAdminClient()
     const { error } = await supabaseAdmin
       .from('obrtnik_profiles')
       .update({
