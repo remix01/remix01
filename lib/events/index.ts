@@ -11,6 +11,8 @@ import { registerEscrowSubscriber } from './subscribers/escrowSubscriber'
 
 export { eventBus } from './eventBus'
 export * from './eventTypes'
+export { OrderFulfillmentSaga } from './sagas/orderFulfillmentSaga'
+export { PaymentSaga } from './sagas/paymentSaga'
 
 /**
  * Initialize all event subscribers
