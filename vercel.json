@@ -5,6 +5,10 @@
       "schedule": "*/2 * * * *"
     },
     {
+      "path": "/api/cron/health-sweep",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/risk-check",
       "schedule": "0 */4 * * *"
     },

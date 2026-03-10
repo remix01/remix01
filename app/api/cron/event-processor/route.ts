@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { outbox } from '@/lib/events/outbox'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export async function GET(req: NextRequest) {
   // Verify CRON_SECRET
@@ -25,6 +26,21 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await outbox.processPendingBatch(50)
+
+    // Write heartbeat for cron dead-man check
+    const supabase = createAdminClient()
+    await supabase.from('alert_log').insert({
+      alert_type: 'cron_dead',
+      severity: 'warn',
+      message: 'event-processor heartbeat',
+      metadata: {
+        type: 'heartbeat',
+        processed: result.processed,
+        failed: result.failed,
+        ranAt: new Date().toISOString(),
+      },
+      resolved: true,
+    })
 
     return NextResponse.json({
       ok: true,
