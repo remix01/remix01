@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { matchPartnersForRequest } from '@/lib/agents/matching/smartMatchingAgent'
+import { matchingService, handleServiceError } from '@/lib/services'
 
 /**
  * POST /api/matching
@@ -34,7 +34,7 @@ import { matchPartnersForRequest } from '@/lib/agents/matching/smartMatchingAgen
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request body
+    // Parse and validate request body
     let body: any
     try {
       body = await request.json()
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Check authentication
+    // Check authentication
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -81,36 +81,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 3. Verify user owns this povprasevanje
-    const { data: povprasevanje, error: povError } = await supabase
-      .from('povprasevanja')
-      .select('narocnik_id')
-      .eq('id', requestId)
-      .single()
-
-    if (povError || !povprasevanje) {
-      return NextResponse.json(
-        { error: 'Povpraševanja ni bilo mogoče naložiti' },
-        { status: 404 }
-      )
-    }
-
-    if (povprasevanje.narocnik_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Nimate dostopa do tega povpraševanja' },
-        { status: 403 }
-      )
-    }
-
-    // 4. Run matching algorithm
-    const result = await matchPartnersForRequest({
+    // Delegate to service layer
+    const result = await matchingService.findMatches(
       requestId,
       lat,
       lng,
       categoryId,
-    })
+      user.id
+    )
 
-    // 5. Return results (even if no matches found)
+    // Return results
     return NextResponse.json({
       matches: result.matches || [],
       matchingId: result.matchingId,
@@ -119,9 +99,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[v0] Matching API error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri iskanju obrtnov' },
-      { status: 500 }
-    )
+    return handleServiceError(error)
   }
 }
