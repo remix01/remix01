@@ -9,7 +9,7 @@
  * Respects quiet hours (22:00-07:00) except for urgent deadline warnings
  */
 
-import { supabaseAdmin } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { notificationService } from '@/lib/services'
 
 export const workerBroadcast = {
@@ -123,6 +123,7 @@ export const workerBroadcast = {
     context?: Record<string, any>
   ): Promise<void> {
     try {
+      const supabaseAdmin = createAdminClient()
       // Fetch partner email
       const { data: partner } = await supabaseAdmin
         .from('obrtnik_profiles')
@@ -172,6 +173,7 @@ export const workerBroadcast = {
     notificationType: 'matched' | 'deadline_warning' | 'offer_accepted'
   ): Promise<void> {
     try {
+      const supabaseAdmin = createAdminClient()
       await supabaseAdmin.from('marketplace_events').insert({
         event_type: `broadcast_sent_${notificationType}`,
         request_id: requestId,

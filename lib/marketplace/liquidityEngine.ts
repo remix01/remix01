@@ -12,7 +12,7 @@ import { matchingService } from '@/lib/services'
 import { taskOrchestrator } from '@/lib/services/taskOrchestrator'
 import { workerBroadcast } from './workerBroadcast'
 import { instantOffer } from './instantOffer'
-import { supabaseAdmin } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export const liquidityEngine = {
   /**
@@ -90,7 +90,8 @@ export const liquidityEngine = {
    */
   async tryInstantOffer(requestId: string, partnerId: string): Promise<void> {
     try {
-      // Check if partner has instant offers enabled
+      const supabaseAdmin = createAdminClient()
+      // Check if partner has instant offer template enabled
       const { data: partner } = await supabaseAdmin
         .from('obrtnik_profiles')
         .select('enable_instant_offers, instant_offer_templates, plan_type')
@@ -123,6 +124,7 @@ export const liquidityEngine = {
    */
   async onGuaranteeExpired(requestId: string): Promise<void> {
     try {
+      const supabaseAdmin = createAdminClient()
       console.log('[LiquidityEngine] 2h guarantee expired for request:', requestId)
 
       // Check if any offers were accepted
