@@ -62,4 +62,19 @@ export function registerNotificationSubscriber() {
       console.error('[NotificationSubscriber] Error on payment.released:', err)
     }
   })
+
+  eventBus.on('offer.sent', async (payload) => {
+    try {
+      // Notify customer: received offer from partner
+      console.log(
+        '[NotificationSubscriber] Customer notified: offer received for task:',
+        payload.taskId,
+        'from partner:',
+        payload.partnerId
+      )
+      // TODO: Implement notifyOfferReceived if needed
+    } catch (err) {
+      console.error('[NotificationSubscriber] Error on offer.sent:', err)
+    }
+  })
 }

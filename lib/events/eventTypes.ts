@@ -51,6 +51,26 @@ export interface PaymentReleasedPayload {
   stripeTransferId?: string
 }
 
+export interface OfferSentPayload {
+  taskId: string
+  partnerId: string
+  offerId: string
+  priceMin: number
+  priceMax: number
+  estimatedDays: number
+  sentAt: string
+}
+
+export interface ReviewSubmittedPayload {
+  taskId: string
+  customerId: string
+  partnerId: string
+  reviewId: string
+  rating: number
+  comment: string
+  submittedAt: string
+}
+
 // Event map — type-safe dispatch
 export interface LiftGOEvents {
   'task.created': TaskCreatedPayload
@@ -58,6 +78,8 @@ export interface LiftGOEvents {
   'task.accepted': TaskAcceptedPayload
   'task.completed': TaskCompletedPayload
   'payment.released': PaymentReleasedPayload
+  'offer.sent': OfferSentPayload
+  'review.submitted': ReviewSubmittedPayload
 }
 
 export type EventName = keyof LiftGOEvents

@@ -54,4 +54,60 @@ export function registerAIInsightSubscriber() {
       console.error('[AIInsightSubscriber] Error on payment.released:', err)
     }
   })
+
+  eventBus.on('review.submitted', async (payload) => {
+    try {
+      // AI performs sentiment analysis on review comment
+      // Flags negative reviews (rating <= 2) for admin follow-up
+      // Updates partner trust score based on rating
+      const supabase = createAdminClient()
+
+      console.log(
+        '[AIInsightSubscriber] Analyzing review for partner:',
+        payload.partnerId,
+        'rating:',
+        payload.rating
+      )
+
+      // TODO: Implement sentiment analysis if service exists
+      // const sentiment = await sentimentAnalysis(payload.comment)
+      //
+      // if (payload.rating <= 2) {
+      //   await supabase.from('admin_alerts').insert({
+      //     type: 'low_rating',
+      //     taskId: payload.taskId,
+      //     partnerId: payload.partnerId,
+      //     rating: payload.rating,
+      //     sentiment,
+      //   })
+      // }
+      //
+      // Update partner trust score
+      // await supabase
+      //   .from('obrtnik_profiles')
+      //   .update({ trust_score: calculateTrustScore(payload.rating) })
+      //   .eq('id', payload.partnerId)
+    } catch (err) {
+      console.error('[AIInsightSubscriber] Error on review.submitted:', err)
+    }
+  })
+
+  eventBus.on('offer.sent', async (payload) => {
+    try {
+      // AI evaluates offer quality (price reasonableness, completeness)
+      // Scores stored for analytics dashboard
+      console.log('[AIInsightSubscriber] Evaluating offer quality:', payload.offerId)
+
+      // TODO: Implement offer quality scoring if service exists
+      // const score = evaluateOfferQuality({
+      //   priceMin: payload.priceMin,
+      //   priceMax: payload.priceMax,
+      //   estimatedDays: payload.estimatedDays,
+      // })
+      //
+      // await supabase.from('ponudbe').update({ quality_score: score }).eq('id', payload.offerId)
+    } catch (err) {
+      console.error('[AIInsightSubscriber] Error on offer.sent:', err)
+    }
+  })
 }
