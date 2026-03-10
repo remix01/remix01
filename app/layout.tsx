@@ -5,6 +5,7 @@ import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { env } from '@/lib/env'
+import { initEventSubscribers } from '@/lib/events'
 import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
@@ -14,6 +15,9 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalErrorHandler } from '@/components/GlobalErrorHandler'
 
 import './globals.css'
+
+// Initialize event subscribers once at app startup
+initEventSubscribers()
 
 // ─── FONTI ───────────────────────────────────────────────────────────────────
 const inter = Inter({

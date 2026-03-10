@@ -1,11 +1,14 @@
 /**
  * Payment Service - Extracted from app/api/payments/* routes
  * Handles payment operations and escrow
+ * 
+ * Emits payment.released events for subscribers to act on (analytics, notifications, etc.)
  */
 
 import { createClient } from '@/lib/supabase/server'
 import { createPaymentIntent } from '@/lib/mcp/payments'
 import { ServiceError } from './serviceError'
+import { eventBus } from '@/lib/events'
 
 export const paymentService = {
   /**
@@ -92,6 +95,44 @@ export const paymentService = {
       clientSecret: result.clientSecret,
       amount,
       currency: 'eur',
+    }
+  },
+
+  /**
+   * Process payment release after task completion
+   * Emits payment.released event for subscribers (analytics, notifications, etc.)
+   * 
+   * TODO: Integrate with Stripe transfer API
+   * For now, this is a placeholder for the event emission pattern.
+   */
+  async releasePayment(taskId: string, partnerId: string, amount: number) {
+    const commissionPercent = 10 // 10% for START plan, 5% for PRO (TODO: fetch from partner profile)
+    const commissionAmount = Math.round(amount * (commissionPercent / 100) * 100) / 100
+    const netAmount = amount - commissionAmount
+
+    // TODO: Call Stripe transfer API
+    // const transfer = await stripe.transfers.create({
+    //   amount: Math.round(netAmount * 100),
+    //   destination: partnerStripeAccountId,
+    // })
+
+    // Emit event for subscribers
+    await eventBus.emit('payment.released', {
+      taskId,
+      partnerId,
+      amount,
+      commission: commissionAmount,
+      netAmount,
+      releasedAt: new Date().toISOString(),
+      // stripeTransferId: transfer.id,
+    })
+
+    return {
+      taskId,
+      partnerId,
+      amount,
+      commission: commissionAmount,
+      netAmount,
     }
   },
 }

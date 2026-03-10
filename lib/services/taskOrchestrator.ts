@@ -5,6 +5,7 @@
  * Implements a state machine to ensure valid status transitions and trigger
  * appropriate side effects (job enqueuing) at each state.
  * 
+ * Emits events for each status transition so subscribers can react.
  * NEVER call task status updates outside this service — always use orchestrator.updateTaskStatus()
  */
 
@@ -12,6 +13,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueue, type JobType } from '@/lib/jobs'
 import { ServiceError } from './serviceError'
+import { eventBus } from '@/lib/events'
 
 // ── TYPES & STATE MACHINE
 
@@ -127,6 +129,17 @@ export const taskOrchestrator = {
       // Continue anyway — job can be retried manually
     }
 
+    // Emit task.created event for subscribers
+    await eventBus.emit('task.created', {
+      taskId: task.id,
+      customerId: data.userId,
+      categoryId: data.categoryId,
+      lat: data.lat,
+      lng: data.lng,
+      description: '',
+      createdAt: task.created_at,
+    })
+
     return {
       id: task.id,
       requestId: data.requestId,
@@ -196,6 +209,41 @@ export const taskOrchestrator = {
     }
 
     console.log(`[Orchestrator] Task ${taskId} status: ${currentStatus} → ${newStatus}`)
+
+    // Emit status-change events
+    switch (newStatus) {
+      case 'matched':
+        await eventBus.emit('task.matched', {
+          taskId,
+          matchIds: metadata?.matchIds ?? [],
+          topPartnerId: metadata?.topPartnerId ?? '',
+          topScore: metadata?.topScore ?? 0,
+          matchedAt: new Date().toISOString(),
+          deadlineAt: metadata?.deadlineAt ?? new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        })
+        break
+
+      case 'accepted':
+        await eventBus.emit('task.accepted', {
+          taskId,
+          customerId: metadata?.customerId ?? '',
+          partnerId: metadata?.partnerId ?? '',
+          offerId: metadata?.offerId ?? '',
+          agreedPrice: metadata?.agreedPrice ?? 0,
+          acceptedAt: new Date().toISOString(),
+        })
+        break
+
+      case 'completed':
+        await eventBus.emit('task.completed', {
+          taskId,
+          customerId: metadata?.customerId ?? '',
+          partnerId: metadata?.partnerId ?? '',
+          completedAt: new Date().toISOString(),
+          finalPrice: metadata?.finalPrice ?? 0,
+        })
+        break
+    }
 
     // Trigger side effects based on new status
     await taskOrchestrator.enqueueSideEffects(taskId, newStatus, metadata)
