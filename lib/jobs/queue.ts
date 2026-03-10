@@ -25,6 +25,14 @@ export type JobType =
   | 'sendEmail'
   | 'auditLog'
   | 'webhook'
+  | 'match_request'        // Orchestrator: run matching algorithm
+  | 'notify_partners'      // Orchestrator: notify partners of matches
+  | 'create_escrow'        // Orchestrator: create escrow payment
+  | 'release_escrow'       // Orchestrator: release escrow to craftworker
+  | 'cancel_escrow'        // Orchestrator: cancel/refund escrow
+  | 'activate_guarantee'   // Orchestrator: activate SLA guarantee
+  | 'task_started'         // Orchestrator: task timeline update
+  | 'request_review'       // Orchestrator: request task review from customer
 
 export interface Job<T = any> {
   data: T
