@@ -2,28 +2,17 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Star, MapPin, CheckCircle, ArrowLeft, MessageSquare } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { Star, MapPin, CheckCircle, ArrowLeft, Clock } from 'lucide-react'
 import { Breadcrumb } from '@/components/seo/breadcrumb'
-
-// This would fetch from your database
-async function getObrtnikProfile(id: string) {
-  // TODO: Implement actual database fetch
-  // For now, return a mock object structure
-  return {
-    id,
-    name: 'Primer Obrtnik',
-    business_name: 'Primer d.o.o.',
-    phone: '+386 1 234 5678',
-    email: 'info@primer.si',
-    location_city: 'Ljubljana',
-    bio: 'Strokovnjak z več kot 10 let izkušenj',
-    categories: [{ id: '1', name: 'Vodovodna dela', slug: 'vodovodna-dela' }],
-    avg_rating: 4.8,
-    review_count: 24,
-    is_verified: true,
-    created_at: new Date('2020-01-01')
-  }
-}
+import { PortfolioGallery } from '@/components/portfolio/PortfolioGallery'
+import { ReviewCard } from '@/components/portfolio/ReviewCard'
+import { RatingDisplay } from '@/components/portfolio/RatingDisplay'
+import { ServicesList } from '@/components/portfolio/ServicesList'
+import { getPublicObrtnikProfile } from '@/lib/dal/partners'
+import { getObrtnikReviews, getObrtnikReviewStats } from '@/lib/dal/reviews'
+import { getObrtnikPortfolio } from '@/lib/dal/portfolio'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -31,67 +20,63 @@ interface Props {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
-  const obrtnik = await getObrtnikProfile(params.id)
+  const obrtnik = await getPublicObrtnikProfile(params.id)
 
   if (!obrtnik) {
     return { title: 'LiftGO' }
   }
 
-  const categoryNames = obrtnik.categories.map(c => c.name).join(', ')
+  const categoryNames = obrtnik.categories?.map(c => c.name).join(', ') || 'Storitve'
 
   return {
-    title: `${obrtnik.business_name} — ${categoryNames} v ${obrtnik.location_city} | LiftGO`,
-    description: `Preverite profil, ocene in cene za ${obrtnik.business_name} na LiftGO. ${obrtnik.bio}`,
-    keywords: `${obrtnik.business_name}, ${categoryNames}, ${obrtnik.location_city}, mojster, obrtnik`,
+    title: `${obrtnik.business_name} — ${categoryNames} v ${obrtnik.profile?.location_city} | LiftGO`,
+    description: `${obrtnik.description || obrtnik.business_name} — Prevereni obrtnik na LiftGO. Ocene: ${obrtnik.avg_rating.toFixed(1)}/5`,
+    keywords: `${obrtnik.business_name}, ${categoryNames}, ${obrtnik.profile?.location_city}, obrtnik`,
     openGraph: {
-      title: `${obrtnik.business_name} na LiftGO`,
-      description: `Preverjeni strokovnjak: ${obrtnik.bio}`,
+      title: `${obrtnik.business_name} | LiftGO`,
+      description: `${obrtnik.description || 'Preverjeni obrtnik'}`,
       type: 'website',
       locale: 'sl_SI',
-      siteName: 'LiftGO'
-    }
+      siteName: 'LiftGO',
+    },
   }
 }
 
 export default async function ObrtnikProfilePage(props: Props) {
   const params = await props.params
-  const obrtnik = await getObrtnikProfile(params.id)
+  const obrtnik = await getPublicObrtnikProfile(params.id)
 
   if (!obrtnik) {
     notFound()
   }
 
-  // Generate Person + LocalBusiness schema
+  // Fetch additional data
+  const [reviews, reviewStats, portfolioImages] = await Promise.all([
+    getObrtnikReviews(params.id, 5),
+    getObrtnikReviewStats(params.id),
+    getObrtnikPortfolio(params.id),
+  ])
+
+  // Generate schema
+  const categoryNames = obrtnik.categories?.map(c => c.name).join(', ') || 'Storitve'
   const schema = {
     '@context': 'https://schema.org',
     '@type': ['Person', 'LocalBusiness'],
     'name': obrtnik.business_name,
-    'image': '/api/placeholder/obrtnik-avatar.jpg',
-    'jobTitle': obrtnik.categories.map(c => c.name).join(' in '),
-    'contactPoint': {
-      '@type': 'ContactPoint',
-      'contactType': 'Customer Service',
-      'telephone': obrtnik.phone,
-      'email': obrtnik.email
-    },
+    'jobTitle': categoryNames,
     'areaServed': {
       '@type': 'City',
-      'name': obrtnik.location_city,
-      'addressCountry': 'SI'
+      'name': obrtnik.profile?.location_city,
+      'addressCountry': 'SI',
     },
     'aggregateRating': {
       '@type': 'AggregateRating',
       'ratingValue': obrtnik.avg_rating.toFixed(1),
-      'reviewCount': obrtnik.review_count,
+      'reviewCount': obrtnik.total_reviews,
       'bestRating': '5',
-      'worstRating': '1'
+      'worstRating': '1',
     },
-    'sameAs': [
-      'https://liftgo.net/obrtniki/' + obrtnik.id
-    ]
   }
-
-  const categoryNames = obrtnik.categories.map(c => c.name).join(', ')
 
   return (
     <>
@@ -102,8 +87,8 @@ export default async function ObrtnikProfilePage(props: Props) {
 
       <Breadcrumb items={[
         { name: 'Domov', href: '/' },
-        { name: categoryNames, href: '/' + obrtnik.categories[0]?.slug || '#' },
-        { name: obrtnik.business_name, href: '/obrtniki/' + obrtnik.id }
+        { name: 'Katalog mojstrov', href: '/mojstri' },
+        { name: obrtnik.business_name, href: `/obrtniki/${obrtnik.id}` },
       ]} />
 
       <main className="min-h-screen bg-gray-50">
@@ -140,31 +125,44 @@ export default async function ObrtnikProfilePage(props: Props) {
                   )}
                 </div>
 
-                {/* Rating */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-5 h-5"
-                        fill={i < Math.floor(obrtnik.avg_rating) ? 'currentColor' : 'none'}
-                        className={i < Math.floor(obrtnik.avg_rating) ? 'text-yellow-400' : 'text-gray-300'}
-                      />
-                    ))}
+                {/* Rating and Reviews */}
+                <div className="flex items-center gap-6 mb-6">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-5 h-5 ${
+                            i < Math.floor(obrtnik.avg_rating)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="font-semibold text-lg">{obrtnik.avg_rating.toFixed(1)}</span>
                   </div>
-                  <span className="font-semibold">{obrtnik.avg_rating.toFixed(1)}</span>
-                  <span className="text-gray-600">({obrtnik.review_count} ocen)</span>
+                  <span className="text-gray-600">({obrtnik.total_reviews} ocen)</span>
+                  {obrtnik.response_time_hours && (
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      Odgovori v {obrtnik.response_time_hours}h
+                    </div>
+                  )}
                 </div>
+
+                {/* Availability */}
+                {obrtnik.is_available && (
+                  <Badge className="mb-6 bg-green-50 text-green-700 hover:bg-green-100">
+                    Dostopen
+                  </Badge>
+                )}
 
                 {/* Location & Contact */}
                 <div className="flex flex-col gap-3 text-sm mb-6">
                   <div className="flex items-center gap-2 text-gray-700">
                     <MapPin className="w-5 h-5 text-gray-400" />
-                    {obrtnik.location_city}, Slovenija
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <MessageSquare className="w-5 h-5 text-gray-400" />
-                    {obrtnik.email}
+                    {obrtnik.profile?.location_city}, Slovenija
                   </div>
                 </div>
 
@@ -191,51 +189,69 @@ export default async function ObrtnikProfilePage(props: Props) {
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-2xl font-bold mb-6">O mojstru</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              {obrtnik.bio}
+              {obrtnik.description || 'Izkušen in preverjeni obrtnik.'}
             </p>
             <div className="bg-white border rounded-lg p-6">
               <h3 className="font-semibold mb-4">Storitve</h3>
-              <div className="flex flex-wrap gap-2">
-                {obrtnik.categories.map(category => (
-                  <Link
-                    key={category.id}
-                    href={`/${category.slug}`}
-                    className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm hover:bg-blue-100"
-                  >
-                    {category.name}
-                  </Link>
-                ))}
-              </div>
+              {obrtnik.categories && obrtnik.categories.length > 0 ? (
+                <ServicesList services={obrtnik.categories} />
+              ) : (
+                <p className="text-gray-500 text-sm">Storitve niso navedene.</p>
+              )}
             </div>
           </div>
         </section>
 
-        {/* Reviews Section Placeholder */}
+        {/* Portfolio Section */}
+        {portfolioImages.length > 0 && (
+          <section className="py-12 bg-white border-t">
+            <div className="max-w-4xl mx-auto px-4">
+              <PortfolioGallery
+                images={portfolioImages.map((img) => ({
+                  id: img.id,
+                  url: img.url,
+                  title: img.title,
+                  description: img.description,
+                }))}
+                title="Portfelj del"
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Reviews Section */}
         <section className="py-12 bg-white border-t">
           <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-2xl font-bold mb-6">Ocene ({obrtnik.review_count})</h2>
-            <div className="text-center py-12 text-gray-500">
-              <p>Ocene se bodo prikažile tukaj</p>
-            </div>
-          </div>
-        </section>
+            <h2 className="text-2xl font-bold mb-6">
+              Ocene ({reviewStats.total})
+            </h2>
 
-        {/* Related Categories */}
-        <section className="py-12">
-          <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-2xl font-bold mb-6">Podobne storitve</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {obrtnik.categories.slice(0, 3).map(category => (
-                <Link
-                  key={category.id}
-                  href={`/${category.slug}/${obrtnik.location_city.toLowerCase()}`}
-                  className="p-4 border rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <p className="font-semibold">{category.name}</p>
-                  <p className="text-sm text-gray-600">v {obrtnik.location_city}</p>
-                </Link>
-              ))}
-            </div>
+            {reviewStats.total > 0 ? (
+              <div className="space-y-6">
+                {/* Summary */}
+                <RatingDisplay
+                  average={reviewStats.average}
+                  total={reviewStats.total}
+                  distribution={reviewStats.distribution}
+                />
+
+                {/* Recent Reviews */}
+                {reviews.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Nedavne ocene</h3>
+                    <div className="space-y-3">
+                      {reviews.map((review) => (
+                        <ReviewCard key={review.id} review={review} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <p>Trenutno ni nobene ocene. Bodite prvi, ki ste dali oceno!</p>
+              </div>
+            )}
           </div>
         </section>
       </main>
