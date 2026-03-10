@@ -1,8 +1,13 @@
 /**
- * Event Type Definitions — Type-safe event payload contracts
+ * Event Type Definitions — Slim payload contracts
  * 
- * Each event has a strongly-typed payload structure.
- * Used by eventBus.emit<T>() and subscribers for type safety.
+ * Each event contains ONLY:
+ * - Entity IDs (taskId, customerId, partnerId, etc.)
+ * - Primitive values (scores, prices, ratings)
+ * - Timestamps (createdAt, sentAt, etc.)
+ * 
+ * Subscribers fetch detailed data from DB as needed.
+ * This keeps event payloads small and prevents PII leakage.
  */
 
 export interface TaskCreatedPayload {
@@ -11,7 +16,6 @@ export interface TaskCreatedPayload {
   categoryId: string
   lat: number
   lng: number
-  description: string
   createdAt: string
 }
 
@@ -37,8 +41,8 @@ export interface TaskCompletedPayload {
   taskId: string
   customerId: string
   partnerId: string
-  completedAt: string
   finalPrice: number
+  completedAt: string
 }
 
 export interface PaymentReleasedPayload {
@@ -51,6 +55,25 @@ export interface PaymentReleasedPayload {
   stripeTransferId?: string
 }
 
+export interface OfferSentPayload {
+  taskId: string
+  partnerId: string
+  offerId: string
+  priceMin: number
+  priceMax: number
+  estimatedDays: number
+  sentAt: string
+}
+
+export interface ReviewSubmittedPayload {
+  taskId: string
+  customerId: string
+  partnerId: string
+  reviewId: string
+  rating: number
+  submittedAt: string
+}
+
 // Event map — type-safe dispatch
 export interface LiftGOEvents {
   'task.created': TaskCreatedPayload
@@ -58,6 +81,8 @@ export interface LiftGOEvents {
   'task.accepted': TaskAcceptedPayload
   'task.completed': TaskCompletedPayload
   'payment.released': PaymentReleasedPayload
+  'offer.sent': OfferSentPayload
+  'review.submitted': ReviewSubmittedPayload
 }
 
 export type EventName = keyof LiftGOEvents
