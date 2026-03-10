@@ -1,6 +1,10 @@
 /**
  * Matching Service - Extracted from app/api/matching/route.ts
  * Handles smart matching algorithm and matching operations
+ * 
+ * Integration with Liquidity Engine:
+ * - findMatches() is called by liquidityEngine.onNewRequest()
+ * - Do NOT call matching directly — use liquidityEngine instead
  */
 
 import { createClient } from '@/lib/supabase/server'
@@ -11,6 +15,9 @@ export const matchingService = {
   /**
    * Find matches for a service request
    * Business logic extracted from POST /api/matching
+   * 
+   * This is called by liquidityEngine, not directly by API routes.
+   * Returns raw match results without side effects.
    */
   async findMatches(
     requestId: string,
