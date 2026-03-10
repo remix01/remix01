@@ -136,7 +136,6 @@ export const taskOrchestrator = {
       categoryId: data.categoryId,
       lat: data.lat,
       lng: data.lng,
-      description: '',
       createdAt: task.created_at,
     })
 

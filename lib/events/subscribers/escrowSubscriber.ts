@@ -1,19 +1,25 @@
 /**
  * Escrow Subscriber — Manages escrow hold + release flow
  * 
- * Coordinates with paymentService to hold/release funds based on task lifecycle.
- * Escrow is held when offer accepted, released after completion (with 24h dispute window).
+ * Idempotency is CRITICAL here — duplicate escrow hold = double charge.
  * 
- * Triggers PaymentSaga to orchestrate multi-step payment transactions.
+ * Pattern:
+ * 1. Check idempotency — prevents duplicate payment holds
+ * 2. Trigger PaymentSaga or escrow operation
  */
 
 import { eventBus } from '../eventBus'
 import { paymentService } from '@/lib/services'
+import { idempotency } from '../idempotency'
 import { PaymentSaga } from '../sagas/paymentSaga'
 
 export function registerEscrowSubscriber() {
   eventBus.on('task.accepted', async (payload) => {
     try {
+      // CRITICAL: prevent duplicate escrow holds
+      const skip = await idempotency.checkAndMark('task.accepted', 'escrow', payload.taskId)
+      if (skip) return
+
       console.log('[EscrowSubscriber] Task accepted, triggering PaymentSaga:', payload.taskId)
 
       // Trigger PaymentSaga to orchestrate payment flow
@@ -29,22 +35,16 @@ export function registerEscrowSubscriber() {
       console.log('[EscrowSubscriber] PaymentSaga completed for task:', payload.taskId)
     } catch (err) {
       console.error('[EscrowSubscriber] Error on task.accepted:', err)
-      // PaymentSaga will handle compensation, but log the error for monitoring
     }
   })
 
   eventBus.on('task.completed', async (payload) => {
     try {
-      // Schedule escrow release
-      // Doesn't release immediately — waits 24h for disputes
-      console.log('[EscrowSubscriber] Scheduling escrow release for task:', payload.taskId)
+      const skip = await idempotency.checkAndMark('task.completed', 'escrow', payload.taskId)
+      if (skip) return
 
+      console.log('[EscrowSubscriber] Scheduling escrow release for task:', payload.taskId)
       // TODO: Implement if scheduleEscrowRelease method exists in paymentService
-      // await paymentService.scheduleEscrowRelease({
-      //   taskId: payload.taskId,
-      //   partnerId: payload.partnerId,
-      //   releaseDelayMs: 24 * 60 * 60 * 1000, // 24 hours
-      // })
     } catch (err) {
       console.error('[EscrowSubscriber] Error on task.completed:', err)
     }

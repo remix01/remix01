@@ -1,8 +1,13 @@
 /**
- * Event Type Definitions — Type-safe event payload contracts
+ * Event Type Definitions — Slim payload contracts
  * 
- * Each event has a strongly-typed payload structure.
- * Used by eventBus.emit<T>() and subscribers for type safety.
+ * Each event contains ONLY:
+ * - Entity IDs (taskId, customerId, partnerId, etc.)
+ * - Primitive values (scores, prices, ratings)
+ * - Timestamps (createdAt, sentAt, etc.)
+ * 
+ * Subscribers fetch detailed data from DB as needed.
+ * This keeps event payloads small and prevents PII leakage.
  */
 
 export interface TaskCreatedPayload {
@@ -11,7 +16,6 @@ export interface TaskCreatedPayload {
   categoryId: string
   lat: number
   lng: number
-  description: string
   createdAt: string
 }
 
@@ -37,8 +41,8 @@ export interface TaskCompletedPayload {
   taskId: string
   customerId: string
   partnerId: string
-  completedAt: string
   finalPrice: number
+  completedAt: string
 }
 
 export interface PaymentReleasedPayload {
@@ -67,7 +71,6 @@ export interface ReviewSubmittedPayload {
   partnerId: string
   reviewId: string
   rating: number
-  comment: string
   submittedAt: string
 }
 

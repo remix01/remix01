@@ -4,9 +4,12 @@
  * Implements the Saga pattern: a sequence of steps where each step has a
  * compensating action (rollback). If any step fails, compensation executes
  * in reverse order to maintain consistency across service boundaries.
+ * 
+ * Step idempotency: if a step is retried (saga replay), skip if already completed.
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { idempotency } from '../idempotency'
 
 export interface SagaStep<TContext> {
   name: string
@@ -58,6 +61,21 @@ export abstract class SagaBase<TContext extends { taskId: string }> {
       // Execute all steps in sequence
       for (let i = 0; i < this.steps.length; i++) {
         const step = this.steps[i]
+
+        // Step idempotency: skip if already completed (saga retry safety)
+        const stepKey = `saga:${this.sagaType}:${ctx.taskId}:step${i}`
+        const skip = await idempotency.checkAndMark(
+          `saga.${this.sagaType}`,
+          `step_${i}`,
+          ctx.taskId
+        )
+
+        if (skip) {
+          console.log(`[Saga ${this.sagaType}] Skip already-completed step ${i}: ${step.name}`)
+          completedSteps.push(i)
+          continue
+        }
+
         console.log(`[Saga ${this.sagaType}] Executing step ${i}: ${step.name}`)
 
         ctx = await step.execute(ctx)
