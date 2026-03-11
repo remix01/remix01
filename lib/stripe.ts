@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { env } from './env'
+import { getCommissionRate, type SubscriptionTier } from './stripe/products'
 
 // Lazy-initialize Stripe client only when needed (not at module load)
 let _stripeClient: Stripe | null = null
@@ -50,16 +51,16 @@ export const ESCROW_AUTO_RELEASE_DAYS = 7
 /** Izračuna provizijo in izplačilo glede na paket obrtnika */
 export function calculateEscrow(
   amountCents: number,
-  partnerPaket: 'start' | 'pro'
+  partnerPaket: SubscriptionTier
 ): {
   commissionRate: number   // npr. 0.10
   commissionCents: number
   payoutCents: number
 } {
-  const rate = PLATFORM_FEE_PERCENT[partnerPaket] / 100
+  const rate = getCommissionRate(partnerPaket) / 100
   const commissionCents = Math.round(amountCents * rate)
   return {
-    commissionRate:  rate,
+    commissionRate: rate,
     commissionCents,
     payoutCents: amountCents - commissionCents,
   }
