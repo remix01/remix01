@@ -1,7 +1,7 @@
 /**
  * Cron Worker — Event Processor
  * 
- * Runs every 2 minutes to process pending events from outbox.
+ * Runs every 5 minutes to process pending events from outbox.
  * Triggered by Vercel Cron (configured in vercel.json).
  * 
  * Protected by CRON_SECRET to prevent unauthorized invocations.
