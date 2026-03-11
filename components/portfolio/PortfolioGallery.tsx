@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
@@ -51,77 +50,74 @@ export function PortfolioGallery({ images, title = 'Portfelj' }: PortfolioGaller
         </div>
       </div>
 
-      {/* Lightbox Modal */}
-      {currentImage !== null && (
-        <Modal
-          open={selectedIndex !== null}
-          onOpenChange={(open) => {
-            if (!open) setSelectedIndex(null)
-          }}
+      {/* Inline Tailwind Lightbox - NO external modal dependency */}
+      {selectedIndex !== null && currentImage && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+          onClick={() => setSelectedIndex(null)}
         >
-          <div className="relative w-full h-screen flex items-center justify-center bg-black">
-            {/* Close Button */}
-            <button
-              onClick={() => setSelectedIndex(null)}
-              className="absolute top-4 right-4 z-50 p-2 hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6 text-white" />
-            </button>
+          {/* Close Button */}
+          <button
+            onClick={() => setSelectedIndex(null)}
+            className="absolute top-4 right-4 z-50 p-2 hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
 
-            {/* Navigation Buttons */}
-            {images.length > 1 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    setSelectedIndex(
-                      selectedIndex === 0 ? images.length - 1 : selectedIndex! - 1
-                    )
-                  }
-                  className="absolute left-4 z-50 text-white hover:bg-slate-800"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    setSelectedIndex(
-                      selectedIndex === images.length - 1 ? 0 : selectedIndex! + 1
-                    )
-                  }
-                  className="absolute right-4 z-50 text-white hover:bg-slate-800"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </Button>
-              </>
-            )}
+          {/* Navigation Buttons */}
+          {images.length > 1 && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedIndex(selectedIndex === 0 ? images.length - 1 : selectedIndex - 1)
+                }}
+                className="absolute left-4 z-50 text-white hover:bg-slate-800"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedIndex(selectedIndex === images.length - 1 ? 0 : selectedIndex + 1)
+                }}
+                className="absolute right-4 z-50 text-white hover:bg-slate-800"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </Button>
+            </>
+          )}
 
-            {/* Image */}
-            <div className="relative w-full h-full max-w-4xl">
-              <Image
-                src={currentImage.url}
-                alt={currentImage.title || 'Portfolio image'}
-                fill
-                className="object-contain"
-              />
-            </div>
-
-            {/* Image Info */}
-            <div className="absolute bottom-4 left-4 right-4 bg-black/50 backdrop-blur text-white p-4 rounded-lg">
-              {currentImage.title && (
-                <p className="font-semibold">{currentImage.title}</p>
-              )}
-              {currentImage.description && (
-                <p className="text-sm text-gray-200 mt-1">{currentImage.description}</p>
-              )}
-              <p className="text-xs text-gray-400 mt-2">
-                {selectedIndex! + 1} / {images.length}
-              </p>
-            </div>
+          {/* Image */}
+          <div
+            className="relative w-full h-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image
+              src={currentImage.url}
+              alt={currentImage.title || 'Portfolio image'}
+              fill
+              className="object-contain"
+            />
           </div>
-        </Modal>
+
+          {/* Image Info */}
+          <div className="absolute bottom-4 left-4 right-4 bg-black/50 backdrop-blur text-white p-4 rounded-lg">
+            {currentImage.title && (
+              <p className="font-semibold">{currentImage.title}</p>
+            )}
+            {currentImage.description && (
+              <p className="text-sm text-gray-200 mt-1">{currentImage.description}</p>
+            )}
+            <p className="text-xs text-gray-400 mt-2">
+              {selectedIndex + 1} / {images.length}
+            </p>
+          </div>
+        </div>
       )}
     </>
   )

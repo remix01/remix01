@@ -1,7 +1,7 @@
 /**
  * Cron Worker — Health Sweep
  * 
- * Runs every 5 minutes to check system health and trigger alerts.
+ * Runs every 2 minutes to check system health and trigger alerts.
  * Protected by CRON_SECRET.
  */
 
