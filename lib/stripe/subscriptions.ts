@@ -5,9 +5,9 @@
  */
 
 import Stripe from 'stripe';
-import { stripe } from './stripe';
-import { getPriceId, type SubscriptionTier } from './stripe/products';
-import { supabaseAdmin } from './supabase-admin';
+import { stripe } from '../stripe';
+import { getPriceId, type SubscriptionTier } from './products';
+import { supabaseAdmin } from '../supabase-admin';
 
 /**
  * Ustvari ali pridobi Stripe Customer ID za obrtnika
