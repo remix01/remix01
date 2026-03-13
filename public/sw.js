@@ -155,3 +155,33 @@ self.addEventListener('activate', (event) => {
   )
   self.clients.claim()
 })
+
+// ─── 8. PUSH NOTIFICATIONS ──────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() || {}
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'LiftGO obvestilo', {
+      body: data.body || '',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
+      data: { url: data.url || '/' },
+      vibrate: [100, 50, 100],
+      tag: data.tag || 'liftgo-notification',
+      renotify: true
+    })
+  )
+})
+
+// ─── 9. NOTIFICATION CLICK HANDLER ──────────────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      const url = event.notification.data?.url || '/'
+      for (const client of clientList) {
+        if (client.url === url && 'focus' in client) return client.focus()
+      }
+      if (clients.openWindow) return clients.openWindow(url)
+    })
+  )
+})

@@ -9,6 +9,7 @@ import { initEventSubscribers } from '@/lib/events'
 import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
+import { PWAInstallBanner } from '@/components/liftgo/PWAInstallBanner'
 import { OfflineBanner } from '@/components/liftgo/OfflineBanner'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -253,6 +254,9 @@ export default function RootLayout({
 
         {/* SW registracija — po page load, ne blokira renderiranja */}
         <ServiceWorkerRegistration />
+
+        {/* PWA Install Banner — prikaže se samo če je device-compat */}
+        <PWAInstallBanner />
 
         {/* Chat — prikaže se samo avtenticiranim uporabnikom */}
         <AgentChatButton />
