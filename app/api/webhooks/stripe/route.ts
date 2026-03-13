@@ -133,6 +133,73 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      // ── Naročnina aktivna (customer_subscription.updated s status=active)
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription
+        if (subscription.status !== 'active') break
+
+        const customerId = subscription.customer as string
+        const plan = subscription.metadata?.plan || 'START'
+
+        // Posodobi obrtnik_profiles z novim paketom in stripe_customer_id
+        const { error } = await supabaseAdmin
+          .from('obrtnik_profiles')
+          .update({
+            subscription_tier: plan === 'PRO' ? 'pro' : 'start',
+            stripe_customer_id: customerId,
+          })
+          .eq('stripe_customer_id', customerId)
+
+        if (!error) {
+          console.log(
+            `[WEBHOOK] Subscription updated for ${customerId}: ${plan} plan activated`
+          )
+        }
+        break
+      }
+
+      // ── Naročnina začela
+      case 'customer.subscription.created': {
+        const subscription = event.data.object as Stripe.Subscription
+        if (subscription.status !== 'active') break
+
+        const customerId = subscription.customer as string
+        const plan = subscription.metadata?.plan || 'START'
+
+        // Posodobi obrtnik_profiles
+        const { error } = await supabaseAdmin
+          .from('obrtnik_profiles')
+          .update({
+            subscription_tier: plan === 'PRO' ? 'pro' : 'start',
+            stripe_customer_id: customerId,
+          })
+          .eq('stripe_customer_id', customerId)
+
+        if (!error) {
+          console.log(
+            `[WEBHOOK] Subscription created for ${customerId}: ${plan} plan`
+          )
+        }
+        break
+      }
+
+      // ── Naročnina razveljavljena/preklicana
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription
+        const customerId = subscription.customer as string
+
+        // Vrni obrtnika na START paket
+        const { error } = await supabaseAdmin
+          .from('obrtnik_profiles')
+          .update({ subscription_tier: 'start' })
+          .eq('stripe_customer_id', customerId)
+
+        if (!error) {
+          console.log(`[WEBHOOK] Subscription cancelled for ${customerId}`)
+        }
+        break
+      }
+
       default:
         // Neuporabljeni eventi — logiraj samo
         console.log('[WEBHOOK] Unhandled event:', event.type)

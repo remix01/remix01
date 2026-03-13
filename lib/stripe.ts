@@ -40,9 +40,13 @@ export const stripe = {
   },
 } as Stripe
 
+// Commission rates now centralized in lib/stripe/config.ts
+// This import ensures consistency across the codebase
+import { STRIPE_PRODUCTS } from './stripe/config'
+
 export const PLATFORM_FEE_PERCENT = {
-  start: 10,
-  pro: 5,
+  start: STRIPE_PRODUCTS.START.commission,
+  pro: STRIPE_PRODUCTS.PRO.commission,
 } as const
 
 export const ESCROW_AUTO_RELEASE_DAYS = 7
