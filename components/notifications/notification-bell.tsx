@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell } from 'lucide-react'
+import { Bell, Package, Star, CheckCircle, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -11,8 +11,37 @@ import { useNotifications } from '@/hooks/use-notifications'
 import { formatDistanceToNow } from 'date-fns'
 import { sl } from 'date-fns/locale'
 
+interface Notification {
+  id: string
+  user_id: string
+  type: string
+  title: string
+  body: string
+  data: Record<string, any>
+  is_read: boolean
+  created_at: string
+}
+
 export function NotificationBell() {
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications()
+
+  const getIconForType = (type: string) => {
+    switch (type) {
+      case 'nova_ponudba':
+      case 'offer_received':
+        return <Package className="h-4 w-4 text-blue-600" />
+      case 'nova_ocena':
+        return <Star className="h-4 w-4 text-amber-600" />
+      case 'ponudba_sprejeta':
+      case 'offer_accepted':
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      case 'novo_sporocilo':
+      case 'message_received':
+        return <MessageSquare className="h-4 w-4 text-purple-600" />
+      default:
+        return <Bell className="h-4 w-4 text-slate-600" />
+    }
+  }
 
   return (
     <Popover>
@@ -25,7 +54,7 @@ export function NotificationBell() {
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground">
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-semibold text-white animate-pulse">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
@@ -33,50 +62,50 @@ export function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="font-semibold text-foreground">Obvestila</h3>
+          <h3 className="font-semibold text-slate-900">Obvestila</h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={markAllRead}
-              className="h-auto px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+              className="h-auto px-2 py-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
             >
-              Označi vse kot prebrano
+              Vse prebrano
             </Button>
           )}
         </div>
         
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-sm text-muted-foreground">Nalaganje...</p>
+              <p className="text-sm text-slate-500">Nalaganje...</p>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-sm text-muted-foreground">Ni novih obvestil</p>
+              <p className="text-sm text-slate-500">Ni novih obvestil</p>
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
+              {notifications.map((notification: Notification) => (
                 <button
                   key={notification.id}
                   onClick={() => !notification.is_read && markRead(notification.id)}
-                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-muted/50 ${
-                    !notification.is_read ? 'bg-secondary/30' : ''
+                  className={`w-full px-4 py-3 text-left transition-colors hover:bg-slate-50 ${
+                    !notification.is_read
+                      ? 'bg-blue-50 border-l-4 border-blue-500'
+                      : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    {!notification.is_read && (
-                      <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
-                    )}
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium text-foreground">
+                    {getIconForType(notification.type)}
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900">
                         {notification.title}
                       </p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className="text-xs text-slate-600 line-clamp-1">
                         {notification.body}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-slate-400">
                         {formatDistanceToNow(new Date(notification.created_at), {
                           addSuffix: true,
                           locale: sl,
@@ -89,7 +118,18 @@ export function NotificationBell() {
             </div>
           )}
         </div>
+
+        <div className="border-t px-4 py-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs text-slate-600 hover:text-slate-900"
+          >
+            Vsa obvestila
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   )
 }
+
