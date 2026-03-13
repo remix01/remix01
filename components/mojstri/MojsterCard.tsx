@@ -1,119 +1,100 @@
-import type { ObrtnikProfile } from '@/types/marketplace'
+import type { ObrtnikiPublic } from '@/lib/dal/obrtniki'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Star, MapPin, CheckCircle, Zap } from 'lucide-react'
+import { Star, MapPin, Briefcase } from 'lucide-react'
 import Link from 'next/link'
 
 interface MojsterCardProps {
-  id: string
-  business_name: string
-  description?: string
-  is_verified: boolean
-  avg_rating: number
-  total_reviews: number
-  is_available: boolean
-  enable_instant_offers: boolean
-  location_city?: string
-  location_region?: string
-  kategorije: { name: string; slug: string; icon_name?: string }[]
+  obrtnik: ObrtnikiPublic
 }
 
-export function MojsterCard({
-  id,
-  business_name,
-  description,
-  is_verified,
-  avg_rating,
-  total_reviews,
-  is_available,
-  enable_instant_offers,
-  location_city,
-  location_region,
-  kategorije,
-}: MojsterCardProps) {
+export function MojsterCard({ obrtnik }: MojsterCardProps) {
+  const displayName = obrtnik.podjetje || `${obrtnik.ime} ${obrtnik.priimek}`
+  const specialnosti = obrtnik.specialnosti?.slice(0, 3) || []
+  const lokacije = obrtnik.lokacije?.slice(0, 2) || []
+
   return (
-    <Link href={`/obrtniki/${id}`}>
+    <Link href={`/obrtniki/${obrtnik.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full">
-        {/* Header with Verified Badge */}
+        {/* Header */}
         <div className="p-4 border-b bg-gradient-to-r from-slate-50 to-slate-100">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-semibold text-lg text-slate-900">
-                {business_name}
+          <div className="flex items-start gap-4">
+            {/* Avatar */}
+            <div className="w-12 h-12 flex-shrink-0 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+              {obrtnik.ime.charAt(0)}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-slate-900 truncate">
+                {displayName}
               </h3>
-              {description && (
-                <p className="text-sm text-slate-600 line-clamp-1 mt-1">
-                  {description}
+              {obrtnik.bio && (
+                <p className="text-xs text-slate-600 line-clamp-1 mt-0.5">
+                  {obrtnik.bio}
                 </p>
               )}
             </div>
-            {is_verified && (
-              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-            )}
           </div>
         </div>
 
         {/* Body */}
         <div className="p-4 space-y-3">
           {/* Location */}
-          {location_city && (
+          {lokacije.length > 0 && (
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <MapPin className="w-4 h-4 flex-shrink-0" />
-              <span>
-                {location_city}
-                {location_region && `, ${location_region}`}
-              </span>
+              <span className="truncate">{lokacije.join(', ')}</span>
             </div>
           )}
 
           {/* Rating */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-              <span className="font-semibold text-sm">
-                {avg_rating.toFixed(1)}
-              </span>
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={`w-4 h-4 ${
+                    i < Math.floor(obrtnik.ocena)
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-slate-300'
+                  }`}
+                />
+              ))}
             </div>
+            <span className="font-semibold text-sm">
+              {obrtnik.ocena.toFixed(1)}
+            </span>
             <span className="text-xs text-slate-500">
-              ({total_reviews} ocen)
+              ({obrtnik.stevilo_ocen})
             </span>
           </div>
 
-          {/* Categories */}
-          {kategorije && kategorije.length > 0 && (
+          {/* Specialnosti */}
+          {specialnosti.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-2">
-              {kategorije.slice(0, 3).map((cat) => (
-                <Badge key={cat.slug} variant="secondary" className="text-xs">
-                  {cat.name}
+              {specialnosti.map((spec, idx) => (
+                <Badge key={idx} variant="secondary" className="text-xs">
+                  {spec}
                 </Badge>
               ))}
-              {kategorije.length > 3 && (
+              {obrtnik.specialnosti && obrtnik.specialnosti.length > 3 && (
                 <Badge variant="secondary" className="text-xs">
-                  +{kategorije.length - 3}
+                  +{obrtnik.specialnosti.length - 3}
                 </Badge>
               )}
             </div>
           )}
 
-          {/* Instant Offers Badge */}
-          {enable_instant_offers && (
-            <Badge className="bg-orange-50 text-orange-700 hover:bg-orange-100 flex items-center gap-1 w-fit">
-              <Zap className="w-3 h-3" />
-              Instant ponudba
-            </Badge>
+          {/* Experience */}
+          {obrtnik.leta_izkusenj && (
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+              <Briefcase className="w-4 h-4 text-slate-600 flex-shrink-0" />
+              <span className="text-xs text-slate-600">
+                {obrtnik.leta_izkusenj}+ let izkušenj
+              </span>
+            </div>
           )}
-
-          {/* Availability Dot */}
-          <div className="flex items-center gap-2 pt-1">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                is_available ? 'bg-green-500' : 'bg-slate-300'
-              }`}
-            />
-            <span className="text-xs text-slate-600">
-              {is_available ? 'Dostopen' : 'Ni dostopen'}
-            </span>
-          </div>
         </div>
       </Card>
     </Link>

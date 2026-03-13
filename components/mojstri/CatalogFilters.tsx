@@ -1,169 +1,185 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { X } from 'lucide-react'
-import type { Category } from '@/types/marketplace'
 
 interface CatalogFiltersProps {
-  kategorije: Category[]
-  activeKategorijaSlug?: string
+  specialnosti: string[]
+  lokacije: string[]
+  currentFilters?: {
+    specialnosti?: string[]
+    lokacije?: string[]
+    minRating?: number
+    search?: string
+  }
 }
 
 export function CatalogFilters({
-  kategorije,
-  activeKategorijaSlug,
+  specialnosti,
+  lokacije,
+  currentFilters = {},
 }: CatalogFiltersProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
-  
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
-  const [dostopniOnly, setDostopniOnly] = useState(
-    searchParams.get('available') === '1'
+  const [searchQuery, setSearchQuery] = useState(currentFilters.search || '')
+  const [selectedSpecialnosti, setSelectedSpecialnosti] = useState<Set<string>>(
+    new Set(currentFilters.specialnosti || [])
   )
-  const [verificirani, setVerificirani] = useState(
-    searchParams.get('verified') === '1'
+  const [selectedLokacije, setSelectedLokacije] = useState<Set<string>>(
+    new Set(currentFilters.lokacije || [])
   )
+  const [minRating, setMinRating] = useState(currentFilters.minRating || 0)
 
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value)
-    updateParams({ q: value, stran: '1' })
+  const applyFilters = () => {
+    const params = new URLSearchParams()
+
+    if (searchQuery) {
+      params.set('search', searchQuery)
+    }
+
+    selectedSpecialnosti.forEach((s) => {
+      params.append('specialnosti', s)
+    })
+
+    selectedLokacije.forEach((l) => {
+      params.append('lokacije', l)
+    })
+
+    if (minRating > 0) {
+      params.set('rating', minRating.toString())
+    }
+
+    router.push(`/mojstri?${params.toString()}`)
   }
 
-  const handleDostopniChange = (checked: boolean) => {
-    setDostopniOnly(checked)
-    updateParams({ available: checked ? '1' : '', stran: '1' })
-  }
-
-  const handleVerificianiChange = (checked: boolean) => {
-    setVerificirani(checked)
-    updateParams({ verified: checked ? '1' : '', stran: '1' })
-  }
-
-  const handleKategorijaClick = (slug: string) => {
-    const newSlug = activeKategorijaSlug === slug ? '' : slug
-    updateParams({ kategorija: newSlug, stran: '1' })
-  }
-
-  const handleClearFilters = () => {
+  const clearFilters = () => {
     setSearchQuery('')
-    setDostopniOnly(false)
-    setVerificirani(false)
-    startTransition(() => {
-      router.push('/mojstri')
-    })
+    setSelectedSpecialnosti(new Set())
+    setSelectedLokacije(new Set())
+    setMinRating(0)
+    router.push('/mojstri')
   }
 
-  const updateParams = (changes: Record<string, string>) => {
-    const params = new URLSearchParams(searchParams)
-    
-    Object.entries(changes).forEach(([key, value]) => {
-      if (value === '' || value === undefined) {
-        params.delete(key)
-      } else {
-        params.set(key, value)
-      }
-    })
-
-    startTransition(() => {
-      const newUrl = `/mojstri${params.toString() ? '?' + params.toString() : ''}`
-      router.push(newUrl)
-    })
-  }
-
-  const hasActiveFilters =
-    activeKategorijaSlug || searchQuery || dostopniOnly || verificirani
+  const hasFilters =
+    searchQuery ||
+    selectedSpecialnosti.size > 0 ||
+    selectedLokacije.size > 0 ||
+    minRating > 0
 
   return (
-    <div className="space-y-6">
+    <div className="sticky top-24 space-y-6">
       {/* Search Input */}
       <div>
         <label className="block text-sm font-medium text-slate-900 mb-2">
           Iskanje
         </label>
-        <Input
+        <input
           type="text"
-          placeholder="Iskanje mojstrov..."
+          placeholder="Ime, podjetje..."
           value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          disabled={isPending}
-          className="w-full"
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
-      {/* Categories */}
-      {kategorije.length > 0 && (
+      {/* Specialnosti */}
+      {specialnosti.length > 0 && (
         <div>
           <label className="block text-sm font-medium text-slate-900 mb-3">
-            Kategorije
+            Specialnosti
           </label>
-          <div className="space-y-2">
-            <Button
-              variant={!activeKategorijaSlug ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleKategorijaClick('')}
-              disabled={isPending}
-              className="w-full justify-start"
-            >
-              Vse kategorije
-            </Button>
-            {kategorije.map((kat) => (
-              <Button
-                key={kat.id}
-                variant={activeKategorijaSlug === kat.slug ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => handleKategorijaClick(kat.slug)}
-                disabled={isPending}
-                className="w-full justify-start"
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {specialnosti.map((spec) => (
+              <label
+                key={spec}
+                className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1 rounded"
               >
-                {kat.name}
-              </Button>
+                <Checkbox
+                  checked={selectedSpecialnosti.has(spec)}
+                  onCheckedChange={(checked) => {
+                    const updated = new Set(selectedSpecialnosti)
+                    if (checked) {
+                      updated.add(spec)
+                    } else {
+                      updated.delete(spec)
+                    }
+                    setSelectedSpecialnosti(updated)
+                  }}
+                />
+                <span className="text-sm text-slate-700">{spec}</span>
+              </label>
             ))}
           </div>
         </div>
       )}
 
-      {/* Availability */}
-      <div className="border-t pt-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <Checkbox
-            checked={dostopniOnly}
-            onCheckedChange={handleDostopniChange}
-            disabled={isPending}
-          />
-          <span className="text-sm text-slate-900">Samo dostopni</span>
-        </label>
-      </div>
-
-      {/* Verified Only */}
-      <div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <Checkbox
-            checked={verificirani}
-            onCheckedChange={handleVerificianiChange}
-            disabled={isPending}
-          />
-          <span className="text-sm text-slate-900">Samo verificirani</span>
-        </label>
-      </div>
-
-      {/* Clear Filters */}
-      {hasActiveFilters && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleClearFilters}
-          disabled={isPending}
-          className="w-full justify-start gap-2"
-        >
-          <X className="w-4 h-4" />
-          Počisti filtere
-        </Button>
+      {/* Lokacije */}
+      {lokacije.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-slate-900 mb-3">
+            Lokacije
+          </label>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {lokacije.map((loc) => (
+              <label
+                key={loc}
+                className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1 rounded"
+              >
+                <Checkbox
+                  checked={selectedLokacije.has(loc)}
+                  onCheckedChange={(checked) => {
+                    const updated = new Set(selectedLokacije)
+                    if (checked) {
+                      updated.add(loc)
+                    } else {
+                      updated.delete(loc)
+                    }
+                    setSelectedLokacije(updated)
+                  }}
+                />
+                <span className="text-sm text-slate-700">{loc}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       )}
+
+      {/* Rating */}
+      <div>
+        <label className="block text-sm font-medium text-slate-900 mb-2">
+          Minimalna ocena
+        </label>
+        <select
+          value={minRating}
+          onChange={(e) => setMinRating(parseFloat(e.target.value))}
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="0">Vse</option>
+          <option value="3">3+</option>
+          <option value="3.5">3.5+</option>
+          <option value="4">4+</option>
+          <option value="4.5">4.5+</option>
+        </select>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="border-t pt-4 space-y-2">
+        <Button onClick={applyFilters} className="w-full">
+          Uporabi filtre
+        </Button>
+        {hasFilters && (
+          <Button
+            onClick={clearFilters}
+            variant="outline"
+            className="w-full justify-start gap-2"
+          >
+            <X className="w-4 h-4" />
+            Počisti filtre
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
