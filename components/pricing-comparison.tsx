@@ -5,16 +5,20 @@ import { useState } from "react"
 import { Check, X, ArrowRight, Sparkles, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { STRIPE_PRODUCTS } from '@/lib/stripe/config'
+
+const startPlan = STRIPE_PRODUCTS.START
+const proPlan = STRIPE_PRODUCTS.PRO
 
 const features = [
   { name: "Mesečna naročnina", start: "0 €", pro: "29 €" },
-  { name: "Provizija", start: "10%", pro: "5%" },
+  { name: "Provizija", start: `${startPlan.commission}%`, pro: `${proPlan.commission}%` },
   { name: "Dostop do povpraševanj", start: true, pro: true },
   { name: "Vidnost profila", start: "Standardna", pro: "Prioritetna" },
   { name: "CRM orodje", start: false, pro: true },
   { name: "Generator ponudb", start: false, pro: true },
   { name: "Prednostna podpora", start: false, pro: true },
-  { name: "Garancija odziva", start: "Za vse", pro: "Za vse" },
+  { name: "Analitika", start: false, pro: true },
 ]
 
 export function PricingComparison() {
@@ -26,13 +30,13 @@ export function PricingComparison() {
       const res = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'pro' }),
+        body: JSON.stringify({ plan: 'PRO' }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(data.error || 'Napaka pri plačilu')
       if (data.url) window.location.href = data.url
     } catch (err: any) {
-      alert('Napaka pri plačilu: ' + err.message + '\n\nKontaktirajte info@liftgo.net')
+      alert('Napaka pri plačilu: ' + (err.message || 'Poskusite ponovno') + '\n\nKontaktirajte info@liftgo.net')
     } finally {
       setLoading(false)
     }

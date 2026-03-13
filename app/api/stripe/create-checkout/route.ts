@@ -2,6 +2,7 @@ import Stripe from 'stripe'
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
+import { getStripePriceId, isValidPlan, type PlanType } from '@/lib/stripe/config'
 
 // Robustna funkcija za sestavo URL — nikoli ne vrne "undefined/pot"
 function getBaseUrl(req: Request): string {
@@ -30,16 +31,26 @@ export async function POST(req: Request) {
   try {
     const { plan, email } = await req.json()
 
-    if (plan !== 'pro') {
+    // Validacija plana
+    if (!isValidPlan(plan)) {
       return NextResponse.json(
-        { error: 'START paket ne zahteva plačila.' },
+        { error: 'Neveljaven paket. Izberite START ali PRO.' },
         { status: 400 }
       )
     }
 
-    const priceId = process.env.STRIPE_PRO_PRICE_ID
+    // START paket ne zahteva plačila
+    if (plan === 'START') {
+      return NextResponse.json(
+        { error: 'START paket je brezplačan. Registracija ne zahteva Stripe plačila.' },
+        { status: 400 }
+      )
+    }
+
+    // Pridobi price ID iz konfiguracije
+    const priceId = getStripePriceId(plan as PlanType)
     if (!priceId) {
-      console.error('STRIPE_PRO_PRICE_ID ni nastavljen')
+      console.error(`[Stripe] Manjka priceId za ${plan}`)
       return NextResponse.json(
         { error: 'Konfiguracija plačila manjka. Kontaktirajte info@liftgo.net' },
         { status: 500 }
@@ -48,9 +59,9 @@ export async function POST(req: Request) {
 
     // Sestavi base URL robustno
     const baseUrl = getBaseUrl(req)
-    console.log('[Stripe] checkout baseUrl:', baseUrl) // Za debugging
+    console.log('[Stripe] checkout baseUrl:', baseUrl, 'plan:', plan)
 
-    const successUrl = `${baseUrl}/registracija-mojster?plan=pro&stripe=success&session_id={CHECKOUT_SESSION_ID}`
+    const successUrl = `${baseUrl}/registracija-mojster?plan=${plan.toLowerCase()}&stripe=success&session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = `${baseUrl}/cenik?cancelled=true`
 
     // Validacija URL-jev pred Stripe klicem
@@ -74,9 +85,11 @@ export async function POST(req: Request) {
       locale: 'sl',
       allow_promotion_codes: true,
       payment_method_types: ['card'],
-      metadata: {
-        plan: 'pro',
-        platform: 'liftgo',
+      subscription_data: {
+        metadata: {
+          plan: plan,
+          platform: 'liftgo',
+        },
       },
     })
 

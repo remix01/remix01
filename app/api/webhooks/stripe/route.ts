@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { constructStripeEvent } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { getTierFromPriceId } from '@/lib/stripe/products'
 import {
   isStripeEventProcessed,
   updateEscrowStatus,
@@ -48,12 +47,12 @@ export async function POST(request: NextRequest) {
 
         await updateEscrowStatus({
           transactionId: escrow.id,
-          newStatus: 'paid',
-          actor: 'system',
-          actorId: 'stripe-webhook',
+          newStatus:     'paid',
+          actor:         'system',
+          actorId:       'stripe-webhook',
           stripeEventId: event.id,
-          extraFields: { paid_at: new Date().toISOString() },
-          metadata: { stripeEventType: event.type, piStatus: pi.status },
+          extraFields:   { paid_at: new Date().toISOString() },
+          metadata:      { stripeEventType: event.type, piStatus: pi.status },
         })
         break
       }
@@ -65,12 +64,12 @@ export async function POST(request: NextRequest) {
           const escrow = await getEscrowByPaymentIntent(pi.id)
           await updateEscrowStatus({
             transactionId: escrow.id,
-            newStatus: 'cancelled',
-            actor: 'system',
-            actorId: 'stripe-webhook',
+            newStatus:     'cancelled',
+            actor:         'system',
+            actorId:       'stripe-webhook',
             stripeEventId: event.id,
             metadata: {
-              failureCode: pi.last_payment_error?.code,
+              failureCode:    pi.last_payment_error?.code,
               failureMessage: pi.last_payment_error?.message,
             },
           })
@@ -95,15 +94,15 @@ export async function POST(request: NextRequest) {
 
         if (!error) {
           await writeAuditLog({
-            transactionId: escrow.id,
-            eventType: 'released',
-            actor: 'system',
-            actorId: 'stripe-webhook',
-            stripeEventId: event.id,
-            statusBefore: 'paid',
-            statusAfter: 'released',
-            amountCents: transfer.amount,
-            metadata: { transferId: transfer.id },
+            transactionId:  escrow.id,
+            eventType:      'released',
+            actor:          'system',
+            actorId:        'stripe-webhook',
+            stripeEventId:  event.id,
+            statusBefore:   'paid',
+            statusAfter:    'released',
+            amountCents:    transfer.amount,
+            metadata:       { transferId: transfer.id },
           })
         }
         break
@@ -121,12 +120,12 @@ export async function POST(request: NextRequest) {
           const escrow = await getEscrowByPaymentIntent(piId)
           await updateEscrowStatus({
             transactionId: escrow.id,
-            newStatus: 'refunded',
-            actor: 'system',
-            actorId: 'stripe-webhook',
+            newStatus:     'refunded',
+            actor:         'system',
+            actorId:       'stripe-webhook',
             stripeEventId: event.id,
-            extraFields: { refunded_at: new Date().toISOString() },
-            metadata: { refundAmount: charge.amount_refunded },
+            extraFields:   { refunded_at: new Date().toISOString() },
+            metadata:      { refundAmount: charge.amount_refunded },
           })
         } catch {
           console.warn('[WEBHOOK] charge.refunded: ni v DB', piId)
@@ -134,97 +133,69 @@ export async function POST(request: NextRequest) {
         break
       }
 
-      // ── Subscription ustvarjena (obrtnik se je naročil na PRO)
+      // ── Naročnina aktivna (customer_subscription.updated s status=active)
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription
+        if (subscription.status !== 'active') break
+
+        const customerId = subscription.customer as string
+        const plan = subscription.metadata?.plan || 'START'
+
+        // Posodobi obrtnik_profiles z novim paketom in stripe_customer_id
+        const { error } = await supabaseAdmin
+          .from('obrtnik_profiles')
+          .update({
+            subscription_tier: plan === 'PRO' ? 'pro' : 'start',
+            stripe_customer_id: customerId,
+          })
+          .eq('stripe_customer_id', customerId)
+
+        if (!error) {
+          console.log(
+            `[WEBHOOK] Subscription updated for ${customerId}: ${plan} plan activated`
+          )
+        }
+        break
+      }
+
+      // ── Naročnina začela
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription
-        const customerId = typeof subscription.customer === 'string'
-          ? subscription.customer
-          : subscription.customer.id
+        if (subscription.status !== 'active') break
 
-        // Najdi price ID iz subscription items
-        const priceId = subscription.items.data[0]?.price.id
-        if (!priceId) {
-          console.warn('[WEBHOOK] subscription.created: ni priceId')
-          break
-        }
-
-        const tier = getTierFromPriceId(priceId)
-        if (!tier) {
-          console.warn('[WEBHOOK] subscription.created: neznan priceId', priceId)
-          break
-        }
+        const customerId = subscription.customer as string
+        const plan = subscription.metadata?.plan || 'START'
 
         // Posodobi obrtnik_profiles
         const { error } = await supabaseAdmin
           .from('obrtnik_profiles')
           .update({
-            subscription_tier: tier,
-            stripe_subscription_id: subscription.id,
+            subscription_tier: plan === 'PRO' ? 'pro' : 'start',
             stripe_customer_id: customerId,
           })
           .eq('stripe_customer_id', customerId)
 
-        if (error) {
-          console.error('[WEBHOOK] subscription.created: napaka pri posodobitvi', error)
-        } else {
-          console.log('[WEBHOOK] subscription.created: uspešno posodobljen tier', tier)
+        if (!error) {
+          console.log(
+            `[WEBHOOK] Subscription created for ${customerId}: ${plan} plan`
+          )
         }
         break
       }
 
-      // ── Subscription posodobljena (upgrade/downgrade)
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription
-        const customerId = typeof subscription.customer === 'string'
-          ? subscription.customer
-          : subscription.customer.id
-
-        const priceId = subscription.items.data[0]?.price.id
-        if (!priceId) break
-
-        const tier = getTierFromPriceId(priceId)
-        if (!tier) {
-          console.warn('[WEBHOOK] subscription.updated: neznan priceId', priceId)
-          break
-        }
-
-        // Posodobi tier
-        const { error } = await supabaseAdmin
-          .from('obrtnik_profiles')
-          .update({
-            subscription_tier: tier,
-            stripe_subscription_id: subscription.id,
-          })
-          .eq('stripe_customer_id', customerId)
-
-        if (error) {
-          console.error('[WEBHOOK] subscription.updated: napaka pri posodobitvi', error)
-        } else {
-          console.log('[WEBHOOK] subscription.updated: tier spremenjen na', tier)
-        }
-        break
-      }
-
-      // ── Subscription preklicana/izbrisana
+      // ── Naročnina razveljavljena/preklicana
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
-        const customerId = typeof subscription.customer === 'string'
-          ? subscription.customer
-          : subscription.customer.id
+        const customerId = subscription.customer as string
 
-        // Vrni na START plan (free)
+        // Vrni obrtnika na START paket
         const { error } = await supabaseAdmin
           .from('obrtnik_profiles')
-          .update({
-            subscription_tier: 'start',
-            stripe_subscription_id: null,
-          })
+          .update({ subscription_tier: 'start' })
           .eq('stripe_customer_id', customerId)
 
-        if (error) {
-          console.error('[WEBHOOK] subscription.deleted: napaka pri posodobitvi', error)
-        } else {
-          console.log('[WEBHOOK] subscription.deleted: vrnjeno na START plan')
+        if (!error) {
+          console.log(`[WEBHOOK] Subscription cancelled for ${customerId}`)
         }
         break
       }
