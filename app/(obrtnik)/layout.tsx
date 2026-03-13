@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ObrtknikSidebar } from '@/components/obrtnik/sidebar'
 import { ObrtknikBottomNav } from '@/components/obrtnik/bottom-nav'
 import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
+import { AvailabilityToggle } from '@/components/obrtnik/availability-toggle'
 
 export const metadata = {
   title: 'LiftGO - Obrtnik',
@@ -41,8 +42,9 @@ export default async function ObrtknikLayout({
 
       {/* Main Content */}
       <div className="flex flex-col flex-1 md:ml-64 md:pb-0 pb-20">
-        {/* Top Bar with Notification Bell */}
-        <div className="flex items-center justify-end p-4 md:p-6 border-b md:border-b-0">
+        {/* Top Bar with Notification Bell & Availability Toggle */}
+        <div className="flex items-center justify-between p-4 md:p-6 border-b md:border-b-0 gap-4">
+          <AvailabilityToggle initialStatus={profile.is_available || false} obrtnikId={profile.id} />
           <NotificationBellClient userId={user.id} />
         </div>
 
