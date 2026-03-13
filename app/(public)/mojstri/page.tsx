@@ -25,31 +25,17 @@ export default async function MojstriCatalogPage(props: PageProps) {
   const searchParams = await props.searchParams
 
   // Parse filters from URL parameters
-  const specialnosti = Array.isArray(searchParams.specialnosti)
-    ? searchParams.specialnosti
-    : searchParams.specialnosti
-      ? [searchParams.specialnosti]
-      : undefined
-
-  const lokacije = Array.isArray(searchParams.lokacije)
-    ? searchParams.lokacije
-    : searchParams.lokacije
-      ? [searchParams.lokacije]
-      : undefined
-
   const minRating = searchParams.rating ? parseFloat(searchParams.rating as string) : undefined
   const search = searchParams.search as string | undefined
 
   // Fetch filtered obrtniki based on URL params
   const obrtniki = await listVerifiedObrtniki({
-    specialnosti,
-    lokacije,
     minRating,
     search,
     limit: 50,
   })
 
-  // Fetch filter options
+  // Fetch filter options (for future use when obrtnik_categories table exists)
   const [availableSpecialnosti, availableLokacije] = await Promise.all([
     getActiveSpecialnosti(),
     getActiveLokacije(),
@@ -81,8 +67,6 @@ export default async function MojstriCatalogPage(props: PageProps) {
                 specialnosti={availableSpecialnosti}
                 lokacije={availableLokacije}
                 currentFilters={{
-                  specialnosti,
-                  lokacije,
                   minRating,
                   search,
                 }}

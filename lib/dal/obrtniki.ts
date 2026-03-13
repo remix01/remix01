@@ -1,11 +1,8 @@
-// Data Access Layer - Obrtniki (Contractors)
+// Data Access Layer - Obrtnik Profiles
 import { createClient } from '@/lib/supabase/server'
 
 export interface ObrtnikiFilter {
-  specialnosti?: string[]
-  lokacije?: string[]
   minRating?: number
-  status?: 'pending' | 'verified' | 'blocked'
   search?: string
   limit?: number
   offset?: number
@@ -13,21 +10,25 @@ export interface ObrtnikiFilter {
 
 export interface ObrtnikiPublic {
   id: string
-  ime: string
-  priimek: string
-  podjetje?: string
-  specialnosti: string[]
-  lokacije: string[]
-  ocena: number
-  stevilo_ocen: number
-  profilna_slika_url?: string
-  bio?: string
-  leta_izkusenj?: number
+  business_name: string
+  description: string | null
+  is_verified: boolean
+  avg_rating: number
+  subscription_tier: 'start' | 'pro'
+  stripe_customer_id: string | null
   created_at: string
+  profiles: {
+    id: string
+    email: string
+    phone: string | null
+    full_name: string
+    location_city: string | null
+    location_region: string | null
+  }
 }
 
 /**
- * Get all verified obrtniki for public catalog with filters
+ * Get all verified obrtnik_profiles for public catalog with filters
  */
 export async function listVerifiedObrtniki(
   filters?: ObrtnikiFilter
@@ -35,34 +36,38 @@ export async function listVerifiedObrtniki(
   const supabase = await createClient()
 
   let query = supabase
-    .from('obrtniki')
+    .from('obrtnik_profiles')
     .select(
-      `id, ime, priimek, podjetje, specialnosti, lokacije, ocena, 
-       stevilo_ocen, profilna_slika_url, bio, leta_izkusenj, created_at`
+      `id,
+       business_name,
+       description,
+       is_verified,
+       avg_rating,
+       subscription_tier,
+       stripe_customer_id,
+       created_at,
+       profiles!inner(
+         id,
+         email,
+         phone,
+         full_name,
+         location_city,
+         location_region
+       )`
     )
-    .eq('status', 'verified')
-    .order('ocena', { ascending: false })
-
-  // Location filter
-  if (filters?.lokacije && filters.lokacije.length > 0) {
-    query = query.overlaps('lokacije', filters.lokacije)
-  }
-
-  // Specialnosti filter
-  if (filters?.specialnosti && filters.specialnosti.length > 0) {
-    query = query.overlaps('specialnosti', filters.specialnosti)
-  }
+    .eq('is_verified', true)
+    .order('avg_rating', { ascending: false })
 
   // Rating filter
   if (filters?.minRating) {
-    query = query.gte('ocena', filters.minRating)
+    query = query.gte('avg_rating', filters.minRating)
   }
 
-  // Search by name/company
+  // Search by business_name or description
   if (filters?.search) {
     const searchTerm = `%${filters.search}%`
     query = query.or(
-      `ime.ilike.${searchTerm},priimek.ilike.${searchTerm},podjetje.ilike.${searchTerm}`
+      `business_name.ilike.${searchTerm},description.ilike.${searchTerm}`
     )
   }
 
@@ -74,7 +79,7 @@ export async function listVerifiedObrtniki(
   const { data, error } = await query
 
   if (error) {
-    console.error('Error fetching obrtniki:', error)
+    console.error('Error fetching obrtnik_profiles:', error)
     return []
   }
 
@@ -82,23 +87,30 @@ export async function listVerifiedObrtniki(
 }
 
 /**
- * Get single obrtnik by ID
+ * Get single obrtnik_profile by ID
  */
 export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('obrtniki')
+    .from('obrtnik_profiles')
     .select(
-      `id, ime, priimek, podjetje, specialnosti, lokacije, ocena, 
-       stevilo_ocen, profilna_slika_url, bio, leta_izkusenj, created_at`
+      `id,
+       business_name,
+       description,
+       is_verified,
+       avg_rating,
+       subscription_tier,
+       stripe_customer_id,
+       created_at,
+       profiles!inner(*)`
     )
     .eq('id', id)
-    .eq('status', 'verified')
+    .eq('is_verified', true)
     .single()
 
   if (error) {
-    console.error('Error fetching obrtnik:', error)
+    console.error('Error fetching obrtnik_profile:', error)
     return null
   }
 
@@ -126,55 +138,47 @@ export async function getObrtnikiPovprasevanja(obrtnikiId: string) {
 }
 
 /**
- * Get unique specialnosti for filtering
+ * Get dummy specialnosti - TODO: Replace with actual obrtnik_categories table
  */
 export async function getActiveSpecialnosti(): Promise<string[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('obrtniki')
-    .select('specialnosti')
-    .eq('status', 'verified')
-
-  if (error) {
-    console.error('Error fetching specialnosti:', error)
-    return []
-  }
-
-  // Flatten and deduplicate
-  const specialnosti = new Set<string>()
-  data?.forEach((row) => {
-    if (row.specialnosti && Array.isArray(row.specialnosti)) {
-      row.specialnosti.forEach((s: string) => specialnosti.add(s))
-    }
-  })
-
-  return Array.from(specialnosti).sort()
+  // TODO: When obrtnik_categories table exists, query it directly
+  // For now, return placeholder data
+  return [
+    'Vodovodna dela',
+    'Elektrika',
+    'Krovske storitve',
+    'Tesarstvo',
+    'Keramika',
+    'Obiranje',
+    'Hlladilna tehnika',
+    'Garaže',
+  ]
 }
 
 /**
- * Get unique lokacije for filtering
+ * Get unique locations from profiles - TODO: Improve with dedicated locations table
  */
 export async function getActiveLokacije(): Promise<string[]> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('obrtniki')
-    .select('lokacije')
-    .eq('status', 'verified')
+    .from('profiles')
+    .select('location_city')
+    .not('location_city', 'is', null)
+    .eq('role', 'obrtnik')
 
   if (error) {
-    console.error('Error fetching lokacije:', error)
+    console.error('Error fetching locations:', error)
     return []
   }
 
-  // Flatten and deduplicate
-  const lokacije = new Set<string>()
+  // Deduplicate and sort
+  const locations = new Set<string>()
   data?.forEach((row) => {
-    if (row.lokacije && Array.isArray(row.lokacije)) {
-      row.lokacije.forEach((l: string) => lokacije.add(l))
+    if (row.location_city) {
+      locations.add(row.location_city)
     }
   })
 
-  return Array.from(lokacije).sort()
+  return Array.from(locations).sort()
 }
