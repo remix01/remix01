@@ -133,33 +133,3 @@ export default function ObrtnikSporocila() {
     </div>
   )
 }
-
-                      sendMessage()
-                    }
-                  }}
-                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  rows={2}
-                  placeholder="Napišite sporočilo..."
-                />
-                <Button
-                  onClick={sendMessage}
-                  disabled={!newMessage.trim()}
-                  className="px-4"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
-              <div className="text-center">
-                <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                <p>Izberite pogovor</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
