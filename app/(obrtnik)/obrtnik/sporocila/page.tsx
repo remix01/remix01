@@ -58,7 +58,7 @@ export default function ObrtnikSporocila() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center p-8">
-        <p className="text-slate-500">Nalaganje...</p>
+        <p className="text-muted-foreground">Nalaganje...</p>
       </div>
     )
   }
@@ -66,8 +66,8 @@ export default function ObrtnikSporocila() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Sporočila</h1>
-        <p className="text-slate-600 mt-1">Komunicirajte s strankami</p>
+        <h1 className="text-3xl font-bold text-foreground">Sporočila</h1>
+        <p className="text-muted-foreground mt-1">Komunicirajte s strankami</p>
       </div>
 
       {/* Mobile: Show chat if selected, list otherwise */}
@@ -124,8 +124,8 @@ export default function ObrtnikSporocila() {
               povprasevanjeTitle={povprasevanjeInfo?.naslov}
             />
           ) : (
-            <div className="bg-white rounded-lg border flex items-center justify-center h-full">
-              <p className="text-slate-500">Izberite pogovor za prikaz sporočil</p>
+            <div className="bg-background rounded-lg border flex items-center justify-center h-full">
+              <p className="text-muted-foreground">Izberite pogovor za prikaz sporočil</p>
             </div>
           )}
         </div>

@@ -38,33 +38,22 @@ export default function PartnerDashboard() {
       }
 
       const { data: partnerData } = await sb
-        .from('partners')
+        .from('obrtnik_profiles')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (partnerData) {
         setPartner(partnerData)
 
         const { data: offersData } = await sb
-          .from('offers')
+          .from('ponudbe')
           .select('*')
-          .eq('partner_id', partnerData.id)
+          .eq('obrtnik_id', partnerData.id)
           .order('created_at', { ascending: false })
 
         if (offersData) {
           setOffers(offersData)
-        }
-
-        // Load partner package info
-        const { data: paketData } = await sb
-          .from('partner_paketi')
-          .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .single()
-
-        if (paketData) {
-          setPaket(paketData)
         }
       }
 
@@ -77,9 +66,9 @@ export default function PartnerDashboard() {
 
   const handleOfferCreated = async (partnerId: string) => {
     const { data } = await supabase
-      .from('offers')
+      .from('ponudbe')
       .select('*')
-      .eq('partner_id', partnerId)
+      .eq('obrtnik_id', partnerId)
       .order('created_at', { ascending: false })
 
     if (data) {

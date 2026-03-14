@@ -14,13 +14,10 @@ async function getCraftworkerData(userId: string) {
   const supabase = await createClient()
   
   const { data: craftworker } = await supabase
-    .from('partners')
-    .select(`
-      *,
-      obrtnik_profile:obrtnik_profiles(*)
-    `)
+    .from('obrtnik_profiles')
+    .select('*')
     .eq('id', userId)
-    .single()
+    .maybeSingle()
 
   if (!craftworker) {
     return null
@@ -30,6 +27,7 @@ async function getCraftworkerData(userId: string) {
   const { data: povprasevanja } = await supabase
     .from('povprasevanja')
     .select('*')
+    .eq('obrtnik_id', userId)
     .order('created_at', { ascending: false })
 
   // Fetch related ocene (reviews)
@@ -43,7 +41,6 @@ async function getCraftworkerData(userId: string) {
     ...craftworker,
     assignedJobs: povprasevanja || [],
     violations: [],
-    craftworkerProfile: craftworker.obrtnik_profile,
     reviews: ocene || [],
   }
 }
@@ -65,12 +62,11 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <CraftworkerProfileCard 
-          craftworker={craftworker} 
-          profile={craftworker.craftworkerProfile}
+          craftworker={craftworker}
         />
         <SuspensionPanel 
           userId={id} 
-          isSuspended={craftworker.craftworkerProfile?.is_available === false}
+          isSuspended={craftworker.is_available === false}
           suspendedReason={null}
         />
       </div>

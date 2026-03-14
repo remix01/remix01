@@ -12,7 +12,7 @@ async function getStats() {
   let totalPartners = 0
   try {
     const { count } = await supabaseAdmin
-      .from('partners')
+      .from('obrtnik_profiles')
       .select('*', { count: 'exact', head: true })
     totalPartners = count ?? 0
   } catch (e) {
@@ -22,9 +22,9 @@ async function getStats() {
   let activePartners = 0
   try {
     const { count } = await supabaseAdmin
-      .from('partners')
+      .from('obrtnik_profiles')
       .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
+      .eq('is_available', true)
     activePartners = count ?? 0
   } catch (e) {
     console.error('[admin] activePartners query failed:', e instanceof Error ? e.message : String(e))
