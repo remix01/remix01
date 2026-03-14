@@ -329,13 +329,13 @@ export default function NovoPoVprasevanjePage() {
             </div>
 
             <div className="flex justify-between gap-2 mt-8">
-              <Button onClick={handlePrevious} variant="outline">
+              <Button onClick={handlePrevious} variant="outline" className="min-h-[48px]">
                 ← Nazaj
               </Button>
               <Button
                 onClick={handleNext}
                 disabled={!isStep2Valid}
-                className="bg-teal-600 hover:bg-teal-700"
+                className="bg-teal-600 hover:bg-teal-700 min-h-[48px]"
               >
                 Naprej →
               </Button>
@@ -402,13 +402,13 @@ export default function NovoPoVprasevanjePage() {
             </div>
 
             <div className="flex justify-between gap-2 mt-8">
-              <Button onClick={handlePrevious} variant="outline">
+              <Button onClick={handlePrevious} variant="outline" className="min-h-[48px]">
                 ← Nazaj
               </Button>
               <Button
                 onClick={handleNext}
                 disabled={!isStep3Valid}
-                className="bg-teal-600 hover:bg-teal-700"
+                className="bg-teal-600 hover:bg-teal-700 min-h-[48px]"
               >
                 Naprej →
               </Button>
@@ -526,13 +526,13 @@ export default function NovoPoVprasevanjePage() {
             )}
 
             <div className="flex justify-between gap-2 mt-8">
-              <Button onClick={handlePrevious} variant="outline">
+              <Button onClick={handlePrevious} variant="outline" className="min-h-[48px]">
                 ← Nazaj
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="bg-teal-600 hover:bg-teal-700"
+                className="bg-teal-600 hover:bg-teal-700 min-h-[48px]"
               >
                 {loading ? (
                   <>
