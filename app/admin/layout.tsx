@@ -23,7 +23,7 @@ export default async function AdminLayout({
     .select('*')
     .eq('auth_user_id', user.id)
     .eq('aktiven', true)
-    .single()
+    .maybeSingle()
 
   if (error || !adminUser) {
     redirect('/prijava')

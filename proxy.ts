@@ -96,7 +96,7 @@ export async function proxy(request: NextRequest) {
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (profile?.role === 'obrtnik') {
         return NextResponse.redirect(
@@ -121,7 +121,7 @@ export async function proxy(request: NextRequest) {
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (!profile || profile.role !== 'obrtnik') {
         return NextResponse.redirect(
@@ -147,11 +147,11 @@ export async function proxy(request: NextRequest) {
     try {
       const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
-        .select('id')
+        .select('id, vloga, aktiven')
         .eq('auth_user_id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (!adminUser) {
+      if (!adminUser || !adminUser.aktiven) {
         const loginUrl = new URL('/prijava', request.url)
         loginUrl.searchParams.set('redirectTo', path)
         return NextResponse.redirect(loginUrl)
