@@ -126,7 +126,7 @@ export const healthMonitor = {
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (!oldest) return
 
