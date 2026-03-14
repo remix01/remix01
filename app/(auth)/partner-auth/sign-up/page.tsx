@@ -45,10 +45,10 @@ export default function Page() {
         options: {
           emailRedirectTo:
             process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/partner-dashboard`,
+            `${window.location.origin}/obrtnik/dashboard`,
           data: {
             company_name: companyName,
-            user_type: 'partner',
+            user_type: 'obrtnik',
           },
         },
       })
@@ -65,6 +65,7 @@ export default function Page() {
         }
       }
       
+      // Successful registration - create obrtnik record
       if (data.user) {
         const response = await fetch('/api/partner/create', {
           method: 'POST',
@@ -77,7 +78,7 @@ export default function Page() {
         })
         
         if (!response.ok) {
-          console.error('[v0] Failed to create partner record')
+          console.error('[v0] Failed to create obrtnik record')
         }
         
         router.push('/partner-auth/sign-up-success')

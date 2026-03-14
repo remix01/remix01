@@ -36,7 +36,7 @@ export default function Page() {
         password,
       })
       if (error) throw error
-      router.push('/partner-dashboard')
+      router.push('/obrtnik/dashboard')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Napaka pri prijavi')
     } finally {
