@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, CheckCircle, Upload } from 'lucide-react'
+import { AlertCircle, CheckCircle, Upload, LogOut } from 'lucide-react'
 
 export default function ProfilPage() {
   const router = useRouter()
@@ -279,6 +279,16 @@ export default function ProfilPage() {
     } catch (error) {
       console.error('[v0] Error resetting password:', error)
       setErrorMessage('Napaka pri pošiljanju navodil')
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      router.push('/partner-auth/login')
+    } catch (error) {
+      console.error('[v0] Logout error:', error)
+      setErrorMessage('Napaka pri odjavi')
     }
   }
 
@@ -594,17 +604,34 @@ export default function ProfilPage() {
       <Card className="p-6 space-y-4">
         <h2 className="text-xl font-bold">Varnost</h2>
 
-        <p className="text-sm text-gray-600">
-          Spremenite geslo s klikom na gumb spodaj.
-        </p>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-gray-600 mb-2">
+              Spremenite geslo s klikom na gumb spodaj.
+            </p>
+            <Button
+              onClick={resetPassword}
+              variant="outline"
+              className="w-full"
+            >
+              Spremenite geslo
+            </Button>
+          </div>
 
-        <Button
-          onClick={resetPassword}
-          variant="outline"
-          className="w-full"
-        >
-          Spremenite geslo
-        </Button>
+          <div className="border-t pt-4">
+            <p className="text-sm text-gray-600 mb-2">
+              Odjavite se s tega naprave.
+            </p>
+            <Button
+              onClick={handleLogout}
+              variant="destructive"
+              className="w-full justify-start gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Odjava
+            </Button>
+          </div>
+        </div>
       </Card>
     </div>
   )

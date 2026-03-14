@@ -153,11 +153,9 @@ export default function MojsterDetailPage({ params }: PageProps) {
                     {profile.location_city}
                   </div>
                 )}
-                {obrtnik.hourly_rate && (
-                  <div className="text-foreground font-semibold">
-                    od {obrtnik.hourly_rate}€/uro
-                  </div>
-                )}
+                <div className="text-foreground font-semibold">
+                  {obrtnik.hourly_rate ? `od ${obrtnik.hourly_rate}€/uro` : 'Cena po dogovoru'}
+                </div>
                 {obrtnik.years_experience && (
                   <div className="text-muted-foreground">
                     {obrtnik.years_experience} let izkušenj
@@ -166,15 +164,15 @@ export default function MojsterDetailPage({ params }: PageProps) {
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Link href={`/povprasevanje/novo?obrtnik_id=${id}`}>
-                  <button className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity">
+              <div className="flex gap-3 pt-4 flex-col sm:flex-row">
+                <Link href={`/povprasevanje/novo?obrtnik_id=${id}`} className="flex-1 sm:flex-none">
+                  <button className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity min-h-[48px] flex items-center justify-center">
                     Pošlji povpraševanje
                   </button>
                 </Link>
                 {profile.phone && (
-                  <a href={`tel:${profile.phone}`}>
-                    <button className="px-6 py-2 border border-border rounded-lg font-semibold hover:bg-muted transition-colors flex items-center gap-2">
+                  <a href={`tel:${profile.phone}`} className="flex-1 sm:flex-none">
+                    <button className="w-full sm:w-auto px-6 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors flex items-center justify-center gap-2 min-h-[48px]">
                       <Phone className="w-4 h-4" />
                       Pokliči
                     </button>
@@ -264,7 +262,7 @@ export default function MojsterDetailPage({ params }: PageProps) {
                 </div>
               ) : (
                 <div className="text-center py-12 bg-background rounded-lg border border-dashed border-border">
-                  <p className="text-muted-foreground">Obrtnik nima še objavljenih projektov</p>
+                  <p className="text-muted-foreground">Ta obrtnik še ni dodal referenčnih del</p>
                 </div>
               )}
             </div>
