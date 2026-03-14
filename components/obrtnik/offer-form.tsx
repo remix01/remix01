@@ -63,12 +63,21 @@ export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess }: ObrtnikiOffer
 
       if (insertError) throw insertError
 
-      // INSERT notifikacija
+      // Fetch obrtnik business name for notification
+      const { data: obrtnikProfile } = await supabase
+        .from('obrtnik_profiles')
+        .select('business_name')
+        .eq('id', obrtnik.id)
+        .maybeSingle()
+
+      const businessName = obrtnikProfile?.business_name || 'Obrtnik'
+
+      // INSERT notifikacija s prikazu imena mojstra
       const { data: povprasevanje } = await supabase
         .from('povprasevanja')
         .select('narocnik_id')
         .eq('id', povprasevanje_id)
-        .single()
+        .maybeSingle()
 
       if (povprasevanje) {
         await supabase
@@ -76,7 +85,8 @@ export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess }: ObrtnikiOffer
           .insert({
             user_id: povprasevanje.narocnik_id,
             type: 'nova_ponudba',
-            title: 'Prejeli ste novo ponudbo!',
+            title: 'Prejeli ste novo ponudbo! 🎉',
+            message: `${businessName} je poslal ponudbo za vaše povpraševanje.`,
             read: false,
           })
       }

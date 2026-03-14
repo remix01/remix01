@@ -24,7 +24,7 @@ export default async function RazpolozljivostPage() {
     .from('obrtnik_profiles')
     .select('id, is_available, response_time_hours')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!obrtnikProfile || profileError) {
     redirect('/partner-auth/login')

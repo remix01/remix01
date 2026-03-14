@@ -15,7 +15,7 @@ export default async function StatistikePage() {
     .from('obrtnik_profiles')
     .select('id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!obrtnikProfile) {
     redirect('/partner-auth/login')
