@@ -42,7 +42,7 @@ export default async function MojstriCatalogPage(props: PageProps) {
   ])
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-muted">
       <Breadcrumb
         items={[
           { name: 'Domov', href: '/' },
@@ -54,8 +54,8 @@ export default async function MojstriCatalogPage(props: PageProps) {
         <div className="max-w-7xl mx-auto px-4">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Katalog mojstrov</h1>
-            <p className="text-slate-600 mt-2">
+            <h1 className="text-3xl font-bold text-foreground">Katalog mojstrov</h1>
+            <p className="text-muted-foreground mt-2">
               Poiščite preverjene mojstre v vaši bližini. Preglejte ocene, izkušnje in ponudbe.
             </p>
           </div>
@@ -75,9 +75,9 @@ export default async function MojstriCatalogPage(props: PageProps) {
 
             {/* Results */}
             <section className="lg:col-span-3">
-              {obrtniki.length > 0 ? (
+            {obrtniki.length > 0 ? (
                 <div className="space-y-4">
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-muted-foreground">
                     Našli smo {obrtniki.length} mojstrov
                   </p>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -87,10 +87,20 @@ export default async function MojstriCatalogPage(props: PageProps) {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 py-12">
-                  <p className="text-slate-600">
-                    Noben mojster ne ustreza vašim kriterijem. Poskusite z drugačnimi filtri.
+                <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border py-12 px-4">
+                  <div className="text-4xl mb-4">🔍</div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    Iščemo mojstre za vas
+                  </h3>
+                  <p className="text-muted-foreground text-center mb-6">
+                    Oddajte povpraševanje in mi bomo poiskali pravega mojstra za vas.
                   </p>
+                  <a
+                    href="/povprasevanje/novo"
+                    className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
+                  >
+                    Oddaj povpraševanje
+                  </a>
                 </div>
               )}
             </section>

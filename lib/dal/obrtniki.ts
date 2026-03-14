@@ -107,7 +107,7 @@ export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null
     )
     .eq('id', id)
     .eq('is_verified', true)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching obrtnik_profile:', error)
