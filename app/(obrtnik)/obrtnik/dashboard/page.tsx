@@ -66,25 +66,25 @@ export default async function ObrtknikDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+      <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Aktivne ponudbe</p>
-              <p className="text-3xl font-bold text-gray-900">{activePonudbeCount || 0}</p>
+              <p className="text-sm text-muted-foreground">Aktivne ponudbe</p>
+              <p className="text-3xl font-bold text-foreground">{activePonudbeCount || 0}</p>
             </div>
-            <Briefcase className="w-12 h-12 text-blue-500 opacity-20" />
+            <Briefcase className="w-12 h-12 text-primary opacity-20" />
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Sprejete ponudbe</p>
-              <p className="text-3xl font-bold text-gray-900">{acceptedPonudbeCount || 0}</p>
+              <p className="text-sm text-muted-foreground">Sprejete ponudbe</p>
+              <p className="text-3xl font-bold text-foreground">{acceptedPonudbeCount || 0}</p>
             </div>
             <TrendingUp className="w-12 h-12 text-green-500 opacity-20" />
           </div>
@@ -93,8 +93,8 @@ export default async function ObrtknikDashboardPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Povprečna ocena</p>
-              <p className="text-3xl font-bold text-gray-900">{averageRating}</p>
+              <p className="text-sm text-muted-foreground">Povprečna ocena</p>
+              <p className="text-3xl font-bold text-foreground">{averageRating}</p>
             </div>
             <Star className="w-12 h-12 text-yellow-500 opacity-20" />
           </div>

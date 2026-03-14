@@ -24,8 +24,8 @@ async function getMigrationStats() {
 
     // Test if columns exist first
     const { data: testData, error: testError } = await supabase
-      .from('partners')
-      .select('new_profile_id, migrated_at')
+      .from('obrtnik_profiles')
+      .select('id')
       .limit(1)
 
     if (testError) {
