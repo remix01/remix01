@@ -61,48 +61,32 @@ export function PortfolioItemForm({
 
     setUploading(true)
     try {
-      const newUrls: string[] = []
+      // Create FormData for API upload
+      const formData = new FormData()
       for (let i = 0; i < files.length; i++) {
-        const file = files[i]
+        formData.append('files', files[i])
+      }
+      formData.append('obrtnikId', obrtnikId)
 
-        // Validate
-        if (file.size > 5 * 1024 * 1024) {
-          setError(`Datoteka ${file.name} je prevelika (max 5MB)`)
-          setUploading(false)
-          return
-        }
+      // Call API endpoint
+      const res = await fetch('/api/portfolio/upload', {
+        method: 'POST',
+        body: formData,
+      })
 
-        if (!file.type.startsWith('image/')) {
-          setError(`${file.name} ni slika`)
-          setUploading(false)
-          return
-        }
-
-        // Upload
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-        const filePath = `${obrtnikId}/${item?.id || 'new'}/${fileName}`
-
-        const { error: uploadError, data } = await supabase.storage
-          .from('portfolio')
-          .upload(filePath, file)
-
-        if (uploadError) {
-          setError(uploadError.message)
-          setUploading(false)
-          return
-        }
-
-        const { data: publicData } = supabase.storage.from('portfolio').getPublicUrl(filePath)
-        newUrls.push(publicData.publicUrl)
-
-        setUploadProgress(Math.round(((i + 1) / files.length) * 100))
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Napaka pri nalaganju')
+        setUploading(false)
+        return
       }
 
-      setImageUrls([...imageUrls, ...newUrls])
+      const { urls } = await res.json()
+      setImageUrls([...imageUrls, ...urls])
       setError('')
+      setUploadProgress(100)
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message || 'Napaka pri nalaganju')
     } finally {
       setUploading(false)
       setUploadProgress(0)
@@ -184,11 +168,11 @@ export function PortfolioItemForm({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-start md:justify-end">
-      <div className="w-full md:w-[480px] bg-white h-screen md:h-auto md:max-h-screen overflow-y-auto shadow-xl rounded-t-lg md:rounded-none">
+      <div className="w-full md:w-[480px] bg-background h-screen md:h-auto md:max-h-screen overflow-y-auto shadow-xl rounded-t-lg md:rounded-none">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
-          <h2 className="text-lg font-semibold">{item ? 'Uredi projekt' : 'Dodaj projekt'}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-background">
+          <h2 className="text-lg font-semibold text-foreground">{item ? 'Uredi projekt' : 'Dodaj projekt'}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -204,23 +188,23 @@ export function PortfolioItemForm({
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Naslov projekta *</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Naslov projekta *</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="npr. Preurejanje kopalnice"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Kategorija</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Kategorija</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">Izberite...</option>
               <option value="hydraulics">Hidravlika</option>
@@ -232,74 +216,74 @@ export function PortfolioItemForm({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Opis</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Opis</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, 500))}
               placeholder="Opišite projekt..."
               maxLength={500}
               rows={3}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
             />
-            <p className="text-xs text-gray-500 text-right mt-1">{description.length}/500</p>
+            <p className="text-xs text-muted-foreground text-right mt-1">{description.length}/500</p>
           </div>
 
           {/* Completed Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Datum zaključka</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Datum zaključka</label>
             <input
               type="date"
               value={completedAt}
               onChange={(e) => setCompletedAt(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
           {/* Duration & Price */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Trajanje (dni)</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Trajanje (dni)</label>
               <input
                 type="number"
                 value={durationDays}
                 onChange={(e) => setDurationDays(e.target.value)}
                 placeholder="npr. 5"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Vrednost (€)</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Vrednost (€)</label>
               <input
                 type="number"
                 value={priceApprox}
                 onChange={(e) => setPriceApprox(e.target.value)}
                 placeholder="npr. 500"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
           </div>
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Lokacija</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Lokacija</label>
             <input
               type="text"
               value={locationCity}
               onChange={(e) => setLocationCity(e.target.value)}
               placeholder="npr. Ljubljana"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
           {/* Images */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Slike (max 8)</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Slike (max 8)</label>
 
             {/* Upload Zone */}
-            <label className="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-gray-700">Povlecite slike ali kliknite</p>
-              <p className="text-xs text-gray-500">Max 5MB na sliko</p>
+            <label className="block border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary transition">
+              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm font-medium text-foreground">Povlecite slike ali kliknite</p>
+              <p className="text-xs text-muted-foreground">Max 5MB na sliko</p>
               <input
                 type="file"
                 multiple
@@ -311,14 +295,14 @@ export function PortfolioItemForm({
             </label>
 
             {uploading && (
-              <div className="mt-2 p-2 bg-blue-50 rounded">
-                <div className="h-2 bg-blue-200 rounded overflow-hidden">
+              <div className="mt-2 p-2 bg-primary/10 rounded">
+                <div className="h-2 bg-primary/20 rounded overflow-hidden">
                   <div
-                    className="h-full bg-blue-600 transition-all"
+                    className="h-full bg-primary transition-all"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-xs text-blue-600 mt-1">{uploadProgress}%</p>
+                <p className="text-xs text-primary mt-1">{uploadProgress}%</p>
               </div>
             )}
 
@@ -376,20 +360,20 @@ export function PortfolioItemForm({
           </div>
 
           {/* Featured Toggle */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <label className="text-sm font-medium text-gray-700">Izpostavi projekt</label>
+          <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+            <label className="text-sm font-medium text-foreground">Izpostavi projekt</label>
             <button
               onClick={() => setIsFeatured(!isFeatured)}
               disabled={!canFeature}
               className={cn(
                 'relative inline-flex h-6 w-11 items-center rounded-full transition',
-                isFeatured ? 'bg-blue-600' : 'bg-gray-300',
+                isFeatured ? 'bg-primary' : 'bg-muted-foreground/30',
                 !canFeature && 'opacity-50 cursor-not-allowed'
               )}
             >
               <span
                 className={cn(
-                  'inline-block h-4 w-4 transform rounded-full bg-white transition',
+                  'inline-block h-4 w-4 transform rounded-full bg-background transition',
                   isFeatured ? 'translate-x-6' : 'translate-x-1'
                 )}
               />
@@ -414,14 +398,14 @@ export function PortfolioItemForm({
             )}
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50 transition"
+              className="flex-1 px-4 py-2 text-foreground border rounded-lg hover:bg-muted transition"
             >
               Prekliči
             </button>
             <button
               onClick={handleSave}
               disabled={saving || !title.trim()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition disabled:opacity-50"
             >
               {saving ? 'Shranjevanje...' : item ? 'Posodobi' : 'Dodaj'}
             </button>

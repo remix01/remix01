@@ -40,8 +40,8 @@ export default async function PortfolioPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Portfelj</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-foreground">Portfelj</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {portfolioItems?.length || 0} projektov skupaj | {featuredCount} izpostavljenih (max 3)
           </p>
         </div>
@@ -63,7 +63,7 @@ function PortfolioAddButton({ obrtnikId, featuredCount }: { obrtnikId: string; f
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
       >
         <Plus className="w-5 h-5" />
         Dodaj projekt
@@ -86,8 +86,8 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="text-6xl mb-4">📸</div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-2">Dodajte vaš prvi projekt</h2>
-      <p className="text-gray-600 max-w-md">
+      <h2 className="text-xl font-semibold text-foreground mb-2">Dodajte vaš prvi projekt</h2>
+      <p className="text-muted-foreground max-w-md">
         Projekti vam pomagajo pritegniti stranke. Prikazite svoje najboljše delo!
       </p>
     </div>
