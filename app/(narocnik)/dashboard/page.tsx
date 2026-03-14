@@ -26,9 +26,9 @@ export default async function DashboardPage() {
     .from('profiles')
     .select('full_name, role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
-  if (profile?.role !== 'narocnik') {
+  if (!profile || profile.role !== 'narocnik') {
     redirect('/partner-dashboard')
   }
 
@@ -54,15 +54,15 @@ export default async function DashboardPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'odprto':
-        return 'bg-blue-50 text-blue-700 border border-blue-200'
+        return 'bg-primary/10 text-primary border border-primary/20'
       case 'v_teku':
-        return 'bg-orange-50 text-orange-700 border border-orange-200'
+        return 'bg-amber-100 text-amber-700 border border-amber-200'
       case 'zakljuceno':
         return 'bg-green-50 text-green-700 border border-green-200'
       case 'preklicano':
-        return 'bg-gray-50 text-gray-700 border border-gray-200'
+        return 'bg-muted text-muted-foreground border border-muted'
       default:
-        return 'bg-gray-50 text-gray-700 border border-gray-200'
+        return 'bg-muted text-muted-foreground border border-muted'
     }
   }
 
@@ -119,16 +119,16 @@ export default async function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card className="border-l-4 border-l-primary">
           <CardContent className="p-6">
-            <div className="text-3xl font-bold text-blue-600 mb-2">{aktivna}</div>
+            <div className="text-3xl font-bold text-primary mb-2">{aktivna}</div>
             <div className="text-sm text-muted-foreground">Aktivna povpraševanja</div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500">
+        <Card className="border-l-4 border-l-amber-500">
           <CardContent className="p-6">
-            <div className="text-3xl font-bold text-orange-600 mb-2">{ponudbe_count}</div>
+            <div className="text-3xl font-bold text-amber-600 mb-2">{ponudbe_count}</div>
             <div className="text-sm text-muted-foreground">Prejete ponudbe</div>
           </CardContent>
         </Card>

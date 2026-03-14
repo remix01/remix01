@@ -67,7 +67,7 @@ export default function NovoPoVprasevanjePage() {
         .from('profiles')
         .select('location_city')
         .eq('id', currentUser.id)
-        .single()
+        .maybeSingle()
 
       if (profile?.location_city) {
         setLocationCity(profile.location_city)

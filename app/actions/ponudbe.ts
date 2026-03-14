@@ -2,8 +2,6 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { acceptPonudba, updatePonudba } from '@/lib/dal/ponudbe'
-import { updatePovprasevanje } from '@/lib/dal/povprasevanja'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 
 export async function acceptPonudbaAction(
@@ -19,32 +17,84 @@ export async function acceptPonudbaAction(
       return { success: false, error: 'Niste prijavljeni' }
     }
 
-    // Verify ponudba exists and povprasevanje belongs to user
+    // Verify povprasevanje belongs to user
     const { data: povprasevanje } = await supabase
       .from('povprasevanja')
       .select('id, narocnik_id, title, description, location_city, category_id')
       .eq('id', povprasevanjeId)
-      .single()
+      .maybeSingle()
 
     if (!povprasevanje || povprasevanje.narocnik_id !== user.id) {
       return { success: false, error: 'Nimate dostopa do tega povpraševanja' }
     }
 
-    // Fetch ponudba details
+    // STEP 1: Fetch ponudba details
     const { data: ponudbaData } = await supabase
       .from('ponudbe')
       .select('*, obrtnik:obrtnik_profiles(id)')
       .eq('id', ponudbaId)
-      .single()
+      .maybeSingle()
 
-    // Accept the ponudba
-    const acceptSuccess = await acceptPonudba(ponudbaId)
-    if (!acceptSuccess) {
+    if (!ponudbaData) {
+      return { success: false, error: 'Ponudba ni najdena' }
+    }
+
+    // STEP 1: Update this ponudba to 'sprejeta' with accepted_at timestamp
+    const { error: acceptError } = await supabase
+      .from('ponudbe')
+      .update({ status: 'sprejeta', accepted_at: new Date().toISOString() })
+      .eq('id', ponudbaId)
+
+    if (acceptError) {
+      console.error('[v0] Error accepting ponudba:', acceptError)
       return { success: false, error: 'Napaka pri sprejemu ponudbe' }
     }
 
-    // Update povprasevanje status to v_teku (in progress)
-    await updatePovprasevanje(povprasevanjeId, { status: 'v_teku' })
+    // STEP 2: Reject all other pending ponudbe for this povprasevanje
+    const { error: rejectError } = await supabase
+      .from('ponudbe')
+      .update({ status: 'zavrnjena' })
+      .eq('povprasevanje_id', povprasevanjeId)
+      .eq('status', 'poslana')
+      .neq('id', ponudbaId)
+
+    if (rejectError) {
+      console.error('[v0] Error rejecting other ponudbe:', rejectError)
+      // Don't fail the action if rejection of other ponudbe fails
+    }
+
+    // STEP 3: Update povprasevanje status to 'v_teku' and set obrtnik_id
+    const { error: povError } = await supabase
+      .from('povprasevanja')
+      .update({ 
+        status: 'v_teku',
+        obrtnik_id: ponudbaData.obrtnik_id
+      })
+      .eq('id', povprasevanjeId)
+
+    if (povError) {
+      console.error('[v0] Error updating povprasevanje:', povError)
+      // Don't fail the action if povprasevanje update fails
+    }
+
+    // STEP 4: Send notification to obrtnik
+    if (ponudbaData.obrtnik_id) {
+      try {
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: ponudbaData.obrtnik_id,
+            type: 'ponudba_sprejeta',
+            title: 'Vaša ponudba je bila sprejeta!',
+            message: 'Stranka je sprejela vašo ponudbo za ' + povprasevanje.title,
+            action_url: '/obrtnik/ponudbe',
+            is_read: false
+          })
+      } catch (err) {
+        console.error('[v0] Error sending notification:', err)
+        // Don't fail the action if notification fails
+      }
+    }
 
     // If ponudba has available_date, create calendar appointment
     if (ponudbaData?.available_date && ponudbaData?.obrtnik?.id) {
@@ -68,7 +118,7 @@ export async function acceptPonudbaAction(
       })
     }
 
-    // Revalidate the page
+    // STEP 5: Revalidate paths
     revalidatePath(`/narocnik/povprasevanja/${povprasevanjeId}`)
     revalidatePath('/narocnik/povprasevanja')
     revalidatePath('/narocnik/dashboard')

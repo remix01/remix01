@@ -22,6 +22,9 @@ export default function OcenaPage({ params }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [businessName, setBusinessName] = useState<string>('')
   const [rating, setRating] = useState<number>(0)
+  const [qualityRating, setQualityRating] = useState<number>(0)
+  const [punctualityRating, setPunctualityRating] = useState<number>(0)
+  const [priceRating, setPriceRating] = useState<number>(0)
   const [hoverRating, setHoverRating] = useState<number>(0)
   const [comment, setComment] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +55,7 @@ export default function OcenaPage({ params }: Props) {
             )
           `)
           .eq('id', ponudbaId)
-          .single()
+          .maybeSingle()
 
         if (fetchError || !ponudba) {
           setError('Ponudba ni najdena')
@@ -104,7 +107,7 @@ export default function OcenaPage({ params }: Props) {
         .from('ponudbe')
         .select('obrtnik_id')
         .eq('id', ponudbaId)
-        .single()
+        .maybeSingle()
 
       if (fetchError || !ponudba) {
         setError('Napaka pri nalaganju ponudbe')
@@ -120,6 +123,9 @@ export default function OcenaPage({ params }: Props) {
           narocnik_id: user.id,
           obrtnik_id: ponudba.obrtnik_id,
           rating,
+          quality_rating: qualityRating || null,
+          punctuality_rating: punctualityRating || null,
+          price_rating: priceRating || null,
           comment: comment || null,
           is_public: true,
         })
@@ -183,10 +189,10 @@ export default function OcenaPage({ params }: Props) {
             </div>
           )}
 
-          {/* Star Rating */}
+          {/* Star Rating - Overall */}
           <div className="mb-6">
             <Label className="mb-4 block text-center text-gray-700">
-              Kako ste zadovoljni z delom?
+              Kako ste zadovoljni z delom? <span className="text-red-500">*</span>
             </Label>
             <div className="flex justify-center gap-3">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -214,6 +220,90 @@ export default function OcenaPage({ params }: Props) {
                 {ratingLabels[hoverRating || rating]}
               </p>
             )}
+          </div>
+
+          {/* Quality Rating */}
+          <div className="mb-6">
+            <Label className="mb-2 block text-sm text-gray-700">
+              Kvaliteta dela (neobvezno)
+            </Label>
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setQualityRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <span
+                    className={`text-2xl ${
+                      star <= (hoverRating || qualityRating)
+                        ? 'text-blue-400'
+                        : 'text-gray-300'
+                    }`}
+                  >
+                    ★
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Punctuality Rating */}
+          <div className="mb-6">
+            <Label className="mb-2 block text-sm text-gray-700">
+              Točnost in ročnost (neobvezno)
+            </Label>
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setPunctualityRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <span
+                    className={`text-2xl ${
+                      star <= (hoverRating || punctualityRating)
+                        ? 'text-green-400'
+                        : 'text-gray-300'
+                    }`}
+                  >
+                    ★
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Price Rating */}
+          <div className="mb-6">
+            <Label className="mb-2 block text-sm text-gray-700">
+              Razmerje cene in kvalitete (neobvezno)
+            </Label>
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setPriceRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <span
+                    className={`text-2xl ${
+                      star <= (hoverRating || priceRating)
+                        ? 'text-purple-400'
+                        : 'text-gray-300'
+                    }`}
+                  >
+                    ★
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Comment */}
