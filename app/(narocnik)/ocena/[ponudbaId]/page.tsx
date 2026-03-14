@@ -22,7 +22,13 @@ export default function OcenaPage({ params }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [businessName, setBusinessName] = useState<string>('')
   const [rating, setRating] = useState<number>(0)
+  const [qualityRating, setQualityRating] = useState<number>(0)
+  const [punctualityRating, setPunctualityRating] = useState<number>(0)
+  const [priceRating, setPriceRating] = useState<number>(0)
   const [hoverRating, setHoverRating] = useState<number>(0)
+  const [hoverQuality, setHoverQuality] = useState<number>(0)
+  const [hoverPunctuality, setHoverPunctuality] = useState<number>(0)
+  const [hoverPrice, setHoverPrice] = useState<number>(0)
   const [comment, setComment] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -52,7 +58,7 @@ export default function OcenaPage({ params }: Props) {
             )
           `)
           .eq('id', ponudbaId)
-          .single()
+          .maybeSingle()
 
         if (fetchError || !ponudba) {
           setError('Ponudba ni najdena')
@@ -82,7 +88,7 @@ export default function OcenaPage({ params }: Props) {
 
   async function handleSubmit() {
     if (rating === 0) {
-      setError('Izberite oceno z zvezdicami')
+      setError('Izberite splošno oceno z zvezdicami')
       return
     }
 
@@ -104,7 +110,7 @@ export default function OcenaPage({ params }: Props) {
         .from('ponudbe')
         .select('obrtnik_id')
         .eq('id', ponudbaId)
-        .single()
+        .maybeSingle()
 
       if (fetchError || !ponudba) {
         setError('Napaka pri nalaganju ponudbe')
@@ -112,7 +118,7 @@ export default function OcenaPage({ params }: Props) {
         return
       }
 
-      // Create ocena
+      // Create ocena with all fields
       const { error: createError } = await supabase
         .from('ocene')
         .insert({
@@ -120,6 +126,9 @@ export default function OcenaPage({ params }: Props) {
           narocnik_id: user.id,
           obrtnik_id: ponudba.obrtnik_id,
           rating,
+          quality_rating: qualityRating || null,
+          punctuality_rating: punctualityRating || null,
+          price_rating: priceRating || null,
           comment: comment || null,
           is_public: true,
         })
@@ -136,7 +145,7 @@ export default function OcenaPage({ params }: Props) {
 
       setSuccessMessage('Ocena oddana! Preusmerim vas...')
       setTimeout(() => {
-        router.push('/narocnik/dashboard')
+        router.push('/narocnik/povprasevanja')
       }, 2000)
     } catch (err) {
       console.error('[v0] Error submitting ocena:', err)
@@ -147,28 +156,76 @@ export default function OcenaPage({ params }: Props) {
 
   const ratingLabels = ['', 'Slabo', 'Zadostno', 'Dobro', 'Zelo dobro', 'Odlično']
 
+  const StarRating = ({ 
+    value, 
+    hover, 
+    onChange, 
+    onHover, 
+    onLeave, 
+    label 
+  }: { 
+    value: number
+    hover: number
+    onChange: (v: number) => void
+    onHover: (v: number) => void
+    onLeave: () => void
+    label: string
+  }) => (
+    <div className="mb-6">
+      <Label className="mb-3 block text-gray-700">
+        {label}
+      </Label>
+      <div className="flex gap-3">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            onClick={() => onChange(star)}
+            onMouseEnter={() => onHover(star)}
+            onMouseLeave={onLeave}
+            className="transition-transform hover:scale-110"
+          >
+            <span
+              className={`text-4xl ${
+                star <= (hover || value)
+                  ? 'text-yellow-400'
+                  : 'text-gray-300'
+              }`}
+            >
+              ★
+            </span>
+          </button>
+        ))}
+      </div>
+      {(value || hover) && (
+        <p className="mt-2 text-sm font-semibold text-gray-700">
+          {ratingLabels[hover || value]}
+        </p>
+      )}
+    </div>
+  )
+
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-muted">
         <div className="text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-teal-600"></div>
-          <p className="text-gray-600">Nalagam...</p>
+          <p className="text-muted-foreground">Nalagam...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="min-h-screen bg-muted pb-8">
       <div className="mx-auto max-w-md px-4 py-8">
         <Card className="p-8">
-          <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">
+          <h1 className="mb-6 text-center text-2xl font-bold text-foreground">
             Ocenite opravljeno delo
           </h1>
 
-          <div className="mb-8 rounded-lg bg-gray-50 p-4 text-center">
-            <p className="text-sm text-gray-600">Mojster:</p>
-            <p className="font-semibold text-gray-900">{businessName}</p>
+          <div className="mb-8 rounded-lg bg-muted p-4 text-center">
+            <p className="text-sm text-muted-foreground">Mojster:</p>
+            <p className="font-semibold text-foreground">{businessName}</p>
           </div>
 
           {error && (
@@ -183,38 +240,45 @@ export default function OcenaPage({ params }: Props) {
             </div>
           )}
 
-          {/* Star Rating */}
-          <div className="mb-6">
-            <Label className="mb-4 block text-center text-gray-700">
-              Kako ste zadovoljni z delom?
-            </Label>
-            <div className="flex justify-center gap-3">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setRating(star)}
-                  onMouseEnter={() => setHoverRating(star)}
-                  onMouseLeave={() => setHoverRating(0)}
-                  className="transition-transform hover:scale-110"
-                >
-                  <span
-                    className={`text-4xl ${
-                      star <= (hoverRating || rating)
-                        ? 'text-yellow-400'
-                        : 'text-gray-300'
-                    }`}
-                  >
-                    ★
-                  </span>
-                </button>
-              ))}
-            </div>
-            {(rating || hoverRating) && (
-              <p className="mt-3 text-center text-sm font-semibold text-gray-700">
-                {ratingLabels[hoverRating || rating]}
-              </p>
-            )}
-          </div>
+          {/* Overall Star Rating (Required) */}
+          <StarRating 
+            value={rating}
+            hover={hoverRating}
+            onChange={setRating}
+            onHover={setHoverRating}
+            onLeave={() => setHoverRating(0)}
+            label="Splošna ocena *"
+          />
+
+          {/* Quality Rating (Optional) */}
+          <StarRating 
+            value={qualityRating}
+            hover={hoverQuality}
+            onChange={setQualityRating}
+            onHover={setHoverQuality}
+            onLeave={() => setHoverQuality(0)}
+            label="Kakovost dela"
+          />
+
+          {/* Punctuality Rating (Optional) */}
+          <StarRating 
+            value={punctualityRating}
+            hover={hoverPunctuality}
+            onChange={setPunctualityRating}
+            onHover={setHoverPunctuality}
+            onLeave={() => setHoverPunctuality(0)}
+            label="Točnost termina"
+          />
+
+          {/* Price Rating (Optional) */}
+          <StarRating 
+            value={priceRating}
+            hover={hoverPrice}
+            onChange={setPriceRating}
+            onHover={setHoverPrice}
+            onLeave={() => setHoverPrice(0)}
+            label="Razmerje cene in kakovosti"
+          />
 
           {/* Comment */}
           <div className="mb-6">
@@ -241,7 +305,7 @@ export default function OcenaPage({ params }: Props) {
           </Button>
 
           {/* Skip Link */}
-          <Link href="/narocnik/dashboard">
+          <Link href="/narocnik/povprasevanja">
             <p className="text-center text-sm text-gray-600 hover:text-teal-600">
               Preskoči
             </p>

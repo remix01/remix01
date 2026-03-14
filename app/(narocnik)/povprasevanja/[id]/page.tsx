@@ -61,15 +61,15 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
   }
 
   const statusColors: Record<string, string> = {
-    'odprto': 'bg-green-100 text-green-800',
-    'v_teku': 'bg-blue-100 text-blue-800',
-    'zakljuceno': 'bg-gray-100 text-gray-800',
+    'odprto': 'bg-primary/10 text-primary',
+    'v_teku': 'bg-amber-100 text-amber-700',
+    'zakljuceno': 'bg-muted text-muted-foreground',
     'preklicano': 'bg-red-100 text-red-800',
   }
 
   const urgencyColors: Record<string, string> = {
-    'normalno': 'bg-blue-100 text-blue-800',
-    'kmalu': 'bg-orange-100 text-orange-800',
+    'normalno': 'bg-muted text-muted-foreground',
+    'kmalu': 'bg-amber-100 text-amber-700',
     'nujno': 'bg-red-100 text-red-800',
   }
 
@@ -146,7 +146,7 @@ function PovprasevanjeDetailClient({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="min-h-screen bg-muted pb-8">
       <div className="mx-auto max-w-2xl px-4 py-8">
         
         {/* Section 1: Request Header */}
@@ -160,11 +160,11 @@ function PovprasevanjeDetailClient({
             </Badge>
           </div>
 
-          <h1 className="mb-4 text-3xl font-bold text-gray-900">
+          <h1 className="mb-4 text-3xl font-bold text-foreground">
             {povprasevanje.title}
           </h1>
 
-          <div className="mb-6 flex flex-wrap gap-4 text-sm text-gray-600">
+          <div className="mb-6 flex flex-wrap gap-4 text-sm text-muted-foreground">
             <span>📍 {povprasevanje.location_city}</span>
             <span>📅 {createdDate}</span>
             {povprasevanje.category?.name && (
@@ -172,24 +172,24 @@ function PovprasevanjeDetailClient({
             )}
           </div>
 
-          <div className="mb-6 text-gray-700">
+          <div className="mb-6 text-foreground">
             <p className="whitespace-pre-wrap">{povprasevanje.description}</p>
           </div>
 
           {povprasevanje.location_notes && (
-            <div className="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+            <div className="mb-4 rounded-lg bg-primary/10 p-3 text-sm text-primary">
               <strong>Opombe o lokaciji:</strong> {povprasevanje.location_notes}
             </div>
           )}
 
           {povprasevanje.budget_min && povprasevanje.budget_max && (
-            <div className="mb-2 text-sm text-gray-700">
+            <div className="mb-2 text-sm text-foreground">
               <strong>Proračun:</strong> {povprasevanje.budget_min} - {povprasevanje.budget_max} EUR
             </div>
           )}
 
           {povprasevanje.preferred_date_from && povprasevanje.preferred_date_to && (
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-foreground">
               <strong>Željeni termin:</strong> od {new Date(povprasevanje.preferred_date_from).toLocaleDateString('sl-SI')} do {new Date(povprasevanje.preferred_date_to).toLocaleDateString('sl-SI')}
             </div>
           )}
@@ -204,7 +204,7 @@ function PovprasevanjeDetailClient({
 
         {/* Section 3: Ponudbe */}
         <div className="mb-8">
-          <h2 className="mb-4 text-2xl font-bold text-gray-900">
+          <h2 className="mb-4 text-2xl font-bold text-foreground">
             Prejete ponudbe ({ponudbe.length})
           </h2>
           <PonudbeList 

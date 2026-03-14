@@ -26,9 +26,9 @@ export default async function DashboardPage() {
     .from('profiles')
     .select('full_name, role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
-  if (profile?.role !== 'narocnik') {
+  if (!profile || profile.role !== 'narocnik') {
     redirect('/partner-dashboard')
   }
 
@@ -54,15 +54,15 @@ export default async function DashboardPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'odprto':
-        return 'bg-blue-50 text-blue-700 border border-blue-200'
+        return 'bg-primary/10 text-primary border border-primary/20'
       case 'v_teku':
-        return 'bg-orange-50 text-orange-700 border border-orange-200'
+        return 'bg-amber-100 text-amber-700 border border-amber-200'
       case 'zakljuceno':
         return 'bg-green-50 text-green-700 border border-green-200'
       case 'preklicano':
-        return 'bg-gray-50 text-gray-700 border border-gray-200'
+        return 'bg-muted text-muted-foreground border border-border'
       default:
-        return 'bg-gray-50 text-gray-700 border border-gray-200'
+        return 'bg-muted text-muted-foreground border border-border'
     }
   }
 
@@ -84,13 +84,13 @@ export default async function DashboardPage() {
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
       case 'normalno':
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
       case 'kmalu':
-        return 'bg-yellow-100 text-yellow-700'
+        return 'bg-amber-100 text-amber-700'
       case 'nujno':
         return 'bg-red-100 text-red-700'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
     }
   }
 
