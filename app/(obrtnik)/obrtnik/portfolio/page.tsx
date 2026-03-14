@@ -19,7 +19,7 @@ export default async function PortfolioPage() {
     .from('obrtnik_profiles')
     .select('id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profile) {
     redirect('/partner-auth/login')

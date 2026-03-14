@@ -33,63 +33,86 @@ export default function PonudbesPage() {
       return
     }
 
-    // Get obrtnik_id for current user
-    const { data: obrtnikProfile } = await supabase
-      .from('obrtnik_profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
+    try {
+      // Get obrtnik_id for current user
+      const { data: obrtnikProfile } = await supabase
+        .from('obrtnik_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-    if (!obrtnikProfile) {
-      redirect('/partner-auth/login')
-      return
+      if (!obrtnikProfile) {
+        redirect('/partner-auth/login')
+        return
+      }
+
+      // Get obrtnik's categories
+      const { data: obrtnikCats } = await supabase
+        .from('obrtnik_categories')
+        .select('category_id')
+        .eq('obrtnik_id', obrtnikProfile.id)
+
+      const categoryIds = obrtnikCats?.map(oc => oc.category_id) || []
+
+      // Get povprasevanja already sent by this obrtnik
+      const { data: mojePonudbe } = await supabase
+        .from('ponudbe')
+        .select('povprasevanje_id')
+        .eq('obrtnik_id', obrtnikProfile.id)
+
+      const poslanoPovIds = mojePonudbe?.map(p => p.povprasevanje_id) || []
+
+      // Tab 1: Nova povpraševanja - status='odprto', in obrtnik's categories, NOT already sent
+      let query = supabase
+        .from('povprasevanja')
+        .select(`
+          id, title, description, status, budget_min, budget_max,
+          urgency, created_at, location_city,
+          categories(name, icon_name)
+        `)
+        .eq('status', 'odprto')
+
+      if (categoryIds.length > 0) {
+        query = query.in('category_id', categoryIds)
+      } else {
+        // If obrtnik has no categories, show empty list
+        query = query.in('category_id', [''])
+      }
+
+      if (poslanoPovIds.length > 0) {
+        query = query.not('id', 'in', `(${poslanoPovIds.join(',')})`)
+      }
+
+      const { data: nP } = await query.order('urgency DESC, created_at DESC')
+
+      // Tab 2: Poslane ponudbe
+      const { data: pP } = await supabase
+        .from('ponudbe')
+        .select(`
+          id, status, price_estimate, price_type, created_at,
+          povprasevanja(id, title, category_id, location_city)
+        `)
+        .eq('obrtnik_id', obrtnikProfile.id)
+        .in('status', ['poslana', 'sprejeta'])
+
+      // Tab 3: Arhiv
+      const { data: aP } = await supabase
+        .from('ponudbe')
+        .select(`
+          id, status, price_estimate, created_at,
+          povprasevanja(id, title)
+        `)
+        .eq('obrtnik_id', obrtnikProfile.id)
+        .in('status', ['zavrnjena', 'preklicana'])
+
+      setNovaPovprasevanja(nP || [])
+      setPoslane(pP || [])
+      setArhiv(aP || [])
+    } catch (error) {
+      console.error('[v0] Error loading ponudbe data:', error)
+    } finally {
+      setLoading(false)
     }
-
-    // Get obrtnik's categories
-    const { data: obrtnikCats } = await supabase
-      .from('obrtnik_categories')
-      .select('category_id')
-      .eq('obrtnik_id', obrtnikProfile.id)
-
-    const categoryIds = obrtnikCats?.map(oc => oc.category_id) || []
-
-    // Tab 1: Nova povpraševanja - status='odprto', not in sent offers
-    const { data: nP } = await supabase
-      .from('povprasevanja')
-      .select(`
-        id, title, description, status, budget_min, budget_max,
-        urgency, created_at, location_city,
-        categories(name, icon_name)
-      `)
-      .in('category_id', categoryIds)
-      .eq('status', 'odprto')
-      .not('id', 'in', `(SELECT povprasevanje_id FROM ponudbe WHERE obrtnik_id='${obrtnikProfile.id}')`)
-      .order('urgency DESC, created_at DESC')
-
-    // Tab 2: Poslane ponudbe
-    const { data: pP } = await supabase
-      .from('ponudbe')
-      .select(`
-        id, status, price_estimate, price_type, created_at,
-        povprasevanja(id, title, category_id, location_city)
-      `)
-      .eq('obrtnik_id', obrtnikProfile.id)
-      .in('status', ['poslana', 'sprejeta'])
-
-    // Tab 3: Arhiv
-    const { data: aP } = await supabase
-      .from('ponudbe')
-      .select(`
-        id, status, price_estimate, created_at,
-        povprasevanja(id, title)
-      `)
-      .eq('obrtnik_id', obrtnikProfile.id)
-      .in('status', ['zavrnjena', 'preklicana'])
-
-    setNovaPovprasevanja(nP || [])
-    setPoslane(pP || [])
-    setArhiv(aP || [])
-    setLoading(false)
   }
 
   const getUrgencyColor = (urgency: string) => {
