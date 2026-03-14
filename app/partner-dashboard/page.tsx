@@ -18,9 +18,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export default function PartnerDashboard() {
   const router = useRouter()
   const [partner, setPartner] = useState<any>(null)
-  const [paket, setPaket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<any[]>([])
+  const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState('overview')
 
   const supabase = createClient()
@@ -46,6 +46,7 @@ export default function PartnerDashboard() {
       if (partnerData) {
         setPartner(partnerData)
 
+        // Fetch offers
         const { data: offersData } = await sb
           .from('ponudbe')
           .select('*')
@@ -54,6 +55,16 @@ export default function PartnerDashboard() {
 
         if (offersData) {
           setOffers(offersData)
+        }
+
+        // Fetch open requests count
+        const { count: openCount } = await sb
+          .from('povprasevanja')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'odprto')
+
+        if (openCount !== null) {
+          setOpenRequestsCount(openCount)
         }
       }
 
@@ -98,43 +109,54 @@ export default function PartnerDashboard() {
 
   return (
     <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partner} paket={paket} />
+      <PartnerSidebar partner={partner} />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-6 lg:p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground">Partner Portal</h1>
-            <p className="text-muted-foreground">
-              Dobrodošli, {partner.company_name}
-            </p>
+        <div className="p-4 md:p-6 lg:p-8">
+          {/* Header with business name and subscription badge */}
+          <div className="mb-8 flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">{partner?.business_name || 'Moj portal'}</h1>
+              <p className="text-muted-foreground mt-1">
+                {partner?.is_verified && '✓ '} Dobrodošli nazaj
+              </p>
+            </div>
+            {partner?.subscription_tier && (
+              <div className="text-sm font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">
+                {partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
+              </div>
+            )}
           </div>
 
-          {/* New Requests Banner */}
-          <Card className="mb-8 p-6 bg-blue-50 border-blue-200">
+          {/* Open requests CTA banner */}
+          <Card className="mb-8 p-6 bg-primary/5 border-primary/20">
             <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
               <div>
                 <h3 className="font-semibold text-lg text-foreground mb-1">
-                  🆕 Nova povpraševanja dostopna
+                  🆕 {openRequestsCount} povpraševanj čaka na vašo ponudbo
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Preglejte povpraševanja naročnikov in pošljite ponudbo
+                  Pošljite ponudbo in pridobite nove stranke
                 </p>
               </div>
               <Link href="/partner-dashboard/povprasevanja" className="flex-shrink-0">
                 <Button className="gap-2 whitespace-nowrap">
-                  Poglej povpraševanja →
+                  Pregled povpraševanj →
                 </Button>
               </Link>
             </div>
           </Card>
 
+          {/* Horizontally scrollable tabs for mobile */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="overview">Pregled</TabsTrigger>
-              <TabsTrigger value="offers">Ponudbe ({offers.length})</TabsTrigger>
-              <TabsTrigger value="payments">Plačila & zaslužek</TabsTrigger>
-              <TabsTrigger value="notifications">Obvestila</TabsTrigger>
-              <TabsTrigger value="new-offer">Nova ponudba</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto scrollbar-hide">
+              <TabsList className="flex-nowrap w-max">
+                <TabsTrigger value="overview">Pregled</TabsTrigger>
+                <TabsTrigger value="offers">Ponudbe ({offers.length})</TabsTrigger>
+                <TabsTrigger value="payments">Plačila</TabsTrigger>
+                <TabsTrigger value="notifications">Obvestila</TabsTrigger>
+                <TabsTrigger value="new-offer">Nova ponudba</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="overview" className="space-y-6">
               <PartnerStats partnerId={partner.id} offers={offers} />
@@ -164,7 +186,7 @@ export default function PartnerDashboard() {
           </Tabs>
         </div>
       </main>
-      <PartnerBottomNav paket={paket} />
+      <PartnerBottomNav paket={partner?.subscription_tier === 'pro' ? { paket: 'pro' } : { paket: 'start' }} />
     </div>
   )
 }

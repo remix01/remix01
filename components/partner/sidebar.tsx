@@ -9,15 +9,14 @@ import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell } from '
 
 interface PartnerSidebarProps {
   partner: {
-    company_name: string
-    category: string
-  }
-  paket?: {
-    paket: 'start' | 'pro'
+    business_name: string
+    subscription_tier: 'start' | 'pro'
+    avg_rating: number
+    is_verified: boolean
   }
 }
 
-export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
+export function PartnerSidebar({ partner }: PartnerSidebarProps) {
   const router = useRouter()
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
@@ -39,7 +38,7 @@ export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
       <div className="mb-8">
         <Link href="/partner-dashboard" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">P</span>
+            <span className="text-lg font-bold text-primary-foreground">L</span>
           </div>
           <span className="font-display text-xl font-bold text-foreground">
             LiftGO
@@ -47,7 +46,16 @@ export function PartnerSidebar({ partner, paket }: PartnerSidebarProps) {
         </Link>
       </div>
 
-      <nav className="space-y-4 mb-8 flex-1">
+      {/* Partner info card */}
+      <div className="mb-8 p-4 bg-background rounded-lg border">
+        <p className="font-semibold text-foreground text-sm">{partner.business_name}</p>
+        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+          {partner.is_verified && '✓'} {partner.avg_rating.toFixed(1)} ⭐
+        </p>
+        <p className="text-xs font-medium text-primary mt-2">
+          {partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
+        </p>
+      </div>
         <Link
           href="/partner-dashboard"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
