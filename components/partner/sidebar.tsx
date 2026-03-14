@@ -56,6 +56,8 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
           {partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
         </p>
       </div>
+
+      <nav className="space-y-2 mb-8 flex-1">
         <Link
           href="/partner-dashboard"
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
