@@ -369,7 +369,7 @@ export default function ProfilPage() {
               type="text"
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -379,7 +379,7 @@ export default function ProfilPage() {
               type="text"
               value={lastName}
               onChange={e => setLastName(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
         </div>
@@ -392,7 +392,7 @@ export default function ProfilPage() {
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -402,7 +402,7 @@ export default function ProfilPage() {
               type="text"
               value={locationCity}
               onChange={e => setLocationCity(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
         </div>
@@ -422,14 +422,14 @@ export default function ProfilPage() {
 
         <div>
           <Label htmlFor="businessName">Naziv podjetja *</Label>
-          <input
-            id="businessName"
-            type="text"
-            value={businessName}
-            onChange={e => setBusinessName(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-lg"
-            required
-          />
+            <input
+              id="businessName"
+              type="text"
+              value={businessName}
+              onChange={e => setBusinessName(e.target.value)}
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
+              required
+            />
         </div>
 
         <div>
@@ -440,7 +440,7 @@ export default function ProfilPage() {
             maxLength={100}
             value={tagline}
             onChange={e => setTagline(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-lg"
+            className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             placeholder="npr. Hitro, kvalitetno, zanesljivo"
           />
         </div>
@@ -467,7 +467,7 @@ export default function ProfilPage() {
               step="0.01"
               value={hourlyRate}
               onChange={e => setHourlyRate(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -477,7 +477,7 @@ export default function ProfilPage() {
               type="number"
               value={yearsExperience}
               onChange={e => setYearsExperience(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -487,7 +487,7 @@ export default function ProfilPage() {
               type="year"
               value={workingSince}
               onChange={e => setWorkingSince(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="2010"
             />
           </div>
@@ -501,7 +501,7 @@ export default function ProfilPage() {
               type="text"
               value={ajpesId}
               onChange={e => setAjpesId(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -510,7 +510,7 @@ export default function ProfilPage() {
               id="response"
               value={responseTime}
               onChange={e => setResponseTime(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             >
               <option value="">Izberite...</option>
               <option value="1">Manj kot 1 uro</option>
@@ -529,7 +529,7 @@ export default function ProfilPage() {
               type="url"
               value={website}
               onChange={e => setWebsite(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://..."
             />
           </div>
@@ -540,7 +540,7 @@ export default function ProfilPage() {
               type="url"
               value={facebook}
               onChange={e => setFacebook(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://facebook.com/..."
             />
           </div>
@@ -551,7 +551,7 @@ export default function ProfilPage() {
               type="url"
               value={instagram}
               onChange={e => setInstagram(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://instagram.com/..."
             />
           </div>

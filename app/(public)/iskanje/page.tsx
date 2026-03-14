@@ -119,7 +119,7 @@ export default function SearchPage() {
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Button onClick={handleSearch} disabled={loading}>
+            <Button onClick={handleSearch} disabled={loading} className="min-h-[48px]">
               {loading ? 'Iskanje...' : 'Iskanje'}
             </Button>
           </div>
@@ -192,7 +192,7 @@ export default function SearchPage() {
 
                     {craftsperson.description && (
                       <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                        {craftsperson.description}
+                        {craftsperson.tagline || craftsperson.description}
                       </p>
                     )}
 
@@ -222,7 +222,7 @@ export default function SearchPage() {
                       <Badge className={craftsperson.subscription_tier === 'pro' ? 'bg-amber-100 text-amber-700' : 'bg-muted'}>
                         {craftsperson.subscription_tier === 'pro' ? 'PRO' : 'START'}
                       </Badge>
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" className="min-h-[44px]">
                         Poglej profil
                       </Button>
                     </div>
@@ -236,7 +236,7 @@ export default function SearchPage() {
             <p className="text-muted-foreground text-lg">
               Ni zadetkov za vaš iskalni pogoj. Poskusite z drugo kategorijo.
             </p>
-            <Button className="mt-6" onClick={() => setFilters({ query: '', city: '', category: '', rating: 0, verified: false })}>
+            <Button className="mt-6 min-h-[48px]" onClick={() => setFilters({ query: '', city: '', category: '', rating: 0, verified: false })}>
               Počisti filtre
             </Button>
           </div>

@@ -156,11 +156,11 @@ export default function MojsterDetailPage({ params }: PageProps) {
                 <div className="text-foreground font-semibold">
                   {obrtnik.hourly_rate ? `od ${obrtnik.hourly_rate}€/uro` : 'Cena po dogovoru'}
                 </div>
-                {obrtnik.years_experience && (
+                {obrtnik.years_experience ? (
                   <div className="text-muted-foreground">
                     {obrtnik.years_experience} let izkušenj
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* CTA Buttons */}
@@ -325,12 +325,12 @@ export default function MojsterDetailPage({ params }: PageProps) {
                 <div className="bg-background p-6 rounded-lg border border-border">
                   <h3 className="font-semibold text-foreground mb-4">Podatki o obrtni</h3>
                   <div className="space-y-2 text-sm">
-                    {obrtnik.years_experience && (
+                    {obrtnik.years_experience ? (
                       <div>
                         <span className="text-muted-foreground">Izkušnje:</span>
                         <p className="font-semibold text-foreground">{obrtnik.years_experience} let</p>
                       </div>
-                    )}
+                    ) : null}
                     {obrtnik.working_since && (
                       <div>
                         <span className="text-muted-foreground">Deluje od:</span>

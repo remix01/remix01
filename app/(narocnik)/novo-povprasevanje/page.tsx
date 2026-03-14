@@ -263,7 +263,7 @@ export default function NovoPoVprasevanjePage() {
               <Button
                 onClick={handleNext}
                 disabled={!isStep1Valid}
-                className="bg-teal-600 hover:bg-teal-700"
+                className="bg-teal-600 hover:bg-teal-700 min-h-[48px]"
               >
                 Naprej →
               </Button>
@@ -283,6 +283,7 @@ export default function NovoPoVprasevanjePage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="npr. Popravilo puščajoče pipe v kuhinji"
+                className="text-base"
                 required
               />
             </div>
@@ -297,7 +298,7 @@ export default function NovoPoVprasevanjePage() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Opišite problem čim bolj natančno. Navedite material, dostop, posebnosti..."
                 minLength={20}
-                className="min-h-32"
+                className="min-h-32 text-base"
                 required
               />
               <p className="text-xs text-slate-500 mt-1">
@@ -354,6 +355,7 @@ export default function NovoPoVprasevanjePage() {
                 value={locationCity}
                 onChange={(e) => setLocationCity(e.target.value)}
                 placeholder="npr. Ljubljana"
+                className="text-base"
                 required
               />
             </div>
@@ -367,6 +369,7 @@ export default function NovoPoVprasevanjePage() {
                 value={locationNotes}
                 onChange={(e) => setLocationNotes(e.target.value)}
                 placeholder="npr. 3. nadstropje, brez dvigala, ozek hodnik"
+                className="text-base"
               />
             </div>
 
@@ -380,6 +383,7 @@ export default function NovoPoVprasevanjePage() {
                   type="date"
                   value={preferredDateFrom}
                   onChange={(e) => setPreferredDateFrom(e.target.value)}
+                  className="text-base"
                 />
               </div>
 
@@ -392,6 +396,7 @@ export default function NovoPoVprasevanjePage() {
                   type="date"
                   value={preferredDateTo}
                   onChange={(e) => setPreferredDateTo(e.target.value)}
+                  className="text-base"
                 />
               </div>
             </div>
