@@ -167,31 +167,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // ── PARTNER-AUTH zaščita ──────────────────────────────
-  // /partner-auth/login in /partner-auth/sign-up sta javni, vendar
-  // prijavljeni obrtnik jih ne sme dostopaati (redirect na dashboard)
-  if (path.startsWith('/partner-auth')) {
-    if (user) {
-      // User is authenticated - check if they're a craftworker
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        if (profile?.role === 'obrtnik') {
-          // Already logged in as craftworker - redirect to dashboard
-          return NextResponse.redirect(new URL('/obrtnik/dashboard', request.url))
-        }
-      } catch (e) {
-        console.error('[v0] Profile check error in partner-auth:', e instanceof Error ? e.message : String(e))
-      }
-    }
-    // Allow unauthenticated access or non-craftworkers to proceed
-    return NextResponse.next()
-  }
-
   // ── Preusmeritev prijavljenih stran od /prijava ─────────
   if (path === '/prijava') {
     if (!user) return NextResponse.next()
@@ -248,7 +223,6 @@ export const config = {
     '/ocena/:path*',
     '/obrtnik/:path*',
     '/admin/:path*',
-    '/partner-auth/:path*',
     '/prijava',
     '/registracija',
   ],
