@@ -45,7 +45,7 @@ export default function Page() {
         options: {
           emailRedirectTo:
             process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/obrtnik/dashboard`,
+            `${window.location.origin}/partner-dashboard`,
           data: {
             company_name: companyName,
             user_type: 'partner',
