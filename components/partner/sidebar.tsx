@@ -117,8 +117,8 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
       <div className="border-t pt-6">
         <div className="mb-4 rounded-lg bg-background p-4">
           <p className="text-xs font-semibold text-muted-foreground">PODJETJE</p>
-          <p className="font-semibold text-foreground">{partner.company_name}</p>
-          <p className="text-xs text-muted-foreground">{partner.category}</p>
+          <p className="font-semibold text-foreground">{partner.business_name}</p>
+          <p className="text-xs text-muted-foreground">{partner.avg_rating.toFixed(1)} ⭐</p>
         </div>
         <button 
           onClick={handleLogout}
