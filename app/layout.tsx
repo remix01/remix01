@@ -1,3 +1,4 @@
+// Cache bust: Force rebuild to clear stale build artifacts
 import React from 'react'
 import type { Metadata, Viewport } from 'next'
 import { Inter, DM_Sans } from 'next/font/google'
