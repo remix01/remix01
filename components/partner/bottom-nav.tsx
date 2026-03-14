@@ -60,14 +60,6 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
           <span className="text-xs font-medium">{link.label}</span>
         </Link>
       ))}
-      <button
-        onClick={handleLogout}
-        disabled={isLoading}
-        className="flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors flex-1 text-destructive hover:bg-destructive/10"
-      >
-        <LogOut className="h-5 w-5" />
-        <span className="text-xs font-medium">Odjava</span>
-      </button>
     </div>
   )
 }
