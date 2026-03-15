@@ -6,22 +6,23 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { PartnerjiTable } from '@/components/admin/PartnerjiTable'
 import { PendingPartnerCard } from '@/components/admin/PendingPartnerCard'
+import { DodajPartnerjaModal } from '@/components/admin/DodajPartnerjaModal'
 import { getPartnerji } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     search?: string
     status?: string
     page?: string
-  }
+  }>
 }
 
 export default async function PartnerjiPage({ searchParams }: PageProps) {
-  const search = searchParams.search || ''
-  const statusFilter = searchParams.status
-  const page = Number(searchParams.page) || 1
+  const { search = '', status, page: pageParam = '1' } = await searchParams
+  const statusFilter = status
+  const page = Number(pageParam) || 1
 
   const [{ partnerji, total, pages }, pendingData] = await Promise.all([
     getPartnerji(search, statusFilter, 'createdAt', page, 25),
@@ -37,10 +38,13 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Partnerji</h1>
           <p className="text-muted-foreground">Upravljanje z vsemi partnerji</p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Izvozi CSV
-        </Button>
+        <div className="flex gap-2">
+          <DodajPartnerjaModal />
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Izvozi CSV
+          </Button>
+        </div>
       </div>
 
       {/* Pending Verifications Alert */}

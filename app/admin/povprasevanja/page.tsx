@@ -27,7 +27,6 @@ const statusColors: Record<string, string> = {
 
 export default function PovprasevanjaPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [povprasevanja, setPovprasevanja] = useState<Povprasevanje[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,9 +37,10 @@ export default function PovprasevanjaPage() {
 
   useEffect(() => {
     const fetchPovprasevanja = async () => {
+      const supabase = createClient()
       try {
         setLoading(true)
-        
+
         // Verify user is authenticated
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
@@ -99,7 +99,7 @@ export default function PovprasevanjaPage() {
     }
 
     fetchPovprasevanja()
-  }, [search, statusFilter, page, supabase, router])
+  }, [search, statusFilter, page])
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">

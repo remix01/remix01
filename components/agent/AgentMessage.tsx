@@ -54,17 +54,17 @@ export function AgentMessage({ message, onRetry }: AgentMessageProps) {
                 ol: ({ node, ...props }) => (
                   <ol className="list-decimal list-inside mb-1" {...props} />
                 ),
-                code: ({ inline, ...props }) =>
-                  inline ? (
-                    <code
-                      className="bg-slate-800 px-1 py-0.5 rounded text-xs"
-                      {...props}
-                    />
-                  ) : (
+                code: ({ className, children, ...props }) =>
+                  className ? (
                     <code
                       className="block bg-slate-800 p-2 rounded text-xs mb-1 overflow-x-auto"
                       {...props}
-                    />
+                    >{children}</code>
+                  ) : (
+                    <code
+                      className="bg-slate-800 px-1 py-0.5 rounded text-xs"
+                      {...props}
+                    >{children}</code>
                   ),
                 strong: ({ node, ...props }) => <strong className="font-bold" {...props} />,
                 em: ({ node, ...props }) => <em className="italic" {...props} />,

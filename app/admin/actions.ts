@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
 
@@ -76,10 +77,9 @@ export async function getStranke(
   page = 1,
   pageSize = 10
 ) {
-  const supabase = await createClient()
   const skip = (page - 1) * pageSize
 
-  let query = supabase
+  let query = supabaseAdmin
     .from('profiles')
     .select('*', { count: 'exact' })
     .eq('role', 'narocnik')
@@ -113,15 +113,14 @@ export async function getPartnerji(
   page = 1,
   pageSize = 10
 ) {
-  const supabase = await createClient()
   const skip = (page - 1) * pageSize
 
-  let query = supabase
+  let query = supabaseAdmin
     .from('obrtnik_profiles')
     .select('*', { count: 'exact' })
 
   if (filter) {
-    query = query.or(`full_name.ilike.%${filter}%,email.ilike.%${filter}%`)
+    query = query.or(`business_name.ilike.%${filter}%,email.ilike.%${filter}%`)
   }
 
   if (statusFilter === 'PENDING') {
@@ -277,6 +276,82 @@ export async function exportStrankeCSV(): Promise<string> {
   }).join('\n')
 
   return header + rows
+}
+
+export async function dodajStranko(data: {
+  email: string
+  ime: string
+  priimek: string
+  telefon?: string
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Create auth user (sends invite email)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      email_confirm: true,
+      user_metadata: { first_name: data.ime, last_name: data.priimek },
+    })
+    if (authError) return { success: false, error: authError.message }
+
+    // Create profile
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
+      id: authData.user.id,
+      email: data.email,
+      full_name: `${data.ime} ${data.priimek}`.trim(),
+      phone: data.telefon || null,
+      role: 'narocnik',
+    })
+    if (profileError) return { success: false, error: profileError.message }
+
+    revalidatePath('/admin/stranke')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Napaka pri dodajanju stranke' }
+  }
+}
+
+export async function dodajPartnerja(data: {
+  email: string
+  business_name: string
+  telefon?: string
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Create auth user
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      email_confirm: true,
+      user_metadata: { business_name: data.business_name },
+    })
+    if (authError) return { success: false, error: authError.message }
+
+    // Create profiles entry
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
+      id: authData.user.id,
+      email: data.email,
+      full_name: data.business_name,
+      phone: data.telefon || null,
+      role: 'obrtnik',
+    })
+    if (profileError) return { success: false, error: profileError.message }
+
+    // Create obrtnik_profiles entry
+    const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
+      id: authData.user.id,
+      email: data.email,
+      business_name: data.business_name,
+      phone: data.telefon || null,
+      is_verified: false,
+      is_available: false,
+      avg_rating: 0,
+      total_reviews: 0,
+    })
+    if (obrtnikError) return { success: false, error: obrtnikError.message }
+
+    revalidatePath('/admin/partnerji')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Napaka pri dodajanju partnerja' }
+  }
 }
 
 export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji: ChartData[] }> {

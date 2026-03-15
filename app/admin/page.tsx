@@ -1,11 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { StatsCards } from '@/components/admin/StatsCards'
 import { ViolationsChart } from '@/components/admin/ViolationsChart'
 import { ViolationsByTypeChart } from '@/components/admin/ViolationsByTypeChart'
 
 async function getStats() {
-  const supabase = await createClient()
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
@@ -90,7 +88,6 @@ async function getStats() {
 }
 
 async function getViolationsData() {
-  const supabase = await createClient()
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
 

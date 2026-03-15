@@ -1,35 +1,97 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
-export async function POST(req: NextRequest) {
+const RATE_LIMIT_PER_HOUR = 20
+
+type StoredMessage = {
+  role: 'user' | 'agent'
+  content: string
+  timestamp: number
+}
+
+// GET — load conversation history for the current user
+export async function GET(req: NextRequest) {
   try {
-    // Auth check
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
-    // Check API key
+    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+
+    const { data } = await supabaseAdmin
+      .from('agent_conversations')
+      .select('messages')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    return NextResponse.json({ messages: data?.messages ?? [] })
+  } catch {
+    return NextResponse.json({ messages: [] })
+  }
+}
+
+// DELETE — clear conversation history
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+
+    await supabaseAdmin
+      .from('agent_conversations')
+      .delete()
+      .eq('user_id', user.id)
+
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: 'Napaka pri brisanju.' }, { status: 500 })
+  }
+}
+
+// POST — send a message, get AI response, persist both
+export async function POST(req: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+
     if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+    }
+
+    const { message } = await req.json()
+    if (!message?.trim()) {
+      return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
+    }
+
+    // Load existing conversation from DB
+    const { data: conv } = await supabaseAdmin
+      .from('agent_conversations')
+      .select('messages')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+
+    // Rate limiting — max RATE_LIMIT_PER_HOUR user messages per hour
+    const oneHourAgo = Date.now() - 3_600_000
+    const recentUserMessages = history.filter(m => m.role === 'user' && m.timestamp > oneHourAgo)
+    if (recentUserMessages.length >= RATE_LIMIT_PER_HOUR) {
       return NextResponse.json(
-        { error: 'Agent ni konfiguriran.' },
-        { status: 503 }
+        { error: `Prekoračili ste omejitev ${RATE_LIMIT_PER_HOUR} sporočil na uro. Poskusite čez eno uro.` },
+        { status: 429 }
       )
     }
-    
-    const { message, conversationHistory = [] } = await req.json()
-    
-    if (!message) {
-      return NextResponse.json(
-        { error: 'Sporočilo je obvezno.' },
-        { status: 400 }
-      )
-    }
-    
-    const client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    })
-    
-    const systemPrompt = `Si LiftGO asistent za Slovenijo. 
+
+    // Build Claude message array (no timestamps — just role/content)
+    const claudeMessages = history.map(m => ({
+      role: (m.role === 'agent' ? 'assistant' : 'user') as 'user' | 'assistant',
+      content: m.content,
+    }))
+
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+    const systemPrompt = `Si LiftGO asistent za Slovenijo.
 Pomagaš strankam najti prave mojstre za njihova dela.
 Odgovarjaš kratko in jasno v slovenščini.
 Ko stranka opiše problem, vprašaj:
@@ -37,37 +99,33 @@ Ko stranka opiše problem, vprašaj:
 2. Kako nujno je?
 3. Ali ima okvirni proračun?
 Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
-    
-    const messages = [
-      ...conversationHistory,
-      { role: 'user' as const, content: message }
-    ]
-    
+
     const response = await client.messages.create({
-      model: 'claude-opus-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 500,
       system: systemPrompt,
-      messages
+      messages: [...claudeMessages, { role: 'user', content: message }],
     })
-    
-    const assistantMessage = response.content
-      .filter(block => block.type === 'text')
-      .map(block => (block as any).text)
+
+    const assistantText = response.content
+      .filter(b => b.type === 'text')
+      .map(b => (b as any).text)
       .join('')
-    
-    return NextResponse.json({
-      message: assistantMessage,
-      conversationHistory: [
-        ...messages,
-        { role: 'assistant' as const, content: assistantMessage }
-      ]
-    })
-    
+
+    // Persist both messages to DB
+    const updatedHistory: StoredMessage[] = [
+      ...history,
+      { role: 'user', content: message, timestamp: Date.now() },
+      { role: 'agent', content: assistantText, timestamp: Date.now() },
+    ]
+
+    await supabaseAdmin
+      .from('agent_conversations')
+      .upsert({ user_id: user.id, messages: updatedHistory }, { onConflict: 'user_id' })
+
+    return NextResponse.json({ message: assistantText })
   } catch (error) {
-    console.error('[v0] Chat API error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri procesiranju. Poskusite znova.' },
-      { status: 500 }
-    )
+    console.error('[agent/chat] error:', error)
+    return NextResponse.json({ error: 'Napaka pri procesiranju. Poskusite znova.' }, { status: 500 })
   }
 }

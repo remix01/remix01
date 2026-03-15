@@ -154,29 +154,54 @@ class AnomalyDetector {
   }
 
   /**
-   * Send alert email to admin (fire-and-forget)
+   * Send alert email + Slack notification to admin (fire-and-forget)
    */
   private async sendAdminEmail(
     alert: Omit<Alert, 'id' | 'timestamp' | 'resolved'>,
     timestamp: number
   ): Promise<void> {
-    try {
-      // Use your email service here (e.g., Resend, SendGrid, SMTP)
-      // This is a placeholder — implement with your email provider
-      const emailBody = `
-        Alert Type: ${alert.type}
-        Severity: ${alert.severity}
-        User ID: ${alert.userId || 'N/A'}
-        Session ID: ${alert.sessionId || 'N/A'}
-        Count: ${alert.count || 1}
-        Details: ${alert.details}
-        Timestamp: ${new Date(timestamp).toISOString()}
-      `.trim()
+    const slackUrl = process.env.SLACK_WEBHOOK_URL
+    const resendKey = process.env.RESEND_API_KEY
+    const adminEmail = this.adminEmail
 
-      console.log(`[ANOMALY EMAIL] To: ${this.adminEmail}\n${emailBody}`)
-      // TODO: Integrate with actual email service
-    } catch (err) {
-      console.error('[ANOMALY] Email sending error:', err)
+    // Send to Slack
+    if (slackUrl) {
+      try {
+        const emoji = alert.severity === 'critical' ? '🚨' : '⚠️'
+        await fetch(slackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: `${emoji} *LiftGO Agent Alert: ${alert.type}*\nSeverity: ${alert.severity}\nUser: ${alert.userId || 'N/A'}\nCount: ${alert.count || 1}\n${alert.details}`,
+          }),
+        })
+      } catch (err) {
+        console.error('[ANOMALY] Slack send failed:', err)
+      }
+    }
+
+    // Send email via Resend
+    if (resendKey && adminEmail) {
+      try {
+        const { Resend } = await import('resend')
+        const resend = new Resend(resendKey)
+        await resend.emails.send({
+          from: 'LiftGO Alerts <noreply@liftgo.net>',
+          to: adminEmail,
+          subject: `[LiftGO Agent ${alert.severity.toUpperCase()}] ${alert.type}`,
+          text: [
+            `Alert Type: ${alert.type}`,
+            `Severity: ${alert.severity}`,
+            `User ID: ${alert.userId || 'N/A'}`,
+            `Session ID: ${alert.sessionId || 'N/A'}`,
+            `Count: ${alert.count || 1}`,
+            `Details: ${alert.details}`,
+            `Timestamp: ${new Date(timestamp).toISOString()}`,
+          ].join('\n'),
+        })
+      } catch (err) {
+        console.error('[ANOMALY] Email send failed:', err)
+      }
     }
   }
 

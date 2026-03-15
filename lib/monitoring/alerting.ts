@@ -96,11 +96,23 @@ export const alerting = {
   },
 
   async _sendEmail(alert: AlertPayload): Promise<void> {
-    // TODO: Send email via Resend or existing email service
-    // Subject: `[LiftGO ${alert.severity.toUpperCase()}] ${alert.type}`
-    // Body: alert.message + JSON.stringify(alert.metadata)
-    // To: process.env.ADMIN_EMAIL
-    console.log(`[Alerting] Email alert (${alert.type}): ${alert.message}`)
+    if (!process.env.RESEND_API_KEY || !process.env.ADMIN_EMAIL) return
+
+    const { Resend } = await import('resend')
+    const resend = new Resend(process.env.RESEND_API_KEY)
+
+    await resend.emails.send({
+      from: 'LiftGO Alerts <noreply@liftgo.net>',
+      to: process.env.ADMIN_EMAIL,
+      subject: `[LiftGO ${alert.severity.toUpperCase()}] ${alert.type}`,
+      text: [
+        `Alert: ${alert.type}`,
+        `Severity: ${alert.severity}`,
+        `Message: ${alert.message}`,
+        alert.metadata ? `Metadata:\n${JSON.stringify(alert.metadata, null, 2)}` : '',
+        `Time: ${new Date().toISOString()}`,
+      ].filter(Boolean).join('\n\n'),
+    })
   },
 
   /**
