@@ -22,15 +22,17 @@ import {
   formatWorkingContextForPrompt,
 } from './memory'
 
-// ── VALIDATE REQUIRED ENVIRONMENT VARIABLES ────────────────────────────────
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('[Orchestrator] ANTHROPIC_API_KEY is not set')
-  throw new Error('ANTHROPIC_API_KEY environment variable is required')
+// Lazy-initialize to avoid module-level crash during build when key is absent
+let _anthropic: Anthropic | null = null
+function getAnthropicClient(): Anthropic {
+  if (!_anthropic) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('[Orchestrator] ANTHROPIC_API_KEY is not configured')
+    }
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  }
+  return _anthropic
 }
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
 
 export interface ToolCall {
   tool: string
@@ -207,7 +209,7 @@ export async function orchestrate(
     // Call Claude
     const llmStartedAt = Date.now()
     const llmSpan = tracer.startSpan('llm.call', rootSpan, {
-      model:        'claude-3-5-sonnet-20241022',
+      model:        'claude-sonnet-4-6',
       messageCount: messages.length,
     })
 
@@ -216,11 +218,11 @@ export async function orchestrate(
       userId: context.userId,
       level: 'debug',
       event: 'llm_call_started',
-      params: { model: 'claude-3-5-sonnet-20241022', messageCount: messages.length },
+      params: { model: 'claude-sonnet-4-6', messageCount: messages.length },
     })
 
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    const response = await getAnthropicClient().messages.create({
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: systemPrompt,
       messages,

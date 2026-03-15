@@ -3,9 +3,16 @@ import { createClient } from '@/lib/supabase/server'
 import { MATCHING_RULES, AGENT_INSTRUCTIONS } from './skills/matching-rules'
 import { getPricingForCategory } from './skills/pricing-rules'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+// Lazy-initialize — prevents crash during build when ANTHROPIC_API_KEY is absent
+let _anthropic: Anthropic | null = null
+function getAnthropicClient(): Anthropic {
+  if (!_anthropic) {
+    const key = process.env.ANTHROPIC_API_KEY
+    if (!key) throw new Error('[liftgo-agent] ANTHROPIC_API_KEY is not configured')
+    _anthropic = new Anthropic({ apiKey: key })
+  }
+  return _anthropic
+}
 
 export interface MatchResult {
   obrtknikId: string
@@ -219,8 +226,8 @@ Vrni JSON v tej obliki (SAMO JSON, brez drugega teksta):
 
     let response
     try {
-      response = await anthropic.messages.create({
-        model: 'claude-opus-4-6',
+      response = await getAnthropicClient().messages.create({
+        model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         messages: [{ role: 'user', content: userPrompt }],
         system: systemPrompt,

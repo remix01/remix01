@@ -1,35 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@/lib/supabase/server'
 
-export async function POST(req: NextRequest) {
-  try {
-    // Auth check
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    // Check API key
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json(
-        { error: 'Agent ni konfiguriran.' },
-        { status: 503 }
-      )
-    }
-    
-    const { message, conversationHistory = [] } = await req.json()
-    
-    if (!message) {
-      return NextResponse.json(
-        { error: 'Sporočilo je obvezno.' },
-        { status: 400 }
-      )
-    }
-    
-    const client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    })
-    
-    const systemPrompt = `Si LiftGO asistent za Slovenijo. 
+// Module-level singleton — one client for the lifetime of the serverless instance
+let _client: Anthropic | null = null
+function getClient(): Anthropic {
+  if (!_client) {
+    const key = process.env.ANTHROPIC_API_KEY
+    if (!key) throw new Error('[chat] ANTHROPIC_API_KEY is not configured')
+    _client = new Anthropic({ apiKey: key })
+  }
+  return _client
+}
+
+// Max conversation turns kept in context (keeps costs & latency low)
+const MAX_HISTORY = 10
+
+const SYSTEM_PROMPT = `Si LiftGO asistent za Slovenijo.
 Pomagaš strankam najti prave mojstre za njihova dela.
 Odgovarjaš kratko in jasno v slovenščini.
 Ko stranka opiše problem, vprašaj:
@@ -37,24 +23,45 @@ Ko stranka opiše problem, vprašaj:
 2. Kako nujno je?
 3. Ali ima okvirni proračun?
 Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
-    
+
+export async function POST(req: NextRequest) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json(
+      { error: 'Agent ni konfiguriran.' },
+      { status: 503 }
+    )
+  }
+
+  try {
+    const { message, conversationHistory = [] } = await req.json()
+
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return NextResponse.json(
+        { error: 'Sporočilo je obvezno.' },
+        { status: 400 }
+      )
+    }
+
+    // Cap history to last MAX_HISTORY messages to avoid context overflow
+    const cappedHistory = conversationHistory.slice(-MAX_HISTORY)
+
     const messages = [
-      ...conversationHistory,
-      { role: 'user' as const, content: message }
+      ...cappedHistory,
+      { role: 'user' as const, content: message.trim() }
     ]
-    
-    const response = await client.messages.create({
-      model: 'claude-opus-4-20250514',
+
+    const response = await getClient().messages.create({
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 500,
-      system: systemPrompt,
-      messages
+      system: SYSTEM_PROMPT,
+      messages,
     })
-    
+
     const assistantMessage = response.content
       .filter(block => block.type === 'text')
-      .map(block => (block as any).text)
+      .map(block => (block as Anthropic.TextBlock).text)
       .join('')
-    
+
     return NextResponse.json({
       message: assistantMessage,
       conversationHistory: [
@@ -62,9 +69,9 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
         { role: 'assistant' as const, content: assistantMessage }
       ]
     })
-    
+
   } catch (error) {
-    console.error('[v0] Chat API error:', error)
+    console.error('[chat] API error:', error)
     return NextResponse.json(
       { error: 'Napaka pri procesiranju. Poskusite znova.' },
       { status: 500 }
