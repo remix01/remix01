@@ -26,7 +26,7 @@ export function VideoDiagnozaButton({ variant = 'inline' }: VideoDiagnozaButtonP
             <TooltipTrigger asChild>
               <button
                 onClick={() => setOpen(true)}
-                className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-6 text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl sm:h-16 sm:px-8"
+                className="fixed bottom-6 right-6 z-30 flex h-14 items-center gap-2 rounded-full bg-primary px-6 text-primary-foreground shadow-lg transition-all hover:scale-105 hover:shadow-xl sm:h-16 sm:px-8"
               >
                 <Video className="h-5 w-5 sm:h-6 sm:w-6" />
                 <span className="hidden font-semibold sm:inline">

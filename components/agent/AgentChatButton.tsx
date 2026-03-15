@@ -2,7 +2,7 @@
 // components/agent/AgentChatButton.tsx
 
 import React, { useEffect, useState } from 'react'
-import { MessageCircle, X } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 import { useAgentChat } from './useAgentChat'
 import { AgentChat } from './AgentChat'
 import { createClient } from '@/lib/supabase/client'
@@ -31,45 +31,32 @@ export function AgentChatButton() {
 
   return (
     <>
-      {/* FIX 1: z-40 za gumb, z-50 za chat okno — tako da chat vedno lebdi NAD gumbom */}
-      <button
-        onClick={() => setIsOpen()}
-        // FIX 2: Na mobilnih bottom-6 (ne bottom-20/24) — samo gumb se ne premakne,
-        // chat okno se odpravi in gumb preslika v ozadje
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 flex items-center justify-center transition-all duration-200 z-40 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
-        // FIX 3: aria-label dinamično glede na stanje (odprt/zaprt)
-        aria-label={isOpen ? 'Zapri chat' : 'Odpri chat z LiftGO asistentom'}
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        title={isOpen ? 'Zapri chat' : 'Chat z LiftGO asistentom'}
-      >
-        {/* FIX 4: Ikona se zamenja med MessageCircle in X glede na stanje */}
-        {isOpen ? (
-          <X className="w-6 h-6" aria-hidden="true" />
-        ) : (
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen()}
+          className="fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 flex items-center justify-center transition-all duration-200 z-40 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+          aria-label="Odpri chat z LiftGO asistentom"
+          aria-haspopup="dialog"
+          title="Chat z LiftGO asistentom"
+        >
           <MessageCircle className="w-6 h-6" aria-hidden="true" />
-        )}
 
-        {/* Unread badge */}
-        {unreadCount > 0 && !isOpen && (
-          <span
-            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 leading-none"
-            // FIX 5: aria-live za screen readerje — oznanjuje nova sporočila
-            aria-live="polite"
-            aria-label={`${unreadCount} neprebrana sporočila`}
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
+          {unreadCount > 0 && (
+            <span
+              className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[22px] h-[22px] flex items-center justify-center px-1 leading-none"
+              aria-live="polite"
+              aria-label={`${unreadCount} neprebrana sporočila`}
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
 
-        {/* FIX 6: Pulse animacija je bila na inset-0 z bg-red-500 —
-            to je pokrivalo ikono. Premaknjeno navzven kot ring efekt. */}
-        {unreadCount > 0 && !isOpen && (
-          <span className="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-30 pointer-events-none" />
-        )}
-      </button>
+          {unreadCount > 0 && (
+            <span className="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-30 pointer-events-none" />
+          )}
+        </button>
+      )}
 
-      {/* FIX 7: role="dialog" + aria-modal za dostopnost chat panela */}
       {isOpen && (
         <div role="dialog" aria-modal="true" aria-label="LiftGO chat asistent">
           <AgentChat messages={messages} isLoading={isLoading} sendMessage={sendMessage} closeChat={closeChat} />
