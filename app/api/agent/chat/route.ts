@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { env } from '@/lib/env'
 
 export async function POST(req: NextRequest) {
   try {
     // Check API key
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
         { error: 'Agent ni konfiguriran.' },
         { status: 503 }
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
     
     const client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
+      apiKey: env.ANTHROPIC_API_KEY
     })
     
     const systemPrompt = `Si LiftGO asistent za Slovenijo. LiftGO je platforma, ki poveže stranke z zaupanja vrednimi obrtniki in mojstri.

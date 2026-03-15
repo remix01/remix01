@@ -2,9 +2,10 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { MATCHING_RULES, AGENT_INSTRUCTIONS } from './skills/matching-rules'
 import { getPricingForCategory } from './skills/pricing-rules'
+import { env } from '@/lib/env'
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: env.ANTHROPIC_API_KEY,
 })
 
 export interface MatchResult {
@@ -209,7 +210,7 @@ Vrni JSON v tej obliki (SAMO JSON, brez drugega teksta):
 }`
 
     // 6. Call Claude API with error handling for missing API key
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!env.ANTHROPIC_API_KEY) {
       return {
         topMatches: [],
         reasoning: '',

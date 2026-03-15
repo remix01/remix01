@@ -1,11 +1,12 @@
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+import { env } from '@/lib/env'
 
 // Lazy-initialize to avoid crash during build when STRIPE_SECRET_KEY is absent
 let _stripe: Stripe | null = null
 function getStripe(): Stripe {
   if (!_stripe) {
-    const key = process.env.STRIPE_SECRET_KEY
+    const key = env.STRIPE_SECRET_KEY
     if (!key) throw new Error('[payments] STRIPE_SECRET_KEY is not configured')
     _stripe = new Stripe(key, { apiVersion: '2024-06-20' })
   }
@@ -95,7 +96,7 @@ export async function createOnboardingLink(
   stripeAccountId: string
 ): Promise<{ url: string | null; error?: string }> {
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
     const accountLink = await getStripe().accountLinks.create({
       account: stripeAccountId,

@@ -21,15 +21,16 @@ import {
   FINANCIAL_TOOLS,
   formatWorkingContextForPrompt,
 } from './memory'
+import { env } from '@/lib/env'
 
 // ── VALIDATE REQUIRED ENVIRONMENT VARIABLES ────────────────────────────────
-if (!process.env.ANTHROPIC_API_KEY) {
+if (!env.ANTHROPIC_API_KEY) {
   console.error('[Orchestrator] ANTHROPIC_API_KEY is not set')
   throw new Error('ANTHROPIC_API_KEY environment variable is required')
 }
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: env.ANTHROPIC_API_KEY,
 })
 
 export interface ToolCall {

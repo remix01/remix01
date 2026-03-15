@@ -1,86 +1,70 @@
-# Environment Variable Hardening - Completed
+# Environment Variable Configuration
 
-## Summary of Changes
+## Centralizirana konfiguracija: `/lib/env.ts`
 
-Fixed critical configuration issues by consolidating conflicting Next.js config files and centralizing environment variable validation.
+Vse okoljske spremenljivke so mapirane v `/lib/env.ts`. Ta datoteka je **edini vir resnice** za env spremenljivke.
 
-### 1. **Created `/lib/env.ts`** - Centralized Environment Validation
-- Single source of truth for ALL environment variables
-- Uses Zod schema for compile-time and runtime validation
-- Validates environment variables on app startup (fails fast in production)
-- Exports `env` object that replaces all `process.env` usage
-- Includes all required variables: Supabase, Stripe, QStash, Resend, Twilio, Google Calendar, Web Push, Analytics
+> **Opomba:** `lib/env.ts` uporablja enostavno mapiranje z `?? ''` privzetimi vrednostmi (brez Zod validacije).
+> Aplikacija se ne sesuje ob manjkajočih spremenljivkah — namesto tega funkcije, ki potrebujejo neobstoječe vrednosti, vrnejo graceful fallback ali napako.
 
-### 2. **Fixed Next.js Configuration Conflict**
-- Deleted `/next.config.mjs` (was causing unpredictable build behavior)
-- Created unified `/next.config.ts` with TypeScript support
-- Merged ALL options from both files (TypeScript, Images, Experimental)
+```typescript
+import { env } from '@/lib/env'
 
-### 3. **Replaced All Direct `process.env` Usage**
-Updated 20+ files to import and use `env` module:
+// Pravilno:
+const key = env.STRIPE_SECRET_KEY
 
-**Core Libraries:**
-- `lib/stripe.ts` - Uses `env.STRIPE_SECRET_KEY`, `env.STRIPE_WEBHOOK_SECRET`
-- `lib/resend.ts` - Uses `env.RESEND_API_KEY`, `env.NEXT_PUBLIC_FROM_EMAIL`
-- `lib/supabase-admin.ts` - Uses `env.NEXT_PUBLIC_SUPABASE_URL`, `env.SUPABASE_SERVICE_ROLE_KEY`
-- `lib/supabase/server.ts` - Uses `env` for Supabase credentials
-- `lib/supabase/client.ts` - Uses `env` for browser client
-- `lib/supabase/proxy.ts` - Updated proxy middleware
-- `lib/supabase-partner.ts` - Uses `env` for partner operations
-- `lib/storage.ts` - Uses `env` for storage operations
-- `lib/dal/categories.ts` - Uses `env` for public client
-- `lib/jobs/queue.ts` - Uses `env.QSTASH_TOKEN` and `env.NEXT_PUBLIC_APP_URL`
-
-**API Routes:**
-- `app/api/stripe/create-checkout/route.ts` - Uses `env.NEXT_PUBLIC_URL`
-- `app/api/stripe/connect/create-onboarding-link/route.ts` - Uses `env.NEXT_PUBLIC_APP_URL`
-- `app/api/stripe/webhook/route.ts` - Uses `env.STRIPE_WEBHOOK_SECRET`
-- `app/api/send-email/route.ts` - Uses `env` for email service
-- `app/api/registracija-mojster/route.ts` - Uses `env` for redirects and emails
-- `app/api/push/send/route.ts` - Uses `env` for VAPID configuration
-
-**Layout & Components:**
-- `app/layout.tsx` - Added `env` import, uses `env.NEXT_PUBLIC_GA_ID` for Analytics
-- `app/partner-dashboard/account/page.tsx` - Uses `env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-
-### 4. **Validation Rules in `/lib/env.ts`**
-- **Required at startup (fail in production):**
-  - NEXT_PUBLIC_SUPABASE_URL (must be valid URL)
-  - NEXT_PUBLIC_SUPABASE_ANON_KEY
-  - SUPABASE_SERVICE_ROLE_KEY
-  - STRIPE_SECRET_KEY (must start with `sk_`)
-  - STRIPE_WEBHOOK_SECRET (must start with `whsec_`)
-  - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY (must start with `pk_`)
-  - QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY
-  - NEXT_PUBLIC_APP_URL (must be valid URL)
-
-- **Optional (graceful fallbacks):**
-  - Email, Push, Calendar, Twilio, Analytics variables
-
-### 5. **Benefits**
-✅ **Type Safety** - All env vars are typed, IDE autocomplete available
-✅ **Early Validation** - Errors caught at startup, not runtime
-✅ **No Configuration Conflicts** - Single Next.js config file
-✅ **Better Error Messages** - Zod provides clear validation errors
-✅ **Production Ready** - Strict validation in production, helpful warnings in dev
-✅ **Easy to Maintain** - All variables in one place with documentation
-
-### Environment Variables Required in Vercel Project
-
-Copy all values from `.env.example` to your Vercel project variables:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-STRIPE_SECRET_KEY=sk_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
-QSTASH_TOKEN=...
-QSTASH_CURRENT_SIGNING_KEY=...
-QSTASH_NEXT_SIGNING_KEY=...
-NEXT_PUBLIC_APP_URL=https://...
-[+ all optional variables from .env.example]
+// Narobe (direktna raba process.env — izogibaj se):
+const key = process.env.STRIPE_SECRET_KEY
 ```
 
-No changes to database schema, API logic, or UI. This is purely a configuration hardening fix.
+---
+
+## Dostopne spremenljivke
+
+| Spremenljivka | Namen | Obvezna |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase projekt URL | ✅ |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon ključ | ✅ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role (samo server) | ✅ |
+| `STRIPE_SECRET_KEY` | Stripe secret (`sk_...`) | ✅ |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook podpis (`whsec_...`) | ✅ |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe public ključ (`pk_...`) | ✅ |
+| `ANTHROPIC_API_KEY` | Claude AI API ključ | ✅ (chatbot) |
+| `NEXT_PUBLIC_APP_URL` | Aplikacijski URL | ✅ |
+| `QSTASH_TOKEN` | Upstash QStash token | Opcijsko |
+| `QSTASH_CURRENT_SIGNING_KEY` | QStash podpisni ključ | Opcijsko |
+| `QSTASH_NEXT_SIGNING_KEY` | QStash rotacijski ključ | Opcijsko |
+| `RESEND_API_KEY` | Resend e-pošta API | Opcijsko |
+| `NEXT_PUBLIC_GA_ID` | Google Analytics ID | Opcijsko |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Push obvestila (VAPID) | Opcijsko |
+| `VAPID_PRIVATE_KEY` | Push obvestila (VAPID) | Opcijsko |
+| `VAPID_SUBJECT` | Push obvestila kontakt | Opcijsko |
+| `LANGFUSE_PUBLIC_KEY` | AI tracing | Opcijsko |
+| `LANGFUSE_SECRET_KEY` | AI tracing | Opcijsko |
+| `LANGFUSE_HOST` | Langfuse strežnik | Opcijsko |
+| `ADMIN_ALERT_EMAIL` | Admin obvestila | Opcijsko |
+
+---
+
+## Helper funkcije
+
+```typescript
+import { hasStripe, hasQStash, hasLangfuse, hasAdminEmail } from '@/lib/env'
+
+if (hasStripe()) {
+  // Stripe je konfiguriran
+}
+```
+
+---
+
+## Znana odstopanja
+
+Naslednje datoteke še direktno kličejo `process.env` (postopna migracija):
+- `lib/agent/liftgo-agent.ts` — `process.env.ANTHROPIC_API_KEY`
+- `lib/agent/orchestrator.ts` — `process.env.ANTHROPIC_API_KEY`
+- `lib/email/sender.ts` — `process.env.RESEND_API_KEY`
+- `lib/mcp/payments.ts` — `process.env.STRIPE_SECRET_KEY`
+- Nekatere API route datoteke — `process.env.RESEND_API_KEY`
+
+Ker `lib/env.ts` mapira iste vrednosti, je funkcionalna razlika **minimalna** — obe poti berejo iz `process.env`. Priporočena migracija za konsistentnost.

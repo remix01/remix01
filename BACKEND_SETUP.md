@@ -1,215 +1,186 @@
-# LiftGO Backend Setup Guide
+# LiftGO Backend Setup — Aktualna Shema
 
-## Database Tables Setup
+> ⚠️ **Opomba:** Ta dokument opisuje **trenutno shemo** (marketplace arhitektura).
+> Stara shema (`obrtniki`, `rezervacije` tabele) je bila zamenjana — migracije so v `supabase/migrations/`.
 
-Run the SQL script in Supabase SQL Editor to create the required tables:
+---
 
-1. Go to **Supabase Dashboard** → **SQL Editor**
-2. Create a new query
-3. Copy and run the SQL from `/scripts/setup-liftgo-db.sql`
+## Zaženi migracije
 
-### Tables Created:
+Vse migracije zaženi v **Supabase SQL Editorju** po kronološkem vrstnem redu:
 
-**obrtniki** (Contractors)
-- id (UUID, PK)
-- ime, lokacija, storitev, ocena, cena_na_uro
-- razpoložljive_ure, verified, email
-- created_at
+```
+supabase/migrations/
+  001_initial_schema.sql
+  002_auth_policies.sql
+  003_create_admin_users_table.sql
+  004_liftgo_marketplace.sql
+  20250221_agent_matches.sql
+  20250222_*.sql
+  20250310_*.sql
+  20260215100000_create_escrow_tables.sql
+  20260223_partner_migration.sql
+  20260227190000_fix_rls_policies.sql
+  20260315_fix_category_nullable_and_admin.sql
+```
 
-**povprasevanja** (Inquiries)
-- id (UUID, PK)
-- storitev, lokacija, opis
-- obrtnik_id (FK to obrtniki)
-- termin_datum, termin_ura
-- status (novo, sprejeto, zavrnjeno, zakljuceno)
-- email, telefon
-- created_at, updated_at
+---
 
-**rezervacije** (Bookings)
-- id (UUID, PK)
-- povprasevanje_id (FK), obrtnik_id (FK)
-- status (potrjena, preklicana)
-- created_at
+## Ključne tabele
+
+### `profiles`
+Vsi uporabniki platforme.
+```sql
+id UUID (FK → auth.users)
+role TEXT  -- 'narocnik' | 'obrtnik'
+full_name TEXT
+email TEXT
+phone TEXT
+location_city TEXT
+location_region TEXT
+avatar_url TEXT
+created_at TIMESTAMPTZ
+```
+
+### `obrtnik_profiles`
+Profili obrtnikov (1:1 z profiles kjer role='obrtnik').
+```sql
+id UUID (FK → profiles)
+business_name TEXT
+description TEXT
+ajpes_id TEXT
+is_verified BOOLEAN
+is_available BOOLEAN
+avg_rating NUMERIC
+stripe_account_id TEXT
+stripe_onboarded BOOLEAN
+created_at TIMESTAMPTZ
+```
+
+### `categories`
+Kategorije storitev.
+```sql
+id UUID
+name TEXT
+slug TEXT UNIQUE
+icon_name TEXT
+description TEXT
+```
+
+### `povprasevanja`
+Povpraševanja strank.
+```sql
+id UUID
+narocnik_id UUID (FK → profiles)
+category_id UUID (FK → categories, nullable)
+title TEXT
+description TEXT
+location_city TEXT
+location_region TEXT
+location_notes TEXT
+urgency TEXT  -- 'normalno' | 'kmalu' | 'nujno'
+status TEXT   -- 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+budget_min NUMERIC
+budget_max NUMERIC
+preferred_date_from DATE
+preferred_date_to DATE
+created_at TIMESTAMPTZ
+```
+
+### `ponudbe`
+Ponudbe obrtnikov na povpraševanja.
+```sql
+id UUID
+povprasevanje_id UUID (FK → povprasevanja)
+obrtnik_id UUID (FK → obrtnik_profiles)
+message TEXT
+price_estimate NUMERIC
+price_type TEXT  -- 'fiksna' | 'urna' | 'po_dogovoru'
+available_date DATE
+status TEXT  -- 'poslana' | 'sprejeta' | 'zavrnjena'
+payment_status TEXT  -- 'unpaid' | 'pending' | 'paid' | 'failed'
+stripe_payment_intent_id TEXT
+created_at TIMESTAMPTZ
+```
+
+### `payouts`
+Izplačila obrtnikov.
+```sql
+id UUID
+ponudba_id UUID (FK → ponudbe)
+obrtnik_id UUID (FK → obrtnik_profiles)
+amount_eur NUMERIC
+commission_eur NUMERIC
+stripe_transfer_id TEXT
+status TEXT  -- 'pending' | 'completed' | 'failed'
+created_at TIMESTAMPTZ
+```
+
+### `admin_users`
+Admin/zaposleni računi z RBAC.
+```sql
+id UUID
+auth_user_id UUID (FK → auth.users, UNIQUE)
+email TEXT UNIQUE
+ime TEXT
+priimek TEXT
+vloga TEXT  -- 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
+aktiven BOOLEAN
+created_at TIMESTAMPTZ
+```
 
 ---
 
 ## API Endpoints
 
-### 1. POST /api/povprasevanje
-**Save new inquiry**
-```json
-{
-  "storitev": "Vodovod",
-  "lokacija": "Ljubljana",
-  "opis": "Popravilo puščajoče pipe",
-  "obrtnik_id": "uuid-here",
-  "termin_datum": "2024-04-15",
-  "termin_ura": "10:00",
-  "email": "customer@example.com",
-  "telefon": "+386123456789"
-}
+### AI Asistent
+```
+POST /api/agent/chat
+Body: { message: string, conversationHistory: Message[] }
+Response: { message: string, conversationHistory: Message[] }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "inquiry_id": "uuid",
-  "message": "Povpraševanje uspešno oddano"
-}
+### Povpraševanja
+```
+POST /api/povprasevanje          ← Ustvari novo (avtenticirano)
+POST /api/povprasevanje/public   ← Ustvari novo (brez prijave)
+GET  /api/povprasevanje/[id]     ← Pridobi eno
+PATCH /api/povprasevanje/[id]    ← Posodobi status
 ```
 
----
+### Stripe
+```
+POST /api/stripe/create-checkout          ← Ustvari plačilo
+POST /api/stripe/webhook                  ← Stripe webhook
+POST /api/stripe/connect/create-onboarding-link  ← Onboarding za obrtnike
+```
 
-### 2. GET /api/obrtniki?storitev=&lokacija=
-**Fetch contractors by service type and location**
-
-Query Parameters:
-- `storitev` (optional): Service type (e.g., "Vodovod", "Elektrika")
-- `lokacija` (optional): City name (e.g., "Ljubljana")
-
-**Response:**
-```json
-{
-  "success": true,
-  "contractors": [
-    {
-      "id": "uuid",
-      "ime": "Marko Novak",
-      "lokacija": "Ljubljana",
-      "storitev": "Vodovod",
-      "ocena": 4.8,
-      "cena_na_uro": 30,
-      "email": "marko@example.com"
-    }
-  ],
-  "count": 1
-}
+### Admin
+```
+GET /api/admin/analytics/summary  ← Dashboard statistike
+GET /api/admin/placila            ← Pregled plačil
+GET /api/admin/craftworkers       ← Seznam obrtnikov
 ```
 
 ---
 
-### 3. POST /api/rezervacija
-**Create booking (check slot availability)**
+## Okoljske spremenljivke
 
-```json
-{
-  "povprasevanje_id": "uuid",
-  "obrtnik_id": "uuid"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "booking_id": "uuid",
-  "message": "Rezervacija uspešno potrdjena"
-}
-```
-
----
-
-### 4. GET /api/obrtnik/povprasevanja?obrtnik_id=uuid
-**Contractor dashboard - get all assigned inquiries**
-
-**Response:**
-```json
-{
-  "success": true,
-  "inquiries": [
-    {
-      "id": "uuid",
-      "storitev": "Vodovod",
-      "lokacija": "Ljubljana",
-      "opis": "Popravilo puščajoče pipe",
-      "termin_datum": "2024-04-15",
-      "termin_ura": "10:00",
-      "status": "novo",
-      "email": "customer@example.com",
-      "telefon": "+386123456789",
-      "created_at": "2024-04-10T14:30:00Z"
-    }
-  ],
-  "grouped": {
-    "novo": [...],
-    "sprejeto": [...],
-    "zavrnjeno": [...],
-    "zakljuceno": [...]
-  }
-}
-```
-
----
-
-### 5. POST /api/send-email
-**Send email notification to contractor**
-
-```json
-{
-  "povprasevanje_id": "uuid",
-  "obrtnik_id": "uuid",
-  "email": "contractor@example.com"
-}
-```
-
----
-
-## Environment Variables
-
-Add to `.env.local`:
+Glej README.md za celoten seznam. Ključne:
 
 ```env
-# Supabase (auto-configured if using v0 integration)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-key
-
-# Resend (optional for email notifications)
-RESEND_API_KEY=re_xxxxxxxxxxxxx
-NEXT_PUBLIC_FROM_EMAIL=noreply@liftgo.net
-
-# App URL (for email links)
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+STRIPE_SECRET_KEY=sk_...
+ANTHROPIC_API_KEY=sk-ant-...
+NEXT_PUBLIC_APP_URL=https://liftgo.net
 ```
 
 ---
 
-## Integration Checklist
+## Stara shema (arhiv)
 
-- [ ] Supabase project created and tables set up via SQL Editor
-- [ ] `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`
-- [ ] (Optional) Resend account created and `RESEND_API_KEY` added
-- [ ] Wizard form connected to `/api/povprasevanje` endpoint
-- [ ] Contractor selection fetches from `/api/obrtniki` (not hardcoded)
-- [ ] Final confirmation button triggers `/api/rezervacija`
-- [ ] Success page displays inquiry ID
-
----
-
-## Testing
-
-1. **Test Contractor Fetch:**
-   ```bash
-   curl "http://localhost:3000/api/obrtniki?storitev=Vodovod&lokacija=Ljubljana"
-   ```
-
-2. **Test Inquiry Submission:**
-   ```bash
-   curl -X POST http://localhost:3000/api/povprasevanje \
-     -H "Content-Type: application/json" \
-     -d '{
-       "storitev": "Vodovod",
-       "lokacija": "Ljubljana",
-       "opis": "Popravilo puščajoče pipe",
-       "obrtnik_id": "contractor-uuid",
-       "termin_datum": "2024-04-15",
-       "termin_ura": "10:00",
-       "email": "test@example.com",
-       "telefon": "+386123456789"
-     }'
-   ```
-
-3. **Test Contractor Dashboard:**
-   ```bash
-   curl "http://localhost:3000/api/obrtnik/povprasevanja?obrtnik_id=contractor-uuid"
-   ```
+Stara shema je imela tabele `obrtniki`, `povprasevanja` (stari format), `rezervacije`.
+Te so bile **zamenjane** z novo marketplace arhitekturo.
+Migracijski skripta: `supabase/migrations/20260223_partner_migration.sql`

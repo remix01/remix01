@@ -1,130 +1,179 @@
-## Hi there 👋
-
 # LiftGO
 
-**LiftGO – Local craftsman & service finder platform for Slovenia**
+**LiftGO** je platforma, ki v Sloveniji poveže stranke z zaupanja vrednimi obrtniki in mojstri. Stranke oddajo brezplačno povpraševanje, obrtniki pošljejo ponudbe — ponavadi v manj kot 2 urah.
 
-LiftGO is a web platform that connects customers with verified professional craftsmen and service providers across Slovenia in a fast, simple, and transparent way. Users can submit a service request, receive offers from trusted professionals, schedule visits, and rate their experience — all without hidden fees or complexity.  [oai_citation:0‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
----
-
-## 🚀 What is LiftGO?
-
-LiftGO is designed to help homeowners and businesses find reliable service professionals (craftsmen) for a wide range of tasks, including construction, plumbing, electrical work, carpentry, finishing work, and more — with a guaranteed response time and transparent pricing.  [oai_citation:1‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
+🌐 https://liftgo.net · 📧 info@liftgo.net
 
 ---
 
-## 🧩 Key Features
+## Tech Stack
 
-### 🔎 Simple Service Matching
-Customers describe their task, enter location, and LiftGO matches them with nearby verified professionals.  [oai_citation:2‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
-### ⏱ Fast Responses
-Every registered service provider is expected to respond within **2 hours** (or more, depending on configuration), backed by LiftGO’s response guarantee.  [oai_citation:3‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
-### 💬 Transparent Prices
-No hidden fees — customers know pricing before work begins.  [oai_citation:4‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
-### 📸 Video Diagnosis
-Customers can send a short video of their issue to get an initial assessment before the craftsman arrives.  [oai_citation:5‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
-### 🛠 Verified Professionals
-Every craftsman goes through a four-step verification process including identity checks, references, insurance verification, and ongoing rating evaluations.  [oai_citation:6‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
-### ⭐ Ratings & Reviews
-Customers rate professionals after services, helping future users choose the best matches.  [oai_citation:7‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
+| Sloj | Tehnologija |
+|------|-------------|
+| Framework | Next.js 16 (App Router) |
+| Baza | Supabase (PostgreSQL + Auth + Realtime) |
+| Styling | Tailwind CSS + shadcn/ui |
+| AI Asistent | Anthropic Claude (claude-sonnet-4-6) |
+| Plačila | Stripe (escrow model) |
+| E-pošta | Resend |
+| Job Queue | QStash (Upstash) |
+| Hosting | Vercel |
 
 ---
 
-## 🛠 How It Works
+## Hitri začetek
 
-LiftGO simplifies the entire service request process for customers:
+### 1. Kloniraj repozitorij
+```bash
+git clone <repo-url>
+cd remix01
+npm install
+```
 
-1. **Submit a Request** – Describe the work you need and share your location.  [oai_citation:8‡LiftGO](https://liftgo.net/kako-deluje?utm_source=chatgpt.com)
-2. **Receive Offers** – Verified professionals respond with offers — usually within **2 hours**.  [oai_citation:9‡LiftGO](https://liftgo.net/kako-deluje?utm_source=chatgpt.com)
-3. **Choose a Professional** – Review price, rating, and experience.  [oai_citation:10‡LiftGO](https://liftgo.net/kako-deluje?utm_source=chatgpt.com)
-4. **Complete the Job** – Agree on a time, complete the work, and rate the experience.  [oai_citation:11‡LiftGO](https://liftgo.net/kako-deluje?utm_source=chatgpt.com)
+### 2. Nastavi okoljske spremenljivke
+Kopiraj `.env.example` v `.env.local` in izpolni vrednosti:
 
----
+```bash
+cp .env.example .env.local
+```
 
-## 📊 Benefits for Customers
+Obvezne spremenljivke (brez njih aplikacija ne deluje):
 
-- **Free and no obligation** to proceed before choosing a craftsman.  [oai_citation:12‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Guaranteed professional response time** or your money back.  [oai_citation:13‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Transparent pricing and no hidden fees.**  [oai_citation:14‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Trusted and verified service providers.**  [oai_citation:15‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
----
+# Stripe
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
 
-## 🧑‍🔧 Benefits for Craftsmen (Service Providers)
+# Anthropic (AI asistent)
+ANTHROPIC_API_KEY=sk-ant-...
 
-- Access to **new customer leads** and service requests.  [oai_citation:16‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- Verified platform with **centralized CRM and offer tools**.  [oai_citation:17‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- Flexible subscription tiers with lower commission options.  [oai_citation:18‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- Increased visibility and trusted profile rating system.  [oai_citation:19‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
+# App URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
----
+Opcijske spremenljivke (graceful fallback če niso nastavljene):
 
-## 📦 Service Categories
+```env
+RESEND_API_KEY=re_...           # E-pošta
+QSTASH_TOKEN=...                # Job queue
+QSTASH_CURRENT_SIGNING_KEY=...
+QSTASH_NEXT_SIGNING_KEY=...
+NEXT_PUBLIC_GA_ID=G-...         # Google Analytics
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=... # Push obvestila
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:info@liftgo.net
+LANGFUSE_PUBLIC_KEY=...         # AI tracing (opcijsko)
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_HOST=https://cloud.langfuse.com
+```
 
-LiftGO supports many categories of craftsman services, such as:
+### 3. Nastavi bazo
+```bash
+# Zaženi migracije v Supabase SQL Editorju (po vrstnem redu):
+supabase/migrations/001_*.sql
+supabase/migrations/002_*.sql
+# ... vse do zadnje migracije
+```
 
-- **Construction & Renovation** – masonry, drywall, tile laying, roofing, insulation.  [oai_citation:20‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Plumbing & Heating** – leaks, installations, boiler service, radiant floor heating.  [oai_citation:21‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Electrical & Smart Home** – wiring, lighting, alarms, EV chargers.  [oai_citation:22‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Carpentry & Metalwork** – custom furniture, kitchens, stairs, welding.  [oai_citation:23‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Finishing Work** – painting, wallpaper, flooring, parquet.  [oai_citation:24‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Windows, Doors & Shades** – installation and repairs.  [oai_citation:25‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- **Outdoor & Landscaping** – paving, garden work, irrigation.  [oai_citation:26‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
+Vse migracije so v `/supabase/migrations/` — zaženi jih v Supabase SQL Editorju po kronološkem vrstnem redu.
 
----
+### 4. Zaženi razvojni strežnik
+```bash
+npm run dev
+```
 
-## ⚙️ Pricing Model
-
-LiftGO offers two main plans for craftsmen:
-
-| Plan | Commission | Monthly Fee |
-|------|------------|--------------|
-| **START** | 10% | €0/month |
-| **PRO** | 5% | €29/month |  
-*(Includes priority listing, CRM tools, and more.)*  [oai_citation:27‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
----
-
-## 📈 Stats & Social Proof
-
-- ⭐ **4.9/5 average customer rating** based on reviews.  [oai_citation:28‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- 🛠 Thousands of completed jobs across Slovenia.  [oai_citation:29‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)  
-- ⏱ Average first response well within guarantee timeframe.  [oai_citation:30‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
-
----
-
-## 📞 Contact
-
-**LiftGO d.o.o.**  
-Kuraltova ulica 12,  
-4208 Šenčur, Slovenia  
-📧 info@liftgo.net  
-🌐 https://liftgo.net  [oai_citation:31‡LiftGO](https://liftgo.net/index?utm_source=chatgpt.com)
+Aplikacija teče na http://localhost:3000
 
 ---
 
-## 🗂 Technical/API Documentation
+## Struktura projekta
 
-LiftGO also provides a JSON/REST API for authenticated access to jobs, profiles, and service listings, including:
+```
+app/
+  (narocnik)/        ← Strani za stranke (povpraševanja, naročila)
+  (obrtnik)/         ← Strani za obrtnike (stara pot)
+  admin/             ← Admin panel (zahteva admin_users vpis)
+  partner-dashboard/ ← Dashboard za partnerje/obrtnike
+  api/               ← API Routes
+    agent/chat/      ← AI asistent (POST /api/agent/chat)
+    stripe/          ← Stripe webhooks in checkout
+    admin/           ← Admin API endpoints
 
-- User authentication (OAuth, session based)  
-- Job search and AI-powered job matching  
-- Applications and recommendations  
-- Subscription and billing endpoints  
-- Analytics & metrics endpoints  
-- File uploads (e.g., resumes, portfolios)  [oai_citation:32‡LiftGO](https://liftgo.net/api-docs?utm_source=chatgpt.com)
+components/
+  agent/             ← AI chatbot komponente
+  admin/             ← Admin panel komponente
+  ui/                ← shadcn/ui komponente
 
-*(See API documentation included in the project for full details.)*
+lib/
+  supabase/          ← Supabase klienti (server, client, proxy)
+  agent/             ← AI orchestrator in state machine
+  dal/               ← Data Access Layer
+  jobs/              ← Job queue workers
+  env.ts             ← Centralizirana konfiguracija env spremenljivk
+
+supabase/
+  migrations/        ← SQL migracije (kronološki vrstni red)
+```
 
 ---
 
-## 📄 License
+## Baza podatkov — ključne tabele
 
-This project and documentation are provided “as-is.”  
-See LICENSE for full details (if included).
+| Tabela | Namen |
+|--------|-------|
+| `profiles` | Vsi uporabniki (narocnik / obrtnik vlogi) |
+| `obrtnik_profiles` | Profili obrtnikov (podjetje, ocena, verifikacija) |
+| `categories` | Kategorije storitev |
+| `povprasevanja` | Povpraševanja strank |
+| `ponudbe` | Ponudbe obrtnikov na povpraševanja |
+| `payouts` | Izplačila obrtnikov |
+| `admin_users` | Admin/zaposleni računi z RBAC vlogami |
+| `notifications` | Push/in-app obvestila |
+
+---
+
+## Admin panel
+
+Admin panel dostopen na `/admin` — zahteva vpis z računom v tabeli `admin_users`.
+
+Vloge: `SUPER_ADMIN` · `MODERATOR` · `OPERATER`
+
+Za kreacijo prvega admin uporabnika:
+1. Registriraj se normalno na platformi
+2. V Supabase SQL Editorju dodaj zapis v `admin_users`:
+```sql
+INSERT INTO admin_users (auth_user_id, email, ime, priimek, vloga)
+VALUES ('<auth-user-id>', 'admin@liftgo.net', 'Ime', 'Priimek', 'SUPER_ADMIN');
+```
+
+---
+
+## AI asistent
+
+Chatbot teče na `/api/agent/chat` — dostopen vsem uporabnikom (prijavljenim in neprijavljenim).
+
+Model: `claude-sonnet-4-6`
+Zahteva: `ANTHROPIC_API_KEY` v env spremenljivkah.
+
+---
+
+## Pricing (za obrtnike)
+
+| Plan | Komisija | Mesečnina |
+|------|----------|-----------|
+| START | 10% | €0/mesec |
+| PRO | 5% | €29/mesec |
+
+---
+
+## Kontakt
+
+**LiftGO d.o.o.**
+Kuraltova ulica 12, 4208 Šenčur, Slovenija
+📧 info@liftgo.net · 🌐 https://liftgo.net
