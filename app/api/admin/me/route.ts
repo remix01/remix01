@@ -19,7 +19,7 @@ export async function GET() {
       .select('*')
       .eq('auth_user_id', user.id)
       .eq('aktiven', true)
-      .single()
+      .maybeSingle()
 
     if (error || !admin) {
       return NextResponse.json(
