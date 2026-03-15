@@ -18,11 +18,14 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
-  turbopack: {},
-  
-  // FIX: Add redirects for missing apple-touch-icon files
+  // turbopack: {} removed — causes Tailwind CSS 3.x PostCSS to crash on
+  // App Router paths with (route-groups) and [dynamic-segments] during build.
+  // Webpack is used for production builds; turbopack is still available for
+  // dev via `next dev --turbopack`.
+
   async redirects() {
     return [
+      // PWA / iOS icon fallbacks
       {
         source: '/apple-touch-icon.png',
         destination: '/icons/icon-180x180.png',
@@ -33,10 +36,20 @@ const nextConfig: NextConfig = {
         destination: '/icons/icon-180x180.png',
         permanent: false,
       },
+      // Missing static assets
+      {
+        source: '/logo.png',
+        destination: '/icons/icon-192x192.png',
+        permanent: false,
+      },
+      {
+        source: '/images/og-image.jpg',
+        destination: '/icons/icon-512x512.png',
+        permanent: false,
+      },
     ]
   },
-  
-  // FIX: Add headers for static files caching
+
   async headers() {
     return [
       {
@@ -50,27 +63,6 @@ const nextConfig: NextConfig = {
       {
         source: '/manifest.json',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=3600' }],
-      },
-    ]
-  },
-
-  // FIX: Redirect blog article with typo slug
-  async redirects() {
-    return [
-      {
-        source: '/blog/kako-izbrati-elektroinatalaterja',
-        destination: '/blog/kako-izbrati-elektroinatalaterja',
-        permanent: false,
-      },
-      {
-        source: '/logo.png',
-        destination: '/icons/icon-192x192.png',
-        permanent: false,
-      },
-      {
-        source: '/images/og-image.jpg',
-        destination: '/icons/icon-512x512.png',
-        permanent: false,
       },
     ]
   },
