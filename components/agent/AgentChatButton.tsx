@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 export function AgentChatButton() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthChecked, setIsAuthChecked] = useState(false)
-  const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, clearConversation, closeChat, connectionStatus } = useAgentChat()
+  const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, clearConversation, closeChat, connectionStatus, lastError } = useAgentChat()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -68,7 +68,7 @@ export function AgentChatButton() {
 
       {isOpen && (
         <div role="dialog" aria-modal="true" aria-label="LiftGO chat asistent">
-          <AgentChat messages={messages} isLoading={isLoading} connectionStatus={connectionStatus} sendMessage={sendMessage} clearConversation={clearConversation} closeChat={closeChat} />
+          <AgentChat messages={messages} isLoading={isLoading} connectionStatus={connectionStatus} lastError={lastError} sendMessage={sendMessage} clearConversation={clearConversation} closeChat={closeChat} />
         </div>
       )}
     </>

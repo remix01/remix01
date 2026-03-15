@@ -34,6 +34,7 @@ export function useAgentChat() {
   const [isOpen, setIsOpenState] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle')
+  const [lastError, setLastError] = useState<string | null>(null)
   const historyLoaded = useRef(false)
 
   // Load conversation history from server on first mount
@@ -83,6 +84,7 @@ export function useAgentChat() {
       setMessages(prev => [...prev, userMessage])
       setIsLoading(true)
       setConnectionStatus('loading')
+      setLastError(null)
 
       try {
         const response = await fetch('/api/agent/chat', {
@@ -92,8 +94,10 @@ export function useAgentChat() {
         })
 
         if (!response.ok) {
-          const err = await response.json()
-          throw new Error(err.error || 'Napaka pri pošiljanju')
+          const err = await response.json().catch(() => ({}))
+          const errorMsg = err.error || `Napaka strežnika (${response.status})`
+          setLastError(errorMsg)
+          throw new Error(errorMsg)
         }
 
         const data = await response.json()
@@ -113,6 +117,7 @@ export function useAgentChat() {
         )
 
         setConnectionStatus('connected')
+        setLastError(null)
 
         // Increment unread only if chat is closed
         if (!isOpen) {
@@ -123,24 +128,25 @@ export function useAgentChat() {
           })
         }
       } catch (error: any) {
-        console.error('[chat] send error:', error)
         setMessages(prev =>
           prev.map(msg =>
             msg.id === userMessageId ? { ...msg, status: 'error' as const } : msg
           )
         )
         setConnectionStatus('error')
+        if (!lastError) setLastError('Napaka pri pošiljanju. Poskusite znova.')
       } finally {
         setIsLoading(false)
       }
     },
-    [isLoading, isOpen]
+    [isLoading, isOpen, lastError]
   )
 
   const clearConversation = useCallback(async () => {
     try {
       await fetch('/api/agent/chat', { method: 'DELETE' })
       setMessages([])
+      setLastError(null)
     } catch {
       // ignore
     }
@@ -166,5 +172,6 @@ export function useAgentChat() {
     closeChat: handleClose,
     unreadCount,
     connectionStatus,
+    lastError,
   }
 }
