@@ -74,7 +74,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
         </Link>
         
         {/* PRO Features */}
-        {paket?.paket === 'pro' && (
+        {partner.subscription_tier === 'pro' && (
           <>
             <Link
               href="/partner-dashboard/crm"
