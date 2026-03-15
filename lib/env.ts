@@ -22,6 +22,11 @@ export const env = {
   VAPID_SUBJECT: process.env.VAPID_SUBJECT ?? '',
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
+  // Alerts & notifications
+  SLACK_WEBHOOK_URL: process.env.SLACK_WEBHOOK_URL ?? '',
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL ?? '',
+  // Cron job protection
+  CRON_SECRET: process.env.CRON_SECRET ?? '',
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 } as const
 
@@ -30,3 +35,6 @@ export const hasStripe = () => !!env.STRIPE_SECRET_KEY
 export const hasQStash = () => !!env.QSTASH_TOKEN
 export const hasLangfuse = () => !!env.LANGFUSE_SECRET_KEY
 export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
+export const hasAnthropicAI = () => !!env.ANTHROPIC_API_KEY
+export const hasSlack = () => !!env.SLACK_WEBHOOK_URL
+export const hasResend = () => !!env.RESEND_API_KEY
