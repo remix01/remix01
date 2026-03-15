@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 
 export function AgentChatButton() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
   const { messages, isLoading, sendMessage, isOpen, setIsOpen, closeChat, unreadCount } = useAgentChat()
 
   useEffect(() => {
@@ -21,13 +21,13 @@ export function AgentChatButton() {
       } catch {
         setIsAuthenticated(false)
       } finally {
-        setIsLoading(false)
+        setIsAuthLoading(false)
       }
     }
     checkAuth()
   }, [])
 
-  if (isLoading || !isAuthenticated) return null
+  if (isAuthLoading || !isAuthenticated) return null
 
   return (
     <>
