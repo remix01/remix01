@@ -56,26 +56,6 @@ const nextConfig: NextConfig = {
     ]
   },
   
-  // FIX: Add headers for static files caching
-  async headers() {
-    return [
-      {
-        source: '/blog/kako-izbrati-elektroinatalaterja',
-        destination: '/blog/kako-izbrati-elektroinatalaterja',
-        permanent: false,
-      },
-      {
-        source: '/logo.png',
-        destination: '/icons/icon-192x192.png',
-        permanent: false,
-      },
-      {
-        source: '/images/og-image.jpg',
-        destination: '/icons/icon-512x512.png',
-        permanent: false,
-      },
-    ]
-  },
 }
 
 export default nextConfig
