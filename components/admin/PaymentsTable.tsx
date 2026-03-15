@@ -52,57 +52,57 @@ export function PaymentsTable() {
     setLoading(true)
     setError(null)
     try {
-      // Fetch transactions from offers with payment_status
-      const { data: offersData, error: offersError } = await supabase
-        .from('offers')
+      // Fetch transactions from ponudbe with payment_status
+      const { data: ponudbeData, error: ponudbeError } = await supabase
+        .from('ponudbe')
         .select(`
           id,
-          price,
+          price_estimate,
           payment_status,
           created_at,
-          partner:profiles!offers_partner_id_fkey(email, first_name, last_name)
+          obrtnik:obrtnik_profiles!ponudbe_obrtnik_id_fkey(
+            profile:profiles(email, full_name)
+          )
         `)
         .not('payment_status', 'is', null)
         .order('created_at', { ascending: false })
         .limit(100)
 
-      if (offersError) throw offersError
+      if (ponudbeError) throw ponudbeError
 
       // Fetch payouts
       const { data: payoutsData, error: payoutsError } = await supabase
         .from('payouts')
         .select(`
           id,
-          amount,
+          amount_eur,
           stripe_transfer_id,
           created_at,
-          craftsman:profiles!payouts_craftsman_id_fkey(email, first_name, last_name)
+          obrtnik:obrtnik_profiles!payouts_obrtnik_id_fkey(
+            profile:profiles(email, full_name)
+          )
         `)
         .order('created_at', { ascending: false })
         .limit(100)
 
       if (payoutsError) throw payoutsError
 
-      // Transform offers to transactions
-      const txns = offersData?.map((offer: any) => ({
-        id: offer.id,
-        created_at: offer.created_at,
-        stranka_name: 'Customer',
-        obrtnik_name: offer.partner?.first_name && offer.partner?.last_name 
-          ? `${offer.partner.first_name} ${offer.partner.last_name}`
-          : offer.partner?.email || 'Unknown',
-        amount: offer.price || 0,
-        payment_status: offer.payment_status,
+      // Transform ponudbe to transactions
+      const txns = ponudbeData?.map((ponudba: any) => ({
+        id: ponudba.id,
+        created_at: ponudba.created_at,
+        stranka_name: '—',
+        obrtnik_name: ponudba.obrtnik?.profile?.full_name || ponudba.obrtnik?.profile?.email || 'Neznan',
+        amount: ponudba.price_estimate || 0,
+        payment_status: ponudba.payment_status,
       })) ?? []
 
       // Transform payouts
       const pyts = payoutsData?.map((payout: any) => ({
         id: payout.id,
         created_at: payout.created_at,
-        craftsman_name: payout.craftsman?.first_name && payout.craftsman?.last_name
-          ? `${payout.craftsman.first_name} ${payout.craftsman.last_name}`
-          : payout.craftsman?.email || 'Unknown',
-        amount: payout.amount || 0,
+        craftsman_name: payout.obrtnik?.profile?.full_name || payout.obrtnik?.profile?.email || 'Neznan',
+        amount: payout.amount_eur || 0,
         stripe_transfer_id: payout.stripe_transfer_id,
       })) ?? []
 

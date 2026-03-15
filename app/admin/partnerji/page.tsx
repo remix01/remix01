@@ -11,17 +11,18 @@ import { getPartnerji } from '../actions'
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     search?: string
     status?: string
     page?: string
-  }
+  }>
 }
 
 export default async function PartnerjiPage({ searchParams }: PageProps) {
-  const search = searchParams.search || ''
-  const statusFilter = searchParams.status
-  const page = Number(searchParams.page) || 1
+  const { search: searchRaw, status, page: pageRaw } = await searchParams
+  const search = searchRaw || ''
+  const statusFilter = status
+  const page = Number(pageRaw) || 1
 
   const [{ partnerji, total, pages }, pendingData] = await Promise.all([
     getPartnerji(search, statusFilter, 'createdAt', page, 25),

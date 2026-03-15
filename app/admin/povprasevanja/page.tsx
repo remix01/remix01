@@ -8,14 +8,12 @@ import { createClient } from '@/lib/supabase/client'
 interface Povprasevanje {
   id: string
   title: string
-  location_city: string
-  urgency: string
+  location_city: string | null
+  urgency: string | null
   status: string
   created_at: string
-  stranka_email: string
-  stranka_telefon: string
   category: { name: string } | null
-  narocnik: { email: string; first_name: string; last_name: string } | null
+  narocnik: { email: string; full_name: string | null } | null
 }
 
 const statusColors: Record<string, string> = {
@@ -27,7 +25,6 @@ const statusColors: Record<string, string> = {
 
 export default function PovprasevanjaPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [povprasevanja, setPovprasevanja] = useState<Povprasevanje[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,10 +34,11 @@ export default function PovprasevanjaPage() {
   const [total, setTotal] = useState(0)
 
   useEffect(() => {
+    const supabase = createClient()
     const fetchPovprasevanja = async () => {
       try {
         setLoading(true)
-        
+
         // Verify user is authenticated
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
@@ -52,16 +50,14 @@ export default function PovprasevanjaPage() {
         let query = supabase
           .from('povprasevanja')
           .select(`
-            id, 
-            title, 
-            location_city, 
-            urgency, 
-            status, 
+            id,
+            title,
+            location_city,
+            urgency,
+            status,
             created_at,
-            stranka_email, 
-            stranka_telefon,
             category:categories(name),
-            narocnik:profiles!povprasevanja_narocnik_id_fkey(email, first_name, last_name)
+            narocnik:profiles!povprasevanja_narocnik_id_fkey(email, full_name)
           `, { count: 'exact' })
 
         // Apply status filter
@@ -99,7 +95,7 @@ export default function PovprasevanjaPage() {
     }
 
     fetchPovprasevanja()
-  }, [search, statusFilter, page, supabase, router])
+  }, [search, statusFilter, page, router])
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
@@ -177,7 +173,7 @@ export default function PovprasevanjaPage() {
                     <td className="px-6 py-4 text-muted-foreground">{p.category?.name || '—'}</td>
                     <td className="px-6 py-4 text-muted-foreground">{p.location_city}</td>
                     <td className="px-6 py-4 text-sm">
-                      <div className="text-foreground">{p.narocnik?.first_name} {p.narocnik?.last_name}</div>
+                      <div className="text-foreground">{p.narocnik?.full_name || '—'}</div>
                       <div className="text-xs text-muted-foreground">{p.narocnik?.email}</div>
                     </td>
                     <td className="px-6 py-4">

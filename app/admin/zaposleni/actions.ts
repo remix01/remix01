@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache';
 import type { Vloga } from '@/hooks/use-admin-role';
 
@@ -42,32 +43,48 @@ async function checkSuperAdminPermission() {
 
 export async function createZaposleni(input: CreateZaposleniInput) {
   try {
-    const superAdmin = await checkSuperAdminPermission();
-    const supabase = await createClient()
+    await checkSuperAdminPermission();
 
-    // Check if email already exists
-    const { data: existingZaposleni } = await supabase
-      .from('zaposleni')
-      .select('*')
+    // Check if email already exists in admin_users
+    const { data: existing } = await supabaseAdmin
+      .from('admin_users')
+      .select('id')
       .eq('email', input.email)
-      .single()
+      .maybeSingle()
 
-    if (existingZaposleni) {
-      return {
-        success: false,
-        error: 'Email already exists',
-      };
+    if (existing) {
+      return { success: false, error: 'Email že obstaja' };
     }
 
-    const { data: zaposleni, error } = await supabase
-      .from('zaposleni')
-      .insert([{
+    // Create auth user via admin API (sends invite email)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: input.email,
+      email_confirm: true,
+      user_metadata: {
+        full_name: `${input.ime} ${input.priimek}`,
+      },
+    })
+
+    if (authError) {
+      // If auth user already exists, try to find it
+      if (!authError.message.includes('already been registered')) {
+        throw new Error(authError.message)
+      }
+    }
+
+    const authUserId = authData?.user?.id ?? null
+
+    // Insert into admin_users
+    const { data: zaposleni, error } = await supabaseAdmin
+      .from('admin_users')
+      .insert({
+        auth_user_id: authUserId,
         email: input.email,
         ime: input.ime,
         priimek: input.priimek,
         vloga: input.vloga,
         aktiven: true,
-      }])
+      })
       .select()
       .single()
 
@@ -75,10 +92,7 @@ export async function createZaposleni(input: CreateZaposleniInput) {
 
     revalidatePath('/admin/zaposleni');
 
-    return {
-      success: true,
-      data: zaposleni,
-    };
+    return { success: true, data: zaposleni };
   } catch (error) {
     return {
       success: false,
@@ -90,7 +104,6 @@ export async function createZaposleni(input: CreateZaposleniInput) {
 export async function updateZaposleni(input: UpdateZaposleniInput) {
   try {
     await checkSuperAdminPermission();
-    const supabase = await createClient()
 
     const updateData: any = {}
     if (input.ime) updateData.ime = input.ime
@@ -98,8 +111,8 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
     if (input.vloga) updateData.vloga = input.vloga
     if (input.aktiven !== undefined) updateData.aktiven = input.aktiven
 
-    const { data: zaposleni, error } = await supabase
-      .from('zaposleni')
+    const { data: zaposleni, error } = await supabaseAdmin
+      .from('admin_users')
       .update(updateData)
       .eq('id', input.id)
       .select()
@@ -109,10 +122,7 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
 
     revalidatePath('/admin/zaposleni');
 
-    return {
-      success: true,
-      data: zaposleni,
-    };
+    return { success: true, data: zaposleni };
   } catch (error) {
     return {
       success: false,
@@ -124,20 +134,18 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
 export async function deleteZaposleni(id: string) {
   try {
     await checkSuperAdminPermission();
-    const supabase = await createClient()
 
-    const { error } = await supabase
-      .from('zaposleni')
-      .delete()
+    // Soft delete — set aktiven=false
+    const { error } = await supabaseAdmin
+      .from('admin_users')
+      .update({ aktiven: false })
       .eq('id', id)
 
     if (error) throw error
 
     revalidatePath('/admin/zaposleni');
 
-    return {
-      success: true,
-    };
+    return { success: true };
   } catch (error) {
     return {
       success: false,
@@ -157,7 +165,7 @@ export async function getZaposleniList() {
 
     const { data: admin } = await supabase
       .from('admin_users')
-      .select('*')
+      .select('vloga')
       .eq('email', user.email)
       .single()
 
@@ -165,16 +173,24 @@ export async function getZaposleniList() {
       throw new Error('Not an admin');
     }
 
-    const { data: zaposlenci, error } = await supabase
-      .from('zaposleni')
-      .select('*')
-      .order('id', { ascending: false })
+    const { data: zaposlenci, error } = await supabaseAdmin
+      .from('admin_users')
+      .select('id, email, ime, priimek, vloga, aktiven, created_at')
+      .order('created_at', { ascending: false })
 
     if (error) throw error
 
     return {
       success: true,
-      data: zaposlenci || [],
+      data: (zaposlenci || []).map((z: any) => ({
+        id: z.id,
+        email: z.email,
+        ime: z.ime,
+        priimek: z.priimek,
+        vloga: z.vloga,
+        aktiven: z.aktiven,
+        createdAt: new Date(z.created_at),
+      })),
     };
   } catch (error) {
     return {
@@ -193,19 +209,9 @@ export async function getZaposleniById(id: string) {
       throw new Error('Unauthorized');
     }
 
-    const { data: admin } = await supabase
+    const { data: zaposleni, error } = await supabaseAdmin
       .from('admin_users')
-      .select('*')
-      .eq('email', user.email)
-      .single()
-
-    if (!admin) {
-      throw new Error('Not an admin');
-    }
-
-    const { data: zaposleni, error } = await supabase
-      .from('zaposleni')
-      .select('*')
+      .select('id, email, ime, priimek, vloga, aktiven, created_at')
       .eq('id', id)
       .single()
 
@@ -215,7 +221,15 @@ export async function getZaposleniById(id: string) {
 
     return {
       success: true,
-      data: zaposleni,
+      data: {
+        id: zaposleni.id,
+        email: zaposleni.email,
+        ime: zaposleni.ime,
+        priimek: zaposleni.priimek,
+        vloga: zaposleni.vloga,
+        aktiven: zaposleni.aktiven,
+        createdAt: new Date(zaposleni.created_at),
+      },
     };
   } catch (error) {
     return {
@@ -224,4 +238,3 @@ export async function getZaposleniById(id: string) {
     };
   }
 }
-
