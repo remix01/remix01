@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 export type ChatMessage = {
   id: string
@@ -8,20 +8,69 @@ export type ChatMessage = {
   content: string
   timestamp: number
   status: 'sending' | 'sent' | 'error'
-  toolUsed?: string // Optional field for tracking which tool was used
+}
+
+export type ConnectionStatus = 'idle' | 'loading' | 'connected' | 'error'
+
+const UNREAD_KEY = 'liftgo_chat_unread'
+
+function loadUnread(): number {
+  try {
+    return parseInt(localStorage.getItem(UNREAD_KEY) ?? '0', 10) || 0
+  } catch {
+    return 0
+  }
+}
+
+function saveUnread(n: number) {
+  try {
+    localStorage.setItem(UNREAD_KEY, String(n))
+  } catch {}
 }
 
 export function useAgentChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpenState] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle')
+  const historyLoaded = useRef(false)
+
+  // Load conversation history from server on first mount
+  useEffect(() => {
+    if (historyLoaded.current) return
+    historyLoaded.current = true
+
+    setConnectionStatus('loading')
+    fetch('/api/agent/chat')
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data.messages)) return
+        const loaded: ChatMessage[] = data.messages.map((m: any) => ({
+          id: crypto.randomUUID(),
+          role: m.role as 'user' | 'agent',
+          content: m.content,
+          timestamp: m.timestamp ?? Date.now(),
+          status: 'sent' as const,
+        }))
+        setMessages(loaded)
+        setConnectionStatus('connected')
+      })
+      .catch(() => {
+        // Silently fail — chat works without history
+        setConnectionStatus('idle')
+      })
+  }, [])
+
+  // Restore unread count from localStorage on mount
+  useEffect(() => {
+    setUnreadCount(loadUnread())
+  }, [])
 
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() || isLoading) return
 
-      // 1. Add user message to state immediately
       const userMessageId = crypto.randomUUID()
       const userMessage: ChatMessage = {
         id: userMessageId,
@@ -31,85 +80,91 @@ export function useAgentChat() {
         status: 'sending',
       }
 
-      setMessages((prev) => [...prev, userMessage])
+      setMessages(prev => [...prev, userMessage])
       setIsLoading(true)
+      setConnectionStatus('loading')
 
       try {
-        // 2. POST to /api/agent/chat with { message, conversationHistory }
         const response = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: content,
-            conversationHistory: messages.map(msg => ({
-              role: msg.role === 'agent' ? 'assistant' : 'user',
-              content: msg.content
-            }))
-          }),
+          body: JSON.stringify({ message: content }),
         })
 
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to send message')
+          const err = await response.json()
+          throw new Error(err.error || 'Napaka pri pošiljanju')
         }
 
         const data = await response.json()
 
-        // 3. On response: add agent message to state
         const agentMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'agent',
-          content: data.message || 'Unable to process your request.',
+          content: data.message || 'Napaka pri odgovoru.',
           timestamp: Date.now(),
           status: 'sent',
         }
 
-        // Update user message status to sent
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === userMessageId ? { ...msg, status: 'sent' } : msg
-          )
+        setMessages(prev =>
+          prev
+            .map(msg => msg.id === userMessageId ? { ...msg, status: 'sent' as const } : msg)
+            .concat(agentMessage)
         )
 
-        // Add agent message
-        setMessages((prev) => [...prev, agentMessage])
+        setConnectionStatus('connected')
 
-        // Increment unread count if chat is closed
+        // Increment unread only if chat is closed
         if (!isOpen) {
-          setUnreadCount((prev) => prev + 1)
+          setUnreadCount(prev => {
+            const next = prev + 1
+            saveUnread(next)
+            return next
+          })
         }
-      } catch (error) {
-        console.error('[v0] Error sending message:', error)
-
-        // 4. On error: mark message as error, show retry option
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === userMessageId ? { ...msg, status: 'error' } : msg
+      } catch (error: any) {
+        console.error('[chat] send error:', error)
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === userMessageId ? { ...msg, status: 'error' as const } : msg
           )
         )
+        setConnectionStatus('error')
       } finally {
         setIsLoading(false)
       }
     },
-    [isLoading, messages, isOpen]
+    [isLoading, isOpen]
   )
 
+  const clearConversation = useCallback(async () => {
+    try {
+      await fetch('/api/agent/chat', { method: 'DELETE' })
+      setMessages([])
+    } catch {
+      // ignore
+    }
+  }, [])
+
   const handleOpen = useCallback(() => {
-    setIsOpen(true)
+    setIsOpenState(true)
     setUnreadCount(0)
+    saveUnread(0)
   }, [])
 
   const handleClose = useCallback(() => {
-    setIsOpen(false)
+    setIsOpenState(false)
   }, [])
 
   return {
     messages,
     isLoading,
     sendMessage,
+    clearConversation,
     isOpen,
     setIsOpen: handleOpen,
     closeChat: handleClose,
     unreadCount,
+    connectionStatus,
   }
 }
