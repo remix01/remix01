@@ -1,12 +1,16 @@
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20'
-})
-
-// Export stripe instance for use in webhook handlers
-export { stripe }
+// Lazy-initialize to avoid crash during build when STRIPE_SECRET_KEY is absent
+let _stripe: Stripe | null = null
+function getStripe(): Stripe {
+  if (!_stripe) {
+    const key = process.env.STRIPE_SECRET_KEY
+    if (!key) throw new Error('[payments] STRIPE_SECRET_KEY is not configured')
+    _stripe = new Stripe(key, { apiVersion: '2024-06-20' })
+  }
+  return _stripe
+}
 
 /**
  * Create payment intent when narocnik accepts ponudba
@@ -22,7 +26,7 @@ export async function createPaymentIntent(params: {
       parseInt(process.env.STRIPE_PLATFORM_COMMISSION_PCT || '10', 10) / 100
     const commissionAmount = Math.round(params.amount * commissionPct)
 
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await getStripe().paymentIntents.create({
       amount: params.amount,
       currency: 'eur',
       metadata: {
@@ -59,7 +63,7 @@ export async function createObrtnikStripeAccount(params: {
   obrtknikId: string
 }): Promise<{ accountId: string | null; error?: string }> {
   try {
-    const account = await stripe.accounts.create({
+    const account = await getStripe().accounts.create({
       type: 'express',
       country: 'SI',
       email: params.email,
@@ -93,7 +97,7 @@ export async function createOnboardingLink(
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    const accountLink = await stripe.accountLinks.create({
+    const accountLink = await getStripe().accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${appUrl}/obrtnik/profil`,
       return_url: `${appUrl}/obrtnik/profil?stripe=connected`,
@@ -122,7 +126,7 @@ export async function transferToObrtnik(params: {
     const commissionAmount = Math.round(params.amount * commissionPct)
     const payoutAmount = params.amount - commissionAmount
 
-    const transfer = await stripe.transfers.create({
+    const transfer = await getStripe().transfers.create({
       amount: payoutAmount,
       currency: 'eur',
       destination: params.stripeAccountId,
@@ -166,7 +170,7 @@ export async function getPaymentStatus(
   paymentIntentId: string
 ): Promise<{ status: string; error?: string }> {
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(
+    const paymentIntent = await getStripe().paymentIntents.retrieve(
       paymentIntentId
     )
     return { status: paymentIntent.status }
@@ -184,7 +188,7 @@ export async function getAccountBalance(
   stripeAccountId: string
 ): Promise<{ available: number; pending: number; error?: string }> {
   try {
-    const balance = await stripe.balance.retrieve({
+    const balance = await getStripe().balance.retrieve({
       stripeAccount: stripeAccountId,
     })
 
