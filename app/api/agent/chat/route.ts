@@ -3,6 +3,16 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
+function anthropicErrorMessage(error: unknown): string {
+  if (error instanceof Anthropic.APIError) {
+    if (error.status === 401) return 'Neveljaven API ključ. Preverite nastavitve.'
+    if (error.status === 429) return 'Presegli ste omejitev AI poizvedb. Poskusite čez minuto.'
+    if (error.status === 529) return 'AI strežnik je preobremenjen. Poskusite čez trenutek.'
+    return `Napaka AI (${error.status}): ${error.message}`
+  }
+  return 'Napaka pri procesiranju. Poskusite znova.'
+}
+
 const RATE_LIMIT_PER_HOUR = 20
 
 type StoredMessage = {
@@ -126,6 +136,8 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
     return NextResponse.json({ message: assistantText })
   } catch (error) {
     console.error('[agent/chat] error:', error)
-    return NextResponse.json({ error: 'Napaka pri procesiranju. Poskusite znova.' }, { status: 500 })
+    const msg = anthropicErrorMessage(error)
+    const status = error instanceof Anthropic.APIError ? error.status : 500
+    return NextResponse.json({ error: msg }, { status })
   }
 }

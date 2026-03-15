@@ -46,6 +46,10 @@ export default function IntegracijeAdminPage() {
   const [slackMessage, setSlackMessage] = useState('')
   const [isTesting, setIsTesting] = useState(false)
 
+  const [anthropicStatus, setAnthropicStatus] = useState<IntegrationStatus>('unknown')
+  const [anthropicMessage, setAnthropicMessage] = useState('')
+  const [isTestingAI, setIsTestingAI] = useState(false)
+
   const testSlack = async () => {
     setIsTesting(true)
     setSlackMessage('')
@@ -64,6 +68,27 @@ export default function IntegracijeAdminPage() {
       setSlackMessage('Omrežna napaka. Preverite povezavo.')
     } finally {
       setIsTesting(false)
+    }
+  }
+
+  const testAnthropic = async () => {
+    setIsTestingAI(true)
+    setAnthropicMessage('')
+    try {
+      const res = await fetch('/api/admin/test-anthropic', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setAnthropicStatus('ok')
+        setAnthropicMessage(data.message || 'API ključ je veljaven!')
+      } else {
+        setAnthropicStatus('error')
+        setAnthropicMessage(data.error || 'Napaka pri testiranju.')
+      }
+    } catch {
+      setAnthropicStatus('error')
+      setAnthropicMessage('Omrežna napaka. Preverite povezavo.')
+    } finally {
+      setIsTestingAI(false)
     }
   }
 
@@ -140,12 +165,61 @@ export default function IntegracijeAdminPage() {
         </div>
       </div>
 
+      {/* Anthropic AI Card — detailed */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-slate-900">Anthropic AI (Claude)</h2>
+              <p className="text-sm text-slate-500">Claude AI za chatbot asistenta</p>
+            </div>
+          </div>
+          {anthropicStatus === 'ok' && (
+            <span className="flex items-center gap-1 text-sm text-green-600 font-medium">
+              <CheckCircle2 className="w-4 h-4" /> Veljaven
+            </span>
+          )}
+          {anthropicStatus === 'error' && (
+            <span className="flex items-center gap-1 text-sm text-red-500 font-medium">
+              <XCircle className="w-4 h-4" /> Napaka
+            </span>
+          )}
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {anthropicMessage && (
+            <div className={`rounded-lg px-4 py-3 text-sm ${
+              anthropicStatus === 'ok'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {anthropicMessage}
+            </div>
+          )}
+
+          <button
+            onClick={testAnthropic}
+            disabled={isTestingAI}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:bg-slate-300 transition-colors"
+          >
+            {isTestingAI ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Testiram...</>
+            ) : (
+              <><Send className="w-4 h-4" /> Testiraj API ključ</>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Other integrations */}
       <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
         <div className="p-4">
           <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Ostale integracije</h2>
         </div>
-        {integrations.slice(1).map(integration => (
+        {integrations.slice(2).map(integration => (
           <div key={integration.envVar} className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">

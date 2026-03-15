@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/card'
 import { Star, MapPin, Calendar, DollarSign, Shield } from 'lucide-react'
 import { AcceptOfferButton } from '@/components/dashboard/stranka/AcceptOfferButton'
 import { ReviewModal } from '@/components/dashboard/stranka/ReviewModal'
+import { MarkCompleteButton } from '@/components/dashboard/stranka/MarkCompleteButton'
+import { InstantMatchPanel } from '@/components/dashboard/stranka/InstantMatchPanel'
 
 export const metadata = {
   title: 'Podrobnosti povpraševanja | LiftGO',
@@ -71,11 +73,13 @@ export default async function InquiryDetailPage({
     .order('status', { ascending: false })
     .order('created_at', { ascending: true })
 
-  // Check if inquiry is completed and has no review
+  const acceptedOffer = ponudbe?.find((p) => p.status === 'sprejeta')
   const showReviewSection =
-    povprasevanje.status === 'zakljuceno' &&
-    ponudbe &&
-    ponudbe.some((p) => p.status === 'sprejeta')
+    povprasevanje.status === 'zakljuceno' && !!acceptedOffer
+  const showMarkComplete =
+    povprasevanje.status === 'v_teku' && !!acceptedOffer
+  const showInstantMatch =
+    povprasevanje.status === 'odprto' && (!ponudbe || ponudbe.length === 0)
 
   return (
     <div className="p-4 lg:p-8">
@@ -262,6 +266,27 @@ export default async function InquiryDetailPage({
           </div>
         )}
       </div>
+
+      {/* Instant Match — shown when open and no offers yet */}
+      {showInstantMatch && (
+        <div className="mb-8">
+          <InstantMatchPanel povprasevanjeId={id} />
+        </div>
+      )}
+
+      {/* Mark Complete — shown when job is in progress */}
+      {showMarkComplete && acceptedOffer && (
+        <Card className="bg-white border border-green-200 rounded-xl p-6 mb-8">
+          <h2 className="text-lg font-bold text-slate-900 mb-2">Delo je končano?</h2>
+          <p className="text-slate-600 mb-4 text-sm">
+            Ko potrdite zaključek, bo plačilo sproščeno mojstru in povpraševanje zaključeno.
+          </p>
+          <MarkCompleteButton
+            povprasevanjeId={id}
+            acceptedOfferId={acceptedOffer.id}
+          />
+        </Card>
+      )}
 
       {/* Review Section - shown only if inquiry is completed */}
       {showReviewSection && (

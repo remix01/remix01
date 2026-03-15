@@ -9,6 +9,7 @@ type AgentChatProps = {
   messages: ReturnType<typeof useAgentChat>['messages']
   isLoading: boolean
   connectionStatus: ConnectionStatus
+  lastError: string | null
   sendMessage: (content: string) => void
   clearConversation: () => void
   closeChat: () => void
@@ -27,7 +28,7 @@ function StatusDot({ status }: { status: ConnectionStatus }) {
   return null
 }
 
-export function AgentChat({ messages, isLoading, connectionStatus, sendMessage, clearConversation, closeChat }: AgentChatProps) {
+export function AgentChat({ messages, isLoading, connectionStatus, lastError, sendMessage, clearConversation, closeChat }: AgentChatProps) {
   const [input, setInput] = React.useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -142,8 +143,8 @@ export function AgentChat({ messages, isLoading, connectionStatus, sendMessage, 
 
         {/* Input */}
         <div className="p-3 border-t border-slate-200 bg-white rounded-b-xl">
-          {connectionStatus === 'error' && (
-            <p className="text-xs text-red-500 mb-2 px-1">Napaka pri pošiljanju. Preverite internetno povezavo.</p>
+          {lastError && (
+            <p className="text-xs text-red-500 mb-2 px-1">{lastError}</p>
           )}
           <div className="flex gap-2">
             <textarea
