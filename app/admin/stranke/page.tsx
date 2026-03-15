@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StrankeTable } from '@/components/admin/StrankeTable'
 import { StrankeSearch } from '@/components/admin/StrankeSearch'
+import { DodajStrankoModal } from '@/components/admin/DodajStrankoModal'
 import { getStranke } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -28,10 +29,13 @@ export default async function StrankePage({ searchParams }: PageProps) {
           <h1 className="text-3xl font-bold">Stranke</h1>
           <p className="text-muted-foreground">Upravljanje z vsemi strankami</p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Izvozi CSV
-        </Button>
+        <div className="flex gap-2">
+          <DodajStrankoModal />
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Izvozi CSV
+          </Button>
+        </div>
       </div>
 
       <Card>
