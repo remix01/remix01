@@ -8,6 +8,10 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
+
     // Check API key
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
@@ -44,7 +48,7 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
     ]
     
     const response = await client.messages.create({
-      model: 'claude-opus-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 500,
       system: systemPrompt,
       messages
