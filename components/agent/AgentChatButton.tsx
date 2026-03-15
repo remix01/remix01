@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 
 export function AgentChatButton() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [isAuthChecked, setIsAuthChecked] = useState(false)
   const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, closeChat } = useAgentChat()
 
   useEffect(() => {
@@ -21,19 +21,28 @@ export function AgentChatButton() {
       } catch {
         setIsAuthenticated(false)
       } finally {
-        setIsAuthLoading(false)
+        setIsAuthChecked(true)
       }
     }
     checkAuth()
   }, [])
 
-  if (isAuthLoading || !isAuthenticated) return null
+  // Wait for auth check to avoid layout flash
+  if (!isAuthChecked) return null
+
+  const handleOpen = () => {
+    if (!isAuthenticated) {
+      window.location.href = '/prijava'
+      return
+    }
+    setIsOpen()
+  }
 
   return (
     <>
       {!isOpen && (
         <button
-          onClick={() => setIsOpen()}
+          onClick={handleOpen}
           className="fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 flex items-center justify-center transition-all duration-200 z-40 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
           aria-label="Odpri chat z LiftGO asistentom"
           aria-haspopup="dialog"
