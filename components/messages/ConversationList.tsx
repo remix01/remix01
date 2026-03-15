@@ -43,7 +43,7 @@ export function ConversationList({
             `
             id,
             povprasevanje_id,
-            povprasevanja!inner(naslov),
+            povprasevanja!inner(title),
             sender_id,
             receiver_id,
             message,
@@ -69,7 +69,7 @@ export function ConversationList({
           if (!convMap.has(msg.povprasevanje_id)) {
             convMap.set(msg.povprasevanje_id, {
               povprasevanje_id: msg.povprasevanje_id,
-              povprasevanje_title: msg.povprasevanja?.naslov || 'Povpraševanje',
+              povprasevanje_title: msg.povprasevanja?.title || 'Povpraševanje',
               other_user_id: otherId,
               other_user_name: otherName,
               last_message: msg.message,
@@ -109,9 +109,7 @@ export function ConversationList({
       }
     }
 
-    if (povprasevanjeId) {
-      loadConversations()
-    }
+    loadConversations()
 
     // Subscribe to new messages and changes
     const channel = supabase
@@ -145,7 +143,7 @@ export function ConversationList({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [currentUserId, supabase, povprasevanjeId])
+  }, [currentUserId, supabase])
 
   if (loading) {
     return (
