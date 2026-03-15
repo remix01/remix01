@@ -1,7 +1,7 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
@@ -53,10 +53,12 @@ const specializations = [
 
 export default function RegistracijaMojsterForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState<Errors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [redirectCountdown, setRedirectCountdown] = useState(0)
 
   const stripeSuccess = searchParams.get('stripe') === 'success'
   const initialPlan = (searchParams.get('plan') as 'start' | 'pro') === 'pro' ? 'pro' : 'start'
@@ -78,18 +80,45 @@ export default function RegistracijaMojsterForm() {
     newsAccepted: false,
   })
 
+  // Auto-redirect after success
+  useEffect(() => {
+    if (isSuccess && redirectCountdown === 0) {
+      setRedirectCountdown(3)
+    }
+  }, [isSuccess])
+
+  useEffect(() => {
+    if (redirectCountdown > 0) {
+      const timer = setTimeout(() => {
+        setRedirectCountdown(redirectCountdown - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    } else if (redirectCountdown === 0 && isSuccess) {
+      router.push('/partner-dashboard')
+    }
+  }, [redirectCountdown, isSuccess, router])
+
   function validateStep(step: number): boolean {
     const newErrors: Errors = {}
 
     if (step === 1) {
       if (!formData.firstName.trim()) newErrors.firstName = 'Ime je obvezno'
       if (!formData.lastName.trim()) newErrors.lastName = 'Priimek je obvezno'
-      if (!formData.email.includes('@')) newErrors.email = 'Vnesite veljavno e-pošto'
-      if (!formData.phone.trim()) newErrors.phone = 'Telefonska številka je obvezna'
+      
+      // Better email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(formData.email)) newErrors.email = 'Vnesite veljavno e-pošto'
+      
+      // Slovenian phone validation: +386 or 0XX
+      const phoneRegex = /^(\+386|0)[1-9]\d{7,8}$|^\+386\s\d{1,3}\s\d{3,4}\s\d{3,4}$/
+      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        newErrors.phone = 'Vnesite veljavno slovensko telefonsko številko (npr. +386 1 234 56 78 ali 01 234 56 78)'
+      }
+      
       if (formData.password.length < 8) newErrors.password = 'Geslo mora imeti vsaj 8 znakov'
       if (formData.password !== formData.repeatPassword) newErrors.repeatPassword = 'Gesli se ne ujemata'
     } else if (step === 2) {
-      if (!formData.companyName.trim()) newErrors.companyName = 'Podjetje je obvezno'
+      if (formData.companyName.trim().length < 3) newErrors.companyName = 'Ime podjetja mora imeti vsaj 3 znake'
       if (!formData.taxNumber.trim()) newErrors.taxNumber = 'Davčna številka je obvezna'
       if (!formData.specialization) newErrors.specialization = 'Izbira specialnosti je obvezna'
       if (!formData.workArea.trim()) newErrors.workArea = 'Območje dela je obvezno'
@@ -126,7 +155,41 @@ export default function RegistracijaMojsterForm() {
         const data = await response.json()
         throw new Error(data.error || 'Napaka pri registraciji')
       }
+
+      const data = await response.json()
       
+      // If PRO plan selected, redirect to Stripe checkout
+      if (formData.planSelected === 'pro') {
+        try {
+          const checkoutRes = await fetch('/api/stripe/create-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              plan: 'PRO', 
+              email: formData.email,
+              userId: data.userId 
+            }),
+          })
+          
+          if (!checkoutRes.ok) {
+            const checkoutData = await checkoutRes.json()
+            throw new Error(checkoutData.error || 'Napaka pri ustvarjanju plačila')
+          }
+          
+          const { url } = await checkoutRes.json()
+          if (url) {
+            window.location.href = url
+            return
+          }
+        } catch (stripeError) {
+          console.error('[v0] Stripe checkout error:', stripeError)
+          setErrors({ submit: stripeError instanceof Error ? stripeError.message : 'Napaka pri plačilu' })
+          setIsSubmitting(false)
+          return
+        }
+      }
+      
+      // For START plan, show success
       setIsSuccess(true)
     } catch (error) {
       console.error('[v0] Registration error:', error)
@@ -156,12 +219,38 @@ export default function RegistracijaMojsterForm() {
               </div>
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">Registracija je uspešna!</h1>
-            <p className="text-muted-foreground mb-6">
-              Vaš račun je bil ustvarjen. Prejeli boste e-pošto s povezavo za potrditev.
-            </p>
-            <Button asChild className="w-full">
-              <Link href="/">Nazaj na domačo stran</Link>
-            </Button>
+            {formData.planSelected === 'pro' ? (
+              <>
+                <p className="text-muted-foreground mb-2">
+                  Vaš PRO paket je aktiviran. Provizija: 5%
+                </p>
+                <p className="text-muted-foreground mb-6">
+                  Usmerjam vas na partner dashboard...
+                </p>
+                {redirectCountdown > 0 && (
+                  <p className="text-sm text-primary font-semibold mb-6">
+                    Preusmeritev v {redirectCountdown} sekundah
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground mb-2">
+                  Vaš START paket je aktiviran. Provizija: 10%
+                </p>
+                <p className="text-muted-foreground mb-6">
+                  Vaš račun je bil ustvarjen. Prejeli boste e-pošto s povezavo za potrditev.
+                </p>
+              </>
+            )}
+            <div className="space-y-2">
+              <Button asChild className="w-full">
+                <Link href="/partner-dashboard">Pojdi na partner dashboard</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/">Nazaj na domačo stran</Link>
+              </Button>
+            </div>
           </div>
         </div>
         <Footer />
@@ -218,6 +307,14 @@ export default function RegistracijaMojsterForm() {
 
           {/* Form */}
           <div className="bg-card rounded-lg border border-border p-8 shadow-sm">
+            {/* Submit Error */}
+            {errors.submit && (
+              <div className="mb-6 flex items-start gap-3 rounded-lg bg-red-50 p-4 text-red-700 border border-red-200">
+                <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                <p className="text-sm">{errors.submit}</p>
+              </div>
+            )}
+
             {/* Step 1: Personal Data */}
             {currentStep === 1 && (
               <div>
