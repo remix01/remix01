@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Download } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface Transaction {
   id: string
-  date: string
-  customer_name: string
+  created_at: string
+  stranka_name: string
   obrtnik_name: string
   amount: number
   payment_status: string
@@ -17,8 +18,8 @@ interface Transaction {
 
 interface Payout {
   id: string
-  date: string
-  obrtnik_name: string
+  created_at: string
+  craftsman_name: string
   amount: number
   stripe_transfer_id: string
 }
@@ -31,6 +32,7 @@ interface Stats {
 }
 
 export function PaymentsTable() {
+  const supabase = createClient()
   const [stats, setStats] = useState<Stats>({
     totalTransactions: 0,
     totalRevenue: 0,
@@ -40,30 +42,101 @@ export function PaymentsTable() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPaymentData()
-  }, [])
+  }, [supabase])
 
   const fetchPaymentData = async () => {
     setLoading(true)
+    setError(null)
     try {
-      const response = await fetch('/api/admin/placila')
-      const data = await response.json()
-      setStats(data.stats)
-      setTransactions(data.transactions)
-      setPayouts(data.payouts)
-    } catch (error) {
-      console.error('[v0] Failed to fetch payment data:', error)
+      // Fetch transactions from offers with payment_status
+      const { data: offersData, error: offersError } = await supabase
+        .from('offers')
+        .select(`
+          id,
+          price,
+          payment_status,
+          created_at,
+          partner:profiles!offers_partner_id_fkey(email, first_name, last_name)
+        `)
+        .not('payment_status', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (offersError) throw offersError
+
+      // Fetch payouts
+      const { data: payoutsData, error: payoutsError } = await supabase
+        .from('payouts')
+        .select(`
+          id,
+          amount,
+          stripe_transfer_id,
+          created_at,
+          craftsman:profiles!payouts_craftsman_id_fkey(email, first_name, last_name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (payoutsError) throw payoutsError
+
+      // Transform offers to transactions
+      const txns = offersData?.map((offer: any) => ({
+        id: offer.id,
+        created_at: offer.created_at,
+        stranka_name: 'Customer',
+        obrtnik_name: offer.partner?.first_name && offer.partner?.last_name 
+          ? `${offer.partner.first_name} ${offer.partner.last_name}`
+          : offer.partner?.email || 'Unknown',
+        amount: offer.price || 0,
+        payment_status: offer.payment_status,
+      })) ?? []
+
+      // Transform payouts
+      const pyts = payoutsData?.map((payout: any) => ({
+        id: payout.id,
+        created_at: payout.created_at,
+        craftsman_name: payout.craftsman?.first_name && payout.craftsman?.last_name
+          ? `${payout.craftsman.first_name} ${payout.craftsman.last_name}`
+          : payout.craftsman?.email || 'Unknown',
+        amount: payout.amount || 0,
+        stripe_transfer_id: payout.stripe_transfer_id,
+      })) ?? []
+
+      setTransactions(txns)
+      setPayouts(pyts)
+
+      // Calculate stats
+      const totalRev = txns.reduce((sum, tx) => sum + (tx.payment_status === 'succeeded' ? tx.amount : 0), 0)
+      const pendingEsc = txns.reduce((sum, tx) => sum + (tx.payment_status === 'pending' ? tx.amount : 0), 0)
+      const totalPay = pyts.reduce((sum, p) => sum + p.amount, 0)
+
+      setStats({
+        totalTransactions: txns.length,
+        totalRevenue: totalRev,
+        pendingEscrow: pendingEsc,
+        totalPayouts: totalPay,
+      })
+    } catch (err) {
+      console.error('[v0] Failed to fetch payment data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch payment data')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = () => {
     try {
-      const response = await fetch('/api/admin/placila?format=csv')
-      const blob = await response.blob()
+      // Create CSV content
+      let csv = 'Date,Customer,Craftsman,Amount,Status\n'
+      transactions.forEach(tx => {
+        csv += `"${new Date(tx.created_at).toLocaleDateString('sl-SI')}","${tx.stranka_name}","${tx.obrtnik_name}","${tx.amount}","${tx.payment_status}"\n`
+      })
+
+      const blob = new Blob([csv], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -72,8 +145,8 @@ export function PaymentsTable() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-    } catch (error) {
-      console.error('[v0] Failed to export CSV:', error)
+    } catch (err) {
+      console.error('[v0] Failed to export CSV:', err)
     }
   }
 
@@ -89,6 +162,10 @@ export function PaymentsTable() {
 
   if (loading) {
     return <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
+  }
+
+  if (error) {
+    return <div className="py-8 text-center text-red-600">Error: {error}</div>
   }
 
   return (
@@ -145,9 +222,9 @@ export function PaymentsTable() {
                   {transactions.map((tx) => (
                     <tr key={tx.id} className="border-b hover:bg-muted/50">
                       <td className="px-6 py-3">
-                        {new Date(tx.date).toLocaleDateString('sl-SI')}
+                        {new Date(tx.created_at).toLocaleDateString('sl-SI')}
                       </td>
-                      <td className="px-6 py-3">{tx.customer_name}</td>
+                      <td className="px-6 py-3">{tx.stranka_name}</td>
                       <td className="px-6 py-3">{tx.obrtnik_name}</td>
                       <td className="px-6 py-3 font-medium">€{tx.amount.toFixed(2)}</td>
                       <td className="px-6 py-3">{getStatusBadge(tx.payment_status)}</td>
@@ -183,9 +260,9 @@ export function PaymentsTable() {
                   {payouts.map((payout) => (
                     <tr key={payout.id} className="border-b hover:bg-muted/50">
                       <td className="px-6 py-3">
-                        {new Date(payout.date).toLocaleDateString('sl-SI')}
+                        {new Date(payout.created_at).toLocaleDateString('sl-SI')}
                       </td>
-                      <td className="px-6 py-3">{payout.obrtnik_name}</td>
+                      <td className="px-6 py-3">{payout.craftsman_name}</td>
                       <td className="px-6 py-3 font-medium">€{payout.amount.toFixed(2)}</td>
                       <td className="px-6 py-3 text-xs font-mono">{payout.stripe_transfer_id}</td>
                     </tr>
