@@ -1,6 +1,5 @@
 import type { NextConfig } from 'next'
-
-// Cache bust: 2026-03-15
+// Cache bust: 2026-03-15-v3
 const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -22,11 +21,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
   },
-
-  // Merged: All redirects in single function to avoid duplicate key issues
+  // All redirects merged into single function
   async redirects() {
     return [
-      // Apple touch icon redirects
       {
         source: '/apple-touch-icon.png',
         destination: '/icons/icon-180x180.png',
@@ -35,12 +32,6 @@ const nextConfig: NextConfig = {
       {
         source: '/apple-touch-icon-precomposed.png',
         destination: '/icons/icon-180x180.png',
-        permanent: false,
-      },
-      // Blog and asset redirects
-      {
-        source: '/blog/kako-izbrati-elektroinatalaterja',
-        destination: '/blog/kako-izbrati-elektroinatalaterja',
         permanent: false,
       },
       {
@@ -55,7 +46,28 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  
+  // Correct headers format: { source, headers: [{ key, value }] }
+  async headers() {
+    return [
+      {
+        source: '/favicon.ico',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/icons/(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/manifest.json',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+    ]
+  },
 }
-
 export default nextConfig
