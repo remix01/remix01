@@ -3,30 +3,11 @@ import { cookies } from 'next/headers'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowRight, MapPin, Banknote } from 'lucide-react'
+import { ArrowRight, MapPin, Banknote, Clock } from 'lucide-react'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
-
-interface Povprasevanje {
-  id: string
-  title: string
-  description: string
-  status: string
-  budget?: number
-  created_at: string
-  narocnik_id: string
-  category_id: string
-  categories?: {
-    name: string
-    icon_name: string
-  }
-  profiles?: {
-    location_city: string
-  }
-}
 
 export default async function PovprasevanjePage() {
   const cookieStore = await cookies()
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -44,109 +25,152 @@ export default async function PovprasevanjePage() {
     },
   )
 
-  // Fetch open povprasevanja from new system
+  // location_city je na povprasevanja tabeli direktno — NE na profiles
   const { data: povprasevanja, error } = await supabase
     .from('povprasevanja')
-    .select(
-      `*, 
-      categories:category_id(name, icon_name),
-      profiles:narocnik_id(location_city)`
-    )
+    .select(`
+      id,
+      title,
+      description,
+      status,
+      location_city,
+      urgency,
+      budget_min,
+      budget_max,
+      created_at,
+      category_id,
+      categories:category_id(name, icon_name)
+    `)
     .eq('status', 'odprto')
     .order('created_at', { ascending: false })
     .limit(20)
 
-  const requests = (povprasevanja || []) as Povprasevanje[]
+  if (error) {
+    console.error('[povprasevanja] query error:', error.message)
+  }
 
-  // Urgency badge based on created_at
-  const getUrgency = (createdAt: string) => {
-    const now = new Date()
-    const created = new Date(createdAt)
-    const hoursAgo = (now.getTime() - created.getTime()) / (1000 * 60 * 60)
+  const requests = povprasevanja || []
 
-    if (hoursAgo < 2) return { label: 'Pospešeno', color: 'bg-red-100 text-red-800' }
-    if (hoursAgo < 24) return { label: 'Novo', color: 'bg-blue-100 text-blue-800' }
+  // Urgency badge — prioritizira urgency polje iz baze, fallback na starost
+  const getUrgencyBadge = (urgency: string | null, createdAt: string) => {
+    if (urgency === 'nujno') return { label: 'Nujno', color: 'bg-red-100 text-red-800' }
+    if (urgency === 'ta_teden') return { label: 'Ta teden', color: 'bg-orange-100 text-orange-800' }
+    const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
+    if (hoursAgo < 2) return { label: 'Novo', color: 'bg-blue-100 text-blue-800' }
+    if (hoursAgo < 24) return { label: 'Danes', color: 'bg-green-100 text-green-800' }
     return { label: 'Odprto', color: 'bg-gray-100 text-gray-800' }
+  }
+
+  const formatBudget = (min: number | null, max: number | null) => {
+    if (!min && !max) return null
+    if (min && max) return `${min.toLocaleString('sl-SI')} – ${max.toLocaleString('sl-SI')} €`
+    if (max) return `do ${max.toLocaleString('sl-SI')} €`
+    if (min) return `od ${min.toLocaleString('sl-SI')} €`
+    return null
+  }
+
+  const timeAgo = (createdAt: string) => {
+    const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
+    if (hoursAgo < 1) return 'pred manj kot uro'
+    if (hoursAgo < 24) return `pred ${Math.floor(hoursAgo)}h`
+    const daysAgo = Math.floor(hoursAgo / 24)
+    return `pred ${daysAgo} ${daysAgo === 1 ? 'dnem' : 'dnevi'}`
   }
 
   return (
     <div className="flex h-screen bg-background">
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-6 lg:p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground">Nova povpraševanja</h1>
-            <p className="text-muted-foreground">
-              Preglejte povpraševanja naročnikov in pošljite svoje ponudbe
+        <div className="p-4 md:p-6 lg:p-8">
+          <div className="mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Nova povpraševanja
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {requests.length > 0
+                ? `${requests.length} odprtih povpraševanj čaka na vašo ponudbo`
+                : 'Preglejte povpraševanja naročnikov in pošljite svoje ponudbe'}
             </p>
           </div>
 
           {requests.length === 0 ? (
             <Card className="p-12 text-center">
-              <p className="text-lg text-muted-foreground mb-4">
+              <p className="text-lg text-muted-foreground mb-2">
                 Trenutno ni novih povpraševanj
               </p>
               <p className="text-sm text-muted-foreground mb-6">
                 Preverite ponovno čez nekaj časa ali se naročite na obvestila
               </p>
+              <Link href="/partner-dashboard">
+                <Button variant="outline">Nazaj na dashboard</Button>
+              </Link>
             </Card>
           ) : (
             <div className="grid gap-4">
               {requests.map((request) => {
-                const urgency = getUrgency(request.created_at)
-                const descriptionPreview =
-                  request.description.length > 120
-                    ? request.description.substring(0, 120) + '...'
-                    : request.description
+                // description je nullable v bazi
+                const desc = request.description ?? ''
+                const descriptionPreview = desc.length > 120
+                  ? desc.substring(0, 120) + '...'
+                  : desc
+                const badge = getUrgencyBadge(request.urgency, request.created_at)
+                const budget = formatBudget(request.budget_min, request.budget_max)
+                // category je lahko null (pri starejših zapisih brez category_id)
+                const categoryName = (request.categories as any)?.name ?? 'Splošno'
 
                 return (
-                  <Card key={request.id} className="p-6 hover:shadow-md transition-shadow">
-                    <div className="space-y-4">
+                  <Card key={request.id} className="p-5 hover:shadow-md transition-shadow">
+                    <div className="space-y-3">
                       {/* Header */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-lg text-foreground">
-                              {request.categories?.name || 'Neznana kategorija'}
-                            </h3>
-                            <span
-                              className={`text-xs font-medium px-2 py-1 rounded ${urgency.color}`}
-                            >
-                              {urgency.label}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {categoryName}
+                            </span>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.color}`}>
+                              {badge.label}
                             </span>
                           </div>
-                          <p className="font-semibold text-foreground">
+                          <h3 className="font-semibold text-foreground leading-snug">
                             {request.title}
-                          </p>
+                          </h3>
                         </div>
                       </div>
 
-                      {/* Location */}
-                      {request.profiles?.location_city && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="w-4 h-4" />
-                          <span>{request.profiles.location_city}</span>
+                      {/* Meta: lokacija + čas */}
+                      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                        {/* location_city je na povprasevanja, ne na profiles */}
+                        {request.location_city && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{request.location_city}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{timeAgo(request.created_at)}</span>
                         </div>
-                      )}
+                      </div>
 
-                      {/* Description Preview */}
-                      <p className="text-sm text-muted-foreground">
-                        {descriptionPreview}
-                      </p>
+                      {/* Opis */}
+                      {descriptionPreview && (
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {descriptionPreview}
+                        </p>
+                      )}
 
                       {/* Budget */}
-                      {request.budget && (
-                        <div className="flex items-center gap-2">
-                          <Banknote className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">
-                            Budget: {request.budget.toLocaleString('sl-SI')} EUR
-                          </span>
+                      {budget && (
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                          <Banknote className="w-4 h-4 text-primary flex-shrink-0" />
+                          <span>Budget: {budget}</span>
                         </div>
                       )}
 
-                      {/* CTA Button */}
-                      <div className="pt-2">
-                        <Link href="/partner-dashboard">
-                          <Button className="gap-2 w-full sm:w-auto">
+                      {/* CTA */}
+                      <div className="pt-1">
+                        <Link href={`/partner-dashboard/povprasevanja/${request.id}`}>
+                          <Button className="gap-2 w-full sm:w-auto min-h-[44px]">
                             Pošlji ponudbo
                             <ArrowRight className="w-4 h-4" />
                           </Button>
