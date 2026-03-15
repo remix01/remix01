@@ -103,6 +103,11 @@ export function useAgentChat() {
     setIsOpen(false)
   }, [])
 
+  const clearMessages = useCallback(() => {
+    setMessages([])
+    setUnreadCount(0)
+  }, [])
+
   return {
     messages,
     isLoading,
@@ -110,6 +115,7 @@ export function useAgentChat() {
     isOpen,
     setIsOpen: handleOpen,
     closeChat: handleClose,
+    clearMessages,
     unreadCount,
   }
 }

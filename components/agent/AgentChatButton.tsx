@@ -1,33 +1,13 @@
 'use client'
 // components/agent/AgentChatButton.tsx
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { MessageCircle, X } from 'lucide-react'
 import { useAgentChat } from './useAgentChat'
 import { AgentChat } from './AgentChat'
-import { createClient } from '@/lib/supabase/client'
 
 export function AgentChatButton() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, closeChat } = useAgentChat()
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        setIsAuthenticated(!!user)
-      } catch {
-        setIsAuthenticated(false)
-      } finally {
-        setIsAuthLoading(false)
-      }
-    }
-    checkAuth()
-  }, [])
-
-  if (isAuthLoading || !isAuthenticated) return null
+  const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, closeChat, clearMessages } = useAgentChat()
 
   return (
     <>
@@ -72,7 +52,7 @@ export function AgentChatButton() {
       {/* FIX 7: role="dialog" + aria-modal za dostopnost chat panela */}
       {isOpen && (
         <div role="dialog" aria-modal="true" aria-label="LiftGO chat asistent">
-          <AgentChat messages={messages} isLoading={isLoading} sendMessage={sendMessage} closeChat={closeChat} />
+          <AgentChat messages={messages} isLoading={isLoading} sendMessage={sendMessage} closeChat={closeChat} clearMessages={clearMessages} />
         </div>
       )}
     </>
