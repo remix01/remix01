@@ -35,7 +35,7 @@ export function DisputesTable() {
     try {
       const response = await fetch('/api/admin/disputes')
       const data = await response.json()
-      setDisputes(data)
+      setDisputes(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('[v0] Failed to fetch disputes:', error)
     } finally {
