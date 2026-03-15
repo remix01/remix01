@@ -25,6 +25,10 @@ export type JobType =
   | 'sendEmail'
   | 'auditLog'
   | 'webhook'
+  | 'send_dispute_email'
+  | 'send_refund_email'
+  | 'send_release_email'
+  | 'webhook_escrow_status_changed'
   | 'match_request'        // Orchestrator: run matching algorithm
   | 'notify_partners'      // Orchestrator: notify partners of matches
   | 'create_escrow'        // Orchestrator: create escrow payment

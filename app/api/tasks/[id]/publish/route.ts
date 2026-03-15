@@ -10,11 +10,11 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
-    const { slaHours = 24 } = await request.json()
+    const [{ id: taskId }, { slaHours = 24 }] = await Promise.all([params, request.json()])
 
     // 1. Check authentication
     const {
@@ -28,7 +28,7 @@ export async function POST(
 
     // 2. Call RPC function - permission and state validation happens in backend
     const { data, error } = await supabase.rpc('publish_task', {
-      task_id: params.id,
+      task_id: taskId,
       sla_hours: slaHours,
     })
 

@@ -8,7 +8,7 @@ import { cookies } from 'next/headers'
 export async function POST(request: NextRequest) {
   try {
     // 1. SAMO ADMIN
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       .update({
         status:      resolution === 'full_refund' ? 'resolved_customer' : 'resolved_partner',
         admin_notes: adminNotes ?? null,
-        resolved_by: session.user.id,
+        resolved_by: user.id,
         resolved_at: new Date().toISOString(),
         resolution,
       })

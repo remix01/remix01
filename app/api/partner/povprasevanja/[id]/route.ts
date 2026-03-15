@@ -10,16 +10,18 @@ const resend = new Resend(process.env.RESEND_API_KEY)
  */
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const partner = await getPartner()
   if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
 
   // Verify this inquiry belongs to this partner
   const { data: inquiry } = await supabaseAdmin
     .from('povprasevanja')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('obrtnik_id', partner.id)
     .single()
 
@@ -51,7 +53,7 @@ export async function PATCH(
   const { data, error } = await supabaseAdmin
     .from('povprasevanja')
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
 
@@ -114,15 +116,17 @@ export async function PATCH(
 /**
  * GET — partner's assigned inquiries with filters
  */
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const partner = await getPartner()
   if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
 
   // Verify this inquiry belongs to this partner
   const { data, error } = await supabaseAdmin
     .from('povprasevanja')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('obrtnik_id', partner.id)
     .single()
 

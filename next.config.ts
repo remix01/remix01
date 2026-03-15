@@ -60,16 +60,19 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/favicon.ico',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+        source: '/blog/kako-izbrati-elektroinatalaterja',
+        destination: '/blog/kako-izbrati-elektroinatalaterja',
+        permanent: false,
       },
       {
-        source: '/apple-touch-icon.png',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+        source: '/logo.png',
+        destination: '/icons/icon-192x192.png',
+        permanent: false,
       },
       {
-        source: '/manifest.json',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=3600' }],
+        source: '/images/og-image.jpg',
+        destination: '/icons/icon-512x512.png',
+        permanent: false,
       },
     ]
   },
