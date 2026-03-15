@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 
+// Cache bust: 2026-03-15
 const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -18,11 +19,14 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
-  turbopack: {},
-  
-  // FIX: Add redirects for missing apple-touch-icon files
+  turbopack: {
+    resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+  },
+
+  // Merged: All redirects in single function to avoid duplicate key issues
   async redirects() {
     return [
+      // Apple touch icon redirects
       {
         source: '/apple-touch-icon.png',
         destination: '/icons/icon-180x180.png',
@@ -31,6 +35,22 @@ const nextConfig: NextConfig = {
       {
         source: '/apple-touch-icon-precomposed.png',
         destination: '/icons/icon-180x180.png',
+        permanent: false,
+      },
+      // Blog and asset redirects
+      {
+        source: '/blog/kako-izbrati-elektroinatalaterja',
+        destination: '/blog/kako-izbrati-elektroinatalaterja',
+        permanent: false,
+      },
+      {
+        source: '/logo.png',
+        destination: '/icons/icon-192x192.png',
+        permanent: false,
+      },
+      {
+        source: '/images/og-image.jpg',
+        destination: '/icons/icon-512x512.png',
         permanent: false,
       },
     ]
@@ -50,27 +70,6 @@ const nextConfig: NextConfig = {
       {
         source: '/manifest.json',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=3600' }],
-      },
-    ]
-  },
-
-  // FIX: Redirect blog article with typo slug
-  async redirects() {
-    return [
-      {
-        source: '/blog/kako-izbrati-elektroinatalaterja',
-        destination: '/blog/kako-izbrati-elektroinatalaterja',
-        permanent: false,
-      },
-      {
-        source: '/logo.png',
-        destination: '/icons/icon-192x192.png',
-        permanent: false,
-      },
-      {
-        source: '/images/og-image.jpg',
-        destination: '/icons/icon-512x512.png',
-        permanent: false,
       },
     ]
   },
