@@ -111,7 +111,7 @@ Ko stranka opiše problem, vprašaj:
 Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-4-5-20250514',
       max_tokens: 500,
       system: systemPrompt,
       messages: [...claudeMessages, { role: 'user', content: message }],
