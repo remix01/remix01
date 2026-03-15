@@ -10,7 +10,7 @@ const registrationSchema = z.object({
   email: z.string().email('Invalid email format'),
   phone: z.string().min(1, 'Phone number is required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  companyName: z.string().min(1, 'Company name is required'),
+  companyName: z.string().min(3, 'Company name must be at least 3 characters'),
   taxNumber: z.string().min(1, 'Tax number is required'),
   specialization: z.string().min(1, 'Specialization is required'),
   workArea: z.string().min(1, 'Work area is required'),
@@ -57,10 +57,38 @@ export async function POST(request: NextRequest) {
       
       return internalError('Registration failed. Please try again.')
     }
+
+    const userId = authData.user?.id
+    if (!userId) {
+      return internalError('Failed to create user account')
+    }
+    
+    // Create obrtnik_profiles entry with initial plan
+    const { error: profileError } = await supabase
+      .from('obrtnik_profiles')
+      .insert({
+        user_id: userId,
+        full_name: `${validatedData.firstName} ${validatedData.lastName}`,
+        business_name: validatedData.companyName,
+        tax_number: validatedData.taxNumber,
+        categories: validatedData.specialization,
+        location_city: validatedData.workArea,
+        phone: validatedData.phone,
+        subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : 'start',
+        is_verified: false,
+        created_at: new Date().toISOString(),
+      })
+
+    if (profileError) {
+      console.error('[v0] Profile creation error:', profileError)
+      // Don't fail completely if profile creation fails
+    }
     
     // Send welcome email using Resend
     if (env.RESEND_API_KEY) {
       try {
+        const planName = validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : 'START (10% provizija)'
+        
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -81,7 +109,7 @@ export async function POST(request: NextRequest) {
                   <p style="margin: 5px 0;"><strong>Ime:</strong> ${validatedData.firstName} ${validatedData.lastName}</p>
                   <p style="margin: 5px 0;"><strong>Podjetje:</strong> ${validatedData.companyName}</p>
                   <p style="margin: 5px 0;"><strong>Specialnost:</strong> ${validatedData.specialization}</p>
-                  <p style="margin: 5px 0;"><strong>Paket:</strong> ${validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : 'START (10% provizija)'}</p>
+                  <p style="margin: 5px 0;"><strong>Paket:</strong> ${planName}</p>
                 </div>
                 
                 <p><strong>Naslednji koraki:</strong></p>
@@ -112,7 +140,7 @@ export async function POST(request: NextRequest) {
     }
     
     return apiSuccess(
-      { userId: authData.user?.id },
+      { userId },
       201
     )
     

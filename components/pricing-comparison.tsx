@@ -27,10 +27,17 @@ export function PricingComparison() {
   async function handleProCheckout() {
     setLoading(true)
     try {
+      // Prompt for email if not authenticated
+      const email = prompt('Vnesite vašo e-pošto:')
+      if (!email) {
+        setLoading(false)
+        return
+      }
+
       const res = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'PRO' }),
+        body: JSON.stringify({ plan: 'PRO', email }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Napaka pri plačilu')

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, MessageCircle } from 'lucide-react'
+import { Send, MessageCircle, Check, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
 import { sl } from 'date-fns/locale'
@@ -102,8 +102,8 @@ export function ChatPanel({
                 }`}
               >
                 <p className="break-words text-sm">{msg.message}</p>
-                <p
-                  className={`text-xs mt-1 ${
+                <div
+                  className={`text-xs mt-1 flex items-center gap-1 ${
                     msg.sender_id === currentUserId ? 'text-blue-100' : 'text-slate-500'
                   }`}
                 >
@@ -111,7 +111,14 @@ export function ChatPanel({
                     addSuffix: false,
                     locale: sl,
                   })}
-                </p>
+                  {msg.sender_id === currentUserId && (
+                    msg.is_read ? (
+                      <CheckCheck className="w-3 h-3" />
+                    ) : (
+                      <Check className="w-3 h-3" />
+                    )
+                  )}
+                </div>
               </div>
             </div>
           ))
@@ -120,22 +127,23 @@ export function ChatPanel({
       </div>
 
       {/* Input */}
-      <div className="border-t p-4 bg-slate-50">
-        <div className="flex gap-2">
+      <div className="border-t p-4 bg-slate-50 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex gap-2 items-end">
           <textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Vaše sporočilo..."
-            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#0F3460] focus:border-transparent text-sm"
-            rows={3}
+            className="flex-1 px-4 py-2 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#0F3460] focus:border-transparent text-sm max-h-24"
+            rows={1}
             disabled={sending}
+            style={{ minHeight: '40px' }}
           />
           <Button
             onClick={handleSend}
             disabled={!newMessage.trim() || sending}
-            className="bg-[#0F3460] text-white hover:bg-[#0F3460]/90 self-end"
-            size="sm"
+            className="bg-[#0F3460] text-white hover:bg-[#0F3460]/90 self-end flex-shrink-0"
+            size="icon"
           >
             <Send className="w-4 h-4" />
           </Button>

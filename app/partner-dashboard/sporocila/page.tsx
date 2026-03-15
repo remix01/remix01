@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ConversationList } from '@/components/messages/ConversationList'
 import { ChatPanel } from '@/components/messages/ChatPanel'
 import { useRealtimeSporocila } from '@/hooks/useRealtimeSporocila'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function PartnerSporocila() {
@@ -100,8 +100,8 @@ export default function PartnerSporocila() {
       </div>
 
       {/* Desktop: 2-panel layout */}
-      <div className="hidden md:flex gap-4 h-[calc(100vh-200px)]">
-        <div className="w-1/3">
+      <div className="hidden md:flex gap-4 h-[calc(100vh-240px)]">
+        <div className="w-[30%] min-w-[280px]">
           <ConversationList
             currentUserId={currentUser.id}
             selectedConversation={selectedPovprasevanje}
@@ -109,7 +109,7 @@ export default function PartnerSporocila() {
           />
         </div>
 
-        <div className="w-2/3">
+        <div className="w-[70%] flex-1">
           {selectedPovprasevanje && selectedReceiver ? (
             <ChatPanel
               messages={sporocila}
@@ -119,10 +119,12 @@ export default function PartnerSporocila() {
               onSendMessage={sendMessage}
               isLoading={isLoading}
               povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeId={selectedPovprasevanje}
             />
           ) : (
-            <div className="bg-white rounded-lg border flex items-center justify-center h-full">
-              <p className="text-slate-500">Izberite pogovor za prikaz sporočil</p>
+            <div className="bg-white rounded-lg border flex flex-col items-center justify-center h-full">
+              <MessageCircle className="w-16 h-16 text-slate-300 mb-4" />
+              <p className="text-slate-500 text-lg">Izberite pogovor za prikaz sporočil</p>
             </div>
           )}
         </div>

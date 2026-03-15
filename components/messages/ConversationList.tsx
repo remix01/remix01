@@ -36,6 +36,7 @@ export function ConversationList({
   useEffect(() => {
     const loadConversations = async () => {
       try {
+        // Query grouped conversations with unread count
         const { data, error } = await supabase
           .from('sporocila')
           .select(
@@ -57,8 +58,8 @@ export function ConversationList({
 
         if (error) throw error
 
-        // Group by povprasevanje_id and get latest message
-        const convMap = new Map<string, Conversation>()
+        // Group by povprasevanje_id and get latest message + unread count
+        const convMap = new Map<string, any>()
 
         data?.forEach((msg: any) => {
           const otherId = msg.sender_id === currentUserId ? msg.receiver_id : msg.sender_id
@@ -66,7 +67,6 @@ export function ConversationList({
             msg.sender_id === currentUserId ? msg.receiver?.full_name : msg.sender?.full_name
 
           if (!convMap.has(msg.povprasevanje_id)) {
-            const isUnread = msg.receiver_id === currentUserId && !msg.is_read
             convMap.set(msg.povprasevanje_id, {
               povprasevanje_id: msg.povprasevanje_id,
               povprasevanje_title: msg.povprasevanja?.naslov || 'Povpraševanje',
@@ -74,18 +74,34 @@ export function ConversationList({
               other_user_name: otherName,
               last_message: msg.message,
               last_message_time: msg.created_at,
-              unread_count: isUnread ? 1 : 0,
+              unread_count: 0,
               sender_id: msg.sender_id,
             })
-          } else {
-            const existing = convMap.get(msg.povprasevanje_id)!
-            if (msg.receiver_id === currentUserId && !msg.is_read) {
-              existing.unread_count++
-            }
           }
         })
 
-        setConversations(Array.from(convMap.values()))
+        // Now count unread messages for each conversation
+        const { data: unreadData, error: unreadError } = await supabase
+          .from('sporocila')
+          .select('povprasevanje_id, COUNT(*) as count')
+          .eq('receiver_id', currentUserId)
+          .eq('is_read', false)
+
+        if (!unreadError && unreadData) {
+          unreadData.forEach((item: any) => {
+            const conv = convMap.get(item.povprasevanje_id)
+            if (conv) {
+              conv.unread_count = item.count || 0
+            }
+          })
+        }
+
+        // Sort by last message time, newest first
+        const sortedConversations = Array.from(convMap.values()).sort(
+          (a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
+        )
+
+        setConversations(sortedConversations)
       } catch (error) {
         console.error('Error loading conversations:', error)
       } finally {
@@ -93,9 +109,11 @@ export function ConversationList({
       }
     }
 
-    loadConversations()
+    if (povprasevanjeId) {
+      loadConversations()
+    }
 
-    // Subscribe to new messages
+    // Subscribe to new messages and changes
     const channel = supabase
       .channel(`sporocila_${currentUserId}`)
       .on(
@@ -104,7 +122,19 @@ export function ConversationList({
           event: 'INSERT',
           schema: 'public',
           table: 'sporocila',
-          filter: `receiver_id=eq.${currentUserId}`,
+          filter: `or(sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId})`,
+        },
+        () => {
+          loadConversations()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sporocila',
+          filter: `receiver_id.eq.${currentUserId}`,
         },
         () => {
           loadConversations()
@@ -115,7 +145,7 @@ export function ConversationList({
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [currentUserId, supabase])
+  }, [currentUserId, supabase, povprasevanjeId])
 
   if (loading) {
     return (
@@ -153,13 +183,20 @@ export function ConversationList({
               <div className="flex items-start justify-between gap-2 mb-1">
                 <p className="font-medium text-slate-900 truncate">{conv.other_user_name}</p>
                 {conv.unread_count > 0 && (
-                  <Badge className="bg-red-500 text-white text-xs flex-shrink-0">
-                    {conv.unread_count > 9 ? '9+' : conv.unread_count}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                    <Badge className="bg-red-500 text-white text-xs">
+                      {conv.unread_count > 9 ? '9+' : conv.unread_count}
+                    </Badge>
+                  </div>
                 )}
               </div>
               <p className="text-xs text-slate-500 mb-1">{conv.povprasevanje_title}</p>
-              <p className="text-sm text-slate-600 line-clamp-1 mb-1">{conv.last_message}</p>
+              <p className="text-sm text-slate-600 line-clamp-1 mb-1">
+                {conv.last_message && conv.last_message.length > 50
+                  ? `${conv.last_message.substring(0, 50)}...`
+                  : conv.last_message}
+              </p>
               <p className="text-xs text-slate-400">
                 {formatDistanceToNow(new Date(conv.last_message_time), {
                   addSuffix: true,
