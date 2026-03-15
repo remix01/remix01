@@ -1,12 +1,18 @@
 'use client'
 
-import React, { useEffect, useRef, useLayoutEffect } from 'react'
+import React, { useRef, useLayoutEffect } from 'react'
 import { X, Send } from 'lucide-react'
 import { useAgentChat } from './useAgentChat'
 import { AgentMessage } from './AgentMessage'
 
-export function AgentChat() {
-  const { messages, isLoading, sendMessage, closeChat, isOpen } = useAgentChat()
+type AgentChatProps = {
+  messages: ReturnType<typeof useAgentChat>['messages']
+  isLoading: boolean
+  sendMessage: (content: string) => void
+  closeChat: () => void
+}
+
+export function AgentChat({ messages, isLoading, sendMessage, closeChat }: AgentChatProps) {
   const [input, setInput] = React.useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -15,21 +21,6 @@ export function AgentChat() {
   useLayoutEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  // Send greeting message on first open
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      const greetingMessage = {
-        id: crypto.randomUUID(),
-        role: 'agent' as const,
-        content: 'Hello! I can help you manage your inquiries, offers, and escrow. What would you like to do?',
-        timestamp: Date.now(),
-        status: 'sent' as const,
-      }
-      // We can't directly set messages, so we'll show it through the UI
-      // This greeting should be shown when chat opens
-    }
-  }, [isOpen, messages.length])
 
   const handleSendMessage = () => {
     if (input.trim()) {
@@ -46,8 +37,6 @@ export function AgentChat() {
       handleSendMessage()
     }
   }
-
-  if (!isOpen) return null
 
   return (
     <>
