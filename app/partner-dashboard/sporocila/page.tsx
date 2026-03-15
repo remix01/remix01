@@ -43,9 +43,9 @@ export default function PartnerSporocila() {
     // Fetch povprasevanje info
     const { data } = await supabase
       .from('povprasevanja')
-      .select('naslov')
+      .select('title')
       .eq('id', povprasevanjeId)
-      .single()
+      .maybeSingle()
 
     if (data) {
       setPovprasevanjeInfo(data)
@@ -87,7 +87,7 @@ export default function PartnerSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
             />
           </div>
         ) : (
@@ -118,7 +118,7 @@ export default function PartnerSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
               povprasevanjeId={selectedPovprasevanje}
             />
           ) : (
