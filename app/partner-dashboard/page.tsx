@@ -14,6 +14,7 @@ import { NotificationPreferences } from '@/components/liftgo/NotificationPrefere
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CheckCircle2, Circle } from 'lucide-react'
 
 export default function PartnerDashboard() {
   const router = useRouter()
@@ -22,6 +23,7 @@ export default function PartnerDashboard() {
   const [offers, setOffers] = useState<any[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState('overview')
+  const [completionStatus, setCompletionStatus] = useState<any>(null)
 
   const supabase = createClient()
 
@@ -45,6 +47,12 @@ export default function PartnerDashboard() {
 
       if (partnerData) {
         setPartner(partnerData)
+
+        // Check completion status
+        const status = await getCompletionStatus(partnerData.id)
+        if (status) {
+          setCompletionStatus(status)
+        }
 
         // Fetch offers
         const { data: offersData } = await sb
@@ -75,16 +83,46 @@ export default function PartnerDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleOfferCreated = async (partnerId: string) => {
-    const { data } = await supabase
-      .from('ponudbe')
-      .select('*')
-      .eq('obrtnik_id', partnerId)
-      .order('created_at', { ascending: false })
+  const getCompletionStatus = async (partnerId: string) => {
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('obrtnik_profiles')
+        .select('description, hourly_rate, subscription_tier')
+        .eq('id', partnerId)
+        .maybeSingle()
 
-    if (data) {
-      setOffers(data)
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', partnerId)
+        .maybeSingle()
+
+      const { data: offers, error: offersError } = await supabase
+        .from('ponudbe')
+        .select('id', { count: 'exact', head: true })
+        .eq('obrtnik_id', partnerId)
+
+      if (!profileError && !userError && !offersError) {
+        const hasDescription = profile?.description != null
+        const hasHourlyRate = profile?.hourly_rate != null
+        const hasPhone = userProfile?.phone != null
+        const hasOffers = (offers?.length || 0) > 0
+
+        const completedItems = [hasDescription, hasHourlyRate, hasPhone, hasOffers].filter(Boolean).length
+        const completionPercentage = (completedItems / 4) * 100
+
+        return {
+          completionPercentage,
+          hasDescription,
+          hasHourlyRate,
+          hasPhone,
+          hasOffers,
+        }
+      }
+    } catch (err) {
+      console.error('Error checking completion:', err)
     }
+    return null
   }
 
   if (loading) {
@@ -145,6 +183,69 @@ export default function PartnerDashboard() {
               </Link>
             </div>
           </Card>
+
+          {/* Onboarding Checklist - Show only if completion < 80% */}
+          {completionStatus && completionStatus.completionPercentage < 80 && (
+            <Card className="mb-8 bg-blue-50 border-blue-200">
+              <div className="p-6">
+                <h3 className="font-semibold text-lg text-foreground mb-4">
+                  🚀 Dokončajte vašo nastanitev
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Izpolnite naslednje korake za boljšo vidnost in več povpraševanj
+                </p>
+                <div className="space-y-3">
+                  {/* Item 1: Description */}
+                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                    {completionStatus.hasDescription ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className={completionStatus.hasDescription ? 'line-through text-muted-foreground' : ''}>
+                      Dodajte opis podjetja
+                    </span>
+                  </Link>
+
+                  {/* Item 2: Hourly Rate */}
+                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                    {completionStatus.hasHourlyRate ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className={completionStatus.hasHourlyRate ? 'line-through text-muted-foreground' : ''}>
+                      Dodajte urno postavko
+                    </span>
+                  </Link>
+
+                  {/* Item 3: Phone */}
+                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                    {completionStatus.hasPhone ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className={completionStatus.hasPhone ? 'line-through text-muted-foreground' : ''}>
+                      Dodajte kontaktno telefonsko
+                    </span>
+                  </Link>
+
+                  {/* Item 4: First Offer */}
+                  <Link href="/partner-dashboard?tab=new-offer" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                    {completionStatus.hasOffers ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className={completionStatus.hasOffers ? 'line-through text-muted-foreground' : ''}>
+                      Pošljite prvo ponudbo
+                    </span>
+                  </Link>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Horizontally scrollable tabs for mobile */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
