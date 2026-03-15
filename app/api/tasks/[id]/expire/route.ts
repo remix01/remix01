@@ -12,10 +12,10 @@ import { createClient } from '@/lib/supabase/client'
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const taskId = params.id
+    const { id: taskId } = await params
     const { reason } = await req.json()
 
     // Validate inputs

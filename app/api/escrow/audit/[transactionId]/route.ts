@@ -5,11 +5,12 @@ import { cookies } from 'next/headers'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { transactionId: string } }
+  { params }: { params: Promise<{ transactionId: string }> }
 ) {
   try {
     // Samo prijavljen partner (za svojo transakcijo) ali admin
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
+    const { transactionId } = await params
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,7 +25,7 @@ export async function GET(
     const { data: escrow, error: escrowError } = await supabaseAdmin
       .from('escrow_transactions')
       .select('partner_id, customer_email')
-      .eq('id', params.transactionId)
+      .eq('id', transactionId)
       .maybeSingle()
 
     if (!escrow) {
@@ -49,7 +50,7 @@ export async function GET(
     const { data: logs, error } = await supabaseAdmin
       .from('escrow_audit_log')
       .select('*')
-      .eq('transaction_id', params.transactionId)
+      .eq('transaction_id', transactionId)
       .order('created_at', { ascending: true })
 
     if (error) throw error

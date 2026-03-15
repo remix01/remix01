@@ -27,6 +27,15 @@ export default function PartnerDashboard() {
 
   const supabase = createClient()
 
+  const handleOfferCreated = async (partnerId: string) => {
+    const { data: offersData } = await supabase
+      .from('ponudbe')
+      .select('*')
+      .eq('obrtnik_id', partnerId)
+      .order('created_at', { ascending: false })
+    if (offersData) setOffers(offersData)
+  }
+
   useEffect(() => {
     const getPartner = async () => {
       const sb = createClient()

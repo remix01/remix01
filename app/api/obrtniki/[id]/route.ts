@@ -6,14 +6,15 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const admin = await verifyAdmin(req)
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { id } = await params
   const body = await req.json()
   const { data: current } = await supabaseAdmin
-    .from('obrtniki').select('*').eq('id', params.id).single()
+    .from('obrtniki').select('*').eq('id', id).single()
 
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -29,12 +30,12 @@ export async function PATCH(
   }
 
   const { data, error } = await supabaseAdmin
-    .from('obrtniki').update(updates).eq('id', params.id).select().single()
+    .from('obrtniki').update(updates).eq('id', id).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   await logAction(admin.id, `STATUS_${body.status?.toUpperCase() || 'UPDATE'}`,
-    'obrtniki', params.id, current, updates)
+    'obrtniki', id, current, updates)
 
   // Email obrtnik on verification
   if (body.status === 'verified' && current.email) {

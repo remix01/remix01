@@ -10,7 +10,7 @@ import { sendEmail } from '@/lib/email/sender'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication and admin role
@@ -31,7 +31,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
 
-    const craftworkerId = params.id
+    const { id: craftworkerId } = await params
 
     // Get craftworker profile
     const { data: profile, error: profileError } = await supabaseAdmin

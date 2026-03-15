@@ -17,6 +17,11 @@ export const env = {
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY ?? '',
   LANGFUSE_HOST: process.env.LANGFUSE_HOST ?? '',
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
+  RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
+  NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID ?? '',
+  VAPID_SUBJECT: process.env.VAPID_SUBJECT ?? '',
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 } as const
 

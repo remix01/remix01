@@ -12,7 +12,7 @@ import { enqueue } from '@/lib/jobs/queue'
 export async function POST(request: NextRequest) {
   try {
     // 1. AVTENTIKACIJA — samo admin
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

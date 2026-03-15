@@ -92,17 +92,19 @@ export async function acceptPonudbaAction(
     // STEP 4: INSERT notification for obrtnik
     // ════════════════════════════════════════════════════════════════════
     if (ponudbaData.obrtnik_id) {
-      await sendNotification({
-        userId: ponudbaData.obrtnik_id,
-        type: 'ponudba_sprejeta',
-        title: 'Vaša ponudba je bila sprejeta! 🎉',
-        message: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
-        link: '/obrtnik/ponudbe',
-        metadata: { ponudbaId, povprasevanjeId }
-      }).catch(err => {
-        console.error('[v0] Error sending notification:', err)
-        // Don't fail if notification fails
-      })
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: ponudbaData.obrtnik_id,
+          type: 'ponudba_sprejeta',
+          title: 'Vaša ponudba je bila sprejeta! 🎉',
+          message: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
+          link: '/obrtnik/ponudbe',
+          read: false,
+        })
+        .then(({ error }) => {
+          if (error) console.error('[v0] Error sending notification:', error)
+        })
     }
 
     // ════════════════════════════════════════════════════════════════════

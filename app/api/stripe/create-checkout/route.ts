@@ -7,8 +7,8 @@ import { getStripePriceId, isValidPlan, type PlanType } from '@/lib/stripe/confi
 // Robustna funkcija za sestavo URL — nikoli ne vrne "undefined/pot"
 function getBaseUrl(req: Request): string {
   // 1. Najprej vzame iz env (najboljša opcija za produkcijo)
-  if (env.NEXT_PUBLIC_URL) {
-    const url = env.NEXT_PUBLIC_URL.trim()
+  if (env.NEXT_PUBLIC_APP_URL) {
+    const url = env.NEXT_PUBLIC_APP_URL.trim()
     // Zagotovi da ima https://
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url.replace(/\/$/, '') // Odstrani trailing slash

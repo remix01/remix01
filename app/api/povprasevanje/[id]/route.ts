@@ -6,11 +6,12 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const admin = await verifyAdmin(req)
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { id } = await params
   const body = await req.json()
   const { status, obrtnik_id, admin_opomba,
           termin_datum, termin_ura,
@@ -20,7 +21,7 @@ export async function PATCH(
   const { data: current } = await supabaseAdmin
     .from('povprasevanja')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -40,14 +41,14 @@ export async function PATCH(
   const { data, error } = await supabaseAdmin
     .from('povprasevanja')
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Log the action
-  await logAction(admin.id, 'UPDATE', 'povprasevanja', params.id, current, updates)
+  await logAction(admin.id, 'UPDATE', 'povprasevanja', id, current, updates)
 
   // Notify obrtnik if newly assigned
   if (obrtnik_id && obrtnik_id !== current.obrtnik_id) {
@@ -68,7 +69,7 @@ export async function PATCH(
             <p>Admin vam je dodelil novo povpraševanje.</p>
             <p><strong>Storitev:</strong> ${current.storitev}</p>
             <p><strong>Lokacija:</strong> ${current.lokacija}</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/povprasevanja/${params.id}">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/povprasevanja/${id}">
               Oglejte si podrobnosti →
             </a>
           `,
@@ -76,7 +77,7 @@ export async function PATCH(
         await supabaseAdmin
           .from('povprasevanja')
           .update({ notifikacija_poslana: true, notifikacija_cas: new Date().toISOString() })
-          .eq('id', params.id)
+          .eq('id', id)
       } catch (emailError) {
         console.log('[v0] Email send skipped')
       }
