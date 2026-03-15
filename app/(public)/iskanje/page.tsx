@@ -12,6 +12,7 @@ import Link from 'next/link'
 interface SearchFilters {
   query: string
   city: string
+  category: string
   rating: number
   verified: boolean
 }
@@ -21,23 +22,40 @@ export default function SearchPage() {
   const [filters, setFilters] = useState<SearchFilters>({
     query: '',
     city: '',
+    category: '',
     rating: 0,
     verified: false,
   })
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
+  const [categories, setCategories] = useState<any[]>([])
 
   useEffect(() => {
+    loadCategories()
     handleSearch()
   }, [])
+
+  async function loadCategories() {
+    try {
+      const { data } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order')
+
+      setCategories(data || [])
+    } catch (error) {
+      console.error('[v0] Error loading categories:', error)
+    }
+  }
 
   async function handleSearch() {
     setLoading(true)
     try {
       let query = supabase
         .from('obrtnik_profiles')
-        .select('*', { count: 'exact' })
+        .select('*, obrtnik_categories(category_id)', { count: 'exact' })
         .eq('is_verified', true)
 
       if (filters.verified) {
@@ -50,6 +68,24 @@ export default function SearchPage() {
 
       if (filters.query) {
         query = query.ilike('business_name', `%${filters.query}%`)
+      }
+
+      if (filters.category) {
+        // Filter by selected category - subquery join
+        const { data: obrtnikIds } = await supabase
+          .from('obrtnik_categories')
+          .select('obrtnik_id')
+          .eq('category_id', filters.category)
+
+        if (obrtnikIds && obrtnikIds.length > 0) {
+          const ids = obrtnikIds.map(o => o.obrtnik_id)
+          query = query.in('id', ids)
+        } else {
+          setResults([])
+          setTotalCount(0)
+          setLoading(false)
+          return
+        }
       }
 
       const { data, count } = await query.limit(50)
@@ -83,7 +119,7 @@ export default function SearchPage() {
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Button onClick={handleSearch} disabled={loading}>
+            <Button onClick={handleSearch} disabled={loading} className="min-h-[48px]">
               {loading ? 'Iskanje...' : 'Iskanje'}
             </Button>
           </div>
@@ -96,6 +132,16 @@ export default function SearchPage() {
               value={filters.city}
               onChange={(e) => setFilters({ ...filters, city: e.target.value })}
             />
+            <select
+              className="px-3 py-2 border rounded-lg bg-background text-foreground"
+              value={filters.category}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+            >
+              <option value="">Vse kategorije</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
             <select
               className="px-3 py-2 border rounded-lg bg-background text-foreground"
               value={filters.rating}
@@ -146,33 +192,37 @@ export default function SearchPage() {
 
                     {craftsperson.description && (
                       <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                        {craftsperson.description}
+                        {craftsperson.tagline || craftsperson.description}
                       </p>
                     )}
 
-                    {/* Rating */}
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="flex gap-0.5">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < Math.round(craftsperson.avg_rating)
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'text-muted'
-                            }`}
-                          />
-                        ))}
+                    {/* Rating - only show if there are reviews */}
+                    {craftsperson.total_reviews && craftsperson.total_reviews > 0 ? (
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="flex gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-4 h-4 ${
+                                i < Math.round(craftsperson.avg_rating)
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-muted'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-semibold">{craftsperson.avg_rating?.toFixed(1) || '0.0'}</span>
                       </div>
-                      <span className="text-sm font-semibold">{craftsperson.avg_rating.toFixed(1)}</span>
-                    </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground mb-4">Brez ocen</div>
+                    )}
 
                     {/* Subscription tier */}
                     <div className="mt-auto flex items-center justify-between">
                       <Badge className={craftsperson.subscription_tier === 'pro' ? 'bg-amber-100 text-amber-700' : 'bg-muted'}>
                         {craftsperson.subscription_tier === 'pro' ? 'PRO' : 'START'}
                       </Badge>
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" className="min-h-[44px]">
                         Poglej profil
                       </Button>
                     </div>
@@ -184,9 +234,9 @@ export default function SearchPage() {
         ) : (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg">
-              Noben mojster ne ustreza vašim kriterijem
+              Ni zadetkov za vaš iskalni pogoj. Poskusite z drugo kategorijo.
             </p>
-            <Button className="mt-6" onClick={() => setFilters({ query: '', city: '', rating: 0, verified: false })}>
+            <Button className="mt-6 min-h-[48px]" onClick={() => setFilters({ query: '', city: '', category: '', rating: 0, verified: false })}>
               Počisti filtre
             </Button>
           </div>

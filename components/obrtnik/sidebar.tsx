@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Briefcase, FileText, Star, User, LogOut } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Home, Briefcase, FileText, Star, User } from 'lucide-react'
 
 interface ObrtknikSidebarProps {
   fullName: string
@@ -19,11 +18,6 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
     { href: '/ocene', icon: Star, label: 'Ocene' },
     { href: '/profil', icon: User, label: 'Profil' },
   ]
-
-  const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    window.location.href = '/partner-auth/login'
-  }
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -61,18 +55,6 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
           )
         })}
       </nav>
-
-      {/* Logout */}
-      <div className="p-4 border-t">
-        <Button
-          onClick={handleLogout}
-          variant="ghost"
-          className="w-full justify-start gap-3"
-        >
-          <LogOut className="w-5 h-5" />
-          Odjava
-        </Button>
-      </div>
     </div>
   )
 }

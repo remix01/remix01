@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, CheckCircle, Upload } from 'lucide-react'
+import { AlertCircle, CheckCircle, Upload, LogOut } from 'lucide-react'
 
 export default function ProfilPage() {
   const router = useRouter()
@@ -282,6 +282,16 @@ export default function ProfilPage() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      router.push('/partner-auth/login')
+    } catch (error) {
+      console.error('[v0] Logout error:', error)
+      setErrorMessage('Napaka pri odjavi')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -359,7 +369,7 @@ export default function ProfilPage() {
               type="text"
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -369,7 +379,7 @@ export default function ProfilPage() {
               type="text"
               value={lastName}
               onChange={e => setLastName(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
         </div>
@@ -382,7 +392,7 @@ export default function ProfilPage() {
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -392,7 +402,7 @@ export default function ProfilPage() {
               type="text"
               value={locationCity}
               onChange={e => setLocationCity(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
         </div>
@@ -412,14 +422,14 @@ export default function ProfilPage() {
 
         <div>
           <Label htmlFor="businessName">Naziv podjetja *</Label>
-          <input
-            id="businessName"
-            type="text"
-            value={businessName}
-            onChange={e => setBusinessName(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-lg"
-            required
-          />
+            <input
+              id="businessName"
+              type="text"
+              value={businessName}
+              onChange={e => setBusinessName(e.target.value)}
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
+              required
+            />
         </div>
 
         <div>
@@ -430,7 +440,7 @@ export default function ProfilPage() {
             maxLength={100}
             value={tagline}
             onChange={e => setTagline(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-lg"
+            className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             placeholder="npr. Hitro, kvalitetno, zanesljivo"
           />
         </div>
@@ -457,7 +467,7 @@ export default function ProfilPage() {
               step="0.01"
               value={hourlyRate}
               onChange={e => setHourlyRate(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -467,7 +477,7 @@ export default function ProfilPage() {
               type="number"
               value={yearsExperience}
               onChange={e => setYearsExperience(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -477,7 +487,7 @@ export default function ProfilPage() {
               type="year"
               value={workingSince}
               onChange={e => setWorkingSince(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="2010"
             />
           </div>
@@ -491,7 +501,7 @@ export default function ProfilPage() {
               type="text"
               value={ajpesId}
               onChange={e => setAjpesId(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
           <div>
@@ -500,7 +510,7 @@ export default function ProfilPage() {
               id="response"
               value={responseTime}
               onChange={e => setResponseTime(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             >
               <option value="">Izberite...</option>
               <option value="1">Manj kot 1 uro</option>
@@ -519,7 +529,7 @@ export default function ProfilPage() {
               type="url"
               value={website}
               onChange={e => setWebsite(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://..."
             />
           </div>
@@ -530,7 +540,7 @@ export default function ProfilPage() {
               type="url"
               value={facebook}
               onChange={e => setFacebook(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://facebook.com/..."
             />
           </div>
@@ -541,7 +551,7 @@ export default function ProfilPage() {
               type="url"
               value={instagram}
               onChange={e => setInstagram(e.target.value)}
-              className="w-full mt-1 px-3 py-2 border rounded-lg"
+              className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://instagram.com/..."
             />
           </div>
@@ -594,17 +604,34 @@ export default function ProfilPage() {
       <Card className="p-6 space-y-4">
         <h2 className="text-xl font-bold">Varnost</h2>
 
-        <p className="text-sm text-gray-600">
-          Spremenite geslo s klikom na gumb spodaj.
-        </p>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-gray-600 mb-2">
+              Spremenite geslo s klikom na gumb spodaj.
+            </p>
+            <Button
+              onClick={resetPassword}
+              variant="outline"
+              className="w-full"
+            >
+              Spremenite geslo
+            </Button>
+          </div>
 
-        <Button
-          onClick={resetPassword}
-          variant="outline"
-          className="w-full"
-        >
-          Spremenite geslo
-        </Button>
+          <div className="border-t pt-4">
+            <p className="text-sm text-gray-600 mb-2">
+              Odjavite se s tega naprave.
+            </p>
+            <Button
+              onClick={handleLogout}
+              variant="destructive"
+              className="w-full justify-start gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Odjava
+            </Button>
+          </div>
+        </div>
       </Card>
     </div>
   )

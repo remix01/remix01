@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { FileText, Briefcase, Star, TrendingUp } from 'lucide-react'
 
 export default async function ObrtknikDashboardPage() {
@@ -16,7 +17,7 @@ export default async function ObrtknikDashboardPage() {
   // Get obrtnik profile
   const { data: obrtnikProfile } = await supabase
     .from('obrtnik_profiles')
-    .select('id')
+    .select('id, business_name, subscription_tier')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -44,12 +45,9 @@ export default async function ObrtknikDashboardPage() {
 
   const averageRating = oceneData && oceneData.length > 0
     ? (oceneData.reduce((sum, o) => sum + o.rating, 0) / oceneData.length).toFixed(1)
-    : '0.0'
+    : null
 
-  // Get new povprasevanja count (in last 24h)
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
-  
+  // Get open povprasevanja count for obrtnik's categories
   const { data: obrtnikCategories } = await supabase
     .from('obrtnik_categories')
     .select('category_id')
@@ -57,16 +55,41 @@ export default async function ObrtknikDashboardPage() {
 
   const categoryIds = obrtnikCategories?.map(oc => oc.category_id) || []
 
-  const { count: newPovprasevanjaCount } = await supabase
+  const { count: openPovprasevanjaCount } = await supabase
     .from('povprasevanja')
     .select('*', { count: 'exact', head: true })
     .in('category_id', categoryIds)
     .eq('status', 'odprto')
-    .gte('created_at', yesterday.toISOString())
+
+  // Get existing ponudbe to check if any exist
+  const { count: existingPonudbeCount } = await supabase
+    .from('ponudbe')
+    .select('*', { count: 'exact', head: true })
+    .eq('obrtnik_id', obrtnikProfile.id)
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+      {/* Header with business name and tier badge */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">LiftGO</h1>
+          <p className="text-sm text-muted-foreground">{obrtnikProfile.business_name}</p>
+        </div>
+        <Badge variant={obrtnikProfile.subscription_tier === 'pro' ? 'default' : 'outline'}>
+          {obrtnikProfile.subscription_tier?.toUpperCase() || 'START'}
+        </Badge>
+      </div>
+
+      {/* Open povpraševanja banner */}
+      {openPovprasevanjaCount && openPovprasevanjaCount > 0 && (
+        <Link href="/povprasevanja">
+          <Card className="p-4 bg-primary/5 border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer">
+            <p className="text-sm font-semibold text-primary">
+              🔔 {openPovprasevanjaCount} povpraševanj čaka na vašo ponudbo →
+            </p>
+          </Card>
+        </Link>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -74,7 +97,12 @@ export default async function ObrtknikDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Aktivne ponudbe</p>
-              <p className="text-3xl font-bold text-foreground">{activePonudbeCount || 0}</p>
+              <p className="text-3xl font-bold text-foreground">
+                {activePonudbeCount || 0}
+              </p>
+              {activePonudbeCount === 0 && existingPonudbeCount === 0 && (
+                <p className="text-xs text-primary mt-2 font-semibold">Pošljite prvo ponudbo →</p>
+              )}
             </div>
             <Briefcase className="w-12 h-12 text-primary opacity-20" />
           </div>
@@ -94,7 +122,7 @@ export default async function ObrtknikDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Povprečna ocena</p>
-              <p className="text-3xl font-bold text-foreground">{averageRating}</p>
+              <p className="text-3xl font-bold text-foreground">{averageRating || 'Brez ocen'}</p>
             </div>
             <Star className="w-12 h-12 text-yellow-500 opacity-20" />
           </div>
@@ -103,10 +131,10 @@ export default async function ObrtknikDashboardPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Nova povpraševanja (24h)</p>
-              <p className="text-3xl font-bold text-gray-900">{newPovprasevanjaCount || 0}</p>
+              <p className="text-sm text-muted-foreground">Odprta povpraševanja</p>
+              <p className="text-3xl font-bold text-foreground">{openPovprasevanjaCount || 0}</p>
             </div>
-            <FileText className="w-12 h-12 text-purple-500 opacity-20" />
+            <FileText className="w-12 h-12 text-blue-500 opacity-20" />
           </div>
         </Card>
       </div>
