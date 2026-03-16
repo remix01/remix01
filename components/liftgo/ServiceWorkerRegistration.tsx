@@ -43,7 +43,9 @@ export function ServiceWorkerRegistration() {
 
         // Preveri za posodobitve vsakih 60 sekund ko je tab aktiven
         const updateInterval = setInterval(() => {
-          registration.update().catch(console.error)
+          if (registration.active || registration.installing || registration.waiting) {
+            registration.update().catch(() => {})
+          }
         }, 60 * 1000)
 
         // FIX 2: Cleanup interval ob unmount
