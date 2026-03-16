@@ -4,13 +4,24 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, CheckCircle } from 'lucide-react'
+import { AgentDialog } from '@/components/agents/AgentDialog'
 
 interface ObrtnikiOfferFormProps {
   povprasevanje_id: string
   onSuccess?: () => void
+  /** Povpraševanje details for the offer writing agent */
+  povprasevanjeContext?: {
+    title?: string
+    description?: string
+    urgency?: string
+    location_city?: string
+    budget_min?: number
+    budget_max?: number
+    category?: string
+  }
 }
 
-export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess }: ObrtnikiOfferFormProps) {
+export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess, povprasevanjeContext }: ObrtnikiOfferFormProps) {
   const [price, setPrice] = useState('')
   const [priceType, setPriceType] = useState('fiksna')
   const [duration, setDuration] = useState('')
@@ -180,7 +191,16 @@ export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess }: ObrtnikiOffer
 
       {/* Message */}
       <div>
-        <label className="block text-sm font-medium mb-1">Sporočilo ({charCount}/30)</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium">Sporočilo ({charCount}/30)</label>
+          <AgentDialog
+            agentType="offer_writing"
+            context={povprasevanjeContext ?? {}}
+            triggerLabel="AI pomoč pri pisanju"
+            triggerClassName="text-xs text-teal-600 border-teal-200 hover:bg-teal-50"
+            initialMessage="Pomagaj mi napisati profesionalno ponudbo za to povpraševanje."
+          />
+        </div>
         <textarea
           value={message}
           onChange={e => setMessage(e.target.value)}
