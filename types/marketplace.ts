@@ -137,6 +137,7 @@ export interface PovprasevanjeInsert {
   preferred_date_to?: string
   budget_min?: number
   budget_max?: number
+  attachment_urls?: string[]
 }
 
 export interface PonudbaInsert {

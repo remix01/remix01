@@ -7,7 +7,9 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, CheckCircle, Upload, LogOut } from 'lucide-react'
+import { AlertCircle, CheckCircle, Upload, LogOut, FileText, ExternalLink } from 'lucide-react'
+import { FileUploadZone } from '@/components/file-upload-zone'
+import { uploadFile, generateFilePath } from '@/lib/storage'
 
 export default function ProfilPage() {
   const router = useRouter()
@@ -40,6 +42,11 @@ export default function ProfilPage() {
   const [allCategories, setAllCategories] = useState<any[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [savingCategories, setSavingCategories] = useState(false)
+
+  // Section 4: Certificates
+  const [certificateUrls, setCertificateUrls] = useState<string[]>([])
+  const [certificateFiles, setCertificateFiles] = useState<File[]>([])
+  const [savingCertificates, setSavingCertificates] = useState(false)
 
   // UI State
   const [loading, setLoading] = useState(true)
@@ -93,6 +100,7 @@ export default function ProfilPage() {
         setFacebook(obrtnikProfile.facebook_url || '')
         setInstagram(obrtnikProfile.instagram_url || '')
         setResponseTime(obrtnikProfile.response_time_hours || '')
+        setCertificateUrls(obrtnikProfile.certificate_urls || [])
 
         // Calculate profile completeness
         const filled = [
@@ -263,6 +271,40 @@ export default function ProfilPage() {
     } catch (error) {
       console.error('[v0] Error toggling category:', error)
       setErrorMessage('Napaka pri spremembi kategorij')
+    }
+  }
+
+  const saveCertificates = async () => {
+    setSavingCertificates(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const newUrls: string[] = []
+      for (const file of certificateFiles) {
+        const path = generateFilePath(user.id, file.name)
+        const { url } = await uploadFile('certificates', path, file)
+        if (url) newUrls.push(url)
+      }
+
+      const allUrls = [...certificateUrls, ...newUrls]
+
+      const { error } = await supabase
+        .from('obrtnik_profiles')
+        .update({ certificate_urls: allUrls })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      setCertificateUrls(allUrls)
+      setCertificateFiles([])
+      setSuccessMessage('Certifikati shranjeni!')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (error) {
+      console.error('[v0] Error saving certificates:', error)
+      setErrorMessage('Napaka pri shranjevanju certifikatov')
+    } finally {
+      setSavingCertificates(false)
     }
   }
 
@@ -484,7 +526,7 @@ export default function ProfilPage() {
             <Label htmlFor="workingSince">Delam od:</Label>
             <input
               id="workingSince"
-              type="year"
+              type="text"
               value={workingSince}
               onChange={e => setWorkingSince(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
@@ -600,7 +642,54 @@ export default function ProfilPage() {
         )}
       </Card>
 
-      {/* Section 4: Password */}
+      {/* Section 4: Certificates */}
+      <Card className="p-6 space-y-4">
+        <h2 className="text-xl font-bold">Certifikati in reference</h2>
+        <p className="text-sm text-gray-600">
+          Dodajte certifikate, licence ali fotografije referenčnih del
+        </p>
+
+        <FileUploadZone
+          accept="image/*,application/pdf"
+          maxFiles={10}
+          maxSizeMB={5}
+          label="Dodajte certifikate, licence ali reference"
+          sublabel="PDF ali slike, max 5MB vsaka — do 10 datotek"
+          onFilesChange={setCertificateFiles}
+        />
+
+        {certificateUrls.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-700">Naloženi certifikati ({certificateUrls.length}):</p>
+            <ul className="space-y-1">
+              {certificateUrls.map((url, idx) => (
+                <li key={idx} className="flex items-center gap-2 text-sm">
+                  <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-teal-600 hover:underline truncate flex items-center gap-1"
+                  >
+                    Certifikat {idx + 1}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <Button
+          onClick={saveCertificates}
+          disabled={savingCertificates || certificateFiles.length === 0}
+          className="w-full"
+        >
+          {savingCertificates ? 'Shranjujem...' : 'Shrani certifikate'}
+        </Button>
+      </Card>
+
+      {/* Section 5: Password */}
       <Card className="p-6 space-y-4">
         <h2 className="text-xl font-bold">Varnost</h2>
 

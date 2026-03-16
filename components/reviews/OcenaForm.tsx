@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Upload, X } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { FileUploadZone } from '@/components/file-upload-zone'
+import { uploadFile, generateFilePath } from '@/lib/storage'
 
 interface OcenaFormProps {
   ponudba_id: string
@@ -31,61 +33,12 @@ export function OcenaForm({
   const [punctualityRating, setPunctualityRating] = useState(0)
   const [priceRating, setPriceRating] = useState(0)
   const [comment, setComment] = useState('')
-  const [photos, setPhotos] = useState<string[]>([])
-  const [uploading, setUploading] = useState(false)
+  const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const maxPhotos = 5
   const maxChars = 500
-
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return
-    if (photos.length >= maxPhotos) {
-      setError(`Največ ${maxPhotos} fotografij`)
-      return
-    }
-
-    setUploading(true)
-    setError(null)
-
-    try {
-      const file = e.target.files[0]
-      if (!file.type.startsWith('image/')) {
-        setError('Samo slike so dovoljene')
-        setUploading(false)
-        return
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Slika je prevelika (max 5MB)')
-        setUploading(false)
-        return
-      }
-
-      const supabase = createClient()
-      const fileName = `${ponudba_id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      const { data, error: uploadError } = await supabase.storage
-        .from('ocene')
-        .upload(fileName, file)
-
-      if (uploadError) {
-        setError('Napaka pri nalaganju slike')
-      } else {
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from('ocene').getPublicUrl(fileName)
-        setPhotos([...photos, publicUrl])
-      }
-    } catch (err) {
-      setError('Napaka pri nalaganju')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const removePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index))
-  }
 
   const handleSubmit = async () => {
     if (rating === 0) {
@@ -105,6 +58,14 @@ export function OcenaForm({
         return
       }
 
+      // Upload photos to Supabase Storage
+      const uploadedUrls: string[] = []
+      for (const file of photoFiles) {
+        const path = generateFilePath(user.id, file.name)
+        const { url } = await uploadFile('ocene', path, file)
+        if (url) uploadedUrls.push(url)
+      }
+
       const response = await fetch('/api/reviews/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,7 +77,7 @@ export function OcenaForm({
           punctuality_rating: punctualityRating || null,
           price_rating: priceRating || null,
           comment: comment || null,
-          photos: photos.length > 0 ? photos : null,
+          photos: uploadedUrls.length > 0 ? uploadedUrls : null,
         }),
       })
 
@@ -209,37 +170,14 @@ export function OcenaForm({
       </div>
 
       {/* Photos */}
-      <div>
-        <label className="block text-sm font-semibold mb-2">Fotografije (do {maxPhotos})</label>
-        <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded cursor-pointer hover:bg-gray-50 transition">
-          <Upload className="w-5 h-5 text-gray-400" />
-          <span className="text-sm text-gray-600">Kliknite za nalaganje ali povlecite</span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoSelect}
-            disabled={uploading || photos.length >= maxPhotos}
-            className="hidden"
-          />
-        </label>
-
-        {photos.length > 0 && (
-          <div className="grid grid-cols-4 gap-2 mt-3">
-            {photos.map((photo, idx) => (
-              <div key={idx} className="relative">
-                <img src={photo} alt={`preview-${idx}`} className="w-full h-20 object-cover rounded" />
-                <button
-                  onClick={() => removePhoto(idx)}
-                  type="button"
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <FileUploadZone
+        accept="image/*"
+        maxFiles={maxPhotos}
+        maxSizeMB={5}
+        label={`Fotografije zaključenega dela (do ${maxPhotos})`}
+        sublabel="Max 5MB vsaka — JPG, PNG"
+        onFilesChange={setPhotoFiles}
+      />
 
       {/* Submit */}
       <button

@@ -17,6 +17,8 @@ import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/market
 import * as LucideIcons from 'lucide-react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { AgentDialog } from '@/components/agents/AgentDialog'
+import { FileUploadZone } from '@/components/file-upload-zone'
+import { uploadFile, generateFilePath } from '@/lib/storage'
 
 // Helper to get icon component from name
 function getIconComponent(iconName?: string) {
@@ -49,6 +51,7 @@ export default function NovoPoVprasevanjePage() {
   const [budgetMin, setBudgetMin] = useState<number | ''>('')
   const [budgetMax, setBudgetMax] = useState<number | ''>('')
   const [pricingEstimate, setPricingEstimate] = useState<any>(null)
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([])
 
   // Fetch user and categories on mount
   useEffect(() => {
@@ -136,6 +139,14 @@ export default function NovoPoVprasevanjePage() {
     setError(null)
 
     try {
+      // Upload attachments to Supabase Storage
+      const uploadedUrls: string[] = []
+      for (const file of attachmentFiles) {
+        const path = generateFilePath(user.id, file.name)
+        const { url } = await uploadFile('inquiry-attachments', path, file)
+        if (url) uploadedUrls.push(url)
+      }
+
       const povprasevanje: PovprasevanjeInsert = {
         narocnik_id: user.id,
         category_id: selectedCategory.id,
@@ -148,6 +159,7 @@ export default function NovoPoVprasevanjePage() {
         preferred_date_to: preferredDateTo || undefined,
         budget_min: !budgetUndetermined && budgetMin ? Number(budgetMin) : undefined,
         budget_max: !budgetUndetermined && budgetMax ? Number(budgetMax) : undefined,
+        attachment_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
       }
 
       const result = await createPovprasevanje(povprasevanje)
@@ -337,6 +349,15 @@ export default function NovoPoVprasevanjePage() {
                 </div>
               </RadioGroup>
             </div>
+
+            <FileUploadZone
+              accept="image/*,video/*"
+              maxFiles={5}
+              maxSizeMB={100}
+              label="Priložite fotografije ali video problema (neobvezno)"
+              sublabel="Max 5 datotek. Slike do 10MB, videi do 100MB."
+              onFilesChange={setAttachmentFiles}
+            />
 
             <div className="flex justify-between gap-2 mt-8">
               <Button onClick={handlePrevious} variant="outline" className="min-h-[48px]">

@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useRef, useLayoutEffect } from 'react'
-import { X, Send, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react'
+import { X, Send, Trash2, WifiOff, Loader2, Paperclip } from 'lucide-react'
 import { useAgentChat, type ConnectionStatus } from './useAgentChat'
 import { AgentMessage } from './AgentMessage'
+import { uploadFile, generateFilePath } from '@/lib/storage'
+import { createClient } from '@/lib/supabase/client'
 
 type AgentChatProps = {
   messages: ReturnType<typeof useAgentChat>['messages']
@@ -30,17 +32,50 @@ function StatusDot({ status }: { status: ConnectionStatus }) {
 
 export function AgentChat({ messages, isLoading, connectionStatus, lastError, sendMessage, clearConversation, closeChat }: AgentChatProps) {
   const [input, setInput] = React.useState('')
+  const [attachmentFile, setAttachmentFile] = React.useState<File | null>(null)
+  const [attachmentUploading, setAttachmentUploading] = React.useState(false)
+  const [attachmentUrl, setAttachmentUrl] = React.useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAttachmentFile(file)
+    setAttachmentUploading(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      const userId = user?.id ?? 'anonymous'
+      const path = generateFilePath(userId, file.name)
+      const { url } = await uploadFile('chat-attachments', path, file)
+      setAttachmentUrl(url)
+    } catch {
+      setAttachmentUrl(null)
+    } finally {
+      setAttachmentUploading(false)
+    }
+  }
+
+  const clearAttachment = () => {
+    setAttachmentFile(null)
+    setAttachmentUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   useLayoutEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   const handleSendMessage = () => {
-    if (input.trim()) {
-      sendMessage(input)
+    const messageContent = attachmentUrl
+      ? `${input.trim() ? input + '\n' : ''}[Priložena datoteka: ${attachmentUrl}]`
+      : input.trim()
+    if (messageContent) {
+      sendMessage(messageContent)
       setInput('')
+      clearAttachment()
       inputRef.current?.focus()
     }
   }
@@ -51,6 +86,8 @@ export function AgentChat({ messages, isLoading, connectionStatus, lastError, se
       handleSendMessage()
     }
   }
+
+  const canSend = !isLoading && !attachmentUploading && (!!input.trim() || !!attachmentUrl)
 
   const handleClear = () => {
     if (window.confirm('Izbrisati celoten pogovor?')) {
@@ -146,7 +183,36 @@ export function AgentChat({ messages, isLoading, connectionStatus, lastError, se
           {lastError && (
             <p className="text-xs text-red-500 mb-2 px-1">{lastError}</p>
           )}
+          {attachmentFile && (
+            <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-slate-100 rounded-lg text-xs">
+              {attachmentUploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+              ) : (
+                <Paperclip className="w-3.5 h-3.5 text-slate-500" />
+              )}
+              <span className="flex-1 truncate text-slate-700">{attachmentFile.name}</span>
+              <button onClick={clearAttachment} className="text-slate-400 hover:text-red-500" aria-label="Odstrani prilogo">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           <div className="flex gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
+              aria-label="Priloži datoteko"
+              title="Priloži datoteko"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,application/pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
             <textarea
               ref={inputRef}
               value={input}
@@ -159,7 +225,7 @@ export function AgentChat({ messages, isLoading, connectionStatus, lastError, se
             />
             <button
               onClick={handleSendMessage}
-              disabled={isLoading || !input.trim()}
+              disabled={!canSend}
               className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 transition-colors flex-shrink-0"
               aria-label="Pošlji sporočilo"
             >
