@@ -18,8 +18,8 @@ type RawLog = {
   created_at: string
   model_used: string
   cost_usd: number
-  input_tokens?: number
-  output_tokens?: number
+  tokens_input?: number
+  tokens_output?: number
   response_cached: boolean
 }
 

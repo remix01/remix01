@@ -11,7 +11,7 @@ async function getAnalyticsData() {
     // Daily usage by model (last 7 days)
     supabaseAdmin
       .from('ai_usage_logs')
-      .select('created_at, model_used, cost_usd, input_tokens, output_tokens, response_cached')
+      .select('created_at, model_used, cost_usd, tokens_input, tokens_output, response_cached')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: true }),
 

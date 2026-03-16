@@ -140,13 +140,12 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from('ai_usage_logs').insert({
         user_id: user.id,
         model_used: 'cached',
-        input_tokens: 0,
-        output_tokens: 0,
+        tokens_input: 0,
+        tokens_output: 0,
         cost_usd: 0,
         response_cached: true,
-        cache_key: cacheKey,
-        message_preview: message.slice(0, 100),
-        complexity_score: 0,
+        message_hash: cacheKey,
+        user_message: message.slice(0, 500),
       })
 
       // Persist to conversation
@@ -250,17 +249,19 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
       })
       .catch(() => {})
 
+    // Map full model ID to short name for DB CHECK constraint
+    const modelShortName = modelSelection.modelId.includes('haiku') ? 'haiku-4' : 'sonnet-4'
+
     // Log usage
     await supabaseAdmin.from('ai_usage_logs').insert({
       user_id: user.id,
-      model_used: modelSelection.modelId,
-      input_tokens: inputTokens,
-      output_tokens: outputTokens,
+      model_used: modelShortName,
+      tokens_input: inputTokens,
+      tokens_output: outputTokens,
       cost_usd: costUsd,
       response_cached: false,
-      cache_key: cacheKey,
-      message_preview: message.slice(0, 100),
-      complexity_score: modelSelection.complexityScore,
+      message_hash: cacheKey,
+      user_message: message.slice(0, 500),
     })
 
     // Persist conversation

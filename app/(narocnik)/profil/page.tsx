@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import ProfilForm from '@/components/narocnik/profil-form'
 import { CalendarConnect } from '@/components/liftgo/CalendarConnect'
 import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
+import { AIUsageWidget } from '@/components/ai-usage-widget'
 
 export default async function ProfilPage() {
   const supabase = await createClient()
@@ -50,6 +51,12 @@ export default async function ProfilPage() {
         {/* Notification Preferences Section */}
         <div className="mt-8 pt-8 border-t border-gray-200">
           <NotificationPreferences />
+        </div>
+
+        {/* AI Usage Section */}
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">AI Asistent</h2>
+          <AIUsageWidget />
         </div>
       </div>
     </div>
