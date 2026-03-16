@@ -14,8 +14,9 @@ import {
 export const maxDuration = 30
 
 // Helper: določi tier iz Stripe price ID (zanesljivo, ne iz metadata)
-function tierFromPriceId(priceId: string): 'pro' | 'start' {
+function tierFromPriceId(priceId: string): 'pro' | 'plus' | 'start' {
   if (priceId === STRIPE_PRODUCTS.PRO.priceId) return 'pro'
+  if (priceId === STRIPE_PRODUCTS.PLUS.priceId) return 'plus'
   return 'start'
 }
 
@@ -23,7 +24,7 @@ function tierFromPriceId(priceId: string): 'pro' | 'start' {
 async function updateSubscriptionTier(
   userId: string | null,
   customerId: string,
-  tier: 'pro' | 'start',
+  tier: 'pro' | 'plus' | 'start',
   stripeSubscriptionId?: string
 ) {
   // Lookup user: najprej po client_reference_id (userId), nato po stripe_customer_id
@@ -104,8 +105,16 @@ export async function POST(request: NextRequest) {
 
         if (!customerId) break
 
-        // checkout.session.completed pomeni plačan PRO paket
-        const tier = 'pro'
+        // Determine tier from subscription price ID (not hardcoded)
+        let tier: 'pro' | 'plus' | 'start' = 'pro'
+        if (subscriptionId) {
+          try {
+            const sub = await (await import('@/lib/stripe')).stripe.subscriptions.retrieve(subscriptionId)
+            tier = tierFromPriceId(sub.items.data[0]?.price.id ?? '')
+          } catch {
+            // fallback to 'pro' — checkout only reached for paid plans
+          }
+        }
         await updateSubscriptionTier(userId, customerId, tier, subscriptionId)
         break
       }

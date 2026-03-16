@@ -17,6 +17,21 @@ export const STRIPE_PRODUCTS = {
       'Dostop do povpraševanj'
     ]
   },
+  PLUS: {
+    // TODO: replace with real Stripe product/price IDs after creating the product in Stripe Dashboard
+    productId: 'prod_PLUS_PLACEHOLDER',
+    priceId: 'price_PLUS_PLACEHOLDER',
+    name: 'LiftGo PLUS',
+    price: 19,
+    commission: 7, // 7% provizija
+    features: [
+      'Neomejene ponudbe',
+      '7% provizija',
+      'Standardna podpora',
+      'Osnovna analitika',
+      'Izpostavljeni oglas'
+    ]
+  },
   PRO: {
     productId: 'prod_SpS7ixowByASns',
     priceId: 'price_1RuAtoKWYyYULHZkiI9eg1Eq',
@@ -62,5 +77,5 @@ export function getPlanDetails(plan: PlanType) {
  * Validate if a plan type is valid
  */
 export function isValidPlan(plan: unknown): plan is PlanType {
-  return plan === 'START' || plan === 'PRO'
+  return plan === 'START' || plan === 'PLUS' || plan === 'PRO'
 }
