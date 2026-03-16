@@ -95,19 +95,14 @@ export const workerBroadcast = {
     payload: Record<string, any>
   ): Promise<void> {
     try {
-      // In a real implementation, use Supabase realtime client
-      // For now, log the event
-      console.log(
-        `[WorkerBroadcast] Realtime event: channel:partner-${partnerId}, event:${eventType}`,
-        payload
-      )
-
-      // TODO: Implement actual Supabase Realtime broadcast
-      // const realtimeClient = supabaseAdmin.channel(`partner-${partnerId}`)
-      // await realtimeClient.send('broadcast', {
-      //   event: eventType,
-      //   payload: { requestId, ...payload }
-      // })
+      const supabase = createAdminClient()
+      const channel = supabase.channel(`obrtnik:${partnerId}:offers`)
+      await channel.send({
+        type: 'broadcast',
+        event: eventType,
+        payload: { requestId, ...payload },
+      })
+      await supabase.removeChannel(channel)
     } catch (error) {
       console.error('[WorkerBroadcast] Realtime broadcast failed:', error)
     }
