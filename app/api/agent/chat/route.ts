@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
+import { selectModel, estimateCost } from '@/lib/model-router'
 
 function anthropicErrorMessage(error: unknown): string {
   if (error instanceof Anthropic.APIError) {
@@ -13,7 +15,17 @@ function anthropicErrorMessage(error: unknown): string {
   return 'Napaka pri procesiranju. Poskusite znova.'
 }
 
-const RATE_LIMIT_PER_HOUR = 20
+// Daily message limits per subscription tier
+const TIER_LIMITS: Record<string, number> = {
+  start: 5,
+  pro: 100,
+  enterprise: Infinity,
+}
+
+// Soft warning threshold (80% of limit)
+const SOFT_LIMIT_RATIO = 0.8
+
+const MAX_TOKENS = 500
 
 type StoredMessage = {
   role: 'user' | 'agent'
@@ -74,7 +86,103 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
     }
 
-    // Load existing conversation from DB
+    // Load profile: subscription tier + daily usage
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('subscription_tier, ai_messages_used_today, ai_messages_reset_at')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const tier = (profile?.subscription_tier ?? 'start') as string
+    const dailyLimit = TIER_LIMITS[tier] ?? TIER_LIMITS.start
+
+    // Reset counter if 24h have passed
+    let usedToday: number = profile?.ai_messages_used_today ?? 0
+    const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
+    if (Date.now() - resetAt.getTime() > 24 * 60 * 60 * 1000) {
+      usedToday = 0
+      await supabaseAdmin
+        .from('profiles')
+        .update({ ai_messages_used_today: 0, ai_messages_reset_at: new Date().toISOString() })
+        .eq('id', user.id)
+    }
+
+    // Hard limit check
+    if (usedToday >= dailyLimit) {
+      return NextResponse.json(
+        {
+          error: `Dnevni limit dosežen (${dailyLimit}). ${tier === 'start' ? 'Nadgradite na PRO za 100 sporočil/dan.' : 'Poskusite jutri.'}`,
+          limit_reached: true,
+          used: usedToday,
+          limit: dailyLimit,
+        },
+        { status: 429 }
+      )
+    }
+
+    // Soft limit warning
+    const softLimitWarning =
+      dailyLimit < Infinity && usedToday >= Math.floor(dailyLimit * SOFT_LIMIT_RATIO)
+        ? `Opozorilo: Porabili ste ${usedToday}/${dailyLimit} dnevnih sporočil.`
+        : null
+
+    // Check Redis cache
+    const cacheKey = buildCacheKey(message)
+    const cached = await getCachedResponse(cacheKey)
+    if (cached) {
+      // Increment usage counter even for cached responses
+      await supabaseAdmin
+        .from('profiles')
+        .update({ ai_messages_used_today: usedToday + 1 })
+        .eq('id', user.id)
+
+      // Log cached usage
+      await supabaseAdmin.from('ai_usage_logs').insert({
+        user_id: user.id,
+        model_used: 'cached',
+        input_tokens: 0,
+        output_tokens: 0,
+        cost_usd: 0,
+        response_cached: true,
+        cache_key: cacheKey,
+        message_preview: message.slice(0, 100),
+        complexity_score: 0,
+      })
+
+      // Persist to conversation
+      const { data: conv } = await supabaseAdmin
+        .from('agent_conversations')
+        .select('messages')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+      await supabaseAdmin
+        .from('agent_conversations')
+        .upsert(
+          {
+            user_id: user.id,
+            messages: [
+              ...history,
+              { role: 'user', content: message, timestamp: Date.now() },
+              { role: 'agent', content: cached, timestamp: Date.now() },
+            ],
+          },
+          { onConflict: 'user_id' }
+        )
+
+      return NextResponse.json({
+        message: cached,
+        cached: true,
+        ...(softLimitWarning ? { warning: softLimitWarning } : {}),
+        usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
+      })
+    }
+
+    // Select model based on complexity
+    const modelSelection = selectModel(message)
+
+    // Load conversation history
     const { data: conv } = await supabaseAdmin
       .from('agent_conversations')
       .select('messages')
@@ -83,17 +191,6 @@ export async function POST(req: NextRequest) {
 
     const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
 
-    // Rate limiting — max RATE_LIMIT_PER_HOUR user messages per hour
-    const oneHourAgo = Date.now() - 3_600_000
-    const recentUserMessages = history.filter(m => m.role === 'user' && m.timestamp > oneHourAgo)
-    if (recentUserMessages.length >= RATE_LIMIT_PER_HOUR) {
-      return NextResponse.json(
-        { error: `Prekoračili ste omejitev ${RATE_LIMIT_PER_HOUR} sporočil na uro. Poskusite čez eno uro.` },
-        { status: 429 }
-      )
-    }
-
-    // Build Claude message array (no timestamps — just role/content)
     const claudeMessages = history.map(m => ({
       role: (m.role === 'agent' ? 'assistant' : 'user') as 'user' | 'assistant',
       content: m.content,
@@ -111,29 +208,85 @@ Ko stranka opiše problem, vprašaj:
 Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 500,
+      model: modelSelection.modelId,
+      max_tokens: MAX_TOKENS,
       system: systemPrompt,
       messages: [...claudeMessages, { role: 'user', content: message }],
     })
 
     const assistantText = response.content
       .filter(b => b.type === 'text')
-      .map(b => (b as any).text)
+      .map(b => (b as { type: 'text'; text: string }).text)
       .join('')
 
-    // Persist both messages to DB
-    const updatedHistory: StoredMessage[] = [
-      ...history,
-      { role: 'user', content: message, timestamp: Date.now() },
-      { role: 'agent', content: assistantText, timestamp: Date.now() },
-    ]
+    const inputTokens = response.usage.input_tokens
+    const outputTokens = response.usage.output_tokens
+    const costUsd = estimateCost(modelSelection.modelId, inputTokens, outputTokens)
 
+    // Cache the response
+    await setCachedResponse(cacheKey, assistantText)
+
+    // Update profile usage counters
+    await supabaseAdmin
+      .from('profiles')
+      .update({ ai_messages_used_today: usedToday + 1 })
+      .eq('id', user.id)
+
+    // Increment lifetime totals (best-effort, non-blocking)
+    supabaseAdmin
+      .from('profiles')
+      .select('ai_total_tokens_used, ai_total_cost_usd')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return
+        return supabaseAdmin
+          .from('profiles')
+          .update({
+            ai_total_tokens_used: (data.ai_total_tokens_used ?? 0) + inputTokens + outputTokens,
+            ai_total_cost_usd: Number((data.ai_total_cost_usd ?? 0)) + costUsd,
+          })
+          .eq('id', user.id)
+      })
+      .catch(() => {})
+
+    // Log usage
+    await supabaseAdmin.from('ai_usage_logs').insert({
+      user_id: user.id,
+      model_used: modelSelection.modelId,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      cost_usd: costUsd,
+      response_cached: false,
+      cache_key: cacheKey,
+      message_preview: message.slice(0, 100),
+      complexity_score: modelSelection.complexityScore,
+    })
+
+    // Persist conversation
     await supabaseAdmin
       .from('agent_conversations')
-      .upsert({ user_id: user.id, messages: updatedHistory }, { onConflict: 'user_id' })
+      .upsert(
+        {
+          user_id: user.id,
+          messages: [
+            ...history,
+            { role: 'user', content: message, timestamp: Date.now() },
+            { role: 'agent', content: assistantText, timestamp: Date.now() },
+          ],
+        },
+        { onConflict: 'user_id' }
+      )
 
-    return NextResponse.json({ message: assistantText })
+    console.log(`[agent/chat] model=${modelSelection.modelId} reason=${modelSelection.reason} tokens=${inputTokens}+${outputTokens} cost=$${costUsd.toFixed(6)}`)
+
+    return NextResponse.json({
+      message: assistantText,
+      cached: false,
+      model: modelSelection.modelId,
+      ...(softLimitWarning ? { warning: softLimitWarning } : {}),
+      usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
+    })
   } catch (error) {
     console.error('[agent/chat] error:', error)
     const msg = anthropicErrorMessage(error)
