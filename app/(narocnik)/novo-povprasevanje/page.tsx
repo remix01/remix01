@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createPovprasevanje } from '@/lib/dal/povprasevanja'
 import { getActiveCategories } from '@/lib/dal/categories'
+import { uploadFile, generateFilePath } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,6 +14,7 @@ import { Card } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
+import { FileUploadZone } from '@/components/file-upload-zone'
 import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/marketplace'
 import * as LucideIcons from 'lucide-react'
 import { Loader2, Sparkles } from 'lucide-react'
@@ -49,6 +51,7 @@ export default function NovoPoVprasevanjePage() {
   const [budgetMin, setBudgetMin] = useState<number | ''>('')
   const [budgetMax, setBudgetMax] = useState<number | ''>('')
   const [pricingEstimate, setPricingEstimate] = useState<any>(null)
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
 
   // Fetch user and categories on mount
   useEffect(() => {
@@ -148,6 +151,7 @@ export default function NovoPoVprasevanjePage() {
         preferred_date_to: preferredDateTo || undefined,
         budget_min: !budgetUndetermined && budgetMin ? Number(budgetMin) : undefined,
         budget_max: !budgetUndetermined && budgetMax ? Number(budgetMax) : undefined,
+        attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
       }
 
       const result = await createPovprasevanje(povprasevanje)
@@ -338,6 +342,36 @@ export default function NovoPoVprasevanjePage() {
               </RadioGroup>
             </div>
 
+            <div>
+              <FileUploadZone
+                accept="image/*,video/*"
+                maxFiles={5}
+                maxSizeMB={100}
+                label="Priložite fotografije ali video problema (neobvezno)"
+                sublabel="Slike in videi pomagajo mojstrom pri boljši oceni dela"
+                onFilesChange={async (files) => {
+                  if (files.length > 0) {
+                    setLoading(true)
+                    const urls: string[] = []
+                    try {
+                      for (const file of files) {
+                        const path = generateFilePath(user?.id || 'unknown', file.name)
+                        const { url, error } = await uploadFile('inquiry-attachments', path, file)
+                        if (url) {
+                          urls.push(url)
+                        } else {
+                          console.error('[v0] Upload error:', error)
+                        }
+                      }
+                      setAttachmentUrls(urls)
+                    } finally {
+                      setLoading(false)
+                    }
+                  }
+                }}
+              />
+            </div>
+
             <div className="flex justify-between gap-2 mt-8">
               <Button onClick={handlePrevious} variant="outline" className="min-h-[48px]">
                 ← Nazaj
@@ -386,7 +420,7 @@ export default function NovoPoVprasevanjePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="dateFrom" className="text-sm font-medium mb-2 block">
-                  Želeni začetek
+                  Želeni za��etek
                 </Label>
                 <Input
                   id="dateFrom"

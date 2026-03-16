@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { X, Send, Minimize2, MessageCircle, Loader2, AlertCircle, Check } from 'lucide-react'
+import { X, Send, Minimize2, MessageCircle, Loader2, AlertCircle, Check, Paperclip } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { format } from 'date-fns'
 import { sl } from 'date-fns/locale'
+import { uploadFile, generateFilePath } from '@/lib/storage'
 
 export type AgentType =
   | 'work_description'
@@ -221,8 +222,11 @@ export function AgentChatDialog({
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
+  const [attachmentName, setAttachmentName] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -286,6 +290,34 @@ export function AgentChatDialog({
     // Auto-resize textarea
     e.target.style.height = 'auto'
     e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px'
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return
+
+    setIsLoading(true)
+    try {
+      const file = e.target.files[0]
+      const path = generateFilePath('chat', file.name)
+      const { url, error } = await uploadFile('chat-attachments', path, file)
+
+      if (url) {
+        setAttachmentUrl(url)
+        setAttachmentName(file.name)
+      } else {
+        console.error('[v0] Upload error:', error)
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const clearAttachment = () => {
+    setAttachmentUrl(null)
+    setAttachmentName(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   if (dialogState === 'minimized') {
@@ -365,29 +397,60 @@ export function AgentChatDialog({
 
       {/* Input */}
       <div className="border-t bg-slate-50 p-4">
-        <div className="flex gap-2">
-          <Textarea
-            ref={textareaRef}
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Napišite sporočilo..."
-            disabled={isLoading}
-            className="min-h-[44px] max-h-24 resize-none border border-slate-200 bg-white"
-            rows={1}
-          />
-          <Button
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading}
-            size="icon"
-            className="shrink-0 bg-blue-600 hover:bg-blue-700"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+        <div className="space-y-2">
+          {attachmentUrl && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+              <Paperclip className="h-4 w-4 text-blue-600 shrink-0" />
+              <span className="text-xs text-blue-700 flex-1 truncate">{attachmentName}</span>
+              <button
+                type="button"
+                onClick={clearAttachment}
+                className="text-blue-600 hover:text-blue-700"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded p-2 transition"
+              disabled={isLoading}
+              title="Priloži datoteko"
+            >
+              <Paperclip className="h-5 w-5" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,application/pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <Textarea
+              ref={textareaRef}
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Napišite sporočilo..."
+              disabled={isLoading}
+              className="min-h-[44px] max-h-24 resize-none border border-slate-200 bg-white flex-1"
+              rows={1}
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={(!inputValue.trim() && !attachmentUrl) || isLoading}
+              size="icon"
+              className="shrink-0 bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
