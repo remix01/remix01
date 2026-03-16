@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { getStripePriceId, isValidPlan, type PlanType } from '@/lib/stripe/config'
+import { createClient } from '@/lib/supabase/server'
 
 // Robustna funkcija za sestavo URL — nikoli ne vrne "undefined/pot"
 function getBaseUrl(req: Request): string {
@@ -47,6 +48,10 @@ export async function POST(req: Request) {
       )
     }
 
+    // Pridobi prijavljenega userja za client_reference_id
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
     // Pridobi price ID iz konfiguracije
     const priceId = getStripePriceId(plan as PlanType)
     if (!priceId) {
@@ -79,7 +84,8 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      customer_email: email ?? undefined,
+      client_reference_id: user?.id ?? undefined,
+      customer_email: email ?? user?.email ?? undefined,
       success_url: successUrl,
       cancel_url: cancelUrl,
       locale: 'sl',
@@ -89,6 +95,7 @@ export async function POST(req: Request) {
         metadata: {
           plan: plan,
           platform: 'liftgo',
+          user_id: user?.id ?? '',
         },
       },
     })
