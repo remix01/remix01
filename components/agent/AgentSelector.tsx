@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { AgentChatDialog, type AgentType as ChatAgentType } from './AgentChatDialog'
 
 export type AgentType =
   | 'work_description'
@@ -241,6 +242,7 @@ export function AgentSelector({
   const [selectedAgent, setSelectedAgent] = useState<AgentType | null>(null)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showAgentDialog, setShowAgentDialog] = useState(false)
+  const [showChatDialog, setShowChatDialog] = useState(false)
 
   // Filter agents for the current user role
   const relevantAgents = AVAILABLE_AGENTS.filter((agent) =>
@@ -262,6 +264,7 @@ export function AgentSelector({
     if (selectedAgent) {
       onSelectAgent(selectedAgent)
       setShowAgentDialog(false)
+      setShowChatDialog(true)
       setSelectedAgent(null)
     }
   }
@@ -370,6 +373,33 @@ export function AgentSelector({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Agent Chat Dialog */}
+      {showChatDialog && selectedAgent && (() => {
+        const agent = relevantAgents.find((a) => a.type === selectedAgent)
+        return (
+          <AgentChatDialog
+            agentType={selectedAgent as ChatAgentType}
+            agentTitle={agent?.title || ''}
+            agentIcon={agent?.icon}
+            contextCard={
+              selectedAgent === 'work_description'
+                ? {
+                    type: 'inquiry',
+                    title: 'Popravilo curka v kopalnici',
+                    location: 'Ljubljana',
+                    urgency: 'Ta teden',
+                    budget: '150-200€',
+                  }
+                : undefined
+            }
+            onClose={() => {
+              setShowChatDialog(false)
+              setSelectedAgent(null)
+            }}
+          />
+        )
+      })()}
     </>
   )
 }
