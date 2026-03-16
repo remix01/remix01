@@ -4,6 +4,8 @@ import { CatalogFilters } from '@/components/mojstri/CatalogFilters'
 import { MojsterCard } from '@/components/mojstri/MojsterCard'
 import { listVerifiedObrtniki, getActiveSpecialnosti, getActiveLokacije } from '@/lib/dal/obrtniki'
 
+export const revalidate = 60
+
 export const metadata: Metadata = {
   title: 'Katalog mojstrov | LiftGO',
   description: 'Odkrijte preverjene mojstre in obrtnika blizu vas. Primerjajte ocene, cene in storitve.',

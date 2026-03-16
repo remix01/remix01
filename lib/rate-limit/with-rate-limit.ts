@@ -38,7 +38,7 @@ export function withRateLimit(
     const userId = request.headers.get('x-user-id') || undefined
     
     const identifier = getIdentifier(request, userId)
-    const result = limiter.check(identifier)
+    const result = await limiter.check(identifier)
 
     // Add rate limit headers
     const headers = {
