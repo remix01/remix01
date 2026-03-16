@@ -53,7 +53,7 @@ export async function getAdminStats(): Promise<AdminStats> {
       .eq('is_verified', false),
   ])
 
-  const rastStrank = (strankeMonthBefore || 0) > 0 
+  const rastStrank = (strankeMonthBefore || 0) > 0
     ? Math.round((((strankeLastMonth || 0) - (strankeMonthBefore || 0)) / (strankeMonthBefore || 0)) * 100)
     : 100
 
@@ -115,12 +115,13 @@ export async function getPartnerji(
 ) {
   const skip = (page - 1) * pageSize
 
+  // obrtnik_profiles has no email/phone columns — filter only by business_name
   let query = supabaseAdmin
     .from('obrtnik_profiles')
     .select('*', { count: 'exact' })
 
   if (filter) {
-    query = query.or(`business_name.ilike.%${filter}%,email.ilike.%${filter}%`)
+    query = query.ilike('business_name', `%${filter}%`)
   }
 
   if (statusFilter === 'PENDING') {
@@ -133,25 +134,40 @@ export async function getPartnerji(
     .order(sortBy === 'createdAt' ? 'created_at' : 'avg_rating', { ascending: sortBy !== 'createdAt' })
     .range(skip, skip + pageSize - 1)
 
-  const partnerji: Partner[] = (profiles || []).map((profile: any) => ({
-    id: profile.id,
-    ime: profile.business_name || '',
-    podjetje: profile.business_name,
-    tip: 'PREVOZNIK' as const,
-    email: profile.email,
-    telefon: profile.phone || undefined,
-    createdAt: new Date(profile.created_at),
-    status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
-    ocena: profile.avg_rating || 0,
-    steviloPrevozov: 0,
-  }))
+  if (!profiles || profiles.length === 0) {
+    return { partnerji: [], total: 0, pages: 0 }
+  }
+
+  // Fetch email/phone from profiles table (same id FK)
+  const ids = profiles.map((p: any) => p.id)
+  const { data: userProfiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email, phone')
+    .in('id', ids)
+
+  const profileMap = new Map((userProfiles || []).map((p: any) => [p.id, p]))
+
+  const partnerji: Partner[] = profiles.map((profile: any) => {
+    const userProfile = profileMap.get(profile.id)
+    return {
+      id: profile.id,
+      ime: profile.business_name || '',
+      podjetje: profile.business_name,
+      tip: 'PREVOZNIK' as const,
+      email: userProfile?.email || '',
+      telefon: userProfile?.phone || undefined,
+      createdAt: new Date(profile.created_at),
+      status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
+      ocena: profile.avg_rating || 0,
+      steviloPrevozov: 0,
+    }
+  })
 
   return { partnerji, total: total || 0, pages: Math.ceil((total || 0) / pageSize) }
 }
 
 export async function odobriPartnerja(id: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_verified: true })
     .eq('id', id)
@@ -159,8 +175,7 @@ export async function odobriPartnerja(id: string) {
 }
 
 export async function zavrniPartnerja(id: string, razlog: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_verified: false })
     .eq('id', id)
@@ -168,8 +183,7 @@ export async function zavrniPartnerja(id: string, razlog: string) {
 }
 
 export async function suspendiranjPartnerja(id: string, razlog?: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_available: false })
     .eq('id', id)
@@ -177,8 +191,7 @@ export async function suspendiranjPartnerja(id: string, razlog?: string) {
 }
 
 export async function getStranka(id: string): Promise<Stranka | null> {
-  const supabase = await createClient()
-  const { data: user } = await supabase
+  const { data: user } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('id', id)
@@ -200,12 +213,19 @@ export async function getStranka(id: string): Promise<Stranka | null> {
 }
 
 export async function getPartner(id: string): Promise<Partner | null> {
-  const supabase = await createClient()
-  const { data: profile } = await supabase
-    .from('obrtnik_profiles')
-    .select('*')
-    .eq('id', id)
-    .single()
+  // Fetch obrtnik_profiles and profiles in parallel
+  const [{ data: profile }, { data: userProfile }] = await Promise.all([
+    supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('*')
+      .eq('id', id)
+      .single(),
+    supabaseAdmin
+      .from('profiles')
+      .select('id, email, phone')
+      .eq('id', id)
+      .single(),
+  ])
 
   if (!profile) return null
 
@@ -214,8 +234,8 @@ export async function getPartner(id: string): Promise<Partner | null> {
     ime: profile.business_name || '',
     podjetje: profile.business_name,
     tip: 'PREVOZNIK' as const,
-    email: profile.email,
-    telefon: profile.phone || undefined,
+    email: userProfile?.email || '',
+    telefon: userProfile?.phone || undefined,
     createdAt: new Date(profile.created_at),
     status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
     ocena: profile.avg_rating || 0,
@@ -229,14 +249,12 @@ export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPE
 }
 
 export async function deleteStranka(id: string) {
-  const supabase = await createClient()
-  await supabase.from('profiles').delete().eq('id', id)
+  await supabaseAdmin.from('profiles').delete().eq('id', id)
   revalidatePath('/admin/stranke')
 }
 
 export async function deletePartner(id: string) {
-  const supabase = await createClient()
-  await supabase.from('obrtnik_profiles').delete().eq('id', id)
+  await supabaseAdmin.from('obrtnik_profiles').delete().eq('id', id)
   revalidatePath('/admin/partnerji')
 }
 
@@ -246,26 +264,39 @@ export async function updatePartner(id: string, data: {
   phone?: string
   description?: string
 }) {
-  const supabase = await createClient()
-  const updates: Record<string, unknown> = {}
-  if (data.business_name !== undefined) updates.business_name = data.business_name
-  if (data.email !== undefined) updates.email = data.email
-  if (data.phone !== undefined) updates.phone = data.phone
-  if (data.description !== undefined) updates.description = data.description
+  // Update obrtnik_profiles: business_name and description only
+  const obrtnikUpdates: Record<string, unknown> = {}
+  if (data.business_name !== undefined) obrtnikUpdates.business_name = data.business_name
+  if (data.description !== undefined) obrtnikUpdates.description = data.description
 
-  const { error } = await supabase
-    .from('obrtnik_profiles')
-    .update(updates)
-    .eq('id', id)
+  if (Object.keys(obrtnikUpdates).length > 0) {
+    const { error } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .update(obrtnikUpdates)
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+  }
 
-  if (error) throw new Error(error.message)
+  // Update profiles: email, phone, full_name (same id FK)
+  const profileUpdates: Record<string, unknown> = {}
+  if (data.email !== undefined) profileUpdates.email = data.email
+  if (data.phone !== undefined) profileUpdates.phone = data.phone
+  if (data.business_name !== undefined) profileUpdates.full_name = data.business_name
+
+  if (Object.keys(profileUpdates).length > 0) {
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update(profileUpdates)
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+  }
+
   revalidatePath(`/admin/partnerji/${id}`)
   revalidatePath('/admin/partnerji')
 }
 
 export async function reaktivirajPartnerja(id: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_available: true })
     .eq('id', id)
@@ -278,14 +309,12 @@ export async function bulkSuspendStranke(ids: string[]): Promise<void> {
 }
 
 export async function bulkDeleteStranke(ids: string[]): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from('profiles').delete().in('id', ids)
+  await supabaseAdmin.from('profiles').delete().in('id', ids)
   revalidatePath('/admin/stranke')
 }
 
 export async function exportStrankeCSV(): Promise<string> {
-  const supabase = await createClient()
-  const { data: users } = await supabase
+  const { data: users } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('role', 'narocnik')
@@ -308,17 +337,33 @@ export async function dodajStranko(data: {
   telefon?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    // Create auth user (sends invite email)
+    let userId: string
+
+    // Try to create auth user; if email already exists, find the existing user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       email_confirm: true,
       user_metadata: { first_name: data.ime, last_name: data.priimek },
     })
-    if (authError) return { success: false, error: authError.message }
 
-    // Create profile
+    if (authError) {
+      if (authError.message?.toLowerCase().includes('already been registered') ||
+          authError.message?.toLowerCase().includes('already exists')) {
+        const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+        if (listError) return { success: false, error: listError.message }
+        const existing = existingUsers.users.find(u => u.email === data.email)
+        if (!existing) return { success: false, error: 'Uporabnik ne obstaja' }
+        userId = existing.id
+      } else {
+        return { success: false, error: authError.message }
+      }
+    } else {
+      userId = authData.user.id
+    }
+
+    // Upsert profile
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
-      id: authData.user.id,
+      id: userId,
       email: data.email,
       full_name: `${data.ime} ${data.priimek}`.trim(),
       phone: data.telefon || null,
@@ -364,7 +409,7 @@ export async function dodajPartnerja(data: {
       userId = authData.user.id
     }
 
-    // Create profiles entry
+    // Upsert profiles entry (email and phone stored here)
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: userId,
       email: data.email,
@@ -374,12 +419,10 @@ export async function dodajPartnerja(data: {
     })
     if (profileError) return { success: false, error: profileError.message }
 
-    // Create obrtnik_profiles entry
+    // Upsert obrtnik_profiles entry — NO email/phone columns in this table
     const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
       id: userId,
-      email: data.email,
       business_name: data.business_name,
-      phone: data.telefon || null,
       is_verified: false,
       is_available: false,
       avg_rating: 0,
@@ -434,4 +477,3 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
 
   return chartData
 }
-
