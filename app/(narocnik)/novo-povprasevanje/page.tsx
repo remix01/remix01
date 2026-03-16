@@ -15,7 +15,8 @@ import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/marketplace'
 import * as LucideIcons from 'lucide-react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
+import { AgentDialog } from '@/components/agents/AgentDialog'
 
 // Helper to get icon component from name
 function getIconComponent(iconName?: string) {
@@ -289,9 +290,18 @@ export default function NovoPoVprasevanjePage() {
             </div>
 
             <div>
-              <Label htmlFor="description" className="text-sm font-medium mb-2 block">
-                Opis dela <span className="text-red-500">*</span>
-              </Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="description" className="text-sm font-medium">
+                  Opis dela <span className="text-red-500">*</span>
+                </Label>
+                <AgentDialog
+                  agentType="work_description"
+                  context={selectedCategory ? { category: selectedCategory.name, currentTitle: title } : undefined}
+                  triggerLabel="Pomoč pri opisu"
+                  triggerClassName="text-xs text-teal-600 border-teal-200 hover:bg-teal-50 gap-1"
+                  initialMessage="Pomagaj mi opisati delo za povpraševanje."
+                />
+              </div>
               <Textarea
                 id="description"
                 value={description}
