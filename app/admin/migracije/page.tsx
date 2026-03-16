@@ -48,7 +48,7 @@ async function getMigrationStats() {
         .not('new_profile_id', 'is', null),
       supabase
         .from('partners')
-        .select('id, company_name, email, created_at')
+        .select('id, company_name, created_at')
         .is('new_profile_id', null)
         .order('created_at', { ascending: false })
         .limit(20)
@@ -248,7 +248,6 @@ ON public.partners(new_profile_id);`}
               <TableHeader>
                 <TableRow>
                   <TableHead>Podjetje</TableHead>
-                  <TableHead>Email</TableHead>
                   <TableHead>Datum registracije</TableHead>
                   <TableHead className="text-right">Akcija</TableHead>
                 </TableRow>
@@ -258,9 +257,6 @@ ON public.partners(new_profile_id);`}
                   <TableRow key={partner.id}>
                     <TableCell className="font-medium">
                       {partner.company_name || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {partner.email || '-'}
                     </TableCell>
                     <TableCell className="text-sm">
                       {partner.created_at ? new Date(partner.created_at).toLocaleDateString('sl-SI') : '-'}

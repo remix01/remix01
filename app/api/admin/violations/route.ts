@@ -11,23 +11,25 @@ const querySchema = z.object({
   limit: z.string().optional().default('50'),
 })
 
+async function requireAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: admin } = await supabaseAdmin
+    .from('admin_users')
+    .select('id, vloga')
+    .eq('auth_user_id', user.id)
+    .eq('aktiven', true)
+    .maybeSingle()
+
+  return admin ?? null
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // Check admin auth
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (userError || !dbUser || dbUser.role !== 'ADMIN') {
+    const admin = await requireAdmin()
+    if (!admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
