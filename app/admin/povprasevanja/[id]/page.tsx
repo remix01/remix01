@@ -40,22 +40,28 @@ export default function PovprasevanjeDetailPage({ params }: { params: { id: stri
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('sb-token')
-
-        // Fetch povprasevanje
+        // Use credentials: 'include' so session cookies are sent automatically
         const response = await fetch(`/api/povprasevanje/${params.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
         })
+        if (!response.ok) {
+          console.error('[v0] Fetch error:', response.status)
+          return
+        }
         const data = await response.json()
-        setPovprasevanje(data)
-        setFormData(data)
+        if (data && !data.error) {
+          setPovprasevanje(data)
+          setFormData(data)
+        }
 
         // Fetch contractors
         const contractorResponse = await fetch('/api/obrtniki?admin=true', {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
         })
-        const contractors = await contractorResponse.json()
-        setObrtniki(contractors)
+        if (contractorResponse.ok) {
+          const contractors = await contractorResponse.json()
+          setObrtniki(Array.isArray(contractors) ? contractors : contractors.data || [])
+        }
       } catch (error) {
         console.error('[v0] Error fetching data:', error)
       } finally {
@@ -71,13 +77,10 @@ export default function PovprasevanjeDetailPage({ params }: { params: { id: stri
 
     setSaving(true)
     try {
-      const token = localStorage.getItem('sb-token')
       const response = await fetch(`/api/povprasevanje/${povprasevanje.id}`, {
         method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData),
       })
 
