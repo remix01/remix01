@@ -15,7 +15,7 @@ interface Povprasevanje {
   stranka_email: string
   stranka_telefon: string
   category: { name: string } | null
-  narocnik: { email: string; first_name: string; last_name: string } | null
+  narocnik: { email: string; full_name: string } | null
 }
 
 const statusColors: Record<string, string> = {
@@ -61,7 +61,7 @@ export default function PovprasevanjaPage() {
             stranka_email, 
             stranka_telefon,
             category:categories(name),
-            narocnik:profiles!povprasevanja_narocnik_id_fkey(email, first_name, last_name)
+            narocnik:profiles!povprasevanja_narocnik_id_fkey(email, full_name)
           `, { count: 'exact' })
 
         // Apply status filter
@@ -177,7 +177,7 @@ export default function PovprasevanjaPage() {
                     <td className="px-6 py-4 text-muted-foreground">{p.category?.name || '—'}</td>
                     <td className="px-6 py-4 text-muted-foreground">{p.location_city}</td>
                     <td className="px-6 py-4 text-sm">
-                      <div className="text-foreground">{p.narocnik?.first_name} {p.narocnik?.last_name}</div>
+                      <div className="text-foreground">{p.narocnik?.full_name}</div>
                       <div className="text-xs text-muted-foreground">{p.narocnik?.email}</div>
                     </td>
                     <td className="px-6 py-4">
