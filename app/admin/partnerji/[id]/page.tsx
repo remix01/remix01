@@ -1,13 +1,8 @@
-'use client'
-
-import { useState } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Star, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { createClient } from '@/lib/supabase/server'
@@ -21,42 +16,18 @@ import {
 } from '@/app/admin/actions'
 
 interface PageProps {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }>
 }
 
 export default async function PartnerDetailPage({ params }: PageProps) {
+  const { id } = await params
+
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/prijava')
 
-  const partner = await getPartner(params.id)
+  const partner = await getPartner(id)
   if (!partner) redirect('/admin/partnerji')
-
-  return <PartnerDetailClient partner={partner} partnerId={params.id} />
-}
-
-function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: string }) {
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
-  const [rejectReason, setRejectReason] = useState('')
-
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex gap-1">
-        {[...Array(5)].map((_, i) => (
-          <Star
-            key={i}
-            className={`h-4 w-4 ${
-              i < Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-            }`}
-          />
-        ))}
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-6">
@@ -81,24 +52,20 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div>
-            <div className="text-sm font-medium text-muted-foreground">Ime</div>
+            <div className="text-sm font-medium text-muted-foreground">Ime / Podjetje</div>
             <div className="mt-1 text-base">{partner.ime}</div>
           </div>
           <div>
-            <div className="text-sm font-medium text-muted-foreground">Podjetje</div>
-            <div className="mt-1 text-base">{partner.podjetje || 'Ni na voljo'}</div>
-          </div>
-          <div>
-            <div className="text-sm font-medium text-muted-foreground">Tip</div>
-            <div className="mt-1 text-base">{partner.tip}</div>
-          </div>
-          <div>
             <div className="text-sm font-medium text-muted-foreground">Email</div>
-            <div className="mt-1 text-base">{partner.email}</div>
+            <div className="mt-1 text-base">{partner.email || 'Ni na voljo'}</div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">Telefon</div>
             <div className="mt-1 text-base">{partner.telefon || 'Ni na voljo'}</div>
+          </div>
+          <div>
+            <div className="text-sm font-medium text-muted-foreground">Tip</div>
+            <div className="mt-1 text-base">{partner.tip}</div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">Status</div>
@@ -108,17 +75,30 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">Član od</div>
-            <div className="mt-1 text-base">{new Date(partner.createdAt).toLocaleDateString('sl-SI')}</div>
+            <div className="mt-1 text-base">
+              {new Date(partner.createdAt).toLocaleDateString('sl-SI')}
+            </div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">Ocena</div>
             <div className="mt-1 flex items-center gap-2">
-              {renderStars(partner.ocena)}
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    className={`h-4 w-4 ${
+                      i <= Math.round(partner.ocena)
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
               <span className="text-sm text-muted-foreground">({partner.ocena.toFixed(1)})</span>
             </div>
           </div>
           <div>
-            <div className="text-sm font-medium text-muted-foreground">Število prevozov</div>
+            <div className="text-sm font-medium text-muted-foreground">Število storitev</div>
             <div className="mt-1 text-base">{partner.steviloPrevozov}</div>
           </div>
         </CardContent>
@@ -126,29 +106,56 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
 
       <div className="flex flex-wrap gap-3">
         {partner.status === 'PENDING' && (
-          <>
-            <form action={() => odobriPartnerja(partnerId)}>
-              <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
-                Odobri
-              </Button>
-            </form>
-            <Button variant="destructive" onClick={() => setRejectDialogOpen(true)}>
-              Zavrni
+          <form
+            action={async () => {
+              'use server'
+              await odobriPartnerja(id)
+              redirect(`/admin/partnerji/${id}`)
+            }}
+          >
+            <Button type="submit" className="bg-green-600 hover:bg-green-700">
+              Odobri partnerja
             </Button>
-          </>
+          </form>
+        )}
+
+        {partner.status === 'PENDING' && (
+          <form
+            action={async () => {
+              'use server'
+              await zavrniPartnerja(id, 'Zavrnjeno s strani admina')
+              redirect(`/admin/partnerji/${id}`)
+            }}
+          >
+            <Button type="submit" variant="destructive">
+              Zavrni partnerja
+            </Button>
+          </form>
         )}
 
         {partner.status === 'AKTIVEN' && (
-          <form action={() => suspendiranjPartnerja(partnerId)}>
+          <form
+            action={async () => {
+              'use server'
+              await suspendiranjPartnerja(id)
+              redirect(`/admin/partnerji/${id}`)
+            }}
+          >
             <Button type="submit" variant="destructive">
               Suspendiraj
             </Button>
           </form>
         )}
 
-        {partner.status === 'SUSPENDIRAN' && (
-          <form action={() => reaktivirajPartnerja(partnerId)}>
-            <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
+        {(partner.status === 'SUSPENDIRAN' || partner.status === 'ZAVRNJEN') && (
+          <form
+            action={async () => {
+              'use server'
+              await reaktivirajPartnerja(id)
+              redirect(`/admin/partnerji/${id}`)
+            }}
+          >
+            <Button type="submit" className="bg-green-600 hover:bg-green-700">
               Reaktiviraj
             </Button>
           </form>
@@ -167,38 +174,12 @@ function PartnerDetailClient({ partner, partnerId }: { partner: any; partnerId: 
           cancelText="Prekliči"
           variant="destructive"
           onConfirm={async () => {
-            await deletePartner(partnerId)
+            'use server'
+            await deletePartner(id)
             redirect('/admin/partnerji')
           }}
         />
       </div>
-
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Zavrni partnerja</DialogTitle>
-            <DialogDescription>Vnesite razlog za zavrnitev partnerja.</DialogDescription>
-          </DialogHeader>
-          <Textarea
-            placeholder="Razlog zavrnitve..."
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            rows={4}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-              Prekliči
-            </Button>
-            <form
-              action={() => zavrniPartnerja(partnerId, rejectReason)}
-            >
-              <Button type="submit" variant="destructive" disabled={!rejectReason.trim()}>
-                Zavrni
-              </Button>
-            </form>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -240,6 +240,29 @@ export async function deletePartner(id: string) {
   revalidatePath('/admin/partnerji')
 }
 
+export async function updatePartner(id: string, data: {
+  business_name?: string
+  email?: string
+  phone?: string
+  description?: string
+}) {
+  const supabase = await createClient()
+  const updates: Record<string, unknown> = {}
+  if (data.business_name !== undefined) updates.business_name = data.business_name
+  if (data.email !== undefined) updates.email = data.email
+  if (data.phone !== undefined) updates.phone = data.phone
+  if (data.description !== undefined) updates.description = data.description
+
+  const { error } = await supabase
+    .from('obrtnik_profiles')
+    .update(updates)
+    .eq('id', id)
+
+  if (error) throw new Error(error.message)
+  revalidatePath(`/admin/partnerji/${id}`)
+  revalidatePath('/admin/partnerji')
+}
+
 export async function reaktivirajPartnerja(id: string) {
   const supabase = await createClient()
   await supabase

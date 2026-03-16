@@ -130,8 +130,10 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon">
-                      <Edit className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/admin/partnerji/${partner.id}`}>
+                        <Edit className="h-4 w-4" />
+                      </Link>
                     </Button>
                     <Button variant="ghost" size="icon">
                       <Ban className="h-4 w-4" />

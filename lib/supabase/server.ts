@@ -1,16 +1,16 @@
 import { createServerClient as createServerClientSSR } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
 import { env } from '../env'
 
 /**
  * Creates a Supabase client for server-side use with RLS enforced.
  * Uses the anon key - RLS policies apply.
- * 
+ *
  * IMPORTANT: Don't put this client in a global variable.
  * Always create a new client within each function.
  */
 export async function createClient() {
-  const { cookies } = await import('next/headers')
   const cookieStore = await cookies()
 
   return createServerClientSSR<Database>(
