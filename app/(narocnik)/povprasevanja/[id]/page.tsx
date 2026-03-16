@@ -8,9 +8,12 @@ import { getPonudbeForPovprasevanje } from '@/lib/dal/ponudbe'
 import PonudbeList from '@/components/narocnik/ponudbe-list'
 import { AgentMatchResults } from '@/components/liftgo/AgentMatchResults'
 import { AgentDialog } from '@/components/agents/AgentDialog'
+import { JobLifecycleProgress } from '@/components/narocnik/JobLifecycleProgress'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -75,7 +78,7 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
   }
 
   return (
-    <PovprasevanjeDetailClient 
+    <PovprasevanjeDetailClient
       povprasevanje={povprasevanje}
       ponudbe={ponudbe}
       id={id}
@@ -84,6 +87,8 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
       statusLabels={statusLabels}
       statusColors={statusColors}
       urgencyColors={urgencyColors}
+      hasSprejeta={ponudbe.some((p: any) => p.status === 'sprejeta')}
+      sprejetaPonudbaId={ponudbe.find((p: any) => p.status === 'sprejeta')?.id ?? null}
     />
   )
 }
@@ -97,6 +102,8 @@ function PovprasevanjeDetailClient({
   statusLabels,
   statusColors,
   urgencyColors,
+  hasSprejeta,
+  sprejetaPonudbaId,
 }: any) {
   const router = useRouter()
   const [releasing, setReleasing] = useState(false)
@@ -149,7 +156,17 @@ function PovprasevanjeDetailClient({
   return (
     <div className="min-h-screen bg-muted pb-8">
       <div className="mx-auto max-w-2xl px-4 py-8">
-        
+
+        {/* Lifecycle progress */}
+        <div className="mb-6">
+          <JobLifecycleProgress
+            status={povprasevanje.status}
+            ponudbeCount={ponudbe.length}
+            hasSprejeta={hasSprejeta}
+            isCancelled={povprasevanje.status === 'preklicano'}
+          />
+        </div>
+
         {/* Section 1: Request Header */}
         <Card className="mb-8 p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -244,7 +261,7 @@ function PovprasevanjeDetailClient({
         </div>
 
         {/* Section 4: Payment Release UI */}
-        {activePonudba?.status === 'sprejeta' && (
+        {activePonudba?.status === 'sprejeta' && povprasevanje.status !== 'zakljuceno' && (
           <div className="border border-green-200 bg-green-50 rounded-xl p-6">
             <h3 className="font-semibold text-green-900 mb-2">✅ Je mojster opravil delo?</h3>
             <p className="text-sm text-green-700 mb-4">
@@ -257,6 +274,22 @@ function PovprasevanjeDetailClient({
             >
               {releasing ? 'Sproščam plačilo...' : '✅ Potrdi opravljeno delo'}
             </button>
+          </div>
+        )}
+
+        {/* Section 5: Rate craftsman after completion */}
+        {povprasevanje.status === 'zakljuceno' && sprejetaPonudbaId && (
+          <div className="border border-amber-200 bg-amber-50 rounded-xl p-6 text-center">
+            <p className="text-2xl mb-2">⭐</p>
+            <h3 className="font-semibold text-amber-900 mb-1">Kako je bilo opravljeno delo?</h3>
+            <p className="text-sm text-amber-700 mb-4">
+              Vaša ocena pomaga drugim naročnikom pri izbiri mojstra.
+            </p>
+            <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white w-full">
+              <Link href={`/narocnik/ocena/${sprejetaPonudbaId}`}>
+                Ocenite mojstra
+              </Link>
+            </Button>
           </div>
         )}
       </div>

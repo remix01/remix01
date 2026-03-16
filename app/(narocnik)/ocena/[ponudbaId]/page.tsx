@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
@@ -15,8 +15,7 @@ interface Props {
 
 export default function OcenaPage({ params }: Props) {
   const router = useRouter()
-  const paramsValue = params as any
-  const ponudbaId = paramsValue.ponudbaId || (params as any).ponudbaId
+  const { ponudbaId } = use(params)
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
