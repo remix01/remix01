@@ -162,6 +162,14 @@ export default function NovoPoVprasevanjePage() {
         return
       }
 
+      // Fire-and-forget AI categorization — does not block redirect
+      fetch('/api/agent/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ povprasevanjeId: result.id }),
+        credentials: 'include',
+      }).catch(() => {})
+
       // Success - redirect to povprasevanja page
       router.push(`/povprasevanja/${result.id}`)
     } catch (err) {

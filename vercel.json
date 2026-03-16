@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/notification-sweep",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/reset-ai-limits",
+      "schedule": "0 0 * * *"
     }
   ]
 }
