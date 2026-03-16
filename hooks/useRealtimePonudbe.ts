@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -15,67 +15,82 @@ interface Ponudba {
   status: 'poslana' | 'sprejeta' | 'zavrnjena'
 }
 
+interface BroadcastPayload {
+  schema: string
+  table: string
+  commit_timestamp: string
+  new: Ponudba | null
+  old: Ponudba | null
+}
+
 export function useRealtimePonudbe(povprasevanjeId: string) {
   const [ponudbe, setPonudbe] = useState<Ponudba[]>([])
   const [newPonudbaCount, setNewPonudbaCount] = useState(0)
+  const supabaseRef = useRef(createClient())
 
   useEffect(() => {
     if (!povprasevanjeId) return
 
-    try {
-      const supabase = createClient()
+    const supabase = supabaseRef.current
 
-      // Load existing ponudbe
-      supabase
-        .from('ponudbe')
-        .select('*')
-        .eq('povprasevanje_id', povprasevanjeId)
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('[v0] Error loading ponudbe:', error)
-            return
-          }
-          if (data) {
-            setPonudbe(data)
-          }
+    // Load existing ponudbe
+    supabase
+      .from('ponudbe')
+      .select('*')
+      .eq('povprasevanje_id', povprasevanjeId)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[RT] Error loading ponudbe:', error)
+          return
+        }
+        if (data) setPonudbe(data as Ponudba[])
+      })
+
+    // Subscribe to private broadcast channel for job updates
+    const topic = `povp:${povprasevanjeId}:updates`
+
+    const channel = supabase
+      .channel(topic, {
+        config: { private: true },
+      })
+      .on<BroadcastPayload>('broadcast', { event: 'INSERT' }, ({ payload }) => {
+        if (payload?.table !== 'ponudbe') return
+        const p = payload.new
+        if (!p) return
+        setPonudbe(prev => {
+          if (prev.some(existing => existing.id === p.id)) return prev
+          return [p, ...prev]
         })
-        .catch((error) => {
-          console.error('[v0] Error in ponudbe query:', error)
-        })
+        setNewPonudbaCount(prev => prev + 1)
+        toast.success('Nova ponudba prispela!')
+      })
+      .on<BroadcastPayload>('broadcast', { event: 'UPDATE' }, ({ payload }) => {
+        if (payload?.table !== 'ponudbe') return
+        const p = payload.new
+        if (!p) return
+        setPonudbe(prev => prev.map(existing => existing.id === p.id ? p : existing))
 
-      // Subscribe to new ponudbe for this povprasevanje
-      const channel = supabase
-        .channel(`ponudbe:${povprasevanjeId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'ponudbe',
-            filter: `povprasevanje_id=eq.${povprasevanjeId}`,
-          },
-          (payload) => {
-            try {
-              const newPonudba = payload.new as Ponudba
-              setPonudbe(prev => [newPonudba, ...prev])
-              setNewPonudbaCount(prev => prev + 1)
+        if (p.status === 'sprejeta') {
+          toast.success('Ponudba sprejeta!')
+        } else if (p.status === 'zavrnjena') {
+          toast.info('Ponudba zavrnjena')
+        }
+      })
+      .on<BroadcastPayload>('broadcast', { event: 'DELETE' }, ({ payload }) => {
+        if (payload?.table !== 'ponudbe') return
+        const old = payload.old
+        if (!old) return
+        setPonudbe(prev => prev.filter(p => p.id !== old.id))
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[RT] Ponudbe channel error:', topic)
+        }
+      })
 
-              // Show toast notification
-              toast.success('Nova ponudba prispela!')
-            } catch (error) {
-              console.error('[v0] Error processing ponudba:', error)
-            }
-          }
-        )
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
-    } catch (error) {
-      console.error('[v0] Error initializing ponudbe realtime:', error)
-      return () => {}
+    return () => {
+      supabase.removeChannel(channel)
     }
   }, [povprasevanjeId])
 

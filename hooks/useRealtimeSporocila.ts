@@ -14,12 +14,20 @@ interface Message {
   created_at: string
 }
 
+// Payload shape emitted by tr_broadcast_sporocila trigger
+interface BroadcastPayload {
+  schema: string
+  table: string
+  commit_timestamp: string
+  new: Message | null
+  old: Message | null
+}
+
 export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: string) {
   const [sporocila, setSporocila] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const supabaseRef = useRef(createClient())
-  const subscriptionRef = useRef<any>(null)
 
   // Load initial messages
   useEffect(() => {
@@ -34,7 +42,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
         if (err) throw err
         setSporocila(data || [])
 
-        // Mark as read
+        // Mark incoming messages as read on initial load
         await supabaseRef.current
           .from('sporocila')
           .update({ is_read: true, read_at: new Date().toISOString() })
@@ -47,39 +55,44 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
         setIsLoading(false)
       }
     }
-
     loadMessages()
   }, [povprasevanjeId, currentUserId])
 
-  // Subscribe to real-time changes
+  // Subscribe to private broadcast channel
   useEffect(() => {
+    const topic = `room:povp:${povprasevanjeId}:messages`
+
     const channel = supabaseRef.current
-      .channel(`sporocila_${povprasevanjeId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'sporocila',
-          filter: `povprasevanje_id=eq.${povprasevanjeId}`,
-        },
-        (payload) => {
-          const newMessage = payload.new as Message
-          setSporocila((prev) => [...prev, newMessage])
-
-          // Mark as read if receiver
-          if (newMessage.receiver_id === currentUserId) {
-            supabaseRef.current
-              .from('sporocila')
-              .update({ is_read: true, read_at: new Date().toISOString() })
-              .eq('id', newMessage.id)
-              .then()
-          }
+      .channel(topic, {
+        config: { private: true },
+      })
+      .on<BroadcastPayload>('broadcast', { event: 'INSERT' }, ({ payload }) => {
+        const newMsg = payload?.new
+        if (!newMsg) return
+        setSporocila(prev => {
+          // Deduplicate — message may already exist from optimistic insert
+          if (prev.some(m => m.id === newMsg.id)) return prev
+          return [...prev, newMsg]
+        })
+        // Auto-mark as read if we are the receiver
+        if (newMsg.receiver_id === currentUserId) {
+          supabaseRef.current
+            .from('sporocila')
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq('id', newMsg.id)
+            .then()
         }
-      )
-      .subscribe()
-
-    subscriptionRef.current = channel
+      })
+      .on<BroadcastPayload>('broadcast', { event: 'UPDATE' }, ({ payload }) => {
+        const updated = payload?.new
+        if (!updated) return
+        setSporocila(prev => prev.map(m => m.id === updated.id ? updated : m))
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[RT] Chat channel error:', topic)
+        }
+      })
 
     return () => {
       supabaseRef.current.removeChannel(channel)
@@ -103,14 +116,14 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
 
         if (err) throw err
 
-        // Create notification for receiver
-        await supabaseRef.current
+        // Notify receiver — fire-and-forget
+        supabaseRef.current
           .from('notifications')
           .insert({
             user_id: receiverId,
             type: 'novo_sporocilo',
             title: 'Novo sporočilo',
-            body: text.trim().substring(0, 100),
+            message: text.trim().substring(0, 100),
             data: { povprasevanje_id: povprasevanjeId },
             is_read: false,
           })
@@ -125,10 +138,15 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
     [povprasevanjeId, currentUserId]
   )
 
-  return {
-    sporocila,
-    sendMessage,
-    isLoading,
-    error,
-  }
+  // Send a typing indicator broadcast (client-to-client, not persisted)
+  const sendTyping = useCallback(async () => {
+    const topic = `room:povp:${povprasevanjeId}:messages`
+    await supabaseRef.current.channel(topic).send({
+      type: 'broadcast',
+      event: 'typing_started',
+      payload: { user_id: currentUserId },
+    })
+  }, [povprasevanjeId, currentUserId])
+
+  return { sporocila, sendMessage, sendTyping, isLoading, error }
 }
