@@ -339,17 +339,34 @@ export async function dodajPartnerja(data: {
   telefon?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    // Create auth user
+    let userId: string
+
+    // Try to create auth user; if email already exists, look up the existing user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       email_confirm: true,
       user_metadata: { business_name: data.business_name },
     })
-    if (authError) return { success: false, error: authError.message }
+
+    if (authError) {
+      // If user already exists, find them by email
+      if (authError.message?.toLowerCase().includes('already been registered') ||
+          authError.message?.toLowerCase().includes('already exists')) {
+        const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+        if (listError) return { success: false, error: listError.message }
+        const existing = existingUsers.users.find(u => u.email === data.email)
+        if (!existing) return { success: false, error: 'Uporabnik ne obstaja' }
+        userId = existing.id
+      } else {
+        return { success: false, error: authError.message }
+      }
+    } else {
+      userId = authData.user.id
+    }
 
     // Create profiles entry
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
-      id: authData.user.id,
+      id: userId,
       email: data.email,
       full_name: data.business_name,
       phone: data.telefon || null,
@@ -359,7 +376,7 @@ export async function dodajPartnerja(data: {
 
     // Create obrtnik_profiles entry
     const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
-      id: authData.user.id,
+      id: userId,
       email: data.email,
       business_name: data.business_name,
       phone: data.telefon || null,
