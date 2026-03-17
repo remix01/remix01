@@ -20,6 +20,7 @@ import { handleCancelEscrow } from './workers/taskProcessor'
 import { handleActivateGuarantee } from './workers/taskProcessor'
 import { handleTaskStarted } from './workers/taskProcessor'
 import { handleRequestReview } from './workers/taskProcessor'
+import { handleGenerateJobSummary } from './workers/agentWorker'
 
 /**
  * Route a job to its processor function
@@ -54,6 +55,8 @@ export async function processJob(jobType: JobType, job: Job): Promise<void> {
       return handleTaskStarted(job)
     case 'request_review':
       return handleRequestReview(job)
+    case 'generate_job_summary':
+      return handleGenerateJobSummary(job)
     default:
       const _exhaustive: never = jobType
       throw new Error(`Unknown job type: ${_exhaustive}`)

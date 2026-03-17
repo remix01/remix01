@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MapPin, Clock, AlertCircle, CheckCircle, ArchiveIcon } from 'lucide-react'
 import { ObrtnikiOfferForm } from '@/components/obrtnik/offer-form'
+import { QuoteGeneratorAgent } from '@/components/agent/QuoteGeneratorAgent'
+import { MaterialsAgent } from '@/components/agent/MaterialsAgent'
+import { JobSummaryAgent } from '@/components/agent/JobSummaryAgent'
 
 export default function PonudbesPage() {
   const [activeTab, setActiveTab] = useState('nova')
@@ -19,6 +22,7 @@ export default function PonudbesPage() {
   const [arhiv, setArhiv] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedForm, setExpandedForm] = useState<string | null>(null)
+  const [offerPrefill, setOfferPrefill] = useState<Record<string, { message?: string; price?: number | null; priceType?: string }>>({})
   const supabase = createClient()
 
   useEffect(() => {
@@ -183,6 +187,26 @@ export default function PonudbesPage() {
                       )}
                     </div>
 
+                    {/* AI Agents — shown before form */}
+                    {expandedForm === pov.id && (
+                      <div className="space-y-2 mt-2">
+                        <QuoteGeneratorAgent
+                          povprasevanjeId={pov.id}
+                          categoryName={pov.categories?.name}
+                          onApply={(message, price, priceType, _date) => {
+                            setOfferPrefill(prev => ({
+                              ...prev,
+                              [pov.id]: { message, price, priceType }
+                            }))
+                          }}
+                        />
+                        <MaterialsAgent
+                          description={pov.description}
+                          category={pov.categories?.name}
+                        />
+                      </div>
+                    )}
+
                     {/* Form Toggle */}
                     <Button
                       onClick={() => setExpandedForm(expandedForm === pov.id ? null : pov.id)}
@@ -193,10 +217,13 @@ export default function PonudbesPage() {
 
                     {/* Inline Form */}
                     {expandedForm === pov.id && (
-                      <ObrtnikiOfferForm 
+                      <ObrtnikiOfferForm
                         povprasevanje_id={pov.id}
+                        prefillMessage={offerPrefill[pov.id]?.message}
+                        prefillPrice={offerPrefill[pov.id]?.price ?? undefined}
                         onSuccess={() => {
                           setExpandedForm(null)
+                          setOfferPrefill(prev => { const n = {...prev}; delete n[pov.id]; return n })
                           loadData()
                         }}
                       />
@@ -216,7 +243,7 @@ export default function PonudbesPage() {
             ) : (
               poslane.map((ponudba: any) => (
                 <Card key={ponudba.id} className="p-5 border">
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between gap-4 mb-3">
                     <div className="flex-1">
                       <Link href={`/obrtnik/povprasevanja/${ponudba.povprasevanja.id}`}>
                         <p className="font-semibold hover:text-blue-600">{ponudba.povprasevanja.title}</p>
@@ -231,6 +258,13 @@ export default function PonudbesPage() {
                       {ponudba.status === 'sprejeta' ? '✓ Sprejeta' : 'Poslana'}
                     </Badge>
                   </div>
+                  {/* Job Summary — shown for accepted offers */}
+                  {ponudba.status === 'sprejeta' && (
+                    <JobSummaryAgent
+                      ponudbaId={ponudba.id}
+                      jobTitle={ponudba.povprasevanja.title}
+                    />
+                  )}
                 </Card>
               ))
             )}

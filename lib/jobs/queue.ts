@@ -37,6 +37,7 @@ export type JobType =
   | 'activate_guarantee'   // Orchestrator: activate SLA guarantee
   | 'task_started'         // Orchestrator: task timeline update
   | 'request_review'       // Orchestrator: request task review from customer
+  | 'generate_job_summary' // Agent: async job summary generation via Claude
 
 export interface Job<T = any> {
   data: T

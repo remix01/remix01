@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { trackTokens, enforceLimit } from '@/lib/agent/tokenTracker'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
     }
+
+    const limitCheck = await enforceLimit(user.id)
+    if (!limitCheck.allowed) return NextResponse.json({ error: limitCheck.errorMsg }, { status: 429 })
 
     const { povprasevanjeId } = await req.json()
     if (!povprasevanjeId) {
@@ -104,6 +108,8 @@ Pripravi JSON z naslednjo strukturo:
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     })
+
+    trackTokens({ userId: user.id, agentName: 'offer-comparison', model: 'claude-haiku-4-5-20251001', inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens, metadata: { povprasevanjeId } })
 
     const text = response.content
       .filter(b => b.type === 'text')

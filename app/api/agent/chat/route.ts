@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
 import { selectModel, estimateCost } from '@/lib/model-router'
+import { trackTokens } from '@/lib/agent/tokenTracker'
 
 function anthropicErrorMessage(error: unknown): string {
   if (error instanceof Anthropic.APIError) {
@@ -207,13 +208,13 @@ Ko stranka opiše problem, vprašaj:
 Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250514',
-      max_tokens: 500,
       model: modelSelection.modelId,
       max_tokens: MAX_TOKENS,
       system: systemPrompt,
       messages: [...claudeMessages, { role: 'user', content: message }],
     })
+
+    trackTokens({ userId: user.id, agentName: 'chat', model: modelSelection.modelId, inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens })
 
     const assistantText = response.content
       .filter(b => b.type === 'text')

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { trackTokens, enforceLimit } from '@/lib/agent/tokenTracker'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
     }
+
+    const limitCheck = await enforceLimit(user.id)
+    if (!limitCheck.allowed) return NextResponse.json({ error: limitCheck.errorMsg }, { status: 429 })
 
     const formData = await req.formData()
     const file = formData.get('file') as File | null
@@ -93,6 +97,8 @@ Vrni JSON z naslednjo strukturo:
         },
       ],
     })
+
+    trackTokens({ userId: user.id, agentName: 'video-diagnosis', model: 'claude-sonnet-4-5-20250514', inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens })
 
     const text = response.content
       .filter(b => b.type === 'text')
