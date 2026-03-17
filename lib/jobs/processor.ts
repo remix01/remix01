@@ -21,6 +21,8 @@ import { handleActivateGuarantee } from './workers/taskProcessor'
 import { handleTaskStarted } from './workers/taskProcessor'
 import { handleRequestReview } from './workers/taskProcessor'
 import { handleGenerateJobSummary } from './workers/agentWorker'
+import { handleAgentSchedulePropose } from './workers/agentSchedulePropose'
+import { handleAgentVideoAnalyze } from './workers/agentVideoAnalyze'
 
 /**
  * Route a job to its processor function
@@ -57,6 +59,10 @@ export async function processJob(jobType: JobType, job: Job): Promise<void> {
       return handleRequestReview(job)
     case 'generate_job_summary':
       return handleGenerateJobSummary(job)
+    case 'agent_schedule_propose':
+      return handleAgentSchedulePropose(job)
+    case 'agent_video_analyze':
+      return handleAgentVideoAnalyze(job)
     default:
       const _exhaustive: never = jobType
       throw new Error(`Unknown job type: ${_exhaustive}`)

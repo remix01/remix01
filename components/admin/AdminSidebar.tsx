@@ -13,7 +13,9 @@ import {
   UserCog,
   RefreshCw,
   CreditCard,
-  Plug
+  Plug,
+  BarChart2,
+  DollarSign
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -48,6 +50,8 @@ const navItems: NavItem[] = [
   { icon: ShieldAlert, label: 'Risk Alerts', href: '/admin/risk-alerts' },
   { icon: UserCog, label: 'Zaposleni', href: '/admin/zaposleni', roles: ['SUPER_ADMIN'] },
   { icon: Plug, label: 'Integracije', href: '/admin/integracije', roles: ['SUPER_ADMIN'] },
+  { icon: BarChart2, label: 'AI Analitika', href: '/admin/ai-analytics', roles: ['SUPER_ADMIN', 'MODERATOR'] },
+  { icon: DollarSign, label: 'AI Stroški', href: '/admin/ai-costs', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: Settings, label: 'Nastavitve', href: '/admin/setup' },
 ]
 
