@@ -103,6 +103,16 @@ export function AIUsageWidget() {
               )}
             </p>
           )}
+          {tier === 'start' && pct < 100 && (
+            <div className="pt-2 border-t border-gray-100 mt-1">
+              <p className="text-xs text-gray-500">
+                START: 5 sporočil/dan • PRO: 100/dan + AI Generator, Materiali, Video{' '}
+                <a href="/obrtnik/narocnina" className="underline text-blue-600 hover:text-blue-800">
+                  Primerjaj →
+                </a>
+              </p>
+            </div>
+          }}
           {pct >= 80 && pct < 100 && (
             <p className="text-xs text-amber-600">
               Skoraj pri limitu. Ostane vam {limit - used} sporočil.

@@ -215,7 +215,9 @@ export default function OfferGeneratorPage() {
             <AlertCircle className="h-12 w-12 text-amber-600 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-foreground mb-2">PRO Paket Obvezen</h2>
             <p className="text-muted-foreground mb-6">
-              Generator ponudb je dostopen samo za PRO partnernike.
+              Generator ponudb je dostopen samo za PRO obrtnike.
+              <br />
+              PRO vključuje: Generator ponudb, Materiali in zaloge, Video diagnoza, Povzetek dela – 100 AI sporočil/dan.
             </p>
             <Button asChild className="w-full">
               <Link href="/cenik">Nadgradi v PRO</Link>
