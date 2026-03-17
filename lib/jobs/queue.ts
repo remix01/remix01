@@ -37,9 +37,31 @@ export type JobType =
   | 'activate_guarantee'   // Orchestrator: activate SLA guarantee
   | 'task_started'         // Orchestrator: task timeline update
   | 'request_review'       // Orchestrator: request task review from customer
+  | 'agent_schedule_propose'
+  | 'agent_video_analyze'
 
 export interface Job<T = any> {
   data: T
+}
+
+export interface AgentScheduleProposePayload {
+  job_id: string
+  user_id: string
+  obrtnik_id: string
+  preferences: {
+    raw: string
+    days?: string[]
+    time_range?: string
+  }
+  povprasevanje_id?: string
+}
+
+export interface AgentVideoAnalyzePayload {
+  job_id: string
+  user_id: string
+  file_url: string
+  file_type: 'image' | 'video_frame'
+  description?: string
 }
 
 // ── QSTASH CLIENT
