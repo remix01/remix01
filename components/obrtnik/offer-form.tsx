@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, CheckCircle } from 'lucide-react'
@@ -9,6 +9,12 @@ import { AgentDialog } from '@/components/agents/AgentDialog'
 interface ObrtnikiOfferFormProps {
   povprasevanje_id: string
   onSuccess?: () => void
+  /** Prefill message from AI quote generator */
+  prefillMessage?: string
+  /** Prefill price from AI quote generator */
+  prefillPrice?: number
+  /** Prefill price type from AI quote generator */
+  prefillPriceType?: string
   /** Povpraševanje details for the offer writing agent */
   povprasevanjeContext?: {
     title?: string
@@ -21,12 +27,24 @@ interface ObrtnikiOfferFormProps {
   }
 }
 
-export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess, povprasevanjeContext }: ObrtnikiOfferFormProps) {
-  const [price, setPrice] = useState('')
-  const [priceType, setPriceType] = useState('fiksna')
+export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess, prefillMessage, prefillPrice, prefillPriceType, povprasevanjeContext }: ObrtnikiOfferFormProps) {
+  const [price, setPrice] = useState(prefillPrice != null ? String(prefillPrice) : '')
+  const [priceType, setPriceType] = useState(prefillPriceType ?? 'fiksna')
   const [duration, setDuration] = useState('')
   const [availableDate, setAvailableDate] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(prefillMessage ?? '')
+
+  useEffect(() => {
+    if (prefillMessage) setMessage(prefillMessage)
+  }, [prefillMessage])
+
+  useEffect(() => {
+    if (prefillPrice != null) setPrice(String(prefillPrice))
+  }, [prefillPrice])
+
+  useEffect(() => {
+    if (prefillPriceType) setPriceType(prefillPriceType)
+  }, [prefillPriceType])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)

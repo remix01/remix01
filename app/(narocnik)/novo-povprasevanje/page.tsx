@@ -17,10 +17,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { FileUploadZone } from '@/components/file-upload-zone'
 import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/marketplace'
 import * as LucideIcons from 'lucide-react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
 import { TaskDescriptionAssistant } from '@/components/agent/TaskDescriptionAssistant'
 import { VideoDiagnosisAssistant } from '@/components/agent/VideoDiagnosisAssistant'
-import { Loader2, Sparkles } from 'lucide-react'
 import { AgentDialog } from '@/components/agents/AgentDialog'
 
 // Helper to get icon component from name

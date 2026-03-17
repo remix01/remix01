@@ -221,6 +221,7 @@ export default function PonudbesPage() {
                         povprasevanje_id={pov.id}
                         prefillMessage={offerPrefill[pov.id]?.message}
                         prefillPrice={offerPrefill[pov.id]?.price ?? undefined}
+                        prefillPriceType={offerPrefill[pov.id]?.priceType}
                         onSuccess={() => {
                           setExpandedForm(null)
                           setOfferPrefill(prev => { const n = {...prev}; delete n[pov.id]; return n })
