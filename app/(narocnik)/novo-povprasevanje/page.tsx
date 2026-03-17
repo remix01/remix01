@@ -17,6 +17,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { FileUploadZone } from '@/components/file-upload-zone'
 import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/marketplace'
 import * as LucideIcons from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { TaskDescriptionAssistant } from '@/components/agent/TaskDescriptionAssistant'
+import { VideoDiagnosisAssistant } from '@/components/agent/VideoDiagnosisAssistant'
 import { Loader2, Sparkles } from 'lucide-react'
 import { AgentDialog } from '@/components/agents/AgentDialog'
 
@@ -279,6 +282,15 @@ export default function NovoPoVprasevanjePage() {
         {/* Step 2: Opis dela */}
         {step === 2 && (
           <div className="space-y-6">
+            {/* Video Diagnosis Assistant */}
+            <VideoDiagnosisAssistant
+              onApply={(desc, title, _category, urgencyVal) => {
+                if (desc) setDescription(desc)
+                if (title) setTitle(title)
+                if (urgencyVal) setUrgency(urgencyVal as UrgencyLevel)
+              }}
+            />
+
             <div>
               <Label htmlFor="title" className="text-sm font-medium mb-2 block">
                 Naslov <span className="text-red-500">*</span>
@@ -319,6 +331,16 @@ export default function NovoPoVprasevanjePage() {
                 Najmanj 20 znakov ({description.length}/20)
               </p>
             </div>
+
+            {/* Task Description Assistant */}
+            <TaskDescriptionAssistant
+              category={selectedCategory?.name}
+              existingDescription={description}
+              onApply={(desc, suggestedTitle) => {
+                setDescription(desc)
+                if (suggestedTitle && !title) setTitle(suggestedTitle)
+              }}
+            />
 
             <div>
               <Label className="text-sm font-medium mb-3 block">

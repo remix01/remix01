@@ -11,6 +11,8 @@ import { AgentDialog } from '@/components/agents/AgentDialog'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
+import { OfferComparisonAgent } from '@/components/agent/OfferComparisonAgent'
+import { SchedulingAssistant } from '@/components/agent/SchedulingAssistant'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -205,6 +207,20 @@ function PovprasevanjeDetailClient({
 
         {/* Section 3: Ponudbe */}
         <div className="mb-8">
+          <h2 className="mb-4 text-2xl font-bold text-foreground">
+            Prejete ponudbe ({ponudbe.length})
+          </h2>
+
+          {/* Offer comparison — visible when 2+ pending offers */}
+          {ponudbe.filter((p: any) => p.status === 'poslana').length >= 2 && (
+            <div className="mb-4">
+              <OfferComparisonAgent
+                povprasevanjeId={id}
+                ponudbeCount={ponudbe.filter((p: any) => p.status === 'poslana').length}
+              />
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-foreground">
               Prejete ponudbe ({ponudbe.length})
@@ -243,7 +259,18 @@ function PovprasevanjeDetailClient({
           />
         </div>
 
-        {/* Section 4: Payment Release UI */}
+        {/* Section 4: Scheduling — shown when offer is accepted */}
+        {activePonudba?.status === 'sprejeta' && (
+          <div className="mb-6">
+            <SchedulingAssistant
+              ponudbaId={activePonudba.id}
+              obrtnikName={activePonudba.obrtnik?.business_name}
+              onScheduled={() => router.refresh()}
+            />
+          </div>
+        )}
+
+        {/* Section 5: Payment Release UI */}
         {activePonudba?.status === 'sprejeta' && (
           <div className="border border-green-200 bg-green-50 rounded-xl p-6">
             <h3 className="font-semibold text-green-900 mb-2">✅ Je mojster opravil delo?</h3>

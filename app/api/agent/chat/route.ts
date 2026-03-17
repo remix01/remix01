@@ -207,6 +207,8 @@ Ko stranka opiše problem, vprašaj:
 Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
 
     const response = await client.messages.create({
+      model: 'claude-sonnet-4-5-20250514',
+      max_tokens: 500,
       model: modelSelection.modelId,
       max_tokens: MAX_TOKENS,
       system: systemPrompt,
