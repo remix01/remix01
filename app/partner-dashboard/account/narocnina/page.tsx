@@ -29,6 +29,8 @@ const PLANS = {
       'Osnovna vidnost',
       'Dostop do povpraševanj',
       'Osnovne statistike',
+      'AI asistent – 5 sporočil/dan',
+      'AI: Opis dela, Primerjava, Urnik',
     ],
   },
   pro: {
@@ -41,7 +43,11 @@ const PLANS = {
       'Prioritetna vidnost',
       'Dostop do povpraševanj',
       'Napredne statistike',
-      'Generator ponudb (AI)',
+      'AI asistent – 100 sporočil/dan',
+      'AI: Generator ponudb',
+      'AI: Materiali in zaloge',
+      'AI: Video diagnoza',
+      'AI: Povzetek dela',
       'CRM nadzorna plošča',
     ],
   },
@@ -328,6 +334,31 @@ export default function NarocninaPage() {
                       <td className="py-3 px-3">Vidnost</td>
                       <td className="text-center py-3 px-3">Osnovna</td>
                       <td className="text-center py-3 px-3">Prioritetna</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="text-left py-3 px-3">AI sporočila/dan</td>
+                      <td className="text-center py-3 px-3">5</td>
+                      <td className="text-center py-3 px-3">100</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="text-left py-3 px-3">AI Generator ponudb</td>
+                      <td className="text-center py-3 px-3 text-gray-300">✗</td>
+                      <td className="text-center py-3 px-3">✓</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="text-left py-3 px-3">AI Materiali in zaloge</td>
+                      <td className="text-center py-3 px-3 text-gray-300">✗</td>
+                      <td className="text-center py-3 px-3">✓</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="text-left py-3 px-3">AI Video diagnoza</td>
+                      <td className="text-center py-3 px-3 text-gray-300">✗</td>
+                      <td className="text-center py-3 px-3">✓</td>
+                    </tr>
+                    <tr>
+                      <td className="text-left py-3 px-3">AI Povzetek dela</td>
+                      <td className="text-center py-3 px-3 text-gray-300">✗</td>
+                      <td className="text-center py-3 px-3">✓</td>
                     </tr>
                   </tbody>
                 </table>
