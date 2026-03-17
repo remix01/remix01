@@ -32,17 +32,19 @@ export function PricingComparison() {
   async function handleProCheckout() {
     setLoading(true)
     try {
-      // Prompt for email if not authenticated
-      const email = prompt('Vnesite vašo e-pošto:')
-      if (!email) {
-        setLoading(false)
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        window.location.href = '/partner-auth/login?redirect=/cenik'
         return
       }
 
       const res = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'PRO', email }),
+        body: JSON.stringify({ plan: 'PRO', email: user.email }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Napaka pri plačilu')
