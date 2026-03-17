@@ -112,7 +112,7 @@ export function AIUsageWidget() {
                 </a>
               </p>
             </div>
-          }}
+          )}
           {pct >= 80 && pct < 100 && (
             <p className="text-xs text-amber-600">
               Skoraj pri limitu. Ostane vam {limit - used} sporočil.
