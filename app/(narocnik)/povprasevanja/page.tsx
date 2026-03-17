@@ -5,6 +5,7 @@ import { getNarocnikPovprasevanja } from '@/lib/dal/povprasevanja'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { PovprasevanjeTimeline } from '@/components/narocnik/PovprasevanjeTimeline'
 import type { Povprasevanje } from '@/types/marketplace'
 
 export const metadata = {
@@ -152,6 +153,10 @@ export default async function PovprasevanjaPage() {
                         <div className="text-xs text-muted-foreground mt-2">
                           📍 {povprasevanje.location_city}
                           {povprasevanje.ponudbe_count ? ` • ${povprasevanje.ponudbe_count} ponudbe` : ' • 0 ponudb'}
+                        </div>
+                        {/* Timeline */}
+                        <div className="mt-3">
+                          <PovprasevanjeTimeline status={povprasevanje.status} createdAt={povprasevanje.created_at} />
                         </div>
                       </div>
                     </div>

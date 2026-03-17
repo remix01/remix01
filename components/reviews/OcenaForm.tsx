@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Upload, X } from 'lucide-react'
+import { Star, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { FileUploadZone } from '@/components/file-upload-zone'
+import { uploadFile, generateFilePath } from '@/lib/storage'
 
 interface OcenaFormProps {
   ponudba_id: string
@@ -211,17 +213,32 @@ export function OcenaForm({
       {/* Photos */}
       <div>
         <label className="block text-sm font-semibold mb-2">Fotografije (do {maxPhotos})</label>
-        <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded cursor-pointer hover:bg-gray-50 transition">
-          <Upload className="w-5 h-5 text-gray-400" />
-          <span className="text-sm text-gray-600">Kliknite za nalaganje ali povlecite</span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoSelect}
-            disabled={uploading || photos.length >= maxPhotos}
-            className="hidden"
-          />
-        </label>
+        <FileUploadZone
+          accept="image/*"
+          maxFiles={maxPhotos}
+          maxSizeMB={5}
+          label="Priložite fotografije zaključenega dela (neobvezno)"
+          sublabel="Pokažite rezultat svojega dela"
+          onFilesChange={async (files) => {
+            if (files.length > 0 && photos.length < maxPhotos) {
+              setUploading(true)
+              setError(null)
+              try {
+                for (const file of files) {
+                  const path = generateFilePath(ponudba_id, file.name)
+                  const { url, error } = await uploadFile('ocene', path, file)
+                  if (url) {
+                    setPhotos((prev) => [...prev, url])
+                  } else {
+                    setError('Napaka pri nalaganju slike')
+                  }
+                }
+              } finally {
+                setUploading(false)
+              }
+            }
+          }}
+        />
 
         {photos.length > 0 && (
           <div className="grid grid-cols-4 gap-2 mt-3">

@@ -7,6 +7,7 @@ import { getPovprasevanje } from '@/lib/dal/povprasevanja'
 import { getPonudbeForPovprasevanje } from '@/lib/dal/ponudbe'
 import PonudbeList from '@/components/narocnik/ponudbe-list'
 import { AgentMatchResults } from '@/components/liftgo/AgentMatchResults'
+import { AgentDialog } from '@/components/agents/AgentDialog'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
@@ -220,6 +221,37 @@ function PovprasevanjeDetailClient({
             </div>
           )}
 
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-foreground">
+              Prejete ponudbe ({ponudbe.length})
+            </h2>
+            {ponudbe.length >= 2 && (
+              <AgentDialog
+                agentType="offer_comparison"
+                context={{
+                  povprasevanje: {
+                    title: povprasevanje.title,
+                    description: povprasevanje.description,
+                    budget_min: povprasevanje.budget_min,
+                    budget_max: povprasevanje.budget_max,
+                  },
+                  ponudbe: ponudbe.map((p: any) => ({
+                    id: p.id,
+                    mojster: p.mojster_name ?? p.mojster_id,
+                    cena: p.price,
+                    rok: p.estimated_days,
+                    ocene: p.rating,
+                    stevilo_ocen: p.reviews_count,
+                    opis: p.description?.slice(0, 200),
+                    garancija: p.warranty,
+                  })),
+                }}
+                triggerLabel="Primerjaj ponudbe"
+                triggerClassName="text-xs text-teal-600 border-teal-200 hover:bg-teal-50"
+                initialMessage="Primerjaj prejete ponudbe in mi priporoči najboljšo."
+              />
+            )}
+          </div>
           <PonudbeList
             ponudbe={ponudbe}
             povprasevanjeId={id}

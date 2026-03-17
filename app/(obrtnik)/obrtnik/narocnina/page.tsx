@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, CheckCircle, Crown } from 'lucide-react'
+import { AIUsageWidget } from '@/components/ai-usage-widget'
 
 export default function NarocinaPage() {
   const router = useRouter()
@@ -336,6 +337,15 @@ export default function NarocinaPage() {
           </Button>
         </Card>
       )}
+
+      {/* AI Usage Section */}
+      <Card className="p-8">
+        <h2 className="text-2xl font-bold mb-4">AI Asistent – Dnevna uporaba</h2>
+        <p className="text-gray-600 mb-6">
+          Pregled vaše dnevne porabe AI asistenta. PRO načrt vključuje 100 sporočil/dan.
+        </p>
+        <AIUsageWidget />
+      </Card>
 
       {/* FAQ Section */}
       <Card className="p-8">
