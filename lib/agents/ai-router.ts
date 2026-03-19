@@ -35,6 +35,18 @@ export const AGENT_DAILY_LIMITS: Record<string, Record<AIAgentType, number>> = {
     offer_writing: 30,
     profile_optimization: 10,
   },
+  elite: {
+    general_chat: 300,
+    work_description: 100,
+    offer_comparison: 50,
+    scheduling_assistant: 100,
+    video_diagnosis: 50,
+    quote_generator: 100,
+    materials_agent: 50,
+    job_summary: 100,
+    offer_writing: 100,
+    profile_optimization: 50,
+  },
   enterprise: {
     general_chat: Infinity,
     work_description: Infinity,

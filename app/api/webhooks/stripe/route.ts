@@ -64,7 +64,7 @@ function tierFromPriceId(priceId: string): 'pro' | 'start' {
   return 'start'
 }
 
-// Dual-write subscription tier v profiles + obrtnik_profiles
+// Update subscription tier in profiles table (single source of truth)
 async function updateSubscriptionTier(
   userId: string | null,
   customerId: string,
@@ -87,16 +87,9 @@ async function updateSubscriptionTier(
     return
   }
 
-  await supabaseAdmin
+  // Update only profiles table (single source of truth)
+  const { error } = await supabaseAdmin
     .from('profiles')
-    .update({
-      stripe_customer_id: customerId,
-      subscription_tier: tier,
-    })
-    .eq('id', profileId)
-
-  await supabaseAdmin
-    .from('obrtnik_profiles')
     .update({
       stripe_customer_id: customerId,
       subscription_tier: tier,
@@ -104,7 +97,12 @@ async function updateSubscriptionTier(
     })
     .eq('id', profileId)
 
-  console.log(`[WEBHOOK] Subscription tier=${tier} posodobljen za user=${profileId}`)
+  if (error) {
+    console.error('[WEBHOOK] Failed to update subscription:', error)
+    return
+  }
+
+  console.log(`[WEBHOOK] Subscription updated: user=${profileId}, tier=${tier}, subscription=${stripeSubscriptionId || 'N/A'}`)
 }
 
 export async function POST(request: NextRequest) {

@@ -74,6 +74,14 @@ export interface ReviewSubmittedPayload {
   submittedAt: string
 }
 
+export interface EscrowRefundedPayload {
+  transactionId: string
+  partnerId: string
+  customerId: string
+  reason: string
+  refundedAt: string
+}
+
 // Event map — type-safe dispatch
 export interface LiftGOEvents {
   'task.created': TaskCreatedPayload
@@ -83,6 +91,7 @@ export interface LiftGOEvents {
   'payment.released': PaymentReleasedPayload
   'offer.sent': OfferSentPayload
   'review.submitted': ReviewSubmittedPayload
+  'escrow.refunded': EscrowRefundedPayload
 }
 
 export type EventName = keyof LiftGOEvents
