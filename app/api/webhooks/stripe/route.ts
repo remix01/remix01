@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { constructStripeEvent } from '@/lib/stripe'
+import { constructStripeEvent, stripe as stripeProxy } from '@/lib/stripe'
+import { env } from '@/lib/env'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { STRIPE_PRODUCTS } from '@/lib/stripe/config'
 import {
@@ -11,6 +12,51 @@ import {
 } from '@/lib/escrow'
 
 export const maxDuration = 30
+
+// Syncs a connected Stripe account's onboarding/capability status into DB.
+// Called whenever Stripe notifies us of account changes via Connect webhooks.
+async function syncConnectedAccountStatus(connectedAccountId: string, stripeEventId: string) {
+  try {
+    const { data: partner } = await supabaseAdmin
+      .from('partners')
+      .select('id, stripe_account_status')
+      .eq('stripe_account_id', connectedAccountId)
+      .maybeSingle()
+
+    if (!partner) {
+      console.log(`[WEBHOOK] Connect account ${connectedAccountId} not found in partners table`)
+      return
+    }
+
+    // Fetch current account status directly from Stripe
+    // Use same API version as the Connect event destination (2026-02-25.clover)
+    const stripeClient = new Stripe(env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-02-25.clover' as any,
+    })
+    const account = await stripeClient.accounts.retrieve(connectedAccountId)
+
+    const newStatus = account.details_submitted
+      ? (account.charges_enabled ? 'active' : 'pending')
+      : 'incomplete'
+
+    await supabaseAdmin
+      .from('partners')
+      .update({
+        stripe_account_status: newStatus,
+        stripe_charges_enabled: account.charges_enabled ?? false,
+        stripe_details_submitted: account.details_submitted ?? false,
+        stripe_payouts_enabled: account.payouts_enabled ?? false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', partner.id)
+
+    console.log(
+      `[WEBHOOK] Connect account ${connectedAccountId} synced: ${partner.stripe_account_status} → ${newStatus}`
+    )
+  } catch (err) {
+    console.error(`[WEBHOOK] Failed to sync connect account ${connectedAccountId}:`, err)
+  }
+}
 
 // Določi subscription tier iz Stripe price ID — zanesljivo, ne iz metadata
 function tierFromPriceId(priceId: string): 'pro' | 'start' {
@@ -205,6 +251,42 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription
         const customerId = subscription.customer as string
         await updateSubscriptionTier(null, customerId, 'start', subscription.id)
+        break
+      }
+
+      // ── Stripe Connect / v2 account events ─────────────────────────────
+      // These are sent when a connected craftworker account changes during
+      // onboarding (KYC, requirements, capabilities, persons).
+      // We re-fetch the account status from Stripe and sync it to DB.
+
+      case 'v2.core.account[requirements].updated':
+      case 'v2.core.account[identity].updated':
+      case 'v2.core.account[configuration.merchant].capability_status_updated': {
+        const v2Event = event as unknown as {
+          related_object: { id: string; type: string }
+          context: string
+        }
+        const connectedAccountId = v2Event.related_object?.id
+        if (!connectedAccountId) break
+
+        // Sync onboarding status for this connected account
+        await syncConnectedAccountStatus(connectedAccountId, event.id)
+        break
+      }
+
+      case 'v2.core.account_person.created':
+      case 'v2.core.account_person.updated': {
+        const v2Event = event as unknown as {
+          related_object: { id: string; type: string; url: string }
+          context: string
+        }
+        // Extract account ID from the person URL: /v2/core/accounts/{acct_id}/persons/{person_id}
+        const urlParts = v2Event.related_object?.url?.split('/') ?? []
+        const acctIndex = urlParts.indexOf('accounts')
+        const connectedAccountId = acctIndex !== -1 ? urlParts[acctIndex + 1] : null
+        if (!connectedAccountId) break
+
+        await syncConnectedAccountStatus(connectedAccountId, event.id)
         break
       }
 
