@@ -15,10 +15,16 @@ export function handleAuthError(error: unknown): NextResponse {
     authError?.message?.includes('Invalid Refresh Token') ||
     authError?.message?.includes('refresh_token')
 
+  const isSessionMissing =
+    authError?.message?.includes('Auth session missing') ||
+    authError?.message?.includes('not found') ||
+    !authError?.code
+
   console.error('[v0] Auth error detected:', {
     code: authError?.code,
     message: authError?.message,
     isRefreshTokenError,
+    isSessionMissing,
   })
 
   if (isRefreshTokenError) {
@@ -35,6 +41,16 @@ export function handleAuthError(error: unknown): NextResponse {
     response.cookies.delete('sb-refresh-token')
 
     return response
+  }
+
+  if (isSessionMissing) {
+    return NextResponse.json(
+      { 
+        error: 'Nepooblaščen dostop. Prosim, se prijavite.',
+        code: 'no_session',
+      },
+      { status: 401 }
+    )
   }
 
   // Generic auth error
