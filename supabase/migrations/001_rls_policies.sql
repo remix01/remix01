@@ -4,9 +4,12 @@
 -- ══════════════════════════════════════════════════════════════
 
 -- Helper function to get user role from JWT claims
-CREATE OR REPLACE FUNCTION auth.user_role()
+-- NOTE: Created in public schema - Supabase does not allow creating functions
+--       in the auth schema (permission denied for schema auth).
+CREATE OR REPLACE FUNCTION public.user_role()
 RETURNS text
-LANGUAGE sql STABLE
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
 AS $$
   SELECT COALESCE(
     auth.jwt() -> 'app_metadata' ->> 'role',
@@ -15,15 +18,19 @@ AS $$
 $$;
 
 -- Helper function to get current user ID from JWT
-CREATE OR REPLACE FUNCTION auth.user_id()
+CREATE OR REPLACE FUNCTION public.user_id()
 RETURNS text
-LANGUAGE sql STABLE
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
 AS $$
   SELECT COALESCE(
     auth.jwt() ->> 'sub',
     auth.uid()::text
   );
 $$;
+
+GRANT EXECUTE ON FUNCTION public.user_role() TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.user_id()   TO authenticated, anon;
 
 -- ══════════════════════════════════════════════════════════════
 -- USERS TABLE
@@ -37,8 +44,8 @@ CREATE POLICY "users_select_own"
 ON "User"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
-  OR id = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR id = public.user_id()
 );
 
 -- Users can update their own profile
@@ -46,12 +53,12 @@ CREATE POLICY "users_update_own"
 ON "User"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
-  OR id = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR id = public.user_id()
 )
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
-  OR id = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR id = public.user_id()
 );
 
 -- Only admins can insert users
@@ -59,7 +66,7 @@ CREATE POLICY "users_insert_admin"
 ON "User"
 FOR INSERT
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- Only admins can delete users
@@ -67,7 +74,7 @@ CREATE POLICY "users_delete_admin"
 ON "User"
 FOR DELETE
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -82,8 +89,8 @@ CREATE POLICY "craftworker_profiles_select"
 ON "CraftworkerProfile"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
-  OR "userId" = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR "userId" = public.user_id()
 );
 
 -- Craftworkers can update their own profile (but not commission rate or suspension status)
@@ -91,8 +98,8 @@ CREATE POLICY "craftworker_profiles_update_own"
 ON "CraftworkerProfile"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
-  OR "userId" = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR "userId" = public.user_id()
 );
 
 -- Only admins can insert craftworker profiles
@@ -100,7 +107,7 @@ CREATE POLICY "craftworker_profiles_insert_admin"
 ON "CraftworkerProfile"
 FOR INSERT
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -115,9 +122,9 @@ CREATE POLICY "jobs_select_involved"
 ON "Job"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
-  OR "customerId" = auth.user_id()
-  OR "craftworkerId" = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR "customerId" = public.user_id()
+  OR "craftworkerId" = public.user_id()
 );
 
 -- Customers can create jobs
@@ -125,8 +132,8 @@ CREATE POLICY "jobs_insert_customer"
 ON "Job"
 FOR INSERT
 WITH CHECK (
-  "customerId" = auth.user_id()
-  OR auth.user_role() = 'ADMIN'
+  "customerId" = public.user_id()
+  OR public.user_role() = 'ADMIN'
 );
 
 -- Involved users can update jobs (but admins have full control)
@@ -134,14 +141,14 @@ CREATE POLICY "jobs_update_involved"
 ON "Job"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
-  OR "customerId" = auth.user_id()
-  OR "craftworkerId" = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR "customerId" = public.user_id()
+  OR "craftworkerId" = public.user_id()
 )
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
-  OR "customerId" = auth.user_id()
-  OR "craftworkerId" = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR "customerId" = public.user_id()
+  OR "craftworkerId" = public.user_id()
 );
 
 -- Only customers or admins can delete their jobs
@@ -149,8 +156,8 @@ CREATE POLICY "jobs_delete_customer_or_admin"
 ON "Job"
 FOR DELETE
 USING (
-  auth.user_role() = 'ADMIN'
-  OR "customerId" = auth.user_id()
+  public.user_role() = 'ADMIN'
+  OR "customerId" = public.user_id()
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -165,13 +172,13 @@ CREATE POLICY "payments_select_job_participant"
 ON "Payment"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
   OR EXISTS (
     SELECT 1 FROM "Job"
     WHERE "Job".id = "Payment"."jobId"
     AND (
-      "Job"."customerId" = auth.user_id()
-      OR "Job"."craftworkerId" = auth.user_id()
+      "Job"."customerId" = public.user_id()
+      OR "Job"."craftworkerId" = public.user_id()
     )
   )
 );
@@ -181,14 +188,14 @@ CREATE POLICY "payments_insert_admin"
 ON "Payment"
 FOR INSERT
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 CREATE POLICY "payments_update_admin"
 ON "Payment"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -203,13 +210,13 @@ CREATE POLICY "conversations_select_participant"
 ON "Conversation"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
   OR EXISTS (
     SELECT 1 FROM "Job"
     WHERE "Job".id = "Conversation"."jobId"
     AND (
-      "Job"."customerId" = auth.user_id()
-      OR "Job"."craftworkerId" = auth.user_id()
+      "Job"."customerId" = public.user_id()
+      OR "Job"."craftworkerId" = public.user_id()
     )
   )
 );
@@ -219,7 +226,7 @@ CREATE POLICY "conversations_insert_system"
 ON "Conversation"
 FOR INSERT
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- Admins can update conversations
@@ -227,7 +234,7 @@ CREATE POLICY "conversations_update_admin"
 ON "Conversation"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -242,14 +249,14 @@ CREATE POLICY "messages_select_conversation_participant"
 ON "Message"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
   OR EXISTS (
     SELECT 1 FROM "Conversation"
     INNER JOIN "Job" ON "Job".id = "Conversation"."jobId"
     WHERE "Conversation".id = "Message"."conversationId"
     AND (
-      "Job"."customerId" = auth.user_id()
-      OR "Job"."craftworkerId" = auth.user_id()
+      "Job"."customerId" = public.user_id()
+      OR "Job"."craftworkerId" = public.user_id()
     )
   )
 );
@@ -259,14 +266,14 @@ CREATE POLICY "messages_insert_participant"
 ON "Message"
 FOR INSERT
 WITH CHECK (
-  "senderUserId" = auth.user_id()
+  "senderUserId" = public.user_id()
   AND EXISTS (
     SELECT 1 FROM "Conversation"
     INNER JOIN "Job" ON "Job".id = "Conversation"."jobId"
     WHERE "Conversation".id = "Message"."conversationId"
     AND (
-      "Job"."customerId" = auth.user_id()
-      OR "Job"."craftworkerId" = auth.user_id()
+      "Job"."customerId" = public.user_id()
+      OR "Job"."craftworkerId" = public.user_id()
     )
   )
 );
@@ -276,7 +283,7 @@ CREATE POLICY "messages_update_admin"
 ON "Message"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -292,7 +299,7 @@ CREATE POLICY "violations_admin_only_select"
 ON "Violation"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- Only system/admin can create violations
@@ -300,7 +307,7 @@ CREATE POLICY "violations_admin_only_insert"
 ON "Violation"
 FOR INSERT
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- Only admins can update violations (for review)
@@ -308,7 +315,7 @@ CREATE POLICY "violations_admin_only_update"
 ON "Violation"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- ══════════════════════════════════════════════════════════════
@@ -324,7 +331,7 @@ CREATE POLICY "risk_scores_admin_only_select"
 ON "RiskScore"
 FOR SELECT
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- Only system/admin can create risk scores
@@ -332,7 +339,7 @@ CREATE POLICY "risk_scores_admin_only_insert"
 ON "RiskScore"
 FOR INSERT
 WITH CHECK (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- Only admins can update risk scores
@@ -340,7 +347,7 @@ CREATE POLICY "risk_scores_admin_only_update"
 ON "RiskScore"
 FOR UPDATE
 USING (
-  auth.user_role() = 'ADMIN'
+  public.user_role() = 'ADMIN'
 );
 
 -- ══════════════════════════════════════════════════════════════
