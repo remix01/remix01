@@ -1,12 +1,10 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const supabase = await createClient()
   const now = new Date()
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
@@ -20,40 +18,40 @@ export async function getAdminStats(): Promise<AdminStats> {
     { count: partnerjiMonthBefore },
     { count: cakajoceVerifikacije },
   ] = await Promise.all([
-    supabase
+    supabaseAdmin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
       .eq('role', 'narocnik'),
-    supabase
+    supabaseAdmin
       .from('obrtnik_profiles')
       .select('*', { count: 'exact', head: true }),
-    supabase
+    supabaseAdmin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
       .eq('role', 'narocnik')
       .gte('created_at', lastMonth.toISOString()),
-    supabase
+    supabaseAdmin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
       .eq('role', 'narocnik')
       .gte('created_at', twoMonthsAgo.toISOString())
       .lt('created_at', lastMonth.toISOString()),
-    supabase
+    supabaseAdmin
       .from('obrtnik_profiles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', lastMonth.toISOString()),
-    supabase
+    supabaseAdmin
       .from('obrtnik_profiles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', twoMonthsAgo.toISOString())
       .lt('created_at', lastMonth.toISOString()),
-    supabase
+    supabaseAdmin
       .from('obrtnik_profiles')
       .select('*', { count: 'exact', head: true })
       .eq('is_verified', false),
   ])
 
-  const rastStrank = (strankeMonthBefore || 0) > 0 
+  const rastStrank = (strankeMonthBefore || 0) > 0
     ? Math.round((((strankeLastMonth || 0) - (strankeMonthBefore || 0)) / (strankeMonthBefore || 0)) * 100)
     : 100
 
@@ -150,8 +148,7 @@ export async function getPartnerji(
 }
 
 export async function odobriPartnerja(id: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_verified: true })
     .eq('id', id)
@@ -159,8 +156,7 @@ export async function odobriPartnerja(id: string) {
 }
 
 export async function zavrniPartnerja(id: string, razlog: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_verified: false })
     .eq('id', id)
@@ -168,8 +164,7 @@ export async function zavrniPartnerja(id: string, razlog: string) {
 }
 
 export async function suspendiranjPartnerja(id: string, razlog?: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_available: false })
     .eq('id', id)
@@ -177,8 +172,7 @@ export async function suspendiranjPartnerja(id: string, razlog?: string) {
 }
 
 export async function getStranka(id: string): Promise<Stranka | null> {
-  const supabase = await createClient()
-  const { data: user } = await supabase
+  const { data: user } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('id', id)
@@ -200,8 +194,7 @@ export async function getStranka(id: string): Promise<Stranka | null> {
 }
 
 export async function getPartner(id: string): Promise<Partner | null> {
-  const supabase = await createClient()
-  const { data: profile } = await supabase
+  const { data: profile } = await supabaseAdmin
     .from('obrtnik_profiles')
     .select('*')
     .eq('id', id)
@@ -224,25 +217,26 @@ export async function getPartner(id: string): Promise<Partner | null> {
 }
 
 export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPENDIRAN') {
+  await supabaseAdmin
+    .from('profiles')
+    .update({ is_suspended: status === 'SUSPENDIRAN' })
+    .eq('id', id)
   revalidatePath(`/admin/stranke/${id}`)
   revalidatePath('/admin/stranke')
 }
 
 export async function deleteStranka(id: string) {
-  const supabase = await createClient()
-  await supabase.from('profiles').delete().eq('id', id)
+  await supabaseAdmin.from('profiles').delete().eq('id', id)
   revalidatePath('/admin/stranke')
 }
 
 export async function deletePartner(id: string) {
-  const supabase = await createClient()
-  await supabase.from('obrtnik_profiles').delete().eq('id', id)
+  await supabaseAdmin.from('obrtnik_profiles').delete().eq('id', id)
   revalidatePath('/admin/partnerji')
 }
 
 export async function reaktivirajPartnerja(id: string) {
-  const supabase = await createClient()
-  await supabase
+  await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_available: true })
     .eq('id', id)
@@ -251,18 +245,20 @@ export async function reaktivirajPartnerja(id: string) {
 }
 
 export async function bulkSuspendStranke(ids: string[]): Promise<void> {
+  await supabaseAdmin
+    .from('profiles')
+    .update({ is_suspended: true })
+    .in('id', ids)
   revalidatePath('/admin/stranke')
 }
 
 export async function bulkDeleteStranke(ids: string[]): Promise<void> {
-  const supabase = await createClient()
-  await supabase.from('profiles').delete().in('id', ids)
+  await supabaseAdmin.from('profiles').delete().in('id', ids)
   revalidatePath('/admin/stranke')
 }
 
 export async function exportStrankeCSV(): Promise<string> {
-  const supabase = await createClient()
-  const { data: users } = await supabase
+  const { data: users } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('role', 'narocnik')
@@ -285,7 +281,6 @@ export async function dodajStranko(data: {
   telefon?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    // Create auth user (sends invite email)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       email_confirm: true,
@@ -293,7 +288,6 @@ export async function dodajStranko(data: {
     })
     if (authError) return { success: false, error: authError.message }
 
-    // Create profile
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: authData.user.id,
       email: data.email,
@@ -316,7 +310,6 @@ export async function dodajPartnerja(data: {
   telefon?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    // Create auth user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       email_confirm: true,
@@ -324,7 +317,6 @@ export async function dodajPartnerja(data: {
     })
     if (authError) return { success: false, error: authError.message }
 
-    // Create profiles entry
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: authData.user.id,
       email: data.email,
@@ -334,7 +326,6 @@ export async function dodajPartnerja(data: {
     })
     if (profileError) return { success: false, error: profileError.message }
 
-    // Create obrtnik_profiles entry
     const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
       id: authData.user.id,
       email: data.email,
@@ -355,7 +346,6 @@ export async function dodajPartnerja(data: {
 }
 
 export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji: ChartData[] }> {
-  const supabase = await createClient()
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec']
   const now = new Date()
   const chartData: { stranke: ChartData[]; partnerji: ChartData[] } = {
@@ -368,13 +358,13 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
     const nextMonthDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
 
     const [strankeData, partnerjiData] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .eq('role', 'narocnik')
         .gte('created_at', monthDate.toISOString())
         .lt('created_at', nextMonthDate.toISOString()),
-      supabase
+      supabaseAdmin
         .from('obrtnik_profiles')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', monthDate.toISOString())
@@ -394,4 +384,3 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
 
   return chartData
 }
-
