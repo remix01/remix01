@@ -30,6 +30,7 @@ interface FormData {
   specialization: string
   workArea: string
   planSelected: 'start' | 'pro'
+  referralCode: string
   termsAccepted: boolean
   privacyAccepted: boolean
   newsAccepted: boolean
@@ -59,9 +60,11 @@ export default function RegistracijaMojsterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [redirectCountdown, setRedirectCountdown] = useState(0)
+  const [referralInfo, setReferralInfo] = useState<any>(null)
 
   const stripeSuccess = searchParams.get('stripe') === 'success'
   const initialPlan = (searchParams.get('plan') as 'start' | 'pro') === 'pro' ? 'pro' : 'start'
+  const referralCodeParam = searchParams.get('ref') || ''
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -75,10 +78,29 @@ export default function RegistracijaMojsterForm() {
     specialization: '',
     workArea: '',
     planSelected: initialPlan,
+    referralCode: referralCodeParam,
     termsAccepted: false,
     privacyAccepted: false,
     newsAccepted: false,
   })
+
+  // Check referral code on mount
+  useEffect(() => {
+    if (referralCodeParam) {
+      fetch(`/api/referral/validate?code=${referralCodeParam}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.valid) {
+            setReferralInfo({
+              code: referralCodeParam,
+              referrerName: data.referrerName,
+              bonus: '€5 kredit ali brezplačni PRO dnevi'
+            })
+          }
+        })
+        .catch(err => console.error('[v0] Referral validation error:', err))
+    }
+  }, [referralCodeParam])
 
   // Auto-redirect after success
   useEffect(() => {
@@ -263,6 +285,19 @@ export default function RegistracijaMojsterForm() {
       <Navbar />
       <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
+          {/* Referral Bonus Banner */}
+          {referralInfo && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+              <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-green-900">Povabljeni ste od {referralInfo.referrerName}!</h3>
+                <p className="text-sm text-green-700 mt-1">
+                  Skupaj s prijateljem prejemete nagradu: {referralInfo.bonus}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Success Banner */}
           {stripeSuccess && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">

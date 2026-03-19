@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { env } from '@/lib/env'
 import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-response'
+import { ensureReferralCode, processReferralCode } from '@/lib/referral/referralService'
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -15,6 +16,7 @@ const registrationSchema = z.object({
   specialization: z.string().min(1, 'Specialization is required'),
   workArea: z.string().min(1, 'Work area is required'),
   planSelected: z.enum(['start', 'pro']),
+  referralCode: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -82,6 +84,22 @@ export async function POST(request: NextRequest) {
     if (profileError) {
       console.error('[v0] Profile creation error:', profileError)
       // Don't fail completely if profile creation fails
+    }
+    
+    // Process referral code if provided
+    if (validatedData.referralCode) {
+      const referralProcessed = await processReferralCode(validatedData.referralCode, userId)
+      if (referralProcessed) {
+        console.log(`[v0] Referral processed for user ${userId}`)
+      }
+    }
+    
+    // Generate referral code for new user
+    try {
+      await ensureReferralCode(userId)
+    } catch (err) {
+      console.error('[v0] Failed to generate referral code:', err)
+      // Don't fail registration if referral code generation fails
     }
     
     // Send welcome email using Resend
