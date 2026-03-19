@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
 import { selectModel, estimateCost } from '@/lib/model-router'
+import { handleAuthError } from '@/lib/api/auth-errors'
+
 
 function anthropicErrorMessage(error: unknown): string {
   if (error instanceof Anthropic.APIError) {
@@ -38,8 +40,15 @@ type StoredMessage = {
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    // Handle auth errors
+    if (error) {
+      return handleAuthError(error)
+    }
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
 
     const { data } = await supabaseAdmin
       .from('agent_conversations')
@@ -48,8 +57,9 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
 
     return NextResponse.json({ messages: data?.messages ?? [] })
-  } catch {
-    return NextResponse.json({ messages: [] })
+  } catch (error) {
+    console.error('[agent/chat] GET error:', error)
+    return handleAuthError(error)
   }
 }
 
@@ -57,8 +67,15 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    // Handle auth errors
+    if (error) {
+      return handleAuthError(error)
+    }
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
 
     await supabaseAdmin
       .from('agent_conversations')
@@ -66,8 +83,9 @@ export async function DELETE(req: NextRequest) {
       .eq('user_id', user.id)
 
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Napaka pri brisanju.' }, { status: 500 })
+  } catch (error) {
+    console.error('[agent/chat] DELETE error:', error)
+    return handleAuthError(error)
   }
 }
 
@@ -75,8 +93,15 @@ export async function DELETE(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    // Handle auth errors
+    if (error) {
+      return handleAuthError(error)
+    }
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
@@ -290,7 +315,13 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
       usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
     })
   } catch (error) {
-    console.error('[agent/chat] error:', error)
+    console.error('[agent/chat] POST error:', error)
+    
+    // Check if it's an auth error
+    if (error && typeof error === 'object' && ('code' in error || 'message' in error)) {
+      return handleAuthError(error)
+    }
+    
     const msg = anthropicErrorMessage(error)
     const status = error instanceof Anthropic.APIError ? error.status : 500
     return NextResponse.json({ error: msg }, { status })
