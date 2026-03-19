@@ -69,14 +69,31 @@ export function calculateEscrow(
   }
 }
 
-/** Preveri Stripe webhook podpis — brez tega ne zaupaj nobenemu webhoku */
+/** Preveri Stripe webhook podpis — brez tega ne zaupaj nobenemu webhoku.
+ *
+ *  Podpira dva tipa webhook endpointov:
+ *  - Standardni events  → podpisani z STRIPE_WEBHOOK_SECRET
+ *  - Connect v2 eventi  → podpisani z STRIPE_CONNECT_WEBHOOK_SECRET
+ *
+ *  Strategija: poskusi regular secret; če ne uspe in je konfiguriran
+ *  connect secret, poskusi še tega. Meče napako samo če oba odpovesta.
+ */
 export function constructStripeEvent(
   payload: string | Buffer,
   sig: string
 ): Stripe.Event {
-  return stripe.webhooks.constructEvent(
-    payload,
-    sig,
-    env.STRIPE_WEBHOOK_SECRET
-  )
+  // Vedno poskusi regular secret najprej
+  try {
+    return stripe.webhooks.constructEvent(payload, sig, env.STRIPE_WEBHOOK_SECRET)
+  } catch (regularErr) {
+    // Če je konfiguriran Connect secret, poskusi z njim (za Connect/v2 evente)
+    if (env.STRIPE_CONNECT_WEBHOOK_SECRET) {
+      return stripe.webhooks.constructEvent(
+        payload,
+        sig,
+        env.STRIPE_CONNECT_WEBHOOK_SECRET
+      )
+    }
+    throw regularErr
+  }
 }
