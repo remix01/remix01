@@ -117,32 +117,48 @@ export async function getPartnerji(
     .from('obrtnik_profiles')
     .select('*', { count: 'exact' })
 
-  if (filter) {
-    query = query.or(`business_name.ilike.%${filter}%,email.ilike.%${filter}%`)
-  }
-
   if (statusFilter === 'PENDING') {
     query = query.eq('is_verified', false)
   } else if (statusFilter === 'AKTIVEN') {
     query = query.eq('is_verified', true)
   }
 
-  const { data: profiles, count: total } = await query
+  const { data: obrtniki, count: total } = await query
     .order(sortBy === 'createdAt' ? 'created_at' : 'avg_rating', { ascending: sortBy !== 'createdAt' })
     .range(skip, skip + pageSize - 1)
 
-  const partnerji: Partner[] = (profiles || []).map((profile: any) => ({
+  const ids = (obrtniki || []).map((o: any) => o.id)
+
+  // Fetch email/phone from profiles (obrtnik_profiles has no email column)
+  let profileMap: Record<string, { email: string; phone: string | null }> = {}
+  if (ids.length > 0) {
+    const { data: profileData } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, phone')
+      .in('id', ids)
+    profileMap = Object.fromEntries((profileData || []).map((p: any) => [p.id, p]))
+  }
+
+  let partnerji: Partner[] = (obrtniki || []).map((profile: any) => ({
     id: profile.id,
     ime: profile.business_name || '',
     podjetje: profile.business_name,
     tip: 'PREVOZNIK' as const,
-    email: profile.email,
-    telefon: profile.phone || undefined,
+    email: profileMap[profile.id]?.email || '-',
+    telefon: profileMap[profile.id]?.phone || undefined,
     createdAt: new Date(profile.created_at),
     status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
     ocena: profile.avg_rating || 0,
     steviloPrevozov: 0,
   }))
+
+  // Apply filter after join (search on business_name or email)
+  if (filter) {
+    const f = filter.toLowerCase()
+    partnerji = partnerji.filter(p =>
+      p.ime.toLowerCase().includes(f) || p.email.toLowerCase().includes(f)
+    )
+  }
 
   return { partnerji, total: total || 0, pages: Math.ceil((total || 0) / pageSize) }
 }
@@ -194,11 +210,10 @@ export async function getStranka(id: string): Promise<Stranka | null> {
 }
 
 export async function getPartner(id: string): Promise<Partner | null> {
-  const { data: profile } = await supabaseAdmin
-    .from('obrtnik_profiles')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [{ data: profile }, { data: profileData }] = await Promise.all([
+    supabaseAdmin.from('obrtnik_profiles').select('*').eq('id', id).single(),
+    supabaseAdmin.from('profiles').select('email, phone').eq('id', id).maybeSingle(),
+  ])
 
   if (!profile) return null
 
@@ -207,8 +222,8 @@ export async function getPartner(id: string): Promise<Partner | null> {
     ime: profile.business_name || '',
     podjetje: profile.business_name,
     tip: 'PREVOZNIK' as const,
-    email: profile.email,
-    telefon: profile.phone || undefined,
+    email: profileData?.email || '-',
+    telefon: profileData?.phone || undefined,
     createdAt: new Date(profile.created_at),
     status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
     ocena: profile.avg_rating || 0,
