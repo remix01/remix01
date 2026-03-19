@@ -91,30 +91,21 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
       if (!text.trim()) return false
 
       try {
-        const { error: err } = await supabaseRef.current
-          .from('sporocila')
-          .insert({
-            povprasevanje_id: povprasevanjeId,
-            sender_id: currentUserId,
+        // Use server route: enforces sender_id from session + sends Resend email notification
+        const res = await fetch('/api/sporocila/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             receiver_id: receiverId,
+            povprasevanje_id: povprasevanjeId,
             message: text.trim(),
-            is_read: false,
-          })
+          }),
+        })
 
-        if (err) throw err
-
-        // Create notification for receiver
-        await supabaseRef.current
-          .from('notifications')
-          .insert({
-            user_id: receiverId,
-            type: 'novo_sporocilo',
-            title: 'Novo sporočilo',
-            body: text.trim().substring(0, 100),
-            data: { povprasevanje_id: povprasevanjeId },
-            is_read: false,
-          })
-          .then()
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Napaka pri pošiljanju')
+        }
 
         return true
       } catch (err) {
@@ -122,7 +113,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
         return false
       }
     },
-    [povprasevanjeId, currentUserId]
+    [povprasevanjeId]
   )
 
   return {

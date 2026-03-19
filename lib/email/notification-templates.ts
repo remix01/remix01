@@ -9,8 +9,68 @@ const COLORS = {
 }
 
 /**
- * Email template for new request matched notification
+ * Email notification when a user receives a new sporocilo (message)
  */
+export function novoSporociloEmail(
+  senderName: string,
+  messagePreview: string,
+  povprasevanjeTitle: string,
+  povprasevanjeId: string
+): EmailTemplate {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
+  const preview =
+    messagePreview.length > 120 ? `${messagePreview.substring(0, 120)}…` : messagePreview
+
+  return {
+    subject: `💬 Novo sporočilo od ${senderName} — LiftGO`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: ${COLORS.dark}; line-height: 1.6; }
+          .container { max-width: 600px; margin: 0 auto; }
+          .header { background: linear-gradient(135deg, ${COLORS.primary} 0%, #e8380f 100%); color: ${COLORS.white}; padding: 32px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header h1 { margin: 0; font-size: 22px; }
+          .content { background: ${COLORS.lightGray}; padding: 30px; border: 1px solid ${COLORS.border}; border-radius: 0 0 8px 8px; }
+          .message-box { background: ${COLORS.white}; padding: 20px; border-left: 4px solid ${COLORS.primary}; margin: 20px 0; border-radius: 4px; font-style: italic; color: #555; }
+          .button { display: inline-block; background: ${COLORS.primary}; color: ${COLORS.white}; padding: 12px 32px; text-decoration: none; border-radius: 4px; font-weight: 600; }
+          .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💬 Novo sporočilo</h1>
+            <p style="margin: 4px 0 0 0; opacity: 0.9;">od ${senderName}</p>
+          </div>
+          <div class="content">
+            <p>Prejeli ste novo sporočilo v zvezi s povpraševanjem:</p>
+            <p style="font-weight: 600; color: ${COLORS.primary};">${povprasevanjeTitle}</p>
+
+            <div class="message-box">
+              "${preview}"
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${appUrl}/sporocila" class="button">Odgovori na sporočilo →</a>
+            </div>
+
+            <p style="color: #888; font-size: 13px; border-top: 1px solid ${COLORS.border}; padding-top: 16px; margin-top: 24px;">
+              Če ne želite prejemati email obvestil, spremenite nastavitve v svojem profilu.
+            </p>
+          </div>
+          <div class="footer">
+            <p>© LiftGO — Vaš zaupanja vreden partner</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  }
+}
+
 export function newRequestMatchedEmail(
   requestTitle: string,
   requestId: string
