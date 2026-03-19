@@ -19,6 +19,7 @@ function anthropicErrorMessage(error: unknown): string {
 const TIER_LIMITS: Record<string, number> = {
   start: 5,
   pro: 100,
+  elite: 300,
   enterprise: Infinity,
 }
 
