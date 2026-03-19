@@ -25,6 +25,9 @@ export const env = {
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
   // Alerts & notifications
   SLACK_WEBHOOK_URL: process.env.SLACK_WEBHOOK_URL ?? '',
+  SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN ?? '',
+  SLACK_CHANNEL_ALERTS: process.env.SLACK_CHANNEL_ALERTS ?? '#liftgo-alerts',
+  SLACK_CHANNEL_BUSINESS: process.env.SLACK_CHANNEL_BUSINESS ?? '#liftgo-narocila',
   ADMIN_EMAIL: process.env.ADMIN_EMAIL ?? '',
   // Cron job protection
   CRON_SECRET: process.env.CRON_SECRET ?? '',
@@ -39,3 +42,4 @@ export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
 export const hasAnthropicAI = () => !!env.ANTHROPIC_API_KEY
 export const hasSlack = () => !!env.SLACK_WEBHOOK_URL
 export const hasResend = () => !!env.RESEND_API_KEY
+export const hasSlackBot = () => !!env.SLACK_BOT_TOKEN

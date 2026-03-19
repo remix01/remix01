@@ -11,6 +11,7 @@ import { eventBus } from '../eventBus'
 import { notificationService } from '@/lib/services'
 import { idempotency } from '../idempotency'
 import { createAdminClient } from '@/lib/supabase/server'
+import { sendBusinessEvent } from '@/lib/slack'
 
 export function registerNotificationSubscriber() {
   eventBus.on('task.matched', async (payload) => {
@@ -34,6 +35,20 @@ export function registerNotificationSubscriber() {
         partners,
         payload.deadlineAt
       )
+
+      // Slack — fire and forget
+      sendBusinessEvent({
+        event: 'novo_narocilo',
+        title: 'Nova naloga — ujemanje obrtnikov',
+        details: {
+          'Naloga ID': payload.taskId,
+          'Ujemanja': partners.length,
+          'Rok': payload.deadlineAt
+            ? new Date(payload.deadlineAt).toLocaleString('sl-SI', { timeZone: 'Europe/Ljubljana' })
+            : 'ni določen',
+        },
+        link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
+      }).catch((err) => console.error('[NotificationSubscriber] Slack task.matched failed:', err))
     } catch (err) {
       console.error('[NotificationSubscriber] Error on task.matched:', err)
     }
@@ -54,6 +69,18 @@ export function registerNotificationSubscriber() {
       if (!customer || !partner) return
 
       await notificationService.notifyAccepted(payload.taskId, customer, partner)
+
+      // Slack — fire and forget
+      sendBusinessEvent({
+        event: 'ponudba_sprejeta',
+        title: 'Ponudba sprejeta',
+        details: {
+          'Naloga ID': payload.taskId,
+          'Obrtnik': partner.ime ?? 'Unknown',
+          'Naročnik': customer.ime ?? 'Unknown',
+        },
+        link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
+      }).catch((err) => console.error('[NotificationSubscriber] Slack task.accepted failed:', err))
     } catch (err) {
       console.error('[NotificationSubscriber] Error on task.accepted:', err)
     }
@@ -65,6 +92,16 @@ export function registerNotificationSubscriber() {
       if (skip) return
 
       await notificationService.requestReview(payload.taskId, payload.customerId, payload.partnerId)
+
+      // Slack — fire and forget
+      sendBusinessEvent({
+        event: 'nova_ocena',
+        title: 'Naloga dokončana — čakanje na oceno',
+        details: {
+          'Naloga ID': payload.taskId,
+        },
+        link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
+      }).catch((err) => console.error('[NotificationSubscriber] Slack task.completed failed:', err))
     } catch (err) {
       console.error('[NotificationSubscriber] Error on task.completed:', err)
     }
@@ -76,6 +113,17 @@ export function registerNotificationSubscriber() {
       if (skip) return
 
       await notificationService.notifyPaymentReleased(payload.partnerId, payload.netAmount, payload.taskId)
+
+      // Slack — fire and forget
+      sendBusinessEvent({
+        event: 'placilo_prejeto',
+        title: 'Plačilo izvršeno',
+        details: {
+          'Naloga ID': payload.taskId,
+          'Znesek': `€${(payload.netAmount / 100).toFixed(2)}`,
+        },
+        link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
+      }).catch((err) => console.error('[NotificationSubscriber] Slack payment.released failed:', err))
     } catch (err) {
       console.error('[NotificationSubscriber] Error on payment.released:', err)
     }
@@ -87,6 +135,16 @@ export function registerNotificationSubscriber() {
       if (skip) return
 
       await notificationService.notifyOfferReceived(payload.taskId, payload.partnerId)
+
+      // Slack — fire and forget
+      sendBusinessEvent({
+        event: 'nova_ponudba',
+        title: 'Nova ponudba za nalogo',
+        details: {
+          'Naloga ID': payload.taskId,
+        },
+        link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
+      }).catch((err) => console.error('[NotificationSubscriber] Slack offer.sent failed:', err))
     } catch (err) {
       console.error('[NotificationSubscriber] Error on offer.sent:', err)
     }
@@ -107,6 +165,18 @@ export function registerNotificationSubscriber() {
       if (!partner) return
 
       await notificationService.notifyReviewSubmitted(payload.taskId, partner, payload.rating)
+
+      // Slack — fire and forget
+      sendBusinessEvent({
+        event: 'nova_ocena',
+        title: 'Nova ocena prejeta',
+        details: {
+          'Naloga ID': payload.taskId,
+          'Obrtnik': partner.ime ?? 'Unknown',
+          'Ocena': payload.rating ?? 0,
+        },
+        link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
+      }).catch((err) => console.error('[NotificationSubscriber] Slack review.submitted failed:', err))
     } catch (err) {
       console.error('[NotificationSubscriber] Error on review.submitted:', err)
     }
