@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Download } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
 interface Transaction {
   id: string
@@ -32,7 +31,6 @@ interface Stats {
 }
 
 export function PaymentsTable() {
-  const supabase = createClient()
   const [stats, setStats] = useState<Stats>({
     totalTransactions: 0,
     totalRevenue: 0,
@@ -46,70 +44,23 @@ export function PaymentsTable() {
 
   useEffect(() => {
     fetchPaymentData()
-  }, [supabase])
+  }, [])
 
   const fetchPaymentData = async () => {
     setLoading(true)
     setError(null)
     try {
-      // Fetch transactions from offers with payment_status
-      const { data: offersData, error: offersError } = await supabase
-        .from('offers')
-        .select(`
-          id,
-          price,
-          payment_status,
-          created_at,
-          partner:profiles!offers_partner_id_fkey(email, first_name, last_name)
-        `)
-        .not('payment_status', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(100)
+      const res = await fetch('/api/admin/payments')
+      const data = await res.json()
 
-      if (offersError) throw offersError
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch payment data')
 
-      // Fetch payouts
-      const { data: payoutsData, error: payoutsError } = await supabase
-        .from('payouts')
-        .select(`
-          id,
-          amount,
-          stripe_transfer_id,
-          created_at,
-          craftsman:profiles!payouts_craftsman_id_fkey(email, first_name, last_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (payoutsError) throw payoutsError
-
-      // Transform offers to transactions
-      const txns = offersData?.map((offer: any) => ({
-        id: offer.id,
-        created_at: offer.created_at,
-        stranka_name: 'Customer',
-        obrtnik_name: offer.partner?.first_name && offer.partner?.last_name 
-          ? `${offer.partner.first_name} ${offer.partner.last_name}`
-          : offer.partner?.email || 'Unknown',
-        amount: offer.price || 0,
-        payment_status: offer.payment_status,
-      })) ?? []
-
-      // Transform payouts
-      const pyts = payoutsData?.map((payout: any) => ({
-        id: payout.id,
-        created_at: payout.created_at,
-        craftsman_name: payout.craftsman?.first_name && payout.craftsman?.last_name
-          ? `${payout.craftsman.first_name} ${payout.craftsman.last_name}`
-          : payout.craftsman?.email || 'Unknown',
-        amount: payout.amount || 0,
-        stripe_transfer_id: payout.stripe_transfer_id,
-      })) ?? []
+      const txns: Transaction[] = data.transactions ?? []
+      const pyts: Payout[] = data.payouts ?? []
 
       setTransactions(txns)
       setPayouts(pyts)
 
-      // Calculate stats
       const totalRev = txns.reduce((sum, tx) => sum + (tx.payment_status === 'succeeded' ? tx.amount : 0), 0)
       const pendingEsc = txns.reduce((sum, tx) => sum + (tx.payment_status === 'pending' ? tx.amount : 0), 0)
       const totalPay = pyts.reduce((sum, p) => sum + p.amount, 0)
@@ -121,7 +72,7 @@ export function PaymentsTable() {
         totalPayouts: totalPay,
       })
     } catch (err) {
-      console.error('[v0] Failed to fetch payment data:', err)
+      console.error('[admin] Failed to fetch payment data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch payment data')
     } finally {
       setLoading(false)
