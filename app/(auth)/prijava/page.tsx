@@ -82,7 +82,7 @@ function PrijavaContent() {
 
       // Redirect based on role
       if (profile.role === 'obrtnik') {
-        router.push('/obrtnik/dashboard')
+        router.push('/partner-dashboard')
       } else {
         // Naročnik
         router.push('/dashboard')

@@ -22,11 +22,11 @@ export default async function ObrtknikLayout({
     redirect('/partner-auth/login')
   }
 
-  // Get obrtnik profile
+  // Get obrtnik profile (id = auth user id, no separate user_id column)
   const { data: profile } = await supabase
     .from('obrtnik_profiles')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!profile) {
