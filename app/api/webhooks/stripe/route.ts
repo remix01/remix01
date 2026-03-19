@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { constructStripeEvent } from '@/lib/stripe'
+import { constructStripeEvent, stripe as stripeProxy } from '@/lib/stripe'
+import { env } from '@/lib/env'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { STRIPE_PRODUCTS } from '@/lib/stripe/config'
 import {
@@ -28,8 +29,9 @@ async function syncConnectedAccountStatus(connectedAccountId: string, stripeEven
     }
 
     // Fetch current account status directly from Stripe
-    const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2024-11-20.acacia',
+    // Use same API version as the Connect event destination (2026-02-25.clover)
+    const stripeClient = new Stripe(env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-02-25.clover' as any,
     })
     const account = await stripeClient.accounts.retrieve(connectedAccountId)
 
