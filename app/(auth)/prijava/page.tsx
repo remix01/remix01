@@ -43,6 +43,10 @@ function PrijavaContent() {
         return
       }
 
+      // Wait for session to be established before checking endpoints
+      // This prevents race conditions where cookies aren't set yet
+      await new Promise(resolve => setTimeout(resolve, 500))
+
       // Preveri custom redirect
       const redirectTo = searchParams.get('redirectTo')
       if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
@@ -50,8 +54,14 @@ function PrijavaContent() {
         return
       }
 
-      // Preveri admin
-      const adminRes = await fetch('/api/admin/me')
+      // Preveri admin - retry logic in case session isn't ready
+      let adminRes = await fetch('/api/admin/me')
+      if (!adminRes.ok) {
+        // Retry once after a small delay
+        await new Promise(resolve => setTimeout(resolve, 300))
+        adminRes = await fetch('/api/admin/me')
+      }
+      
       if (adminRes.ok) {
         router.push('/admin')
         return
@@ -93,6 +103,9 @@ function PrijavaContent() {
         setObrtnikError('Napačen email ali geslo. Preverite podatke.')
         return
       }
+
+      // Wait for session to be established before checking DB
+      await new Promise(resolve => setTimeout(resolve, 500))
 
       // Preveri da ima obrtniški profil
       const { data: obrtnikProfile } = await supabase

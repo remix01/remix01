@@ -6,6 +6,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { env } from '@/lib/env'
 import { initEventSubscribers } from '@/lib/events'
+import { AuthProvider } from '@/lib/auth/AuthContext'
 import { JsonLd } from './components/JsonLd'
 import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
@@ -246,7 +247,9 @@ export default function RootLayout({
         <OfflineBanner />
         <GlobalErrorHandler />
         <ErrorBoundary>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ErrorBoundary>
 
         <CookieConsent />
