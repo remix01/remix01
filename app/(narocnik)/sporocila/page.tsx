@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ConversationList } from '@/components/messages/ConversationList'
 import { ChatPanel } from '@/components/messages/ChatPanel'
@@ -9,26 +9,26 @@ import { useRealtimeSporocila } from '@/hooks/useRealtimeSporocila'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export default function StankaSporocila() {
+export default function NarocnikSporocila() {
+  const router = useRouter()
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedPovprasevanje, setSelectedPovprasevanje] = useState<string | null>(null)
   const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
-  const [povprasevanjeInfo, setPovprasevanjeInfo] = useState<any>(null)
+  const [povprasevanjeTitle, setPovprasevanjeTitle] = useState<string | null>(null)
   const [showMobileChat, setShowMobileChat] = useState(false)
-  const supabase = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        redirect('/prijava')
+        router.push('/prijava')
+        return
       }
       setCurrentUser(user)
     }
     checkAuth()
-  }, [supabase])
+  }, [router])
 
   const { sporocila, sendMessage, isLoading } = useRealtimeSporocila(
     selectedPovprasevanje || '',
@@ -40,22 +40,20 @@ export default function StankaSporocila() {
     setSelectedReceiver(receiverId)
     setShowMobileChat(true)
 
-    // Fetch povprasevanje info
+    const supabase = createClient()
     const { data } = await supabase
       .from('povprasevanja')
-      .select('naslov')
+      .select('title')
       .eq('id', povprasevanjeId)
       .single()
 
-    if (data) {
-      setPovprasevanjeInfo(data)
-    }
+    setPovprasevanjeTitle(data?.title ?? null)
   }
 
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center p-8">
-        <p className="text-slate-500">Nalaganje...</p>
+        <p className="text-muted-foreground">Nalaganje...</p>
       </div>
     )
   }
@@ -63,11 +61,11 @@ export default function StankaSporocila() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Sporočila</h1>
-        <p className="text-slate-600 mt-1">Komunicirajte z mojstri</p>
+        <h1 className="text-2xl font-bold text-foreground">Sporočila</h1>
+        <p className="text-muted-foreground mt-1">Komunicirajte z mojstri</p>
       </div>
 
-      {/* Mobile: Show chat if selected, list otherwise */}
+      {/* Mobile: prikaži chat ali seznam */}
       <div className="md:hidden">
         {showMobileChat && selectedPovprasevanje && selectedReceiver ? (
           <div className="space-y-4">
@@ -87,7 +85,7 @@ export default function StankaSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeTitle ?? undefined}
             />
           </div>
         ) : (
@@ -118,11 +116,11 @@ export default function StankaSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeTitle ?? undefined}
             />
           ) : (
-            <div className="bg-white rounded-lg border flex items-center justify-center h-full">
-              <p className="text-slate-500">Izberite pogovor za prikaz sporočil</p>
+            <div className="bg-card rounded-lg border flex items-center justify-center h-full">
+              <p className="text-muted-foreground">Izberite pogovor za prikaz sporočil</p>
             </div>
           )}
         </div>
@@ -130,4 +128,3 @@ export default function StankaSporocila() {
     </div>
   )
 }
-

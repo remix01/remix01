@@ -22,6 +22,7 @@ export function NarocnikSidebar({ fullName }: NarocnikSidebarProps) {
     { href: '/dashboard', icon: '🏠', label: 'Dashboard' },
     { href: '/novo-povprasevanje', icon: '➕', label: 'Novo povpraševanje' },
     { href: '/povprasevanja', icon: '📋', label: 'Moja povpraševanja' },
+    { href: '/sporocila', icon: '💬', label: 'Sporočila' },
     { href: '/obvestila', icon: '🔔', label: 'Obvestila' },
     { href: '/profil', icon: '👤', label: 'Profil' },
   ]
