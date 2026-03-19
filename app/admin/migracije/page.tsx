@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,38 +15,24 @@ import { MigratePartnerAction } from '@/components/admin/MigratePartnerAction'
 import { MigrateAllPartnersAction } from '@/components/admin/MigrateAllPartnersAction'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
-// Force dynamic rendering since this page uses cookies internally via createClient()
 export const dynamic = 'force-dynamic'
 
 async function getMigrationStats() {
   try {
-    const supabase = await createClient()
-
-    // Test if columns exist first
-    const { data: testData, error: testError } = await supabase
-      .from('obrtnik_profiles')
-      .select('id')
-      .limit(1)
-
-    if (testError) {
-      console.error('[v0] Column test error:', testError)
-      throw new Error('Migration columns may not exist yet')
-    }
-
     const [
       { count: totalNonMigrated, error: nonMigratedError },
       { count: totalMigrated, error: migratedError },
       { data: nonMigratedPartners, error: partnersError }
     ] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('partners')
         .select('*', { count: 'exact', head: true })
         .is('new_profile_id', null),
-      supabase
+      supabaseAdmin
         .from('partners')
         .select('*', { count: 'exact', head: true })
         .not('new_profile_id', 'is', null),
-      supabase
+      supabaseAdmin
         .from('partners')
         .select('id, company_name, email, created_at')
         .is('new_profile_id', null)
@@ -130,17 +116,17 @@ ON public.partners(new_profile_id);`}
             </div>
 
             <div className="flex gap-2">
-              <form action={() => { if (typeof window !== 'undefined') window.location.reload() }} className="flex gap-2">
-                <Button 
-                  type="submit"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-red-600 border-red-300 hover:bg-red-100"
-                >
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-red-600 border-red-300 hover:bg-red-100"
+                asChild
+              >
+                <a href="/admin/migracije">
                   <RefreshCw className="h-4 w-4" />
                   Poskusi znova
-                </Button>
-              </form>
+                </a>
+              </Button>
               <Button 
                 variant="outline"
                 size="sm"
