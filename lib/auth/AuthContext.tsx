@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Check if admin
       if (session?.user) {
-        fetch('/api/admin/me')
+        fetch('/api/admin/me', { credentials: 'include' })
           .then(res => setIsAdmin(res.ok))
           .catch(() => setIsAdmin(false))
       }
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Check if new user is admin
       if (session?.user) {
-        fetch('/api/admin/me')
+        fetch('/api/admin/me', { credentials: 'include' })
           .then(res => setIsAdmin(res.ok))
           .catch(() => setIsAdmin(false))
       } else {
