@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (user?.user_metadata?.role !== 'admin') {
+    if (user?.app_metadata?.role !== 'ADMIN') {
       return NextResponse.json({ success: false, message: 'Samo admin.' }, { status: 403 })
     }
 

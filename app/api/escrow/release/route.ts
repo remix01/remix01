@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // 3. PREVERI LASTNIŠTVO
     const isPartner = escrow.partner_id === user.id
-    const isAdmin   = user.user_metadata?.role === 'admin'
+    const isAdmin   = user.app_metadata?.role === 'ADMIN'
     if (!isPartner && !isAdmin) {
       return forbidden()
     }

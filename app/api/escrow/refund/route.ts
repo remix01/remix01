@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       { cookies: { get: (n) => cookieStore.get(n)?.value } }
     )
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    const isAdmin = user?.user_metadata?.role === 'admin'
+    const isAdmin = user?.app_metadata?.role === 'ADMIN'
     if (!user || !isAdmin) {
       return forbidden('Only admin can refund transactions.')
     }
