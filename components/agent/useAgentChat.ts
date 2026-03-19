@@ -43,7 +43,7 @@ export function useAgentChat() {
     historyLoaded.current = true
 
     setConnectionStatus('loading')
-    fetch('/api/agent/chat')
+    fetch('/api/agent/chat', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (!Array.isArray(data.messages)) return
@@ -90,6 +90,7 @@ export function useAgentChat() {
         const response = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ message: content }),
         })
 
@@ -144,7 +145,10 @@ export function useAgentChat() {
 
   const clearConversation = useCallback(async () => {
     try {
-      await fetch('/api/agent/chat', { method: 'DELETE' })
+      await fetch('/api/agent/chat', { 
+        method: 'DELETE',
+        credentials: 'include',
+      })
       setMessages([])
       setLastError(null)
     } catch {
