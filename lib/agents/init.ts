@@ -1,17 +1,18 @@
-import { initializeAgents } from './base/AgentRegistry'
+import { initializeAgents, agentsInitialized } from './base/AgentRegistry'
 import { messageBus } from './base/MessageBus'
 
-let initialized = false
-
 /**
- * Ensures agents are initialized exactly once at app startup.
- * Safe to call multiple times — will only initialize on first call.
+ * Ensures agents are initialized exactly once per process.
+ * Safe to await on every request — skips init if already done.
+ *
+ * NOTE: In Next.js serverless, each cold start re-initializes.
+ * initializeAgents() is lightweight (only registers in-memory handlers)
+ * so per-cold-start init is acceptable.
  */
-export function ensureAgentsInitialized() {
-  if (!initialized) {
-    initializeAgents()
-    initialized = true
-    console.log('[Agents] Initialized all 5 agents')
-    console.log('[Agents] Registered agents:', messageBus.getRegistered().join(', '))
-  }
+export async function ensureAgentsInitialized(): Promise<void> {
+  if (agentsInitialized()) return
+
+  await initializeAgents()
+  console.log('[Agents] Initialized all 5 agents')
+  console.log('[Agents] Registered agents:', messageBus.getRegistered().join(', '))
 }
