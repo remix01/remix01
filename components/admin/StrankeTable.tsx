@@ -24,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from './StatusBadge'
-import { exportStrankeCSV, bulkSuspendStranke, bulkDeleteStranke, deleteStranka } from '@/app/admin/actions'
+import { exportStrankeCSV, bulkSuspendStranke, bulkDeleteStranke, deleteStranka, updateStrankaStatus } from '@/app/admin/actions'
 import type { Stranka } from '@/types/admin'
 
 interface StrankeTableProps {
@@ -156,20 +156,32 @@ export function StrankeTable({ stranke, currentPage, totalPages, searchTerm = ''
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" asChild title="Pregled">
                       <Link href={`/admin/stranke/${stranka.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon">
-                      <Edit className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" asChild title="Uredi">
+                      <Link href={`/admin/stranke/${stranka.id}`}>
+                        <Edit className="h-4 w-4" />
+                      </Link>
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title={stranka.status === 'SUSPENDIRAN' ? 'Aktiviraj' : 'Suspendiraj'}
+                      onClick={async () => {
+                        const newStatus = stranka.status === 'SUSPENDIRAN' ? 'AKTIVEN' : 'SUSPENDIRAN'
+                        await updateStrankaStatus(stranka.id, newStatus)
+                        window.location.reload()
+                      }}
+                    >
                       <Ban className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="icon"
+                      title="Izbriši"
                       onClick={() => {
                         setDeleteTarget({ id: stranka.id, name: `${stranka.ime} ${stranka.priimek}` })
                         setDeleteDialogOpen(true)

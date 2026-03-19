@@ -90,16 +90,19 @@ export async function getStranke(
     .order(sortBy === 'createdAt' ? 'created_at' : 'full_name', { ascending: sortBy !== 'createdAt' })
     .range(skip, skip + pageSize - 1)
 
-  const stranke: Stranka[] = (users || []).map((user: any) => ({
-    id: user.id,
-    ime: user.full_name?.split(' ')[0] || '',
-    priimek: user.full_name?.split(' ').slice(1).join(' ') || '',
-    email: user.email,
-    telefon: user.phone || undefined,
-    createdAt: new Date(user.created_at),
-    status: 'AKTIVEN' as const,
-    narocil: 0,
-  }))
+  const stranke: Stranka[] = (users || []).map((user: any) => {
+    const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim()
+    return {
+      id: user.id,
+      ime: fullName.split(' ')[0] || user.email?.split('@')[0] || '',
+      priimek: fullName.split(' ').slice(1).join(' ') || '',
+      email: user.email,
+      telefon: user.phone || undefined,
+      createdAt: new Date(user.created_at),
+      status: 'AKTIVEN' as const,
+      narocil: 0,
+    }
+  })
 
   return { stranke, total: total || 0, pages: Math.ceil((total || 0) / pageSize) }
 }
@@ -197,10 +200,11 @@ export async function getStranka(id: string): Promise<Stranka | null> {
 
   if (!user) return null
 
+  const fullName = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim()
   return {
     id: user.id,
-    ime: user.full_name?.split(' ')[0] || '',
-    priimek: user.full_name?.split(' ').slice(1).join(' ') || '',
+    ime: fullName.split(' ')[0] || user.email?.split('@')[0] || '',
+    priimek: fullName.split(' ').slice(1).join(' ') || '',
     email: user.email,
     telefon: user.phone || undefined,
     createdAt: new Date(user.created_at),

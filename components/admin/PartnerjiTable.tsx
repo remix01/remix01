@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/table'
 import { StatusBadge } from './StatusBadge'
 import { PendingPartnerCard } from './PendingPartnerCard'
-import { zavrniPartnerja } from '@/app/admin/actions'
+import { zavrniPartnerja, suspendiranjPartnerja, reaktivirajPartnerja, deletePartner } from '@/app/admin/actions'
 import type { Partner } from '@/types/admin'
 
 interface PartnerjiTableProps {
@@ -125,18 +125,41 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" asChild title="Pregled">
                       <Link href={`/admin/partnerji/${partner.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon">
-                      <Edit className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" asChild title="Uredi">
+                      <Link href={`/admin/partnerji/${partner.id}`}>
+                        <Edit className="h-4 w-4" />
+                      </Link>
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title={partner.status === 'SUSPENDIRAN' ? 'Reaktiviraj' : 'Suspendiraj'}
+                      onClick={async () => {
+                        if (partner.status === 'SUSPENDIRAN') {
+                          await reaktivirajPartnerja(partner.id)
+                        } else {
+                          await suspendiranjPartnerja(partner.id)
+                        }
+                        window.location.reload()
+                      }}
+                    >
                       <Ban className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Izbriši"
+                      onClick={() => {
+                        if (confirm(`Ali res želite izbrisati partnerja "${partner.ime}"?`)) {
+                          deletePartner(partner.id).then(() => window.location.reload())
+                        }
+                      }}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
