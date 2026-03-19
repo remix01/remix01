@@ -120,7 +120,7 @@ export function RegistracijaForm() {
 
       // 3. Preusmeri glede na role
       if (selectedRole === 'obrtnik') {
-        router.push('/obrtnik/dashboard')
+        router.push('/partner-dashboard')
       } else {
         const redirect = searchParams?.get('redirect')
         router.push(redirect || '/dashboard')
