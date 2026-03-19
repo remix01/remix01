@@ -13,6 +13,6 @@ export async function ensureAgentsInitialized(): Promise<void> {
   if (agentsInitialized()) return
 
   await initializeAgents()
-  console.log('[Agents] Initialized all 5 agents')
+  console.log('[Agents] Initialized all 6 agents')
   console.log('[Agents] Registered agents:', messageBus.getRegistered().join(', '))
 }

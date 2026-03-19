@@ -11,6 +11,7 @@ export type AgentType =
   | 'escrow'
   | 'dispute'
   | 'notify'
+  | 'ai_assistant'
 
 export type MessageType = 'request' | 'response' | 'event'
 

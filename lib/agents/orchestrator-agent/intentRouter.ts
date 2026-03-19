@@ -41,6 +41,17 @@ export const intentMap: Record<string, AgentType> = {
   // Notify actions
   'sendNotification': 'notify',
   'updatePreferences': 'notify',
+
+  // AI assistant actions (narocnik)
+  'describeWork': 'ai_assistant',       // Generate work description variants
+  'compareOffers': 'ai_assistant',      // Compare and recommend best offer
+  'scheduleAppointment': 'ai_assistant',// Suggest appointment slots
+  'matchPartners': 'ai_assistant',      // Find matching partners for inquiry
+
+  // AI assistant actions (obrtnik)
+  'generateQuote': 'ai_assistant',      // Draft a quote for an inquiry
+  'generateJobSummary': 'ai_assistant', // Create job completion report
+  'generateMaterials': 'ai_assistant',  // Generate materials list (PRO)
 }
 
 const anthropic = new Anthropic()
@@ -77,7 +88,11 @@ Respond with JSON in this exact format:
 }
 
 Rules:
-- If the user mentions a resource ID (inquiry, offer, escrow), include it in extractedParams
+- If the user mentions a resource ID (inquiry, offer, escrow, ponudba, povprasevanje), include it in extractedParams as the appropriate key (povprasevanjeId, ponudbaId, etc.)
+- For describeWork: extract keywords and category from the message
+- For compareOffers/matchPartners/generateQuote/generateJobSummary: extract povprasevanjeId
+- For scheduleAppointment/generateJobSummary: extract ponudbaId if mentioned
+- For generateMaterials: extract workDescription from the message
 - If confidence < 0.6, set action to 'clarify' and include a clarification question
 - Always return valid JSON
 `
