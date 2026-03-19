@@ -31,11 +31,24 @@ export default function Page() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (error) throw error
+
+      // Verify user has an obrtnik profile
+      const { data: obrtnikProfile } = await supabase
+        .from('obrtnik_profiles')
+        .select('id')
+        .eq('id', authData.user?.id)
+        .maybeSingle()
+
+      if (!obrtnikProfile) {
+        await supabase.auth.signOut()
+        throw new Error('Ta račun nima obrtniških pravic. Uporabite prijavo na /prijava.')
+      }
+
       router.push('/partner-dashboard')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Napaka pri prijavi')

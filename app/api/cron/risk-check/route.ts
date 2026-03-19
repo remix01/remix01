@@ -66,11 +66,13 @@ async function sendAdminAlert(jobId: string, score: number, flags: string[], lev
   const emailTemplate = adminAlertEmail(jobId, score, flags)
   await sendEmail(adminEmail, emailTemplate)
 
+  // severity CHECK constraint only allows 'warn' | 'critical'
+  const severity = level === 'critical' ? 'critical' : 'warn'
   await supabaseAdmin.from('alert_log').insert({
     alert_type: 'risk_score',
-    severity: level,
+    severity,
     message: `Povpraševanje ${jobId} risk score: ${score}`,
-    metadata: { povprasevanje_id: jobId, score, flags },
+    metadata: { povprasevanje_id: jobId, score, flags, alertLevel: level },
     channels_notified: ['email'],
     resolved: false,
   })
