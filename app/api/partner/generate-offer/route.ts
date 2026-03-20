@@ -4,9 +4,9 @@ import Anthropic from '@anthropic-ai/sdk'
 export async function POST(req: Request) {
   try {
     // Check authentication
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (!user || authError) {
       return new Response(
         JSON.stringify({ success: false, error: 'Neoverjeni' }),
@@ -14,30 +14,24 @@ export async function POST(req: Request) {
       )
     }
 
-    // Get partner info to check plan
-    const { data: partner } = await supabase
-      .from('partners')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+    // Get obrtnik profile to verify they exist and check package
+    const { data: obrtnikProfile } = await supabase
+      .from('obrtnik_profiles')
+      .select('id, package_type')
+      .eq('user_id', user.id)
+      .maybeSingle()
 
-    if (!partner) {
+    if (!obrtnikProfile) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Partner ni najden' }),
+        JSON.stringify({ success: false, error: 'Profil obrtnika ni najden' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
-    // Check if PRO plan
-    const { data: paket } = await supabase
-      .from('partner_paketi')
-      .select('*')
-      .eq('obrtnik_id', partner.id)
-      .single()
-
-    if (!paket || paket.paket !== 'pro') {
+    // AI offer generation requires PRO package
+    if (obrtnikProfile.package_type !== 'PRO') {
       return new Response(
-        JSON.stringify({ success: false, error: 'PRO paket je obvezen' }),
+        JSON.stringify({ success: false, error: 'PRO paket je obvezen za AI generiranje ponudb' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       )
     }
@@ -47,26 +41,18 @@ export async function POST(req: Request) {
     // Validate required fields
     if (!body.serviceType || !body.location || !body.description || !body.estimatedHours || !body.hourlyRate) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Manjkajo obvezna polja' 
-        }),
+        JSON.stringify({ success: false, error: 'Manjkajo obvezna polja' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
-    // Validate description length
     if (body.description.length < 50) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Opis mora imeti najmanj 50 znakov' 
-        }),
+        JSON.stringify({ success: false, error: 'Opis mora imeti najmanj 50 znakov' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
-    // Create Anthropic client
     const client = new Anthropic()
 
     const prompt = `Ustvari profesionalno ponudbo v slovenščini za naslednje delo:
@@ -95,7 +81,7 @@ Ustvari profesionalno strukturirano ponudbo s sledečimi odseki:
 Nauči se biti profesionalen, jasen in prepričljiv. Ponudba naj bo napisana tako, da navdaja zaupanja.`
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -107,21 +93,13 @@ Nauči se biti profesionalen, jasen in prepričljiv. Ponudba naj bo napisana tak
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data: { 
-          offerText 
-        } 
-      }),
+      JSON.stringify({ success: true, data: { offerText } }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('[v0] Generate offer error:', error)
+    console.error('[generate-offer] error:', error)
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Napaka pri generiranju ponudbe' 
-      }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Napaka pri generiranju ponudbe' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
