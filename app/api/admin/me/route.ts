@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -18,7 +19,7 @@ export async function GET() {
     console.log('[v0] Admin check: Checking user', user.id)
 
     // Fetch admin from admin_users table by auth_user_id
-    const { data: admin, error: adminError } = await supabase
+    const { data: admin, error: adminError } = await supabaseAdmin
       .from('admin_users')
       .select('*')
       .eq('auth_user_id', user.id)

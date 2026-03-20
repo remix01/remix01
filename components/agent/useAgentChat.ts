@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useAuth } from '@/lib/auth/AuthContext'
 
 export type ChatMessage = {
   id: string
@@ -29,6 +30,7 @@ function saveUnread(n: number) {
 }
 
 export function useAgentChat() {
+  const { user, isLoading: authLoading } = useAuth()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpenState] = useState(false)
@@ -37,8 +39,14 @@ export function useAgentChat() {
   const [lastError, setLastError] = useState<string | null>(null)
   const historyLoaded = useRef(false)
 
-  // Load conversation history from server on first mount
+  // Load conversation history from server AFTER auth is ready
   useEffect(() => {
+    // Skip if auth is still loading or user is not authenticated
+    if (authLoading || !user) {
+      return
+    }
+
+    // Skip if already loaded
     if (historyLoaded.current) return
     historyLoaded.current = true
 
@@ -57,11 +65,12 @@ export function useAgentChat() {
         setMessages(loaded)
         setConnectionStatus('connected')
       })
-      .catch(() => {
+      .catch(err => {
         // Silently fail — chat works without history
+        console.error('[v0] Failed to load chat history:', err)
         setConnectionStatus('idle')
       })
-  }, [])
+  }, [authLoading, user])
 
   // Restore unread count from localStorage on mount
   useEffect(() => {
