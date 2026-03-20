@@ -24,10 +24,31 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  const start = Date.now()
+  console.log(JSON.stringify({ level: 'info', message: '[event-processor] start', ranAt: new Date().toISOString() }))
+
   try {
     const result = await outbox.processPendingBatch(50)
 
-    // Write heartbeat for cron dead-man check
+    const durationMs = Date.now() - start
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] completed',
+      processed: result.processed,
+      failed: result.failed,
+      durationMs,
+    }))
+
+    if (result.failed > 0) {
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] batch had failures',
+        failed: result.failed,
+        processed: result.processed,
+      }))
+    }
+
+    // Write heartbeat for dead-man check
     const supabase = createAdminClient()
     await supabase.from('alert_log').insert({
       alert_type: 'cron_dead',
@@ -42,16 +63,10 @@ export async function GET(req: NextRequest) {
       resolved: true,
     })
 
-    return NextResponse.json({
-      ok: true,
-      processed: result.processed,
-      failed: result.failed,
-    })
+    return NextResponse.json({ ok: true, processed: result.processed, failed: result.failed, durationMs })
   } catch (err) {
-    console.error('[Cron] Event processor error:', err)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    const durationMs = Date.now() - start
+    console.error(JSON.stringify({ level: 'error', message: '[event-processor] error', error: String(err), durationMs }))
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
