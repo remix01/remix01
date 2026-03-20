@@ -6,8 +6,9 @@
  * - Partner rating/quality (max 30 points)
  * - Response rate performance (max 20 points)
  * - Category expertise match (max 10 points)
+ * - Subscription tier boost (multiplier: 1.0 START, 1.2 PRO, 1.4 ELITE)
  * 
- * Composite score: 0-100 for each partner
+ * Composite score: 0-100+ for each partner (with boost applied)
  * Returns: Top 5 matches sorted by finalScore DESC
  * Performance: Target < 500ms execution time
  */
@@ -21,6 +22,8 @@ export interface MatchBreakdown {
   ratingScore: number
   responseScore: number
   categoryScore: number
+  subscriptionBoost: number
+  baseScore: number
 }
 
 export interface MatchResult {
@@ -30,6 +33,7 @@ export interface MatchResult {
   breakdown: MatchBreakdown
   distanceKm: number
   estimatedResponseMinutes: number
+  subscriptionTier: string
 }
 
 interface MatchingInput {
@@ -106,6 +110,27 @@ function scoreCategory(
 }
 
 /**
+ * Calculate subscription tier boost multiplier
+ * START (free): 1.0x (no boost)
+ * PRO (€29/mo): 1.2x (+20%)
+ * ELITE (€79/mo): 1.4x (+40%)
+ * enterprise: 1.5x (+50%)
+ */
+function getSubscriptionBoostMultiplier(tier: string | null): number {
+  switch (tier?.toLowerCase()) {
+    case 'pro':
+      return 1.2
+    case 'elite':
+      return 1.4
+    case 'enterprise':
+      return 1.5
+    case 'start':
+    default:
+      return 1.0
+  }
+}
+
+/**
  * Filter partners by eligibility requirements
  */
 function filterEligiblePartners(
@@ -116,6 +141,7 @@ function filterEligiblePartners(
     avg_rating: number
     total_reviews: number
     categories: string[]
+    subscription_tier?: string | null
   }>,
   categoryId: string
 ): Array<{
@@ -125,6 +151,7 @@ function filterEligiblePartners(
   avg_rating: number
   total_reviews: number
   categories: string[]
+  subscription_tier?: string | null
 }> {
   return partners.filter((p) => {
     // Must be verified
@@ -145,7 +172,7 @@ function filterEligiblePartners(
 
 /**
  * Main matching algorithm
- * Calculates composite score for each eligible partner
+ * Calculates composite score for each eligible partner, with subscription boost applied
  */
 export async function matchPartnersForRequest(input: MatchingInput) {
   const startTime = Date.now()
@@ -164,7 +191,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       throw new Error('Povpraševanja ni bilo mogoče naložiti')
     }
 
-    // 2. Fetch all eligible partners with their categories
+    // 2. Fetch all eligible partners with their categories AND subscription tier
     const { data: partnersData, error: partnersError } = await supabase
       .from('obrtnik_profiles')
       .select(
@@ -177,7 +204,8 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         response_time_hours,
         profile:profiles(
           location_city,
-          location_region
+          location_region,
+          subscription_tier
         ),
         obrtnik_categories!obrtnik_id(
           category_id
@@ -191,7 +219,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       throw new Error('Obrtnike ni bilo mogoče naložiti')
     }
 
-    // 3. Transform data and extract categories
+    // 3. Transform data and extract categories and subscription tier
     const partnersWithCategories = partnersData.map((p: any) => ({
       id: p.id,
       is_verified: p.is_verified,
@@ -200,6 +228,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       total_reviews: p.total_reviews || 0,
       response_time_hours: p.response_time_hours || null,
       profile: p.profile,
+      subscription_tier: p.profile?.subscription_tier || 'start',
       categories: (p.obrtnik_categories || []).map((c: any) => c.category_id),
     }))
 
@@ -235,7 +264,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
           )
         }
 
-        // Score components
+        // Score components (base score: 0-100)
         const locationScore = scoreLocation(distance)
         const ratingScore = scoreRating(partner.avg_rating)
         const responseScore = scoreResponse(partner.response_time_hours)
@@ -244,8 +273,15 @@ export async function matchPartnersForRequest(input: MatchingInput) {
           input.categoryId
         )
 
-        const finalScore =
+        const baseScore =
           locationScore + ratingScore + responseScore + categoryScore
+
+        // Apply subscription tier boost
+        const boostMultiplier = getSubscriptionBoostMultiplier(
+          partner.subscription_tier
+        )
+        const subscriptionBoost = (boostMultiplier - 1) * baseScore * 100 // Convert to points for logging
+        const finalScore = baseScore * boostMultiplier
 
         return {
           partnerId: partner.id,
@@ -255,11 +291,14 @@ export async function matchPartnersForRequest(input: MatchingInput) {
             ratingScore,
             responseScore,
             categoryScore,
+            subscriptionBoost: Math.round(subscriptionBoost * 100) / 100,
+            baseScore: Math.round(baseScore * 100) / 100,
           },
           distanceKm: Math.round(distance * 10) / 10,
           estimatedResponseMinutes: partner.response_time_hours
             ? Math.round(partner.response_time_hours * 60)
             : 120,
+          subscriptionTier: partner.subscription_tier,
         }
       })
       .sort((a, b) => b.score - a.score)
@@ -274,7 +313,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       }
     }
 
-    // 7. Log results
+    // 7. Log results with enhanced details
     const executionTime = Date.now() - startTime
     const { data: logData, error: logError } = await supabase
       .from('matching_logs')
@@ -282,8 +321,9 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         request_id: input.requestId,
         top_partner_id: topMatches[0].partnerId,
         top_score: topMatches[0].score,
+        top_partner_tier: topMatches[0].subscriptionTier,
         all_matches: topMatches,
-        algorithm_version: '1.0',
+        algorithm_version: '2.0-subscription-boost',
         execution_time_ms: executionTime,
       })
       .select('id')
@@ -293,6 +333,11 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       console.error('[v0] Error logging matching results:', logError)
       // Don't fail - still return matches even if logging fails
     }
+
+    // 8. Log subscription boost details
+    console.log(
+      `[Matching] Request ${input.requestId}: Top match = ${topMatches[0].partnerId} (${topMatches[0].subscriptionTier.toUpperCase()}) with score ${topMatches[0].score} (base: ${topMatches[0].breakdown.baseScore}, boost: +${topMatches[0].breakdown.subscriptionBoost})`
+    )
 
     return {
       matches: topMatches,

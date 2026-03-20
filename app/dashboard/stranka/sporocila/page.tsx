@@ -23,7 +23,7 @@ export default function StankaSporocila() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        redirect('/login')
+        redirect('/prijava')
       }
       setCurrentUser(user)
     }

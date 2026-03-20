@@ -15,23 +15,30 @@ export default async function NarocnikLayout({
 }) {
   const supabase = await createClient()
 
-  // Check authentication
+  // Check authentication - getUser() from server client with cookies
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/prijava')
+    console.log('[v0] Narocnik layout: No authenticated user, redirecting to login')
+    redirect('/prijava?redirectTo=/dashboard')
   }
 
-  // Fetch profile
+  // Fetch profile with error handling
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role, full_name')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
-  // Check profile exists and has correct role
-  if (profileError || !profile || profile.role !== 'narocnik') {
-    redirect('/partner-dashboard')
+  // If profile doesn't exist or user is not narocnik, redirect appropriately
+  if (profileError || !profile) {
+    console.log('[v0] Narocnik layout: Profile not found, redirecting to registration')
+    redirect('/registracija')
+  }
+
+  if (profile.role !== 'narocnik') {
+    console.log(`[v0] Narocnik layout: User has role ${profile.role}, not narocnik, redirecting`)
+    redirect(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
   }
 
   return (

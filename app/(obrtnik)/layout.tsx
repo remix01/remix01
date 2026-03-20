@@ -16,22 +16,27 @@ export default async function ObrtknikLayout({
 }) {
   const supabase = await createClient()
 
-  // Get authenticated user
-  const { data: { user } } = await supabase.auth.getUser()
+  // Get authenticated user with proper error handling
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
   if (!user) {
-    redirect('/partner-auth/login')
+    console.log('[v0] Obrtnik layout: No authenticated user, redirecting to partner login')
+    redirect('/partner-auth/login?redirectTo=/partner-dashboard')
   }
 
-  // Get obrtnik profile
-  const { data: profile } = await supabase
+  // Get obrtnik profile (id = auth user id, no separate user_id column)
+  const { data: profile, error: profileError } = await supabase
     .from('obrtnik_profiles')
     .select('*')
-    .eq('user_id', user.id)
-    .single()
+    .eq('id', user.id)
+    .maybeSingle()
 
-  if (!profile) {
+  if (profileError || !profile) {
+    console.log(`[v0] Obrtnik layout: Profile not found for user ${user.id}, redirecting`)
     redirect('/partner-auth/login')
   }
+
+  console.log(`[v0] Obrtnik layout: User ${user.id} has obrtnik profile, allowing access`)
 
   return (
     <div className="flex flex-col md:flex-row md:min-h-screen bg-background">

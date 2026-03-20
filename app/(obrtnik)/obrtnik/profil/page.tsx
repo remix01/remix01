@@ -7,7 +7,9 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, CheckCircle, Upload, LogOut } from 'lucide-react'
+import { FileUploadZone } from '@/components/file-upload-zone'
+import { uploadFile, generateFilePath } from '@/lib/storage'
+import { AlertCircle, CheckCircle, LogOut } from 'lucide-react'
 
 export default function ProfilPage() {
   const router = useRouter()
@@ -40,6 +42,10 @@ export default function ProfilPage() {
   const [allCategories, setAllCategories] = useState<any[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [savingCategories, setSavingCategories] = useState(false)
+
+  // Section 4: Certificates
+  const [certificateUrls, setCertificateUrls] = useState<string[]>([])
+  const [savingCertificates, setSavingCertificates] = useState(false)
 
   // UI State
   const [loading, setLoading] = useState(true)
@@ -600,7 +606,80 @@ export default function ProfilPage() {
         )}
       </Card>
 
-      {/* Section 4: Password */}
+      {/* Section 4: Certificates and Documents */}
+      <Card className="p-6 space-y-4">
+        <h2 className="text-xl font-bold">Certifikati in reference</h2>
+        <p className="text-sm text-gray-600">
+          Naložite certifikate, licence in reference v PDF ali slikah
+        </p>
+
+        <FileUploadZone
+          accept="image/*,application/pdf"
+          maxFiles={10}
+          maxSizeMB={5}
+          label="Dodajte certifikate, licence ali reference"
+          sublabel="PDF ali slike, max 5MB vsaka - do 10 datotek"
+          onFilesChange={async (files) => {
+            if (files.length > 0) {
+              setSavingCertificates(true)
+              try {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) return
+
+                const urls: string[] = []
+                for (const file of files) {
+                  const path = generateFilePath(user.id, file.name)
+                  const { url, error } = await uploadFile('certificates', path, file)
+                  if (url) {
+                    urls.push(url)
+                  } else {
+                    console.error('[v0] Upload error:', error)
+                  }
+                }
+
+                // Save certificate URLs to database
+                const { error } = await supabase
+                  .from('obrtnik_profiles')
+                  .update({ certificate_urls: urls })
+                  .eq('id', user.id)
+
+                if (error) throw error
+
+                setCertificateUrls(urls)
+                setSuccessMessage('Certifikati uspešno naloženi!')
+                setTimeout(() => setSuccessMessage(''), 3000)
+              } catch (err) {
+                console.error('[v0] Error saving certificates:', err)
+                setErrorMessage('Napaka pri nalaganju certifikatov')
+              } finally {
+                setSavingCertificates(false)
+              }
+            }
+          }}
+        />
+
+        {certificateUrls.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm font-medium">Naloženi certifikati:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {certificateUrls.map((url, idx) => (
+                <a
+                  key={idx}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 border rounded-lg text-sm text-blue-600 hover:bg-blue-50 flex items-center justify-between"
+                >
+                  <span className="truncate">Certifikat {idx + 1}</span>
+                  <span className="text-xs">→</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Section 5: Security */}
       <Card className="p-6 space-y-4">
         <h2 className="text-xl font-bold">Varnost</h2>
 

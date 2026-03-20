@@ -207,7 +207,7 @@ export async function orchestrate(
     // Call Claude
     const llmStartedAt = Date.now()
     const llmSpan = tracer.startSpan('llm.call', rootSpan, {
-      model:        'claude-sonnet-4-6',
+      model:        'claude-sonnet-4-5-20250514',
       messageCount: messages.length,
     })
 
@@ -216,11 +216,11 @@ export async function orchestrate(
       userId: context.userId,
       level: 'debug',
       event: 'llm_call_started',
-      params: { model: 'claude-sonnet-4-6', messageCount: messages.length },
+      params: { model: 'claude-sonnet-4-5-20250514', messageCount: messages.length },
     })
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-4-5-20250514',
       max_tokens: 1024,
       system: systemPrompt,
       messages,

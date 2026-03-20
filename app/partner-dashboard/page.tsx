@@ -11,6 +11,7 @@ import { OffersList } from '@/components/partner/offers-list'
 import { PartnerStats } from '@/components/partner/partner-stats'
 import { PaymentsSection } from '@/components/partner/payments-section'
 import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
+import { ReferralSection } from '@/components/partner/ReferralSection'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -263,6 +264,7 @@ export default function PartnerDashboard() {
                 <TabsTrigger value="overview">Pregled</TabsTrigger>
                 <TabsTrigger value="offers">Ponudbe ({offers.length})</TabsTrigger>
                 <TabsTrigger value="payments">Plačila</TabsTrigger>
+                <TabsTrigger value="referral">Povabi prijatelje</TabsTrigger>
                 <TabsTrigger value="notifications">Obvestila</TabsTrigger>
                 <TabsTrigger value="new-offer">Nova ponudba</TabsTrigger>
               </TabsList>
@@ -281,6 +283,10 @@ export default function PartnerDashboard() {
 
             <TabsContent value="payments" className="space-y-6">
               <PaymentsSection partnerId={partner.id} />
+            </TabsContent>
+
+            <TabsContent value="referral" className="space-y-6">
+              <ReferralSection />
             </TabsContent>
 
             <TabsContent value="notifications" className="space-y-6">

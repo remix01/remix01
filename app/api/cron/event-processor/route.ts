@@ -9,7 +9,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { outbox } from '@/lib/events/outbox'
-import { createAdminClient } from '@/lib/supabase/server'
 
 export async function GET(req: NextRequest) {
   // Verify CRON_SECRET
@@ -30,38 +29,9 @@ export async function GET(req: NextRequest) {
   try {
     const result = await outbox.processPendingBatch(50)
 
-    const durationMs = Date.now() - start
-    console.log(JSON.stringify({
-      level: 'info',
-      message: '[event-processor] completed',
-      processed: result.processed,
-      failed: result.failed,
-      durationMs,
-    }))
-
-    if (result.failed > 0) {
-      console.error(JSON.stringify({
-        level: 'error',
-        message: '[event-processor] batch had failures',
-        failed: result.failed,
-        processed: result.processed,
-      }))
-    }
-
-    // Write heartbeat for dead-man check
-    const supabase = createAdminClient()
-    await supabase.from('alert_log').insert({
-      alert_type: 'cron_dead',
-      severity: 'warn',
-      message: 'event-processor heartbeat',
-      metadata: {
-        type: 'heartbeat',
-        processed: result.processed,
-        failed: result.failed,
-        ranAt: new Date().toISOString(),
-      },
-      resolved: true,
-    })
+    // Heartbeat is implicit in the HTTP response — health-sweep cron handles
+    // dead-man alerting via checkEventLag() if outbox backlog accumulates.
+    // Do NOT insert into alert_log here: that table is for real alerts only.
 
     return NextResponse.json({ ok: true, processed: result.processed, failed: result.failed, durationMs })
   } catch (err) {

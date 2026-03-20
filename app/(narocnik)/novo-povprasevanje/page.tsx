@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createPovprasevanje } from '@/lib/dal/povprasevanja'
 import { getActiveCategories } from '@/lib/dal/categories'
+import { uploadFile, generateFilePath } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,9 +14,13 @@ import { Card } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
+import { FileUploadZone } from '@/components/file-upload-zone'
 import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/marketplace'
 import * as LucideIcons from 'lucide-react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
+import { TaskDescriptionAssistant } from '@/components/agent/TaskDescriptionAssistant'
+import { VideoDiagnosisAssistant } from '@/components/agent/VideoDiagnosisAssistant'
+import { AgentDialog } from '@/components/agents/AgentDialog'
 
 // Helper to get icon component from name
 function getIconComponent(iconName?: string) {
@@ -48,6 +53,7 @@ export default function NovoPoVprasevanjePage() {
   const [budgetMin, setBudgetMin] = useState<number | ''>('')
   const [budgetMax, setBudgetMax] = useState<number | ''>('')
   const [pricingEstimate, setPricingEstimate] = useState<any>(null)
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
 
   // Fetch user and categories on mount
   useEffect(() => {
@@ -147,6 +153,7 @@ export default function NovoPoVprasevanjePage() {
         preferred_date_to: preferredDateTo || undefined,
         budget_min: !budgetUndetermined && budgetMin ? Number(budgetMin) : undefined,
         budget_max: !budgetUndetermined && budgetMax ? Number(budgetMax) : undefined,
+        attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
       }
 
       const result = await createPovprasevanje(povprasevanje)
@@ -274,6 +281,15 @@ export default function NovoPoVprasevanjePage() {
         {/* Step 2: Opis dela */}
         {step === 2 && (
           <div className="space-y-6">
+            {/* Video Diagnosis Assistant */}
+            <VideoDiagnosisAssistant
+              onApply={(desc, title, _category, urgencyVal) => {
+                if (desc) setDescription(desc)
+                if (title) setTitle(title)
+                if (urgencyVal) setUrgency(urgencyVal as UrgencyLevel)
+              }}
+            />
+
             <div>
               <Label htmlFor="title" className="text-sm font-medium mb-2 block">
                 Naslov <span className="text-red-500">*</span>
@@ -289,9 +305,18 @@ export default function NovoPoVprasevanjePage() {
             </div>
 
             <div>
-              <Label htmlFor="description" className="text-sm font-medium mb-2 block">
-                Opis dela <span className="text-red-500">*</span>
-              </Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="description" className="text-sm font-medium">
+                  Opis dela <span className="text-red-500">*</span>
+                </Label>
+                <AgentDialog
+                  agentType="work_description"
+                  context={selectedCategory ? { category: selectedCategory.name, currentTitle: title } : undefined}
+                  triggerLabel="Pomoč pri opisu"
+                  triggerClassName="text-xs text-teal-600 border-teal-200 hover:bg-teal-50 gap-1"
+                  initialMessage="Pomagaj mi opisati delo za povpraševanje."
+                />
+              </div>
               <Textarea
                 id="description"
                 value={description}
@@ -305,6 +330,16 @@ export default function NovoPoVprasevanjePage() {
                 Najmanj 20 znakov ({description.length}/20)
               </p>
             </div>
+
+            {/* Task Description Assistant */}
+            <TaskDescriptionAssistant
+              category={selectedCategory?.name}
+              existingDescription={description}
+              onApply={(desc, suggestedTitle) => {
+                setDescription(desc)
+                if (suggestedTitle && !title) setTitle(suggestedTitle)
+              }}
+            />
 
             <div>
               <Label className="text-sm font-medium mb-3 block">
@@ -326,6 +361,36 @@ export default function NovoPoVprasevanjePage() {
                   ))}
                 </div>
               </RadioGroup>
+            </div>
+
+            <div>
+              <FileUploadZone
+                accept="image/*,video/*"
+                maxFiles={5}
+                maxSizeMB={100}
+                label="Priložite fotografije ali video problema (neobvezno)"
+                sublabel="Slike in videi pomagajo mojstrom pri boljši oceni dela"
+                onFilesChange={async (files) => {
+                  if (files.length > 0) {
+                    setLoading(true)
+                    const urls: string[] = []
+                    try {
+                      for (const file of files) {
+                        const path = generateFilePath(user?.id || 'unknown', file.name)
+                        const { url, error } = await uploadFile('inquiry-attachments', path, file)
+                        if (url) {
+                          urls.push(url)
+                        } else {
+                          console.error('[v0] Upload error:', error)
+                        }
+                      }
+                      setAttachmentUrls(urls)
+                    } finally {
+                      setLoading(false)
+                    }
+                  }
+                }}
+              />
             </div>
 
             <div className="flex justify-between gap-2 mt-8">
@@ -376,7 +441,7 @@ export default function NovoPoVprasevanjePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="dateFrom" className="text-sm font-medium mb-2 block">
-                  Želeni začetek
+                  Želeni za��etek
                 </Label>
                 <Input
                   id="dateFrom"

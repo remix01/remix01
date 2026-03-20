@@ -8,6 +8,7 @@ import { registerAnalyticsSubscriber } from './subscribers/analyticsSubscriber'
 import { registerNotificationSubscriber } from './subscribers/notificationSubscriber'
 import { registerAIInsightSubscriber } from './subscribers/aiInsightSubscriber'
 import { registerEscrowSubscriber } from './subscribers/escrowSubscriber'
+import { registerCommissionSubscriber } from './subscribers/commissionSubscriber'
 
 export { eventBus } from './eventBus'
 export * from './eventTypes'
@@ -23,4 +24,5 @@ export function initEventSubscribers() {
   registerNotificationSubscriber()
   registerAIInsightSubscriber()
   registerEscrowSubscriber()
+  registerCommissionSubscriber()
 }

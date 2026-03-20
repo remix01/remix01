@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache';
 import type { Vloga } from '@/hooks/use-admin-role';
 
@@ -23,14 +24,15 @@ async function checkSuperAdminPermission() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user?.email) {
+  if (!user?.id) {
     throw new Error('Unauthorized');
   }
 
-  const { data: admin } = await supabase
+  const { data: admin } = await supabaseAdmin
     .from('admin_users')
     .select('*')
-    .eq('email', user.email)
+    .eq('auth_user_id', user.id)
+    .eq('aktiven', true)
     .single()
 
   if (!admin || admin.vloga !== 'SUPER_ADMIN') {
@@ -42,24 +44,19 @@ async function checkSuperAdminPermission() {
 
 export async function createZaposleni(input: CreateZaposleniInput) {
   try {
-    const superAdmin = await checkSuperAdminPermission();
-    const supabase = await createClient()
+    await checkSuperAdminPermission();
 
-    // Check if email already exists
-    const { data: existingZaposleni } = await supabase
+    const { data: existingZaposleni } = await supabaseAdmin
       .from('zaposleni')
-      .select('*')
+      .select('id')
       .eq('email', input.email)
       .single()
 
     if (existingZaposleni) {
-      return {
-        success: false,
-        error: 'Email already exists',
-      };
+      return { success: false, error: 'Email already exists' };
     }
 
-    const { data: zaposleni, error } = await supabase
+    const { data: zaposleni, error } = await supabaseAdmin
       .from('zaposleni')
       .insert([{
         email: input.email,
@@ -74,11 +71,7 @@ export async function createZaposleni(input: CreateZaposleniInput) {
     if (error) throw error
 
     revalidatePath('/admin/zaposleni');
-
-    return {
-      success: true,
-      data: zaposleni,
-    };
+    return { success: true, data: zaposleni };
   } catch (error) {
     return {
       success: false,
@@ -90,7 +83,6 @@ export async function createZaposleni(input: CreateZaposleniInput) {
 export async function updateZaposleni(input: UpdateZaposleniInput) {
   try {
     await checkSuperAdminPermission();
-    const supabase = await createClient()
 
     const updateData: any = {}
     if (input.ime) updateData.ime = input.ime
@@ -98,7 +90,7 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
     if (input.vloga) updateData.vloga = input.vloga
     if (input.aktiven !== undefined) updateData.aktiven = input.aktiven
 
-    const { data: zaposleni, error } = await supabase
+    const { data: zaposleni, error } = await supabaseAdmin
       .from('zaposleni')
       .update(updateData)
       .eq('id', input.id)
@@ -108,11 +100,7 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
     if (error) throw error
 
     revalidatePath('/admin/zaposleni');
-
-    return {
-      success: true,
-      data: zaposleni,
-    };
+    return { success: true, data: zaposleni };
   } catch (error) {
     return {
       success: false,
@@ -124,9 +112,8 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
 export async function deleteZaposleni(id: string) {
   try {
     await checkSuperAdminPermission();
-    const supabase = await createClient()
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('zaposleni')
       .delete()
       .eq('id', id)
@@ -134,10 +121,7 @@ export async function deleteZaposleni(id: string) {
     if (error) throw error
 
     revalidatePath('/admin/zaposleni');
-
-    return {
-      success: true,
-    };
+    return { success: true };
   } catch (error) {
     return {
       success: false,
@@ -151,31 +135,25 @@ export async function getZaposleniList() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user?.email) {
-      throw new Error('Unauthorized');
-    }
+    if (!user?.id) throw new Error('Unauthorized');
 
-    const { data: admin } = await supabase
+    const { data: admin } = await supabaseAdmin
       .from('admin_users')
-      .select('*')
-      .eq('email', user.email)
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
       .single()
 
-    if (!admin) {
-      throw new Error('Not an admin');
-    }
+    if (!admin) throw new Error('Not an admin');
 
-    const { data: zaposlenci, error } = await supabase
+    const { data: zaposlenci, error } = await supabaseAdmin
       .from('zaposleni')
       .select('*')
       .order('id', { ascending: false })
 
     if (error) throw error
 
-    return {
-      success: true,
-      data: zaposlenci || [],
-    };
+    return { success: true, data: zaposlenci || [] };
   } catch (error) {
     return {
       success: false,
@@ -189,34 +167,26 @@ export async function getZaposleniById(id: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user?.email) {
-      throw new Error('Unauthorized');
-    }
+    if (!user?.id) throw new Error('Unauthorized');
 
-    const { data: admin } = await supabase
+    const { data: admin } = await supabaseAdmin
       .from('admin_users')
-      .select('*')
-      .eq('email', user.email)
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
       .single()
 
-    if (!admin) {
-      throw new Error('Not an admin');
-    }
+    if (!admin) throw new Error('Not an admin');
 
-    const { data: zaposleni, error } = await supabase
+    const { data: zaposleni, error } = await supabaseAdmin
       .from('zaposleni')
       .select('*')
       .eq('id', id)
       .single()
 
-    if (error || !zaposleni) {
-      throw new Error('Employee not found');
-    }
+    if (error || !zaposleni) throw new Error('Employee not found');
 
-    return {
-      success: true,
-      data: zaposleni,
-    };
+    return { success: true, data: zaposleni };
   } catch (error) {
     return {
       success: false,
@@ -224,4 +194,3 @@ export async function getZaposleniById(id: string) {
     };
   }
 }
-

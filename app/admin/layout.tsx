@@ -9,25 +9,29 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Server-side admin check
+  // Server-side admin check using server Supabase client
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/prijava')
+    console.log('[v0] Admin layout: No authenticated user, redirecting to login')
+    redirect('/prijava?redirectTo=/admin')
   }
 
-  // Check if user is an admin in database
-  const { data: adminUser, error } = await supabase
+  // Check if user is an active admin in database
+  const { data: adminUser, error: adminError } = await supabase
     .from('admin_users')
     .select('*')
     .eq('auth_user_id', user.id)
     .eq('aktiven', true)
     .maybeSingle()
 
-  if (error || !adminUser) {
+  if (adminError || !adminUser) {
+    console.log(`[v0] Admin layout: User ${user.id} is not an active admin, redirecting`)
     redirect('/prijava')
   }
+
+  console.log(`[v0] Admin layout: User ${user.id} is admin, allowing access`)
 
   return (
     <AdminAuthProvider>

@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 export interface ObrtnikiFilter {
   minRating?: number
   search?: string
+  kategorija?: string   // category slug
+  lokacija?: string    // city name
   limit?: number
   offset?: number
 }
@@ -12,10 +14,14 @@ export interface ObrtnikiPublic {
   id: string
   business_name: string
   description: string | null
+  tagline: string | null
   is_verified: boolean
   avg_rating: number
+  total_reviews: number
+  is_available: boolean
   subscription_tier: 'start' | 'pro'
-  stripe_customer_id: string | null
+  hourly_rate: number | null
+  years_experience: number | null
   created_at: string
   profiles: {
     id: string
@@ -25,6 +31,7 @@ export interface ObrtnikiPublic {
     location_city: string | null
     location_region: string | null
   }
+  categories: Array<{ name: string; slug: string; icon_name: string | null }>
 }
 
 /**
@@ -41,10 +48,14 @@ export async function listVerifiedObrtniki(
       `id,
        business_name,
        description,
+       tagline,
        is_verified,
        avg_rating,
+       total_reviews,
+       is_available,
        subscription_tier,
-       stripe_customer_id,
+       hourly_rate,
+       years_experience,
        created_at,
        profiles!inner(
          id,
@@ -53,9 +64,17 @@ export async function listVerifiedObrtniki(
          full_name,
          location_city,
          location_region
+       ),
+       obrtnik_categories(
+         categories(
+           name,
+           slug,
+           icon_name
+         )
        )`
     )
     .eq('is_verified', true)
+    .order('subscription_tier', { ascending: false }) // PRO first
     .order('avg_rating', { ascending: false })
 
   // Rating filter
@@ -63,12 +82,15 @@ export async function listVerifiedObrtniki(
     query = query.gte('avg_rating', filters.minRating)
   }
 
-  // Search by business_name or description
+  // Search by business_name, description or tagline
   if (filters?.search) {
-    const searchTerm = `%${filters.search}%`
-    query = query.or(
-      `business_name.ilike.${searchTerm},description.ilike.${searchTerm}`
-    )
+    const s = `%${filters.search}%`
+    query = query.or(`business_name.ilike.${s},description.ilike.${s},tagline.ilike.${s}`)
+  }
+
+  // Location filter
+  if (filters?.lokacija) {
+    query = query.eq('profiles.location_city', filters.lokacija)
   }
 
   // Pagination
@@ -83,7 +105,21 @@ export async function listVerifiedObrtniki(
     return []
   }
 
-  return data || []
+  // Flatten categories + apply category slug filter client-side
+  let results = (data || []).map((row: any) => ({
+    ...row,
+    categories: (row.obrtnik_categories || [])
+      .map((oc: any) => oc.categories)
+      .filter(Boolean),
+  }))
+
+  if (filters?.kategorija) {
+    results = results.filter((r: any) =>
+      r.categories.some((c: any) => c.slug === filters.kategorija)
+    )
+  }
+
+  return results
 }
 
 /**
@@ -95,26 +131,57 @@ export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null
   const { data, error } = await supabase
     .from('obrtnik_profiles')
     .select(
-      `id,
-       business_name,
-       description,
-       is_verified,
-       avg_rating,
-       subscription_tier,
-       stripe_customer_id,
-       created_at,
-       profiles!inner(*)`
+      `id, business_name, description, tagline, is_verified, avg_rating,
+       total_reviews, is_available, subscription_tier, hourly_rate,
+       years_experience, created_at,
+       profiles!inner(*),
+       obrtnik_categories(categories(name, slug, icon_name))`
     )
     .eq('id', id)
     .eq('is_verified', true)
     .maybeSingle()
 
-  if (error) {
-    console.error('Error fetching obrtnik_profile:', error)
-    return null
-  }
+  if (error || !data) return null
 
-  return data
+  return {
+    ...(data as any),
+    categories: ((data as any).obrtnik_categories || [])
+      .map((oc: any) => oc.categories)
+      .filter(Boolean),
+  }
+}
+
+/**
+ * Get active specialnosti (categories) from DB
+ */
+export async function getActiveSpecialnosti(): Promise<Array<{ name: string; slug: string }>> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('categories')
+    .select('name, slug')
+    .eq('is_active', true)
+    .order('sort_order')
+  if (error) return []
+  return data || []
+}
+
+/**
+ * Get unique cities from verified obrtnik profiles
+ */
+export async function getActiveLokacije(): Promise<string[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('obrtnik_profiles')
+    .select('profiles!inner(location_city)')
+    .eq('is_verified', true)
+    .not('profiles.location_city', 'is', null)
+  if (error) return []
+  const cities = new Set<string>()
+  ;(data || []).forEach((row: any) => {
+    const city = row.profiles?.location_city || row.profiles?.[0]?.location_city
+    if (city) cities.add(city)
+  })
+  return Array.from(cities).sort()
 }
 
 /**
@@ -122,63 +189,11 @@ export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null
  */
 export async function getObrtnikiPovprasevanja(obrtnikiId: string) {
   const supabase = await createClient()
-
   const { data, error } = await supabase
     .from('povprasevanja')
     .select('*')
     .eq('obrtnik_id', obrtnikiId)
     .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching povprasevanja:', error)
-    return []
-  }
-
+  if (error) return []
   return data || []
-}
-
-/**
- * Get dummy specialnosti - TODO: Replace with actual obrtnik_categories table
- */
-export async function getActiveSpecialnosti(): Promise<string[]> {
-  // TODO: When obrtnik_categories table exists, query it directly
-  // For now, return placeholder data
-  return [
-    'Vodovodna dela',
-    'Elektrika',
-    'Krovske storitve',
-    'Tesarstvo',
-    'Keramika',
-    'Obiranje',
-    'Hlladilna tehnika',
-    'Garaže',
-  ]
-}
-
-/**
- * Get unique locations from profiles - TODO: Improve with dedicated locations table
- */
-export async function getActiveLokacije(): Promise<string[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('location_city')
-    .not('location_city', 'is', null)
-    .eq('role', 'obrtnik')
-
-  if (error) {
-    console.error('Error fetching locations:', error)
-    return []
-  }
-
-  // Deduplicate and sort
-  const locations = new Set<string>()
-  data?.forEach((row) => {
-    if (row.location_city) {
-      locations.add(row.location_city)
-    }
-  })
-
-  return Array.from(locations).sort()
 }

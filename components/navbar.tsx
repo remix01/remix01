@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [dashboardPath, setDashboardPath] = useState('/dashboard')
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   const scrollToForm = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -51,6 +52,38 @@ export function Navbar() {
         const { data: { user }, error } = await supabase.auth.getUser()
         if (isMounted && !error && user) {
           setUserId(user.id)
+          
+          // Določi pravilno pot na osnovi vloge
+          const { data: adminUser } = await supabase
+            .from('admin_users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .maybeSingle()
+
+          if (adminUser) {
+            setDashboardPath('/admin')
+          } else {
+            const { data: partner } = await supabase
+              .from('partners')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle()
+            
+            if (partner) {
+              setDashboardPath('/partner-dashboard')
+            } else {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle()
+              
+              if (profile?.role === 'obrtnik') {
+                setDashboardPath('/obrtnik/dashboard')
+              }
+              // else ostane /dashboard (default za naročnika)
+            }
+          }
         }
       } catch (err) {
         if (isMounted) {
@@ -105,7 +138,9 @@ export function Navbar() {
           <div className="hidden gap-3 lg:flex items-center">
             <NotificationBellClient userId={userId} />
             <Button variant="outline" asChild className="min-h-[48px]">
-              <Link href="/prijava">Prijava</Link>
+              <Link href={userId ? dashboardPath : "/prijava"}>
+                {userId ? "Moj račun" : "Prijava"}
+              </Link>
             </Button>
             <Button asChild className="min-h-[48px]">
               <a href="#oddaj-povprasevanje" onClick={scrollToForm}>
@@ -180,7 +215,9 @@ export function Navbar() {
             </Link>
             <div className="flex flex-col gap-2 pt-4 border-t">
               <Button variant="outline" size="lg" asChild className="w-full min-h-[48px]">
-                <Link href="/prijava" onClick={() => setIsOpen(false)}>Prijava</Link>
+                <Link href={userId ? dashboardPath : "/prijava"} onClick={() => setIsOpen(false)}>
+                  {userId ? "Moj račun" : "Prijava"}
+                </Link>
               </Button>
               <Button size="lg" asChild className="w-full min-h-[48px]">
                 <a href="#oddaj-povprasevanje" onClick={scrollToForm}>

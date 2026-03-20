@@ -69,6 +69,17 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
+  // ── API ROUTES AUTH CHECK ───────────────────────────────
+  // Protect all /api routes with auth validation
+  if (path.startsWith('/api/') && !path.startsWith('/api/public/')) {
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Nepooblaščen dostop - Prosim, se prijavite.' },
+        { status: 401 }
+      )
+    }
+  }
+
   // ── NAROČNIK dashboard zaščita ──────────────────────────
   // Vse pod /dashboard, /povprasevanja, /profil, /obvestila, /ocena
   // ki niso pod /admin ali /obrtnik
