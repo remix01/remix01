@@ -87,16 +87,27 @@ export function useAgentChat() {
       setLastError(null)
 
       try {
+        // Pass current messages as anonHistory so server can use them
+        // for unauthenticated users (server ignores it for logged-in users)
+        const anonHistory = messages
+          .filter(m => m.status === 'sent')
+          .map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp }))
+
         const response = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: content }),
+          body: JSON.stringify({ message: content, anonHistory }),
         })
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
           const errorMsg = err.error || `Napaka strežnika (${response.status})`
-          setLastError(errorMsg)
+          // requiresLogin: hint to show login prompt
+          if (err.requiresLogin) {
+            setLastError(errorMsg + ' → /prijava')
+          } else {
+            setLastError(errorMsg)
+          }
           throw new Error(errorMsg)
         }
 

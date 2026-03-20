@@ -21,12 +21,14 @@ type StoredMessage = {
   timestamp: number
 }
 
-// GET — load conversation history for the current user
+// GET — load conversation history (empty for unauthenticated visitors)
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+
+    // Unauthenticated visitors get empty history (no persistence)
+    if (!user) return NextResponse.json({ messages: [] })
 
     const { data } = await supabaseAdmin
       .from('agent_conversations')
@@ -58,42 +60,58 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// POST — send a message, get AI response, persist both
+const ANON_MESSAGE_LIMIT = 3
+
+// POST — send a message, get AI response
+// Authenticated users: full history persisted to DB, 20 msg/hour limit
+// Anonymous visitors: in-request context only, 3 msg limit
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
     }
 
-    const { message } = await req.json()
+    const { message, anonHistory } = await req.json()
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
     }
 
-    // Load existing conversation from DB
-    const { data: conv } = await supabaseAdmin
-      .from('agent_conversations')
-      .select('messages')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    let history: StoredMessage[] = []
 
-    const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+    if (user) {
+      // Authenticated: load from DB
+      const { data: conv } = await supabaseAdmin
+        .from('agent_conversations')
+        .select('messages')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      history = Array.isArray(conv?.messages) ? conv.messages : []
 
-    // Rate limiting — max RATE_LIMIT_PER_HOUR user messages per hour
-    const oneHourAgo = Date.now() - 3_600_000
-    const recentUserMessages = history.filter(m => m.role === 'user' && m.timestamp > oneHourAgo)
-    if (recentUserMessages.length >= RATE_LIMIT_PER_HOUR) {
-      return NextResponse.json(
-        { error: `Prekoračili ste omejitev ${RATE_LIMIT_PER_HOUR} sporočil na uro. Poskusite čez eno uro.` },
-        { status: 429 }
-      )
+      // Rate limit for authenticated users
+      const oneHourAgo = Date.now() - 3_600_000
+      const recentUserMessages = history.filter(m => m.role === 'user' && m.timestamp > oneHourAgo)
+      if (recentUserMessages.length >= RATE_LIMIT_PER_HOUR) {
+        return NextResponse.json(
+          { error: `Prekoračili ste omejitev ${RATE_LIMIT_PER_HOUR} sporočil na uro. Poskusite čez eno uro.` },
+          { status: 429 }
+        )
+      }
+    } else {
+      // Anonymous: use client-provided history (no DB), limit to 3 messages
+      history = Array.isArray(anonHistory) ? anonHistory.slice(-10) : []
+      const userMsgCount = history.filter(m => m.role === 'user').length
+      if (userMsgCount >= ANON_MESSAGE_LIMIT) {
+        return NextResponse.json(
+          { error: `Brezplačni klepet je omejen na ${ANON_MESSAGE_LIMIT} sporočila. Za nadaljevanje se prijavite.`, requiresLogin: true },
+          { status: 429 }
+        )
+      }
     }
 
-    // Build Claude message array (no timestamps — just role/content)
+    // Build Claude message array
     const claudeMessages = history.map(m => ({
       role: (m.role === 'agent' ? 'assistant' : 'user') as 'user' | 'assistant',
       content: m.content,
@@ -102,13 +120,22 @@ export async function POST(req: NextRequest) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     const systemPrompt = `Si LiftGO asistent za Slovenijo.
-Pomagaš strankam najti prave mojstre za njihova dela.
+Pomagaš strankam najti prave mojstre za njihova dela ter obratno.
 Odgovarjaš kratko in jasno v slovenščini.
 Ko stranka opiše problem, vprašaj:
 1. Kje se nahaja (mesto)?
 2. Kako nujno je?
 3. Ali ima okvirni proračun?
-Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
+
+Pravilne povezave za uporabnike:
+- Za oddajo povpraševanja: /#oddaj-povprasevanje (forma na domači strani)
+- Za pregled mojstrov: /mojstri
+- Za informacije kako deluje: /kako-deluje
+- Za obrtnike ki želijo postati partnerji: /za-obrtnike
+
+NIKOLI ne uporabi teh napačnih poti:
+- /narocnik/... (napačno)
+- /novo-povprasevanje/obrazec (napačno)`
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
@@ -122,16 +149,17 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
       .map(b => (b as any).text)
       .join('')
 
-    // Persist both messages to DB
-    const updatedHistory: StoredMessage[] = [
-      ...history,
-      { role: 'user', content: message, timestamp: Date.now() },
-      { role: 'agent', content: assistantText, timestamp: Date.now() },
-    ]
-
-    await supabaseAdmin
-      .from('agent_conversations')
-      .upsert({ user_id: user.id, messages: updatedHistory }, { onConflict: 'user_id' })
+    if (user) {
+      // Persist to DB for authenticated users
+      const updatedHistory: StoredMessage[] = [
+        ...history,
+        { role: 'user', content: message, timestamp: Date.now() },
+        { role: 'agent', content: assistantText, timestamp: Date.now() },
+      ]
+      await supabaseAdmin
+        .from('agent_conversations')
+        .upsert({ user_id: user.id, messages: updatedHistory }, { onConflict: 'user_id' })
+    }
 
     return NextResponse.json({ message: assistantText })
   } catch (error) {
