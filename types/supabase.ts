@@ -152,6 +152,47 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['RiskScore']['Row'], 'id' | 'calculatedAt'>
         Update: Partial<Database['public']['Tables']['RiskScore']['Insert']>
       }
+      portfolio_items: {
+        Row: {
+          id: string
+          obrtnik_id: string
+          title: string
+          description: string | null
+          category: string | null
+          completed_at: string | null
+          duration_days: number | null
+          price_approx: number | null
+          location_city: string | null
+          image_urls: string[]
+          is_featured: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['portfolio_items']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          image_urls?: string[]
+          is_featured?: boolean
+          sort_order?: number
+        }
+        Update: Partial<Database['public']['Tables']['portfolio_items']['Insert']>
+      }
+      sporocila: {
+        Row: {
+          id: string
+          povprasevanje_id: string
+          sender_id: string
+          receiver_id: string
+          message: string
+          is_read: boolean
+          read_at: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['sporocila']['Row'], 'id' | 'created_at'> & {
+          is_read?: boolean
+          read_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['sporocila']['Insert']>
+      }
     }
     Views: {}
     Functions: {

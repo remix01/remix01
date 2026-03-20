@@ -1,48 +1,19 @@
 'use client'
 // components/agent/AgentChatButton.tsx
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { MessageCircle } from 'lucide-react'
 import { useAgentChat } from './useAgentChat'
 import { AgentChat } from './AgentChat'
-import { createClient } from '@/lib/supabase/client'
 
 export function AgentChatButton() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isAuthChecked, setIsAuthChecked] = useState(false)
   const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, clearConversation, closeChat, connectionStatus, lastError } = useAgentChat()
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        setIsAuthenticated(!!user)
-      } catch {
-        setIsAuthenticated(false)
-      } finally {
-        setIsAuthChecked(true)
-      }
-    }
-    checkAuth()
-  }, [])
-
-  // Wait for auth check to avoid layout flash
-  if (!isAuthChecked) return null
-
-  const handleOpen = () => {
-    if (!isAuthenticated) {
-      window.location.href = '/prijava'
-      return
-    }
-    setIsOpen()
-  }
 
   return (
     <>
       {!isOpen && (
         <button
-          onClick={handleOpen}
+          onClick={setIsOpen}
           className="fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 flex items-center justify-center transition-all duration-200 z-40 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
           aria-label="Odpri chat z LiftGO asistentom"
           aria-haspopup="dialog"

@@ -36,7 +36,7 @@ type StoredMessage = {
   timestamp: number
 }
 
-// GET — load conversation history for the current user
+// GET — load conversation history (empty for unauthenticated visitors)
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -89,7 +89,11 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// POST — send a message, get AI response, persist both
+const ANON_MESSAGE_LIMIT = 3
+
+// POST — send a message, get AI response
+// Authenticated users: full history persisted to DB, 20 msg/hour limit
+// Anonymous visitors: in-request context only, 3 msg limit
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -107,7 +111,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
     }
 
-    const { message } = await req.json()
+    const { message, anonHistory } = await req.json()
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
     }
@@ -224,13 +228,22 @@ export async function POST(req: NextRequest) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     const systemPrompt = `Si LiftGO asistent za Slovenijo.
-Pomagaš strankam najti prave mojstre za njihova dela.
+Pomagaš strankam najti prave mojstre za njihova dela ter obratno.
 Odgovarjaš kratko in jasno v slovenščini.
 Ko stranka opiše problem, vprašaj:
 1. Kje se nahaja (mesto)?
 2. Kako nujno je?
 3. Ali ima okvirni proračun?
-Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
+
+Pravilne povezave za uporabnike:
+- Za oddajo povpraševanja: /#oddaj-povprasevanje (forma na domači strani)
+- Za pregled mojstrov: /mojstri
+- Za informacije kako deluje: /kako-deluje
+- Za obrtnike ki želijo postati partnerji: /za-obrtnike
+
+NIKOLI ne uporabi teh napačnih poti:
+- /narocnik/... (napačno)
+- /novo-povprasevanje/obrazec (napačno)`
 
     const response = await client.messages.create({
       model: modelSelection.modelId,

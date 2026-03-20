@@ -24,11 +24,12 @@ export const healthMonitor = {
     const warn5min = new Date(Date.now() - 5 * 60_000).toISOString()
     const crit90min = new Date(Date.now() - 90 * 60_000).toISOString()
 
-    // Tasks older than 90min in pending/matching → CRITICAL
+    // Povprasevanja older than 90min still open without notified obrtniki → CRITICAL
     const { data: critTasks } = await supabase
-      .from('service_requests')
+      .from('povprasevanja')
       .select('id, created_at, status')
-      .in('status', ['pending', 'matching'])
+      .in('status', ['odprto'])
+      .is('notified_at', null)
       .lte('created_at', crit90min)
       .limit(20)
 
@@ -38,7 +39,7 @@ export const healthMonitor = {
         await alerting.send({
           type: 'sla_critical',
           severity: 'critical',
-          message: `${critTasks.length} task(s) waiting >90min — 2h guarantee at risk!`,
+          message: `${critTasks.length} povprasevanj(e) čaka >90min brez obvestila obrtnikom!`,
           metadata: {
             taskIds: critTasks.map((t) => t.id),
             oldestCreatedAt: critTasks[0]?.created_at,
@@ -47,11 +48,12 @@ export const healthMonitor = {
       }
     }
 
-    // Tasks 5–90min in pending/matching → WARNING
+    // Povprasevanja 5–90min open without notified obrtniki → WARNING
     const { data: warnTasks } = await supabase
-      .from('service_requests')
+      .from('povprasevanja')
       .select('id, created_at')
-      .in('status', ['pending', 'matching'])
+      .in('status', ['odprto'])
+      .is('notified_at', null)
       .lte('created_at', warn5min)
       .gt('created_at', crit90min)
 

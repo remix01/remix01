@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { CheckCircle, XCircle, AlertCircle, Shield } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface Obrtnik {
   id: string
@@ -44,7 +45,9 @@ export default function ObrtnikiPage() {
   useEffect(() => {
     const fetchObrtniki = async () => {
       try {
-        const token = localStorage.getItem('sb-token')
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
         const response = await fetch('/api/obrtniki?admin=true', {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -71,7 +74,9 @@ export default function ObrtnikiPage() {
     }
 
     try {
-      const token = localStorage.getItem('sb-token')
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
       const response = await fetch(`/api/obrtniki/${obrtnik.id}`, {
         method: 'PATCH',
         headers: {

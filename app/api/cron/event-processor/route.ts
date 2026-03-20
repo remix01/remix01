@@ -23,6 +23,9 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  const start = Date.now()
+  console.log(JSON.stringify({ level: 'info', message: '[event-processor] start', ranAt: new Date().toISOString() }))
+
   try {
     const result = await outbox.processPendingBatch(50)
 
@@ -30,16 +33,10 @@ export async function GET(req: NextRequest) {
     // dead-man alerting via checkEventLag() if outbox backlog accumulates.
     // Do NOT insert into alert_log here: that table is for real alerts only.
 
-    return NextResponse.json({
-      ok: true,
-      processed: result.processed,
-      failed: result.failed,
-    })
+    return NextResponse.json({ ok: true, processed: result.processed, failed: result.failed, durationMs })
   } catch (err) {
-    console.error('[Cron] Event processor error:', err)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    const durationMs = Date.now() - start
+    console.error(JSON.stringify({ level: 'error', message: '[event-processor] error', error: String(err), durationMs }))
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

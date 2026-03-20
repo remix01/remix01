@@ -1,8 +1,5 @@
-'use client'
-
-import { notFound, redirect, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { notFound, redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { getPovprasevanje } from '@/lib/dal/povprasevanja'
 import { getPonudbeForPovprasevanje } from '@/lib/dal/ponudbe'
 import PonudbeList from '@/components/narocnik/ponudbe-list'
@@ -20,29 +17,24 @@ interface Props {
 
 export default async function PovprasevanjeDetailPage({ params }: Props) {
   const { id } = await params
-  const supabase = await createServerClient()
-  
-  // Get current user
+  const supabase = await createClient()
+
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     redirect('/prijava')
   }
 
-  // Fetch povprasevanje
   const povprasevanje = await getPovprasevanje(id)
   if (!povprasevanje) {
     notFound()
   }
 
-  // Check authorization - only naročnik who created it can view
   if (povprasevanje.narocnik_id !== user.id) {
     redirect('/narocnik/povprasevanja')
   }
 
-  // Fetch ponudbe
   const ponudbe = await getPonudbeForPovprasevanje(id)
 
-  // Format dates
   const createdDate = new Date(povprasevanje.created_at).toLocaleDateString('sl-SI', {
     weekday: 'long',
     year: 'numeric',
@@ -51,33 +43,33 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
   })
 
   const urgencyLabels: Record<string, string> = {
-    'normalno': 'Normalno',
-    'kmalu': 'Kmalu',
-    'nujno': 'Nujno',
+    normalno: 'Normalno',
+    kmalu: 'Kmalu',
+    nujno: 'Nujno',
   }
 
   const statusLabels: Record<string, string> = {
-    'odprto': 'Odprto',
-    'v_teku': 'V teku',
-    'zakljuceno': 'Zaključeno',
-    'preklicano': 'Preklicano',
+    odprto: 'Odprto',
+    v_teku: 'V teku',
+    zakljuceno: 'Zaključeno',
+    preklicano: 'Preklicano',
   }
 
   const statusColors: Record<string, string> = {
-    'odprto': 'bg-primary/10 text-primary',
-    'v_teku': 'bg-amber-100 text-amber-700',
-    'zakljuceno': 'bg-muted text-muted-foreground',
-    'preklicano': 'bg-red-100 text-red-800',
+    odprto: 'bg-primary/10 text-primary',
+    v_teku: 'bg-amber-100 text-amber-700',
+    zakljuceno: 'bg-muted text-muted-foreground',
+    preklicano: 'bg-red-100 text-red-800',
   }
 
   const urgencyColors: Record<string, string> = {
-    'normalno': 'bg-muted text-muted-foreground',
-    'kmalu': 'bg-amber-100 text-amber-700',
-    'nujno': 'bg-red-100 text-red-800',
+    normalno: 'bg-muted text-muted-foreground',
+    kmalu: 'bg-amber-100 text-amber-700',
+    nujno: 'bg-red-100 text-red-800',
   }
 
   return (
-    <PovprasevanjeDetailClient 
+    <PovprasevanjeDetailClient
       povprasevanje={povprasevanje}
       ponudbe={ponudbe}
       id={id}
