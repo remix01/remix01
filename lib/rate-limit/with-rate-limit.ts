@@ -16,14 +16,14 @@ import { RateLimiter, getIdentifier } from './rate-limiter'
 
 type RouteHandler = (
   request: NextRequest,
-  context?: { params?: Record<string, string> }
+  context?: { params?: Promise<Record<string, string>> }
 ) => Promise<NextResponse | Response>
 
 /**
  * Wrap a route handler with async Redis-backed rate limiting.
  */
 export function withRateLimit(limiter: RateLimiter, handler: RouteHandler): RouteHandler {
-  return async (request: NextRequest, context?: { params?: Record<string, string> }) => {
+  return async (request: NextRequest, context?: { params?: Promise<Record<string, string>> }) => {
     const userId = request.headers.get('x-user-id') || undefined
     const identifier = getIdentifier(request, userId)
     const result = await limiter.check(identifier)
