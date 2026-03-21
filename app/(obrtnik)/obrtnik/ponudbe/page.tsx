@@ -60,7 +60,7 @@ export default function PonudbesPage() {
         .select('povprasevanje_id')
         .eq('obrtnik_id', obrtnikProfile.id)
 
-      const poslanoPovIds = mojePonudbe?.map(p => p.povprasevanje_id) || []
+      const poslanoPovIds = mojePonudbe?.map((p: { povprasevanje_id: string }) => p.povprasevanje_id) || []
 
       // Tab 1: Nova povpraševanja - status='odprto', in obrtnik's categories, NOT already sent
       let query = supabase
