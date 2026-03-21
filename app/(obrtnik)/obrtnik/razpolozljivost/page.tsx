@@ -63,7 +63,7 @@ export default async function RazpolozljivostPage() {
       {/* Section 2: Weekly Schedule */}
       <WeeklyScheduleSection
         obrtnikId={obrtnikProfile.id}
-        initialSchedule={availabilitySchedule}
+        initialSchedule={availabilitySchedule ?? []}
       />
 
       {/* Section 3: Service Areas */}
