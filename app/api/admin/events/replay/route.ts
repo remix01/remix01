@@ -32,11 +32,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check admin role
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
+    const profile = profileData as { role: string | null } | null
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json(
@@ -120,11 +121,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Check admin role
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
+    const profile = profileData as { role: string | null } | null
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json(

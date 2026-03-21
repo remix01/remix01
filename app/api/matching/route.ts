@@ -42,7 +42,7 @@ const matchingBodySchema = z.object({
  * - 403: Not authorized to request matching for this povprasevanje
  * - 500: Server error
  */
-async function postHandler(request: NextRequest) {
+async function postHandler(request: NextRequest, _context: { params: Promise<unknown> }) {
   try {
     // Parse request body
     let rawBody: unknown

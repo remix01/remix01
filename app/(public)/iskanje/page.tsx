@@ -55,7 +55,7 @@ export default function SearchPage() {
     try {
       let query = supabase
         .from('obrtnik_profiles')
-        .select('*, obrtnik_categories(category_id)', { count: 'exact' })
+        .select('*', { count: 'exact' })
         .eq('is_verified', true)
 
       if (filters.verified) {

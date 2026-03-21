@@ -17,12 +17,13 @@ export async function GET(request: NextRequest) {
     
     const supabase = createAdminClient()
     
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('id, referral_code')
       .eq('referral_code', code)
       .maybeSingle()
-    
+    const profile = profileData as { id: string; referral_code: string | null } | null
+
     if (!profile) {
       return NextResponse.json({ valid: false }, { status: 404 })
     }

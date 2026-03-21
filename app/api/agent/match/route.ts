@@ -1,6 +1,6 @@
-import { isStructuredError } from '@/lib/utils/error'
 'use server'
 
+import { isStructuredError } from '@/lib/utils/error'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { matchObrtnikiForPovprasevanje } from '@/lib/agent/liftgo-agent'
@@ -30,11 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Get user profile with role
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
+    const profile = profileData as { role: string | null } | null
 
     if (!profile) {
       return NextResponse.json(

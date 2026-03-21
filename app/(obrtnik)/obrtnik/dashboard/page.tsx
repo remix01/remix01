@@ -17,8 +17,14 @@ export default async function ObrtknikDashboardPage() {
   // Get obrtnik profile
   const { data: obrtnikProfile } = await supabase
     .from('obrtnik_profiles')
-    .select('id, business_name, subscription_tier')
-    .eq('user_id', user.id)
+    .select('id, business_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const { data: userProfile } = await supabase
+    .from('profiles')
+    .select('subscription_tier')
+    .eq('id', user.id)
     .maybeSingle()
 
   if (!obrtnikProfile) {
@@ -53,7 +59,7 @@ export default async function ObrtknikDashboardPage() {
     .select('category_id')
     .eq('obrtnik_id', obrtnikProfile.id)
 
-  const categoryIds = obrtnikCategories?.map(oc => oc.category_id) || []
+  const categoryIds = obrtnikCategories?.map((oc: { category_id: string }) => oc.category_id) || []
 
   const { count: openPovprasevanjaCount } = await supabase
     .from('povprasevanja')
@@ -75,8 +81,8 @@ export default async function ObrtknikDashboardPage() {
           <h1 className="text-3xl font-bold text-foreground">LiftGO</h1>
           <p className="text-sm text-muted-foreground">{obrtnikProfile.business_name}</p>
         </div>
-        <Badge variant={obrtnikProfile.subscription_tier === 'pro' ? 'default' : 'outline'}>
-          {obrtnikProfile.subscription_tier?.toUpperCase() || 'START'}
+        <Badge variant={userProfile?.subscription_tier === 'pro' ? 'default' : 'outline'}>
+          {userProfile?.subscription_tier?.toUpperCase() || 'START'}
         </Badge>
       </div>
 

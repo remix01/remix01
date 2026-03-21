@@ -8,12 +8,13 @@ export async function ensureReferralCode(userId: string): Promise<string> {
   const supabase = createAdminClient()
   
   // Check if user already has a referral code
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from('profiles')
     .select('referral_code')
     .eq('id', userId)
     .maybeSingle()
-  
+  const profile = profileData as { referral_code: string | null } | null
+
   if (profile?.referral_code && profile.referral_code !== '') {
     return profile.referral_code
   }
@@ -65,17 +66,18 @@ export async function processReferralCode(
   const supabase = createAdminClient()
   
   // Find referrer by code
-  const { data: referrer } = await supabase
+  const { data: referrerData } = await supabase
     .from('profiles')
     .select('id')
     .eq('referral_code', referralCode)
     .maybeSingle()
-  
+  const referrer = referrerData as { id: string } | null
+
   if (!referrer) {
     console.warn(`[v0] Invalid referral code: ${referralCode}`)
     return false
   }
-  
+
   // Check if referral already exists
   const { data: existing } = await supabase
     .from('referrals')
@@ -180,12 +182,13 @@ export async function getReferralStats(userId: string) {
   const supabase = createAdminClient()
   
   // Get referral code
-  const { data: profile } = await supabase
+  const { data: profileData2 } = await supabase
     .from('profiles')
     .select('referral_code, credit_balance')
     .eq('id', userId)
     .maybeSingle()
-  
+  const profile = profileData2 as { referral_code: string | null; credit_balance: number } | null
+
   // Count successful referrals
   const { count: successCount } = await supabase
     .from('referrals')
