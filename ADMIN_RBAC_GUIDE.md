@@ -83,25 +83,19 @@ import { RoleGuard } from '@/components/admin/RoleGuard';
 
 ## Database Schema
 
-### Zaposleni Model
-```prisma
-model Zaposleni {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  ime       String
-  priimek   String
-  vloga     Vloga    @default(OPERATER)
-  aktiven   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdBy String   // super admin user id
-}
-
-enum Vloga {
-  SUPER_ADMIN
-  MODERATOR
-  OPERATER
-}
+### Zaposleni Table
+```sql
+CREATE TABLE "Zaposleni" (
+  id        TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  email     TEXT UNIQUE NOT NULL,
+  ime       TEXT NOT NULL,
+  priimek   TEXT NOT NULL,
+  vloga     TEXT NOT NULL DEFAULT 'OPERATER', -- 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
+  aktiven   BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "createdBy" TEXT NOT NULL  -- super admin user id
+);
 ```
 
 ## Setup Process
@@ -124,9 +118,11 @@ import AdminSetupPage from '@/app/admin/setup/page';
 The admin layout (`/app/admin/layout.tsx`) performs server-side verification:
 
 ```tsx
-const zaposleni = await prisma.zaposleni.findUnique({
-  where: { email: session.user.email }
-});
+const { data: zaposleni } = await supabaseAdmin
+  .from('Zaposleni')
+  .select('*')
+  .eq('email', session.user.email)
+  .single();
 
 if (!zaposleni || !zaposleni.aktiven) {
   redirect('/');
@@ -272,9 +268,11 @@ const visibleItems = navItems.filter(item => {
 ```tsx
 async function updateStranke(id: string, data: any) {
   const session = await getServerSession();
-  const zaposleni = await prisma.zaposleni.findUnique({
-    where: { email: session.user.email }
-  });
+  const { data: zaposleni } = await supabaseAdmin
+    .from('Zaposleni')
+    .select('vloga')
+    .eq('email', session.user.email)
+    .single();
 
   if (!zaposleni?.vloga || !['SUPER_ADMIN', 'MODERATOR'].includes(zaposleni.vloga)) {
     throw new Error('Unauthorized');
