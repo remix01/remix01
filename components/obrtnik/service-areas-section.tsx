@@ -7,9 +7,9 @@ import { CheckCircle2, AlertCircle, X } from 'lucide-react'
 
 interface ServiceAreasData {
   id: string
-  city: string
-  region: string | null
-  radius_km: number
+  city: string | null
+  region: string
+  radius_km?: number | null
 }
 
 interface ServiceAreasSectionProps {
@@ -48,7 +48,7 @@ export function ServiceAreasSection({
         .insert({
           obrtnik_id: obrtnikId,
           city: newCity.trim(),
-          region: null,
+          region: 'Slovenija',
           radius_km: newRadius,
           is_active: true,
         })
@@ -57,7 +57,7 @@ export function ServiceAreasSection({
 
       if (error) throw error
       if (data) {
-        setServiceAreas((prev) => [...prev, data])
+        setServiceAreas((prev) => [...prev, data as ServiceAreasData])
         setNewCity('')
         setNewRadius(30)
         setSuccessMessage('Območje uspešno dodano')
@@ -108,7 +108,7 @@ export function ServiceAreasSection({
                   className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full"
                 >
                   <span className="text-sm text-blue-900">
-                    {area.city} ({area.radius_km}km)
+                    {area.city || area.region} ({area.radius_km ?? 30}km)
                   </span>
                   <button
                     onClick={() => handleDeleteArea(area.id)}
