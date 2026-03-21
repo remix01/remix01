@@ -96,7 +96,7 @@ export default function OfferGeneratorPage() {
           // Load recent ponudbe as context for offer generation
           const { data: inquiriesData } = await supabase
             .from('ponudbe')
-            .select('id, price_estimate, status, created_at, povprasevanja(title, location_city)')
+            .select('id, price_estimate, status, created_at, povprasevanje_id')
             .eq('obrtnik_id', partnerData.id)
             .order('created_at', { ascending: false })
             .limit(20)
