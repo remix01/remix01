@@ -60,7 +60,7 @@ export function validateUUID(uuid: string | undefined, fieldName: string = 'id')
 /**
  * Validate positive amount/price (in cents or smallest unit)
  */
-export function validateAmount(amount: any, fieldName: string = 'amount', minCents: number = 100): ValidationError | null {
+export function validateAmount(amount: unknown, fieldName: string = 'amount', minCents: number = 100): ValidationError | null {
   if (amount === undefined || amount === null) {
     return { field: fieldName, message: `${fieldName} is required` }
   }
@@ -121,7 +121,7 @@ export function validateStringLength(
 /**
  * Validate required string field
  */
-export function validateRequiredString(value: any, fieldName: string): ValidationError | null {
+export function validateRequiredString(value: unknown, fieldName: string): ValidationError | null {
   if (!value) {
     return { field: fieldName, message: `${fieldName} is required` }
   }
@@ -136,7 +136,7 @@ export function validateRequiredString(value: any, fieldName: string): Validatio
 /**
  * Validate enum value
  */
-export function validateEnum(value: any, fieldName: string, allowedValues: string[]): ValidationError | null {
+export function validateEnum(value: unknown, fieldName: string, allowedValues: string[]): ValidationError | null {
   if (!value) {
     return { field: fieldName, message: `${fieldName} is required` }
   }

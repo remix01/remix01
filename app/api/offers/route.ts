@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const offers = await offerService.getOffers(user.id, userRole, partnerId)
 
     return NextResponse.json({ success: true, data: offers })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] Error fetching offers:', error)
     return handleServiceError(error)
   }
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const offer = await offerService.createOffer(user.id, body)
 
     return NextResponse.json({ success: true, data: offer })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] Error creating offer:', error)
     return handleServiceError(error)
   }

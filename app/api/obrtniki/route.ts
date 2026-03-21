@@ -1,6 +1,17 @@
-import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
+import { verifyAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 import { partnerService, handleServiceError } from '@/lib/services'
+import { z } from 'zod'
+
+const createObrtnikiSchema = z.object({
+  email: z.string().email('Neveljaven e-poštni naslov'),
+  ime: z.string().min(1, 'Ime je obvezno').max(100),
+  priimek: z.string().min(1, 'Priimek je obvezen').max(100),
+  podjetje: z.string().max(200).optional(),
+  telefon: z.string().max(20).optional(),
+  storitve: z.array(z.string()).optional(),
+  lokacija: z.string().max(100).optional(),
+})
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -11,7 +22,6 @@ export async function GET(req: Request) {
   const admin = adminReq ? await verifyAdmin(req) : null
 
   try {
-    // Delegate to service layer
     const data = await partnerService.getObrtniki({
       storitev,
       lokacija,
@@ -30,10 +40,15 @@ export async function POST(req: Request) {
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const body = await req.json()
+    const rawBody: unknown = await req.json()
+    const parsed = createObrtnikiSchema.safeParse(rawBody)
 
-    // Delegate to service layer
-    const data = await partnerService.createObrtnik(body)
+    if (!parsed.success) {
+      const message = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ')
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+
+    const data = await partnerService.createObrtnik(parsed.data)
 
     return NextResponse.json(data, { status: 201 })
   } catch (error) {

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { BaseAgent } from '../base/BaseAgent'
 import type { AgentType, AgentMessage, AgentResponse } from '../base/types'
 import { checkPermission, type Session } from '@/lib/agent/permissions'
@@ -60,11 +61,11 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
-      this.log('error', { error: error.message })
+    } catch (error: unknown) {
+      this.log('error', { error: getErrorMessage(error) })
       return {
         success: false,
-        error: error.message || 'Internal error',
+        error: getErrorMessage(error),
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -132,8 +133,8 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
-      this.log('error', { error: error.message })
+    } catch (error: unknown) {
+      this.log('error', { error: getErrorMessage(error) })
       return {
         success: false,
         error: 'Failed to send notification',
@@ -165,7 +166,7 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: 'Failed to update preferences',
@@ -206,8 +207,8 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
-      this.log('error', { error: error.message })
+    } catch (error: unknown) {
+      this.log('error', { error: getErrorMessage(error) })
       return {
         success: true, // Don't fail broadcasts
         handledBy: this.type,
@@ -244,7 +245,7 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { success: true, handledBy: this.type, durationMs: Date.now() - startTime }
     }
   }
@@ -276,7 +277,7 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { success: true, handledBy: this.type, durationMs: Date.now() - startTime }
     }
   }
@@ -308,7 +309,7 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { success: true, handledBy: this.type, durationMs: Date.now() - startTime }
     }
   }
@@ -354,7 +355,7 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { success: true, handledBy: this.type, durationMs: Date.now() - startTime }
     }
   }
@@ -391,7 +392,7 @@ export class NotifyAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { success: true, handledBy: this.type, durationMs: Date.now() - startTime }
     }
   }

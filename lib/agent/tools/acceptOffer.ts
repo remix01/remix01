@@ -99,7 +99,7 @@ export async function acceptOffer(
       escrowId: escrow.id,
       status: 'pending',
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to accept offer',

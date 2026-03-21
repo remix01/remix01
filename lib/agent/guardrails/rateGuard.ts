@@ -64,9 +64,15 @@ export async function rateGuard(userId: string): Promise<void> {
       
       return
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If Redis fails, fall back to in-memory
-    if (error.code !== 429) {
+    const isRateLimitError =
+      error !== null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: unknown }).code === 429
+
+    if (!isRateLimitError) {
       console.warn('[GUARDRAIL] Redis rate limit failed, using in-memory fallback', error)
     } else {
       throw error

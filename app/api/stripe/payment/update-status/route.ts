@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -33,10 +34,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[v0] Update status error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to update status' },
+      { error: getErrorMessage(error) || 'Failed to update status' },
       { status: 500 }
     )
   }

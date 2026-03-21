@@ -39,7 +39,7 @@ export async function handleMatchRequest(job: Job): Promise<void> {
 
     // Update task to 'matched' status
     await taskOrchestrator.updateTaskStatus(taskId, 'matched', {
-      matchIds: matches.matches?.map((m: any) => m.id) || [],
+      matchIds: matches.matches?.map((m: { id: string }) => m.id) || [],
     })
 
     console.log(`[TaskProcessor] Matched ${matches.matches?.length || 0} partners for task ${taskId}`)

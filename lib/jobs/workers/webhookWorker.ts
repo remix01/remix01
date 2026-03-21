@@ -66,7 +66,7 @@ export async function handleWebhook(job: Job<WebhookJobPayload>): Promise<void> 
     }
 
     console.log(`[WEBHOOK] Webhook sent successfully to ${webhookUrl}`)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[WEBHOOK] Failed to send webhook to ${webhookUrl}:`, error)
     throw error // Retry
   }

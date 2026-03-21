@@ -105,17 +105,25 @@ export async function listVerifiedObrtniki(
     return []
   }
 
+  type RawRow = typeof data extends (infer T)[] | null ? T : never
+  type RawCategory = { name: string; slug: string; icon_name: string | null }
+
   // Flatten categories + apply category slug filter client-side
-  let results = (data || []).map((row: any) => ({
-    ...row,
-    categories: (row.obrtnik_categories || [])
-      .map((oc: any) => oc.categories)
-      .filter(Boolean),
-  }))
+  let results = (data || []).map((row: RawRow) => {
+    const rawRow = row as RawRow & {
+      obrtnik_categories?: Array<{ categories: RawCategory | null }>
+    }
+    return {
+      ...row,
+      categories: (rawRow.obrtnik_categories || [])
+        .map((oc) => oc.categories)
+        .filter((c): c is RawCategory => c !== null),
+    }
+  })
 
   if (filters?.kategorija) {
-    results = results.filter((r: any) =>
-      r.categories.some((c: any) => c.slug === filters.kategorija)
+    results = results.filter((r) =>
+      r.categories.some((c) => c.slug === filters.kategorija)
     )
   }
 
@@ -143,11 +151,15 @@ export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null
 
   if (error || !data) return null
 
+  type RawSingle = typeof data & {
+    obrtnik_categories?: Array<{ categories: { name: string; slug: string; icon_name: string | null } | null }>
+  }
+  const raw = data as RawSingle
   return {
-    ...(data as any),
-    categories: ((data as any).obrtnik_categories || [])
-      .map((oc: any) => oc.categories)
-      .filter(Boolean),
+    ...data,
+    categories: (raw.obrtnik_categories || [])
+      .map((oc) => oc.categories)
+      .filter((c): c is { name: string; slug: string; icon_name: string | null } => c !== null),
   }
 }
 
@@ -177,8 +189,14 @@ export async function getActiveLokacije(): Promise<string[]> {
     .not('profiles.location_city', 'is', null)
   if (error) return []
   const cities = new Set<string>()
-  ;(data || []).forEach((row: any) => {
-    const city = row.profiles?.location_city || row.profiles?.[0]?.location_city
+  ;(data || []).forEach((row) => {
+    const profiles = row.profiles as
+      | { location_city: string | null }
+      | Array<{ location_city: string | null }>
+      | null
+    const city = Array.isArray(profiles)
+      ? profiles[0]?.location_city
+      : profiles?.location_city
     if (city) cities.add(city)
   })
   return Array.from(cities).sort()

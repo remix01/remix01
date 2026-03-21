@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { BaseAgent } from '../base/BaseAgent'
 import type { AgentType, AgentMessage, AgentResponse } from '../base/types'
 import { runGuardrails } from '@/lib/agent/guardrails'
@@ -24,7 +25,7 @@ export class InquiryAgent extends BaseAgent {
           user: { id: userId, role: 'user' as any }
         }
         await runGuardrails(action, payload, session)
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('guardrails_failed', { action, error: error.error })
         return {
           success: false,
@@ -49,7 +50,7 @@ export class InquiryAgent extends BaseAgent {
             durationMs: Date.now() - startTime,
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('permission_check_failed', { action, error })
         return {
           success: false,
@@ -81,7 +82,7 @@ export class InquiryAgent extends BaseAgent {
       }
 
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('handler_error', { error: error?.message })
       return {
         success: false,
@@ -118,7 +119,7 @@ export class InquiryAgent extends BaseAgent {
         .single()
 
       if (error) {
-        this.log('create_inquiry_failed', { error: error.message })
+        this.log('create_inquiry_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to create inquiry',
@@ -157,7 +158,7 @@ export class InquiryAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('create_inquiry_error', { error: error?.message })
       return {
         success: false,
@@ -180,7 +181,7 @@ export class InquiryAgent extends BaseAgent {
         .limit(50)
 
       if (error) {
-        this.log('list_inquiries_failed', { error: error.message })
+        this.log('list_inquiries_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to list inquiries',
@@ -195,7 +196,7 @@ export class InquiryAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('list_inquiries_error', { error: error?.message })
       return {
         success: false,
@@ -235,7 +236,7 @@ export class InquiryAgent extends BaseAgent {
       // Check state transition
       try {
         await assertTransition('inquiry', payload.inquiryId, 'closed', sessionId)
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('state_transition_failed', { error: error.error })
         return {
           success: false,
@@ -252,7 +253,7 @@ export class InquiryAgent extends BaseAgent {
         .eq('id', payload.inquiryId)
 
       if (error) {
-        this.log('close_inquiry_failed', { error: error.message })
+        this.log('close_inquiry_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to close inquiry',
@@ -290,7 +291,7 @@ export class InquiryAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('close_inquiry_error', { error: error?.message })
       return {
         success: false,

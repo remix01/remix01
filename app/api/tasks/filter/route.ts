@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * GET /api/tasks/filter
  * 
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[v0] RPC error:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
     }
 
     return NextResponse.json({ tasks: data || [] })

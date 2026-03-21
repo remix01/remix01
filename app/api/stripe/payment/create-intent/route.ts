@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
@@ -54,10 +55,10 @@ export async function POST(req: NextRequest) {
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[v0] Payment Intent creation error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create payment intent' },
+      { error: getErrorMessage(error) || 'Failed to create payment intent' },
       { status: 500 }
     )
   }

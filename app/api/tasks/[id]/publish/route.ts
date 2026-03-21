@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * POST /api/tasks/[id]/publish
  * 
@@ -34,7 +35,7 @@ export async function POST(
 
     if (error) {
       console.error('[v0] RPC error:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
     }
 
     return NextResponse.json(data)

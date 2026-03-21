@@ -1,14 +1,36 @@
+import { Redis } from '@upstash/redis'
 import { NextRequest } from 'next/server'
 
+let _redis: Redis | null = null
+
+function getRedis(): Redis | null {
+  if (_redis) return _redis
+
+  const url = process.env.KV_REST_API_URL
+  const token = process.env.KV_REST_API_TOKEN
+
+  if (!url || !token) return null
+
+  try {
+    _redis = new Redis({ url, token })
+    return _redis
+  } catch {
+    return null
+  }
+}
+
 /**
- * Sliding window rate limiter using in-memory storage
- * TODO: Replace Map with Redis (ioredis) for production distributed rate limiting
+ * Sliding window rate limiter backed by Upstash Redis.
+ * Falls back to in-memory Map when Redis is unavailable (local dev).
+ *
+ * NOTE: In-memory fallback is NOT distributed — use only for local dev.
+ * On Vercel (serverless), Redis is required for correct behaviour.
  */
 export class RateLimiter {
-  private windows: Map<string, number[]> = new Map()
   private windowMs: number
   private maxRequests: number
   private name: string
+  private fallback: Map<string, number[]> = new Map()
 
   constructor(windowMs: number, maxRequests: number, name: string) {
     this.windowMs = windowMs
@@ -17,69 +39,90 @@ export class RateLimiter {
   }
 
   /**
-   * Check if request is allowed for the given identifier
-   * Automatically cleans up expired timestamps
+   * Check if request is allowed for the given identifier (async, uses Redis).
    */
-  check(identifier: string): {
+  async check(identifier: string): Promise<{
     allowed: boolean
     remaining: number
     resetAt: number
     limit: number
-  } {
+  }> {
+    const client = getRedis()
     const now = Date.now()
     const windowStart = now - this.windowMs
+    const key = `rl:${this.name}:${identifier}`
 
-    // Get existing timestamps for this identifier
-    let timestamps = this.windows.get(identifier) || []
+    if (client) {
+      try {
+        // Atomic sliding window via Redis pipeline:
+        // 1. Remove expired members
+        // 2. Count current members
+        // 3. Conditionally add new member
+        // 4. Set expiry
+        const pipe = client.pipeline()
+        pipe.zremrangebyscore(key, 0, windowStart)
+        pipe.zcard(key)
+        pipe.expire(key, Math.ceil(this.windowMs / 1000))
+        const results = await pipe.exec() as [unknown, number, unknown]
+        const currentCount = results[1] ?? 0
 
-    // Remove expired timestamps (cleanup)
+        if (currentCount >= this.maxRequests) {
+          return {
+            allowed: false,
+            remaining: 0,
+            resetAt: now + this.windowMs,
+            limit: this.maxRequests,
+          }
+        }
+
+        // Add the new request timestamp
+        await client.zadd(key, {
+          score: now,
+          member: `${now}:${Math.random().toString(36).slice(2)}`,
+        })
+
+        return {
+          allowed: true,
+          remaining: Math.max(0, this.maxRequests - currentCount - 1),
+          resetAt: now + this.windowMs,
+          limit: this.maxRequests,
+        }
+      } catch (err) {
+        console.warn(`[RateLimiter] Redis error for "${this.name}", falling back to in-memory:`, err)
+      }
+    }
+
+    return this._checkInMemory(identifier, now, windowStart)
+  }
+
+  private _checkInMemory(
+    identifier: string,
+    now: number,
+    windowStart: number
+  ): { allowed: boolean; remaining: number; resetAt: number; limit: number } {
+    let timestamps = this.fallback.get(identifier) || []
     timestamps = timestamps.filter((ts) => ts > windowStart)
 
-    // Check if under limit
     const allowed = timestamps.length < this.maxRequests
 
     if (allowed) {
-      // Add current timestamp
       timestamps.push(now)
-      this.windows.set(identifier, timestamps)
-      // TODO: Redis implementation would use: 
-      // await redis.zadd(identifier, now, `${now}`)
-      // await redis.zremrangebyscore(identifier, 0, windowStart)
-      // await redis.expire(identifier, Math.ceil(this.windowMs / 1000))
+      this.fallback.set(identifier, timestamps)
     }
 
     const remaining = Math.max(0, this.maxRequests - timestamps.length)
     const oldestTimestamp = timestamps.length > 0 ? timestamps[0] : now
     const resetAt = oldestTimestamp + this.windowMs
 
-    return {
-      allowed,
-      remaining,
-      resetAt,
-      limit: this.maxRequests,
-    }
+    return { allowed, remaining, resetAt, limit: this.maxRequests }
   }
 
   /**
-   * Get current stats for this rate limiter
+   * Get current stats (uses in-memory fallback data only).
    */
   getStats() {
-    const now = Date.now()
-    const windowStart = now - this.windowMs
-
-    // Clean up expired entries
-    for (const [key, timestamps] of this.windows.entries()) {
-      const validTimestamps = timestamps.filter((ts) => ts > windowStart)
-      if (validTimestamps.length === 0) {
-        this.windows.delete(key)
-      } else {
-        this.windows.set(key, validTimestamps)
-      }
-    }
-
     return {
       name: this.name,
-      activeCount: this.windows.size,
       limit: this.maxRequests,
       windowMs: this.windowMs,
     }
@@ -94,17 +137,16 @@ export function getIdentifier(request: NextRequest, userId?: string): string {
     return `user:${userId}`
   }
 
-  // Fallback to IP address
   const forwarded = request.headers.get('x-forwarded-for')
   const realIp = request.headers.get('x-real-ip')
-  
+
   if (forwarded) {
-    return forwarded.split(',')[0].trim()
-  }
-  
-  if (realIp) {
-    return realIp
+    return `ip:${forwarded.split(',')[0].trim()}`
   }
 
-  return 'anonymous'
+  if (realIp) {
+    return `ip:${realIp}`
+  }
+
+  return 'ip:anonymous'
 }

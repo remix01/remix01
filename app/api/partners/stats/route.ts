@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -49,8 +50,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ success: true, data: stats })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] Error fetching partner stats:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 })
   }
 }

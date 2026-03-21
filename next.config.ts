@@ -2,9 +2,6 @@ import type { NextConfig } from 'next'
 
 // Cache bust: 2026-03-15
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
     remotePatterns: [

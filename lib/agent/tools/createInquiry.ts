@@ -68,7 +68,7 @@ export async function createInquiry(
       inquiryId: inquiry.id,
       status: 'open',
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to create inquiry',
