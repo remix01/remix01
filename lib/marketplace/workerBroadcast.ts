@@ -73,10 +73,11 @@ export const workerBroadcast = {
       // 2. Send emails (skip quiet hours)
       if (!isQuietHours) {
         const userIds = obrtniki.map((o) => o.user_id)
-        const { data: profiles } = await supabase
+        const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, email, full_name')
           .in('id', userIds)
+        const profiles = profilesData as Array<{ id: string; email: string | null; full_name: string | null }> | null
 
         for (const profile of profiles || []) {
           if (!profile.email) continue
@@ -139,12 +140,13 @@ export const workerBroadcast = {
       await supabase.from('notifications').insert(notifications)
 
       const userIds = obrtniki.map((o) => o.user_id)
-      const { data: profiles } = await supabase
+      const { data: profilesData2 } = await supabase
         .from('profiles')
         .select('id, email, full_name')
         .in('id', userIds)
+      const profiles2 = profilesData2 as Array<{ id: string; email: string | null; full_name: string | null }> | null
 
-      for (const profile of profiles || []) {
+      for (const profile of profiles2 || []) {
         if (!profile.email) continue
         await this.sendEmail({
           to: profile.email,

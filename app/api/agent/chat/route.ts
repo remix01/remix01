@@ -96,7 +96,7 @@ const ANON_MESSAGE_LIMIT = 3
 // POST — send a message, get AI response
 // Authenticated users: full history persisted to DB, 20 msg/hour limit
 // Anonymous visitors: in-request context only, 3 msg limit
-async function postHandler(req: NextRequest) {
+async function postHandler(req: NextRequest, _context: { params: Promise<unknown> }) {
   try {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()

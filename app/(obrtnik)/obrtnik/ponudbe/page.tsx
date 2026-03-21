@@ -38,7 +38,7 @@ export default function PonudbesPage() {
       const { data: obrtnikProfile } = await supabase
         .from('obrtnik_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle()
 
       if (!obrtnikProfile) {
@@ -52,7 +52,7 @@ export default function PonudbesPage() {
         .select('category_id')
         .eq('obrtnik_id', obrtnikProfile.id)
 
-      const categoryIds = obrtnikCats?.map(oc => oc.category_id) || []
+      const categoryIds = obrtnikCats?.map((oc: { category_id: string }) => oc.category_id) || []
 
       // Get povprasevanja already sent by this obrtnik
       const { data: mojePonudbe } = await supabase
@@ -60,7 +60,7 @@ export default function PonudbesPage() {
         .select('povprasevanje_id')
         .eq('obrtnik_id', obrtnikProfile.id)
 
-      const poslanoPovIds = mojePonudbe?.map(p => p.povprasevanje_id) || []
+      const poslanoPovIds = mojePonudbe?.map((p: { povprasevanje_id: string }) => p.povprasevanje_id) || []
 
       // Tab 1: Nova povpraševanja - status='odprto', in obrtnik's categories, NOT already sent
       let query = supabase

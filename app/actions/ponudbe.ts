@@ -33,7 +33,7 @@ export async function acceptPonudbaAction(
     // Fetch ponudba details (with obrtnik_id for notifications)
     const { data: ponudbaData } = await supabase
       .from('ponudbe')
-      .select('*, obrtnik:obrtnik_profiles(id)')
+      .select('*')
       .eq('id', ponudbaId)
       .maybeSingle()
 
@@ -110,7 +110,7 @@ export async function acceptPonudbaAction(
     // ════════════════════════════════════════════════════════════════════
     // STEP 5: Calendar appointment (if available_date exists)
     // ════════════════════════════════════════════════════════════════════
-    if (ponudbaData?.available_date && ponudbaData?.obrtnik?.id) {
+    if (ponudbaData?.available_date && ponudbaData?.obrtnik_id) {
       const startDateTime = new Date(ponudbaData.available_date)
       startDateTime.setHours(9, 0, 0)
       const endDateTime = new Date(ponudbaData.available_date)
@@ -118,7 +118,7 @@ export async function acceptPonudbaAction(
 
       await createAppointmentEvent({
         narocnikId: user.id,
-        obrtknikId: ponudbaData.obrtnik.id,
+        obrtknikId: ponudbaData.obrtnik_id,
         title: povprasevanje.title,
         description: povprasevanje.description,
         locationCity: povprasevanje.location_city,

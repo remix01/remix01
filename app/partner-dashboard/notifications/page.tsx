@@ -8,10 +8,10 @@ export default async function PartnerNotificationsPage() {
   if (!user) redirect('/partner-auth/login')
 
   const { data: partner } = await supabase
-    .from('partners')
+    .from('obrtnik_profiles')
     .select('id')
-    .eq('user_id', user.id)
-    .single()
+    .eq('id', user.id)
+    .maybeSingle()
 
   const { data: notifications } = await supabase
     .from('notifications')

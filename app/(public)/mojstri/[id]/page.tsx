@@ -38,7 +38,7 @@ export default function MojsterDetailPage({ params }: PageProps) {
                   narocnik:profiles!ocene_narocnik_id_fkey(first_name, last_name)),
             obrtnik_categories(categories(name, slug, icon_name)),
             obrtnik_availability(day_of_week, time_from, time_to, is_available),
-            service_areas(city, region, radius_km, is_active)
+            service_areas(city, region, is_active)
           `)
           .eq('id', id)
           .eq('is_verified', true)

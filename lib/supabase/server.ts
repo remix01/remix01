@@ -50,7 +50,7 @@ export async function createClient() {
  * NEVER expose this client to untrusted code or client-side.
  */
 export function createAdminClient() {
-  return createServerClientSSR<Database>(
+  return createServerClientSSR(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.SUPABASE_SERVICE_ROLE_KEY,
     {

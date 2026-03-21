@@ -66,10 +66,10 @@ export default function CRMPage() {
 
         // Get partner info
         const { data: partnerData } = await supabase
-          .from('partners')
+          .from('obrtnik_profiles')
           .select('*')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (!partnerData) {
           router.push('/partner-auth/login')
@@ -78,20 +78,12 @@ export default function CRMPage() {
 
         setPartner(partnerData)
 
-        // Get partner package
-        const { data: paketData } = await supabase
-          .from('partner_paketi')
-          .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .single()
+        const paketData = { paket: partnerData.subscription_tier || 'start' }
+        setPaket(paketData)
 
-        if (paketData) {
-          setPaket(paketData)
-          
-          // Only load CRM data if PRO
-          if (paketData.paket === 'pro') {
-            await loadCRMData(partnerData.id)
-          }
+        // Only load CRM data if PRO
+        if (paketData.paket === 'pro') {
+          await loadCRMData(partnerData.id)
         }
       } catch (error) {
         console.error('[v0] Error loading CRM:', error)
@@ -105,19 +97,15 @@ export default function CRMPage() {
 
   const loadCRMData = async (partnerId: string) => {
     try {
-      // Load inquiries
-      const { data: inquiries } = await supabase
-        .from('povprasevanja')
+      // Load ponudbe (offers) sent by this obrtnik
+      const { data: offers } = await supabase
+        .from('ponudbe')
         .select('*')
-        .eq('partner_id', partnerId)
+        .eq('obrtnik_id', partnerId)
         .order('created_at', { ascending: false })
 
-      // Load offers
-      const { data: offers } = await supabase
-        .from('offers')
-        .select('*')
-        .eq('partner_id', partnerId)
-        .order('created_at', { ascending: false })
+      // Use ponudbe as inquiries proxy for CRM stats
+      const inquiries = offers
 
       // Load escrow transactions
       const { data: escrows } = await supabase

@@ -23,11 +23,12 @@ export const paymentService = {
     const supabase = await createClient()
 
     // Verify user role
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
       .single()
+    const profile = profileData as { role: string | null } | null
 
     if (!profile || profile.role !== 'narocnik') {
       throw new ServiceError(

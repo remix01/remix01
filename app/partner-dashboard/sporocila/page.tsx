@@ -43,7 +43,7 @@ export default function PartnerSporocila() {
     // Fetch povprasevanje info
     const { data } = await supabase
       .from('povprasevanja')
-      .select('naslov')
+      .select('title')
       .eq('id', povprasevanjeId)
       .maybeSingle()
 
