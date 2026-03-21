@@ -26,7 +26,7 @@ export default async function DashboardPage() {
     .from('profiles')
     .select('full_name, role')
     .eq('id', user.id)
-    .maybeSingle()
+    .maybeSingle() as { data: { full_name: string | null; role: string } | null; error: unknown }
 
   if (!profile || profile.role !== 'narocnik') {
     redirect('/partner-dashboard')
