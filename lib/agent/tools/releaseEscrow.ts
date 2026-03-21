@@ -78,7 +78,7 @@ export async function releaseEscrow(
       escrowId,
       status: 'released',
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to release escrow',

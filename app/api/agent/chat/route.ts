@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
 import { selectModel, estimateCost } from '@/lib/model-router'
 import { handleAuthError } from '@/lib/api/auth-errors'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { apiLimiter } from '@/lib/rate-limit/limiters'
 
 
 function anthropicErrorMessage(error: unknown): string {
@@ -94,11 +96,11 @@ const ANON_MESSAGE_LIMIT = 3
 // POST — send a message, get AI response
 // Authenticated users: full history persisted to DB, 20 msg/hour limit
 // Anonymous visitors: in-request context only, 3 msg limit
-export async function POST(req: NextRequest) {
+async function postHandler(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
-    
+
     // Handle auth errors
     if (error) {
       return handleAuthError(error)
@@ -340,3 +342,5 @@ NIKOLI ne uporabi teh napačnih poti:
     return NextResponse.json({ error: msg }, { status })
   }
 }
+
+export const POST = withRateLimit(apiLimiter, postHandler)

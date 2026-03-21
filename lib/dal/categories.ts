@@ -114,7 +114,7 @@ export async function getObrtnikCategories(obrtnikId: string): Promise<Category[
     return []
   }
 
-  return data.map((item: any) => item.category)
+  return data.map((item) => (item as { category: Category }).category)
 }
 
 /**
@@ -133,8 +133,9 @@ export async function countObrtnikPerCategory(): Promise<Record<string, number>>
   }
 
   const counts: Record<string, number> = {}
-  data.forEach((item: any) => {
-    counts[item.category_id] = (counts[item.category_id] || 0) + 1
+  data.forEach((item) => {
+    const row = item as { category_id: string }
+    counts[row.category_id] = (counts[row.category_id] || 0) + 1
   })
 
   return counts

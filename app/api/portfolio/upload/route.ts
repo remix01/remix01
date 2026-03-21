@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 
     // 5. Return URLs
     return NextResponse.json({ urls })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[v0] Portfolio upload error:', error)
     return NextResponse.json(
       { error: 'Napaka pri nalaganju' },

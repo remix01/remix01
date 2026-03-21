@@ -157,7 +157,7 @@ export async function getDeadLetterJobs(limit = 100): Promise<Job[]> {
 export async function getQueueStats(): Promise<{
   [key in JobType]: number
 } & { dead_letter: number }> {
-  const stats: any = {}
+  const stats: Partial<Record<JobType | 'dead_letter', number>> = {}
   const types: JobType[] = ['stripeCapture', 'stripeRelease', 'stripeCancel', 'sendEmail', 'auditLog', 'webhook']
   
   for (const type of types) {

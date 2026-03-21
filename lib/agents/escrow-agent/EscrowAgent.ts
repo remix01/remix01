@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { BaseAgent } from '../base/BaseAgent'
 import type { AgentType, AgentMessage, AgentResponse } from '../base/types'
 import { runGuardrails } from '@/lib/agent/guardrails'
@@ -26,7 +27,7 @@ export class EscrowAgent extends BaseAgent {
           user: { id: userId, role: 'user' as any }
         }
         await runGuardrails(action, payload, session)
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('guardrails_failed', { action, error: error.error })
         return {
           success: false,
@@ -51,7 +52,7 @@ export class EscrowAgent extends BaseAgent {
             durationMs: Date.now() - startTime,
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('permission_check_failed', { action, error })
         return {
           success: false,
@@ -106,7 +107,7 @@ export class EscrowAgent extends BaseAgent {
       }
 
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('handler_error', { error: error?.message })
       return {
         success: false,
@@ -141,7 +142,7 @@ export class EscrowAgent extends BaseAgent {
         .single()
 
       if (error) {
-        this.log('submit_offer_failed', { error: error.message })
+        this.log('submit_offer_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to submit offer',
@@ -178,7 +179,7 @@ export class EscrowAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('submit_offer_error', { error: error?.message })
       return {
         success: false,
@@ -209,7 +210,7 @@ export class EscrowAgent extends BaseAgent {
         .single()
 
       if (error) {
-        this.log('accept_offer_failed', { error: error.message })
+        this.log('accept_offer_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to accept offer',
@@ -248,7 +249,7 @@ export class EscrowAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('accept_offer_error', { error: error?.message })
       return {
         success: false,
@@ -270,7 +271,7 @@ export class EscrowAgent extends BaseAgent {
       // 1. Check state transition
       try {
         await assertTransition('escrow', payload.escrowId, 'captured', sessionId)
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('state_transition_failed', { error: error.error })
         return {
           success: false,
@@ -287,7 +288,7 @@ export class EscrowAgent extends BaseAgent {
         .eq('id', payload.escrowId)
 
       if (error) {
-        this.log('capture_escrow_failed', { error: error.message })
+        this.log('capture_escrow_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to capture escrow',
@@ -337,7 +338,7 @@ export class EscrowAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('capture_escrow_error', { error: error?.message })
       return {
         success: false,
@@ -359,7 +360,7 @@ export class EscrowAgent extends BaseAgent {
       // 1. Check state transition
       try {
         await assertTransition('escrow', payload.escrowId, 'released', sessionId)
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('state_transition_failed', { error: error.error })
         return {
           success: false,
@@ -376,7 +377,7 @@ export class EscrowAgent extends BaseAgent {
         .eq('id', payload.escrowId)
 
       if (error) {
-        this.log('release_escrow_failed', { error: error.message })
+        this.log('release_escrow_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to release escrow',
@@ -426,7 +427,7 @@ export class EscrowAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('release_escrow_error', { error: error?.message })
       return {
         success: false,
@@ -448,7 +449,7 @@ export class EscrowAgent extends BaseAgent {
       // 1. Check state transition
       try {
         await assertTransition('escrow', payload.escrowId, 'refunded', sessionId)
-      } catch (error: any) {
+      } catch (error: unknown) {
         this.log('state_transition_failed', { error: error.error })
         return {
           success: false,
@@ -465,7 +466,7 @@ export class EscrowAgent extends BaseAgent {
         .eq('id', payload.escrowId)
 
       if (error) {
-        this.log('refund_escrow_failed', { error: error.message })
+        this.log('refund_escrow_failed', { error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Failed to refund escrow',
@@ -516,7 +517,7 @@ export class EscrowAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('refund_escrow_error', { error: error?.message })
       return {
         success: false,
@@ -552,7 +553,7 @@ export class EscrowAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.log('get_status_error', { error: error?.message })
       return {
         success: false,

@@ -105,9 +105,15 @@ export function withGuardrails(
 
       // If all guardrails pass, proceed to handler
       return await handler(toolName, params, session)
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Re-throw guard errors as-is
-      if (error.code && error.success === false) {
+      const isGuardError =
+        error !== null &&
+        typeof error === 'object' &&
+        'code' in error &&
+        'success' in error &&
+        (error as { success: unknown }).success === false
+      if (isGuardError) {
         throw error
       }
 

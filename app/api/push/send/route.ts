@@ -80,11 +80,18 @@ export async function POST(request: NextRequest) {
 
         await wp.sendNotification(pushSubscription, payload)
         sent++
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[v0] Error sending push to subscription:', error)
         
         // If subscription expired (410 Gone), delete it from database
-        if (error.statusCode === 410) {
+        const statusCode =
+          error !== null &&
+          typeof error === 'object' &&
+          'statusCode' in error &&
+          typeof (error as { statusCode: unknown }).statusCode === 'number'
+            ? (error as { statusCode: number }).statusCode
+            : null
+        if (statusCode === 410) {
           await supabase
             .from('push_subscriptions')
             .delete()

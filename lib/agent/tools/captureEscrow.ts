@@ -68,7 +68,7 @@ export async function captureEscrow(
       escrowId,
       status: 'captured',
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to capture escrow',

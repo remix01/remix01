@@ -69,7 +69,7 @@ export async function refundEscrow(
       escrowId,
       status: 'refunded',
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to refund escrow',

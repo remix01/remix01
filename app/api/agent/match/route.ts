@@ -1,3 +1,4 @@
+import { isStructuredError } from '@/lib/utils/error'
 'use server'
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -54,10 +55,10 @@ export async function POST(request: NextRequest) {
     // 4. Run guardrails (permissions, schema, injection, amounts, rate limit)
     try {
       await runGuardrails('agent.match', { povprasevanjeId }, session)
-    } catch (error: any) {
+    } catch (error: unknown) {
       return NextResponse.json(
-        { error: error.error || 'Forbidden' },
-        { status: error.code || 403 }
+        { error: isStructuredError(error) ? error.error : 'Forbidden' },
+        { status: isStructuredError(error) ? error.code : 403 }
       )
     }
 
