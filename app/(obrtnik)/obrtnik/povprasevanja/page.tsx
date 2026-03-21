@@ -12,13 +12,10 @@ export default async function ObrtknikPovprasevanjaPage() {
     redirect('/partner-auth/login')
   }
 
-  // Get obrtnik profile with categories
+  // Get obrtnik profile
   const { data: obrtnikProfile } = await supabase
     .from('obrtnik_profiles')
-    .select(`
-      *,
-      obrtnik_categories(category_id)
-    `)
+    .select('id')
     .eq('id', user.id)
     .single()
 
@@ -26,7 +23,13 @@ export default async function ObrtknikPovprasevanjaPage() {
     redirect('/partner-auth/login')
   }
 
-  const categoryIds = obrtnikProfile.obrtnik_categories?.map((oc: any) => oc.category_id) || []
+  // Get obrtnik categories separately
+  const { data: obrtnikCats } = await supabase
+    .from('obrtnik_categories')
+    .select('category_id')
+    .eq('obrtnik_id', obrtnikProfile.id)
+
+  const categoryIds = obrtnikCats?.map((oc) => oc.category_id) || []
 
   // Fetch open povprasevanja in obrtnik's categories
   const povprasevanja = await getOpenPovprasevanjaForObrtnik(obrtnikProfile.id, categoryIds)
