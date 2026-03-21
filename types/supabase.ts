@@ -532,6 +532,30 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['referrals']['Insert']>
         Relationships: []
       }
+      ocene: {
+        Row: {
+          id: string
+          ponudba_id: string
+          narocnik_id: string
+          obrtnik_id: string
+          rating: number
+          comment: string | null
+          is_public: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ponudba_id: string
+          narocnik_id: string
+          obrtnik_id: string
+          rating: number
+          comment?: string | null
+          is_public?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ocene']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
