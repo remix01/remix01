@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS public.obrtnik_availability (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   obrtnik_id UUID NOT NULL REFERENCES public.obrtnik_profiles(id) ON DELETE CASCADE,
   day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-  start_time TIME,
-  end_time TIME,
+  time_from TIME,
+  time_to TIME,
   is_available BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (obrtnik_id, day_of_week)

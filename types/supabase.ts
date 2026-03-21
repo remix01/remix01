@@ -175,7 +175,15 @@ export interface Database {
           sort_order?: number
         }
         Update: Partial<Database['public']['Tables']['portfolio_items']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_items_obrtnik_id_fkey"
+            columns: ["obrtnik_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       profiles: {
         Row: {
@@ -394,15 +402,23 @@ export interface Database {
           service_radius_km?: number | null
         }
         Update: Partial<Database['public']['Tables']['obrtnik_profiles']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "obrtnik_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       obrtnik_availability: {
         Row: {
           id: string
           obrtnik_id: string
           day_of_week: number
-          start_time: string | null
-          end_time: string | null
+          time_from: string | null
+          time_to: string | null
           is_available: boolean
           created_at: string
         }
@@ -410,13 +426,21 @@ export interface Database {
           id?: string
           obrtnik_id: string
           day_of_week: number
-          start_time?: string | null
-          end_time?: string | null
+          time_from?: string | null
+          time_to?: string | null
           is_available?: boolean
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['obrtnik_availability']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "obrtnik_availability_obrtnik_id_fkey"
+            columns: ["obrtnik_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       service_areas: {
         Row: {
@@ -436,7 +460,15 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['service_areas']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_areas_obrtnik_id_fkey"
+            columns: ["obrtnik_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       escrow_transactions: {
         Row: {
@@ -478,7 +510,22 @@ export interface Database {
           category_id: string
         }
         Update: Partial<Database['public']['Tables']['obrtnik_categories']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "obrtnik_categories_obrtnik_id_fkey"
+            columns: ["obrtnik_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obrtnik_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       povprasevanja: {
         Row: {
@@ -518,7 +565,22 @@ export interface Database {
           updated_at?: string
         }
         Update: Partial<Database['public']['Tables']['povprasevanja']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "povprasevanja_narocnik_id_fkey"
+            columns: ["narocnik_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "povprasevanja_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       ponudbe: {
         Row: {
@@ -544,7 +606,22 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ponudbe_povprasevanje_id_fkey"
+            columns: ["povprasevanje_id"]
+            isOneToOne: false
+            referencedRelation: "povprasevanja"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ponudbe_obrtnik_id_fkey"
+            columns: ["obrtnik_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       notifications: {
         Row: {
@@ -635,7 +712,13 @@ export interface Database {
           narocnik_id: string
           obrtnik_id: string
           rating: number
+          quality_rating: number | null
+          punctuality_rating: number | null
+          price_rating: number | null
           comment: string | null
+          photos: string[] | null
+          obrtnik_reply: string | null
+          replied_at: string | null
           is_public: boolean
           created_at: string
         }
@@ -645,12 +728,40 @@ export interface Database {
           narocnik_id: string
           obrtnik_id: string
           rating: number
+          quality_rating?: number | null
+          punctuality_rating?: number | null
+          price_rating?: number | null
           comment?: string | null
+          photos?: string[] | null
+          obrtnik_reply?: string | null
+          replied_at?: string | null
           is_public?: boolean
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ocene']['Insert']>
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ocene_narocnik_id_fkey"
+            columns: ["narocnik_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocene_ponudba_id_fkey"
+            columns: ["ponudba_id"]
+            isOneToOne: false
+            referencedRelation: "ponudbe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocene_obrtnik_id_fkey"
+            columns: ["obrtnik_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       payouts: {
         Row: {
