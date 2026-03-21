@@ -70,6 +70,7 @@ export interface Povprasevanje {
   status: PovprasevanjeStatus
   created_at: string
   updated_at: string
+  attachment_urls?: string[]
   narocnik?: Profile
   category?: Category
   ponudbe?: Ponudba[]
@@ -137,6 +138,7 @@ export interface PovprasevanjeInsert {
   preferred_date_to?: string
   budget_min?: number
   budget_max?: number
+  attachment_urls?: string[]
 }
 
 export interface PonudbaInsert {
@@ -187,6 +189,7 @@ export interface PovprasevanjeUpdate {
   budget_min?: number
   budget_max?: number
   status?: PovprasevanjeStatus
+  attachment_urls?: string[]
 }
 
 export interface PonudbaUpdate {
