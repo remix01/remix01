@@ -16,7 +16,7 @@ export default async function RazpolozljivostPage() {
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/partner-auth/login')
+    redirect('/prijava')
   }
 
   // Get obrtnik profile
@@ -27,18 +27,18 @@ export default async function RazpolozljivostPage() {
     .maybeSingle()
 
   if (!obrtnikProfile || profileError) {
-    redirect('/partner-auth/login')
+    redirect('/prijava')
   }
 
   // Fetch availability schedule
-  const { data: availabilitySchedule = [] } = await supabase
+  const { data: availabilitySchedule } = await supabase
     .from('obrtnik_availability')
     .select('*')
     .eq('obrtnik_id', obrtnikProfile.id)
     .order('day_of_week')
 
   // Fetch service areas
-  const { data: serviceAreas = [] } = await supabase
+  const { data: serviceAreas } = await supabase
     .from('service_areas')
     .select('*')
     .eq('obrtnik_id', obrtnikProfile.id)
@@ -63,13 +63,13 @@ export default async function RazpolozljivostPage() {
       {/* Section 2: Weekly Schedule */}
       <WeeklyScheduleSection
         obrtnikId={obrtnikProfile.id}
-        initialSchedule={availabilitySchedule}
+        initialSchedule={availabilitySchedule ?? []}
       />
 
       {/* Section 3: Service Areas */}
       <ServiceAreasSection
         obrtnikId={obrtnikProfile.id}
-        initialServiceAreas={serviceAreas}
+        initialServiceAreas={serviceAreas ?? []}
       />
     </main>
   )
