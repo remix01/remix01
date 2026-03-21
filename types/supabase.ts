@@ -50,6 +50,7 @@ export interface Database {
           isSuspended: boolean
           suspendedAt: string | null
           suspendedReason: string | null
+          commissionOverride: number | null
         }
         Insert: Omit<Database['public']['Tables']['CraftworkerProfile']['Row'], 'id'>
         Update: Partial<Database['public']['Tables']['CraftworkerProfile']['Insert']>
