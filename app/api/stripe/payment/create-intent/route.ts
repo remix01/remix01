@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
 
     // Get partner info to determine commission rate
     const { data: partner, error: partnerError } = await supabase
-      .from('partners')
-      .select('id, stripe_account_id, subscription_type')
+      .from('obrtnik_profiles')
+      .select('id, stripe_account_id, subscription_tier')
       .eq('id', craftsmanId)
-      .single()
+      .maybeSingle()
 
     if (partnerError || !partner) {
       return NextResponse.json(
@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Determine commission rate based on subscription type
+    // Determine commission rate based on subscription tier
     // START = 10%, PRO = 5%
-    const commissionRate = partner.subscription_type === 'pro' ? 0.05 : 0.10
+    const commissionRate = partner.subscription_tier === 'pro' ? 0.05 : 0.10
     const applicationFeeAmount = Math.round(amount * commissionRate)
 
     // Create PaymentIntent with application fee

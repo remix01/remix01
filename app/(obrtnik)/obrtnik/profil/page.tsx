@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { FileUploadZone } from '@/components/file-upload-zone'
 import { uploadFile, generateFilePath } from '@/lib/storage'
-import { AlertCircle, CheckCircle, LogOut } from 'lucide-react'
+import { AlertCircle, CheckCircle, LogOut, Upload } from 'lucide-react'
 
 export default function ProfilPage() {
   const router = useRouter()

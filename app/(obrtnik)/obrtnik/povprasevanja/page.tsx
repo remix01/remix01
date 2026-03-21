@@ -19,7 +19,7 @@ export default async function ObrtknikPovprasevanjaPage() {
       *,
       obrtnik_categories(category_id)
     `)
-    .eq('user_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!obrtnikProfile) {

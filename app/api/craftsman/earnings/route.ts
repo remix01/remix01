@@ -14,10 +14,10 @@ export async function GET() {
 
     // Get partner data
     const { data: partner, error: partnerError } = await supabase
-      .from('partners')
-      .select('*')
+      .from('obrtnik_profiles')
+      .select('id')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (partnerError || !partner) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
@@ -27,7 +27,7 @@ export async function GET() {
     const { data: payouts, error: payoutsError } = await supabase
       .from('payouts')
       .select('*')
-      .eq('craftsman_id', partner.id)
+      .eq('obrtnik_id', partner.id)
       .order('created_at', { ascending: false })
       .limit(10)
 

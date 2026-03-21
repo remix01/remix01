@@ -38,7 +38,7 @@ export default function PonudbesPage() {
       const { data: obrtnikProfile } = await supabase
         .from('obrtnik_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle()
 
       if (!obrtnikProfile) {

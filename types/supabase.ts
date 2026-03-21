@@ -355,6 +355,18 @@ export interface Database {
           response_time_hours: number | null
           is_available: boolean
           created_at: string
+          subscription_tier: 'start' | 'pro' | null
+          stripe_customer_id: string | null
+          stripe_account_id: string | null
+          tagline: string | null
+          hourly_rate: number | null
+          years_experience: number | null
+          working_since: string | null
+          website_url: string | null
+          facebook_url: string | null
+          instagram_url: string | null
+          certificate_urls: string[] | null
+          service_radius_km: number | null
         }
         Insert: {
           id: string
@@ -368,8 +380,92 @@ export interface Database {
           response_time_hours?: number | null
           is_available?: boolean
           created_at?: string
+          subscription_tier?: 'start' | 'pro' | null
+          stripe_customer_id?: string | null
+          stripe_account_id?: string | null
+          tagline?: string | null
+          hourly_rate?: number | null
+          years_experience?: number | null
+          working_since?: string | null
+          website_url?: string | null
+          facebook_url?: string | null
+          instagram_url?: string | null
+          certificate_urls?: string[] | null
+          service_radius_km?: number | null
         }
         Update: Partial<Database['public']['Tables']['obrtnik_profiles']['Insert']>
+        Relationships: []
+      }
+      obrtnik_availability: {
+        Row: {
+          id: string
+          obrtnik_id: string
+          day_of_week: number
+          start_time: string | null
+          end_time: string | null
+          is_available: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          obrtnik_id: string
+          day_of_week: number
+          start_time?: string | null
+          end_time?: string | null
+          is_available?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['obrtnik_availability']['Insert']>
+        Relationships: []
+      }
+      service_areas: {
+        Row: {
+          id: string
+          obrtnik_id: string
+          region: string
+          city: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          obrtnik_id: string
+          region: string
+          city?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['service_areas']['Insert']>
+        Relationships: []
+      }
+      escrow_transactions: {
+        Row: {
+          id: string
+          inquiry_id: string | null
+          partner_id: string | null
+          obrtnik_id: string | null
+          customer_email: string
+          amount_cents: number
+          platform_fee_cents: number
+          status: string
+          stripe_payment_intent_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          inquiry_id?: string | null
+          partner_id?: string | null
+          obrtnik_id?: string | null
+          customer_email: string
+          amount_cents: number
+          platform_fee_cents?: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['escrow_transactions']['Insert']>
         Relationships: []
       }
       obrtnik_categories: {
@@ -554,6 +650,266 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ocene']['Insert']>
+        Relationships: []
+      }
+      payouts: {
+        Row: {
+          id: string
+          ponudba_id: string | null
+          obrtnik_id: string | null
+          amount_eur: number
+          commission_eur: number
+          stripe_transfer_id: string | null
+          status: 'pending' | 'completed' | 'failed'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ponudba_id?: string | null
+          obrtnik_id?: string | null
+          amount_eur: number
+          commission_eur: number
+          stripe_transfer_id?: string | null
+          status?: 'pending' | 'completed' | 'failed'
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['payouts']['Insert']>
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          id: string
+          auth_user_id: string | null
+          email: string
+          ime: string
+          priimek: string
+          vloga: string
+          aktiven: boolean
+          created_at: string
+          updated_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          auth_user_id?: string | null
+          email: string
+          ime: string
+          priimek: string
+          vloga?: string
+          aktiven?: boolean
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['admin_users']['Insert']>
+        Relationships: []
+      }
+      commission_logs: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          escrow_id: string | null
+          partner_id: string | null
+          inquiry_id: string | null
+          gross_amount_cents: number
+          commission_cents: number
+          net_amount_cents: number
+          commission_rate: number
+          status: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          escrow_id?: string | null
+          partner_id?: string | null
+          inquiry_id?: string | null
+          gross_amount_cents: number
+          commission_cents: number
+          net_amount_cents: number
+          commission_rate: number
+          status?: string
+        }
+        Update: Partial<Database['public']['Tables']['commission_logs']['Insert']>
+        Relationships: []
+      }
+      inquiries: {
+        Row: {
+          id: string
+          service_type: string
+          location: string
+          email: string
+          phone: string
+          preferred_date: string | null
+          description: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          service_type: string
+          location: string
+          email: string
+          phone: string
+          preferred_date?: string | null
+          description: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['inquiries']['Insert']>
+        Relationships: []
+      }
+      notification_logs: {
+        Row: {
+          id: string
+          type: string
+          recipient_id: string
+          channel: string
+          request_id: string | null
+          sent_at: string
+          status: string
+          error_message: string | null
+        }
+        Insert: {
+          id?: string
+          type: string
+          recipient_id: string
+          channel: string
+          request_id?: string | null
+          sent_at?: string
+          status?: string
+          error_message?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['notification_logs']['Insert']>
+        Relationships: []
+      }
+      refund_triggers: {
+        Row: {
+          id: string
+          request_id: string
+          triggered_at: string
+          reason: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          triggered_at?: string
+          reason: string
+          status?: string
+        }
+        Update: Partial<Database['public']['Tables']['refund_triggers']['Insert']>
+        Relationships: []
+      }
+      obrtniki: {
+        Row: {
+          id: string
+          ime: string | null
+          priimek: string | null
+          podjetje: string | null
+          specialnosti: string[] | null
+          lokacije: string[] | null
+          cena_min: number | null
+          cena_max: number | null
+          ocena: number | null
+          stevilo_ocen: number | null
+          leta_izkusenj: number | null
+          profilna_slika_url: string | null
+          status: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ime?: string | null
+          priimek?: string | null
+          podjetje?: string | null
+          specialnosti?: string[] | null
+          lokacije?: string[] | null
+          cena_min?: number | null
+          cena_max?: number | null
+          ocena?: number | null
+          stevilo_ocen?: number | null
+          leta_izkusenj?: number | null
+          profilna_slika_url?: string | null
+          status?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['obrtniki']['Insert']>
+        Relationships: []
+      }
+      service_requests: {
+        Row: {
+          id: string
+          povprasevanje_id: string | null
+          request_id: string | null
+          status: string
+          updated_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          povprasevanje_id?: string | null
+          request_id?: string | null
+          status?: string
+          updated_at?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['service_requests']['Insert']>
+        Relationships: []
+      }
+      offers: {
+        Row: {
+          id: string
+          partner_id: string | null
+          status: string | null
+          price: number | null
+          customer_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          partner_id?: string | null
+          status?: string | null
+          price?: number | null
+          customer_name?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['offers']['Insert']>
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          id: string
+          status: string | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          status?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['tasks']['Insert']>
+        Relationships: []
+      }
+      worker_stats: {
+        Row: {
+          id: string
+          worker_id: string | null
+          tasks_completed: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          worker_id?: string | null
+          tasks_completed?: number | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
         Relationships: []
       }
     }

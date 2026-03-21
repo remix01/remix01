@@ -76,10 +76,10 @@ export default function OfferGeneratorPage() {
         }
 
         const { data: partnerData } = await supabase
-          .from('partners')
+          .from('obrtnik_profiles')
           .select('*')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (!partnerData) {
           router.push('/partner-auth/login')
@@ -87,28 +87,22 @@ export default function OfferGeneratorPage() {
         }
 
         setPartner(partnerData)
-        setFormData(prev => ({ ...prev, hourlyRate: partnerData.hourly_rate || '' }))
+        setFormData(prev => ({ ...prev, hourlyRate: partnerData.hourly_rate?.toString() || '' }))
 
-        const { data: paketData } = await supabase
-          .from('partner_paketi')
-          .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .single()
+        const paketData = { paket: partnerData.subscription_tier || 'start' }
+        setPaket(paketData)
 
-        if (paketData) {
-          setPaket(paketData)
+        if (paketData.paket === 'pro') {
+          // Load recent ponudbe as context for offer generation
+          const { data: inquiriesData } = await supabase
+            .from('ponudbe')
+            .select('id, price_estimate, status, created_at, povprasevanja(title, location_city)')
+            .eq('obrtnik_id', partnerData.id)
+            .order('created_at', { ascending: false })
+            .limit(20)
 
-          if (paketData.paket === 'pro') {
-            // Load inquiries
-            const { data: inquiriesData } = await supabase
-              .from('povprasevanja')
-              .select('*')
-              .eq('partner_id', partnerData.id)
-              .order('created_at', { ascending: false })
-
-            if (inquiriesData) {
-              setInquiries(inquiriesData)
-            }
+          if (inquiriesData) {
+            setInquiries(inquiriesData)
           }
         }
       } catch (error) {
