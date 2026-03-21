@@ -1,7 +1,7 @@
 import type { Database } from '@/types/supabase'
 
 type CraftworkerProfile = Database['public']['Tables']['craftworker_profile']['Row']
-type PackageType = CraftworkerProfile['packageType']
+type PackageType = CraftworkerProfile['package_type']
 
 export interface CommissionResult {
   rate: number // Final commission rate percentage (e.g., 6.5)
@@ -43,11 +43,11 @@ const PRO_TIERS: TierConfig[] = [
  * - Manual admin override (if set)
  */
 export function getEffectiveCommission(
-  profile: Pick<CraftworkerProfile, 'packageType' | 'totalJobsCompleted' | 'loyaltyPoints' | 'commissionOverride'>
+  profile: Pick<CraftworkerProfile, 'package_type' | 'total_jobs_completed' | 'loyalty_points' | 'commission_override'>
 ): CommissionResult {
   // Check for admin override first
-  if (profile.commissionOverride) {
-    const overrideRate = Number(profile.commissionOverride)
+  if (profile.commission_override) {
+    const overrideRate = Number(profile.commission_override)
     return {
       rate: overrideRate,
       tierName: 'Admin Override',
@@ -61,15 +61,15 @@ export function getEffectiveCommission(
     }
   }
 
-  const tiers = profile.packageType === 'PRO' ? PRO_TIERS : START_TIERS
-  const standardRate = profile.packageType === 'PRO' ? 5 : 10
+  const tiers = profile.package_type === 'PRO' ? PRO_TIERS : START_TIERS
+  const standardRate = profile.package_type === 'PRO' ? 5 : 10
 
-  // Find current tier based on totalJobsCompleted
+  // Find current tier based on total_jobs_completed
   let currentTier = tiers[0]
   let nextTier: TierConfig | null = null
 
   for (let i = tiers.length - 1; i >= 0; i--) {
-    if (profile.totalJobsCompleted >= tiers[i].jobs) {
+    if (profile.total_jobs_completed >= tiers[i].jobs) {
       currentTier = tiers[i]
       nextTier = i < tiers.length - 1 ? tiers[i + 1] : null
       break
@@ -81,11 +81,11 @@ export function getEffectiveCommission(
 
   // Apply loyalty points bonus: 100 points = -0.5%
   // Minimum rate is 2% (safety floor)
-  const loyaltyBonus = profile.loyaltyPoints > 0 ? (profile.loyaltyPoints / 100) * 0.5 : 0
+  const loyaltyBonus = profile.loyalty_points > 0 ? (profile.loyalty_points / 100) * 0.5 : 0
   let finalRate = Math.max(2, baseRate - loyaltyBonus)
 
   // Calculate next tier threshold
-  const nextTierAt = nextTier ? nextTier.jobs - profile.totalJobsCompleted : null
+  const nextTierAt = nextTier ? nextTier.jobs - profile.total_jobs_completed : null
 
   return {
     rate: Number(finalRate.toFixed(2)),

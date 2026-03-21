@@ -1,10 +1,4 @@
--- Add commissionOverride column to CraftworkerProfile
--- Allows admins to manually override the calculated commission rate for a craftworker.
--- When set, the value takes precedence over all tier/loyalty calculations.
--- Unit: percentage points (e.g. 7.5 = 7.5%). NULL means no override (use calculated rate).
-
-ALTER TABLE craftworker_profile
-  ADD COLUMN IF NOT EXISTS "commissionOverride" NUMERIC(5,2) DEFAULT NULL;
-
-COMMENT ON COLUMN craftworker_profile."commissionOverride"
-  IS 'Admin-set commission rate override in percentage points (e.g. 7.5 = 7.5%). NULL = use calculated tier rate.';
+-- commission_override column is included in 20260321_create_core_tables.sql
+-- This migration is kept as a no-op for idempotency.
+ALTER TABLE IF EXISTS public.craftworker_profile
+  ADD COLUMN IF NOT EXISTS commission_override NUMERIC(5,2) DEFAULT NULL;
