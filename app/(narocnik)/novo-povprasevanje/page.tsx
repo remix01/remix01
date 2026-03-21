@@ -69,11 +69,12 @@ export default function NovoPoVprasevanjePage() {
       setUser(currentUser)
 
       // Fetch user profile to get location
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('location_city')
         .eq('id', currentUser.id)
         .single()
+      const profile = profileData as { location_city: string | null } | null
 
       if (profile?.location_city) {
         setLocationCity(profile.location_city)

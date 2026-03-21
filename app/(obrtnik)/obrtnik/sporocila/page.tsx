@@ -51,7 +51,8 @@ export default function ObrtnikSporocila() {
       setPovprasevanjeInfo(povData.data)
     }
     if (profData.data) {
-      setReceiverName(profData.data.full_name)
+      const prof = profData.data as { full_name: string | null }
+      setReceiverName(prof.full_name)
     }
   }
 

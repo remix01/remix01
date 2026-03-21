@@ -66,11 +66,12 @@ export default function ProfilPage() {
       }
 
       // Load personal profile
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle()
+      const profile = profileData as { first_name: string | null; last_name: string | null; phone: string | null; location_city: string | null; avatar_url: string | null } | null
 
       if (profile) {
         setFirstName(profile.first_name || '')

@@ -32,6 +32,7 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['user']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['user']['Insert']>
+        Relationships: []
       }
       craftworker_profile: {
         Row: {
@@ -56,6 +57,7 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['craftworker_profile']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['craftworker_profile']['Insert']>
+        Relationships: []
       }
       job: {
         Row: {
@@ -78,6 +80,7 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['job']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['job']['Insert']>
+        Relationships: []
       }
       payment: {
         Row: {
@@ -97,6 +100,7 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['payment']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['payment']['Insert']>
+        Relationships: []
       }
       conversation: {
         Row: {
@@ -112,6 +116,7 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['conversation']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['conversation']['Insert']>
+        Relationships: []
       }
       message: {
         Row: {
@@ -126,6 +131,7 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['message']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['message']['Insert']>
+        Relationships: []
       }
       violation: {
         Row: {
@@ -144,6 +150,7 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['violation']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['violation']['Insert']>
+        Relationships: []
       }
       portfolio_items: {
         Row: {
@@ -168,13 +175,18 @@ export interface Database {
           sort_order?: number
         }
         Update: Partial<Database['public']['Tables']['portfolio_items']['Insert']>
+        Relationships: []
       }
       profiles: {
         Row: {
           id: string
           email: string | null
           full_name: string | null
+          ime: string | null
+          first_name: string | null
+          last_name: string | null
           phone: string | null
+          avatar_url: string | null
           role: 'narocnik' | 'obrtnik' | null
           location_city: string | null
           location_region: string | null
@@ -186,7 +198,7 @@ export interface Database {
           referral_code: string | null
           credit_balance: number
           pro_days_earned: number
-          notification_preferences: Record<string, unknown> | null
+          notification_preferences: Json | null
           created_at: string
           updated_at: string | null
         }
@@ -194,7 +206,11 @@ export interface Database {
           id: string
           email?: string | null
           full_name?: string | null
+          ime?: string | null
+          first_name?: string | null
+          last_name?: string | null
           phone?: string | null
+          avatar_url?: string | null
           role?: 'narocnik' | 'obrtnik' | null
           location_city?: string | null
           location_region?: string | null
@@ -206,14 +222,18 @@ export interface Database {
           referral_code?: string | null
           credit_balance?: number
           pro_days_earned?: number
-          notification_preferences?: Record<string, unknown> | null
+          notification_preferences?: Json | null
           created_at?: string
           updated_at?: string | null
         }
         Update: {
           email?: string | null
           full_name?: string | null
+          ime?: string | null
+          first_name?: string | null
+          last_name?: string | null
           phone?: string | null
+          avatar_url?: string | null
           role?: 'narocnik' | 'obrtnik' | null
           location_city?: string | null
           location_region?: string | null
@@ -225,7 +245,7 @@ export interface Database {
           referral_code?: string | null
           credit_balance?: number
           pro_days_earned?: number
-          notification_preferences?: Record<string, unknown> | null
+          notification_preferences?: Json | null
           updated_at?: string | null
         }
         Relationships: []
@@ -246,6 +266,7 @@ export interface Database {
           read_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['sporocila']['Insert']>
+        Relationships: []
       }
     }
     Views: {}

@@ -50,26 +50,29 @@ export async function migratePartnerToNewSystem(
     }
 
     // Step 3: Create profiles record if doesn't exist
-    const { data: existingProfile } = await supabase
+    const { data: existingProfileData } = await supabase
       .from('profiles')
       .select('id')
       .eq('auth_user_id', authUser.id)
       .single()
+    const existingProfile = existingProfileData as { id: string } | null
 
     let profileId = existingProfile?.id
 
     if (!existingProfile) {
-      const { data: newProfile, error: profileError } = await supabase
+      const { data: newProfileData, error: profileError } = await supabase
         .from('profiles')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .insert({
           auth_user_id: authUser.id,
           full_name: partner.business_name,
           email: partner.email,
           role: 'obrtnik',
           location_city: partner.city || null
-        })
+        } as any)
         .select('id')
         .single()
+      const newProfile = newProfileData as { id: string } | null
 
       if (profileError || !newProfile) {
         return {

@@ -30,11 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Get user profile with role
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
+    const profile = profileData as { role: string | null } | null
 
     if (!profile) {
       return NextResponse.json(

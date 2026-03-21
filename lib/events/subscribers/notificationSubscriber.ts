@@ -61,10 +61,11 @@ export function registerNotificationSubscriber() {
 
       // Fetch customer + partner details
       const supabase = createAdminClient()
-      const [{ data: customer }, { data: partner }] = await Promise.all([
+      const [{ data: customerData }, { data: partner }] = await Promise.all([
         supabase.from('profiles').select('email, ime').eq('id', payload.customerId).single(),
         supabase.from('obrtnik_profiles').select('email, ime').eq('id', payload.partnerId).single(),
       ])
+      const customer = customerData as { email: string | null; ime: string | null } | null
 
       if (!customer || !partner) return
 
