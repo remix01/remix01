@@ -190,8 +190,45 @@ export interface Database {
           created_at: string
           updated_at: string | null
         }
-        Insert: Partial<Database['public']['Tables']['profiles']['Row']> & { id: string }
-        Update: Partial<Database['public']['Tables']['profiles']['Row']>
+        Insert: {
+          id: string
+          email?: string | null
+          full_name?: string | null
+          phone?: string | null
+          role?: 'narocnik' | 'obrtnik' | null
+          location_city?: string | null
+          location_region?: string | null
+          subscription_tier?: 'start' | 'pro' | 'elite' | 'enterprise' | null
+          ai_messages_used_today?: number
+          ai_messages_reset_at?: string
+          ai_total_tokens_used?: number
+          ai_total_cost_usd?: number
+          referral_code?: string | null
+          credit_balance?: number
+          pro_days_earned?: number
+          notification_preferences?: Record<string, unknown> | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          email?: string | null
+          full_name?: string | null
+          phone?: string | null
+          role?: 'narocnik' | 'obrtnik' | null
+          location_city?: string | null
+          location_region?: string | null
+          subscription_tier?: 'start' | 'pro' | 'elite' | 'enterprise' | null
+          ai_messages_used_today?: number
+          ai_messages_reset_at?: string
+          ai_total_tokens_used?: number
+          ai_total_cost_usd?: number
+          referral_code?: string | null
+          credit_balance?: number
+          pro_days_earned?: number
+          notification_preferences?: Record<string, unknown> | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       sporocila: {
         Row: {
