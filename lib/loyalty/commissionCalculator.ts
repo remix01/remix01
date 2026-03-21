@@ -1,4 +1,7 @@
-import type { CraftworkerProfile, PackageType } from '@prisma/client'
+import type { Database } from '@/types/supabase'
+
+type CraftworkerProfile = Database['public']['Tables']['CraftworkerProfile']['Row']
+type PackageType = CraftworkerProfile['packageType']
 
 export interface CommissionResult {
   rate: number // Final commission rate percentage (e.g., 6.5)
