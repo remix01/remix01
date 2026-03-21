@@ -14,8 +14,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RateLimiter, getIdentifier } from './rate-limiter'
 
-// Next.js 16 uses Promise<Params> for route segment params
-type RouteContext = { params: Promise<Record<string, string>> }
+// Next.js 16 uses Promise<Params> for route segment params.
+// Use `unknown` so the wrapper is compatible with both parameterless routes
+// ({ params: Promise<{}> }) and dynamic routes ({ params: Promise<{id: string}> }).
+type RouteContext = { params: Promise<unknown> }
 type RouteHandler = (
   request: NextRequest,
   context: RouteContext
