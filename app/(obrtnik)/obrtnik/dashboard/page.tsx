@@ -59,7 +59,7 @@ export default async function ObrtknikDashboardPage() {
     .select('category_id')
     .eq('obrtnik_id', obrtnikProfile.id)
 
-  const categoryIds = obrtnikCategories?.map(oc => oc.category_id) || []
+  const categoryIds = obrtnikCategories?.map((oc: { category_id: string }) => oc.category_id) || []
 
   const { count: openPovprasevanjaCount } = await supabase
     .from('povprasevanja')

@@ -126,7 +126,7 @@ export default function ProfilPage() {
         .select('category_id')
         .eq('obrtnik_id', user.id)
 
-      setSelectedCategories(selected?.map(s => s.category_id) || [])
+      setSelectedCategories(selected?.map((s: { category_id: string }) => s.category_id) || [])
 
       setLoading(false)
     } catch (error) {
