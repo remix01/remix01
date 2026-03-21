@@ -1,6 +1,6 @@
 import type { Database } from '@/types/supabase'
 
-type CraftworkerProfile = Database['public']['Tables']['CraftworkerProfile']['Row']
+type CraftworkerProfile = Database['public']['Tables']['craftworker_profile']['Row']
 type PackageType = CraftworkerProfile['packageType']
 
 export interface CommissionResult {

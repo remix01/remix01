@@ -19,7 +19,7 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      User: {
+      user: {
         Row: {
           id: string
           email: string
@@ -30,10 +30,10 @@ export interface Database {
           createdAt: string
           updatedAt: string
         }
-        Insert: Omit<Database['public']['Tables']['User']['Row'], 'createdAt' | 'updatedAt'>
-        Update: Partial<Database['public']['Tables']['User']['Insert']>
+        Insert: Omit<Database['public']['Tables']['user']['Row'], 'createdAt' | 'updatedAt'>
+        Update: Partial<Database['public']['Tables']['user']['Insert']>
       }
-      CraftworkerProfile: {
+      craftworker_profile: {
         Row: {
           id: string
           userId: string
@@ -52,10 +52,10 @@ export interface Database {
           suspendedReason: string | null
           commissionOverride: number | null
         }
-        Insert: Omit<Database['public']['Tables']['CraftworkerProfile']['Row'], 'id'>
-        Update: Partial<Database['public']['Tables']['CraftworkerProfile']['Insert']>
+        Insert: Omit<Database['public']['Tables']['craftworker_profile']['Row'], 'id'>
+        Update: Partial<Database['public']['Tables']['craftworker_profile']['Insert']>
       }
-      Job: {
+      job: {
         Row: {
           id: string
           title: string
@@ -72,10 +72,10 @@ export interface Database {
           updatedAt: string
           completedAt: string | null
         }
-        Insert: Omit<Database['public']['Tables']['Job']['Row'], 'id' | 'createdAt' | 'updatedAt'>
-        Update: Partial<Database['public']['Tables']['Job']['Insert']>
+        Insert: Omit<Database['public']['Tables']['job']['Row'], 'id' | 'createdAt' | 'updatedAt'>
+        Update: Partial<Database['public']['Tables']['job']['Insert']>
       }
-      Payment: {
+      payment: {
         Row: {
           id: string
           jobId: string
@@ -90,10 +90,10 @@ export interface Database {
           refundedAt: string | null
           disputeReason: string | null
         }
-        Insert: Omit<Database['public']['Tables']['Payment']['Row'], 'id'>
-        Update: Partial<Database['public']['Tables']['Payment']['Insert']>
+        Insert: Omit<Database['public']['Tables']['payment']['Row'], 'id'>
+        Update: Partial<Database['public']['Tables']['payment']['Insert']>
       }
-      Conversation: {
+      conversation: {
         Row: {
           id: string
           jobId: string
@@ -106,10 +106,10 @@ export interface Database {
           createdAt: string
           closedAt: string | null
         }
-        Insert: Omit<Database['public']['Tables']['Conversation']['Row'], 'id' | 'createdAt'>
-        Update: Partial<Database['public']['Tables']['Conversation']['Insert']>
+        Insert: Omit<Database['public']['Tables']['conversation']['Row'], 'id' | 'createdAt'>
+        Update: Partial<Database['public']['Tables']['conversation']['Insert']>
       }
-      Message: {
+      message: {
         Row: {
           id: string
           conversationId: string
@@ -120,10 +120,10 @@ export interface Database {
           sentAt: string
           twilioMessageSid: string | null
         }
-        Insert: Omit<Database['public']['Tables']['Message']['Row'], 'id' | 'sentAt'>
-        Update: Partial<Database['public']['Tables']['Message']['Insert']>
+        Insert: Omit<Database['public']['Tables']['message']['Row'], 'id' | 'sentAt'>
+        Update: Partial<Database['public']['Tables']['message']['Insert']>
       }
-      Violation: {
+      violation: {
         Row: {
           id: string
           jobId: string
@@ -138,20 +138,8 @@ export interface Database {
           actionTaken: string | null
           createdAt: string
         }
-        Insert: Omit<Database['public']['Tables']['Violation']['Row'], 'id' | 'createdAt'>
-        Update: Partial<Database['public']['Tables']['Violation']['Insert']>
-      }
-      RiskScore: {
-        Row: {
-          id: string
-          jobId: string
-          score: number
-          flags: Json
-          calculatedAt: string
-          triggeredAlert: boolean
-        }
-        Insert: Omit<Database['public']['Tables']['RiskScore']['Row'], 'id' | 'calculatedAt'>
-        Update: Partial<Database['public']['Tables']['RiskScore']['Insert']>
+        Insert: Omit<Database['public']['Tables']['violation']['Row'], 'id' | 'createdAt'>
+        Update: Partial<Database['public']['Tables']['violation']['Insert']>
       }
       portfolio_items: {
         Row: {
