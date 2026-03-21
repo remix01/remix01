@@ -26,7 +26,7 @@ This file provides AI assistants with the essential context needed to navigate a
 | Language | TypeScript 5.7 (strict mode) |
 | UI | React 19, shadcn/ui, Radix UI, Tailwind CSS 3 |
 | Database | PostgreSQL via Supabase |
-| ORM | Supabase SDK directly (Prisma is deprecated—schema kept for reference only) |
+| ORM | Supabase SDK directly (Prisma fully removed) |
 | Auth | Supabase Auth (OAuth + email/password) |
 | Payments | Stripe v3 + custom escrow logic |
 | AI | Anthropic Claude SDK (multi-agent system) |
@@ -80,8 +80,6 @@ remix01/
 │   ├── integration/        # Full-flow integration tests
 │   ├── performance/        # Load & latency benchmarks
 │   └── security/           # Security tests
-├── prisma/                 # DEPRECATED ORM schema (kept for reference)
-│   └── schema.prisma       # 14+ models — reference only, not active
 ├── supabase/
 │   └── migrations/         # SQL migration files
 ├── hooks/                  # React hooks
@@ -244,7 +242,7 @@ Key variables (see `.env.example` for the full list):
 
 ## Architecture Decision Records
 
-1. **Prisma → Supabase SDK migration:** Prisma is deprecated. `schema.prisma` exists for reference only. All new DB work uses Supabase SDK.
+1. **Prisma → Supabase SDK migration:** Prisma has been fully removed. All DB work uses the Supabase SDK. Migrations live in `supabase/migrations/`.
 2. **State machines over ad-hoc status updates:** Business entity lifecycle (jobs, offers, escrow) is managed via explicit state machines to prevent invalid transitions.
 3. **Multi-agent AI architecture:** Specialized agents with a central orchestrator allow each domain (matching, disputes, notifications) to evolve independently.
 4. **Escrow-first payments:** All payments flow through escrow before release, providing consumer protection and enabling dispute resolution.
