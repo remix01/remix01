@@ -268,6 +268,270 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['sporocila']['Insert']>
         Relationships: []
       }
+      calendar_connections: {
+        Row: {
+          id: string
+          user_id: string
+          access_token: string
+          refresh_token: string | null
+          expiry_date: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          access_token: string
+          refresh_token?: string | null
+          expiry_date?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['calendar_connections']['Insert']>
+        Relationships: []
+      }
+      appointments: {
+        Row: {
+          id: string
+          ponudba_id: string
+          narocnik_id: string | null
+          obrtnik_id: string | null
+          scheduled_start: string
+          scheduled_end: string
+          narocnik_calendar_event_id: string | null
+          obrtnik_calendar_event_id: string | null
+          status: 'scheduled' | 'completed' | 'cancelled'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ponudba_id: string
+          narocnik_id?: string | null
+          obrtnik_id?: string | null
+          scheduled_start: string
+          scheduled_end: string
+          narocnik_calendar_event_id?: string | null
+          obrtnik_calendar_event_id?: string | null
+          status?: 'scheduled' | 'completed' | 'cancelled'
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['appointments']['Insert']>
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          icon_name: string | null
+          description: string | null
+          is_active: boolean
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          icon_name?: string | null
+          description?: string | null
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['categories']['Insert']>
+        Relationships: []
+      }
+      obrtnik_profiles: {
+        Row: {
+          id: string
+          business_name: string
+          description: string | null
+          ajpes_id: string | null
+          is_verified: boolean
+          verification_status: 'pending' | 'verified' | 'rejected'
+          avg_rating: number
+          total_reviews: number
+          response_time_hours: number | null
+          is_available: boolean
+          created_at: string
+        }
+        Insert: {
+          id: string
+          business_name: string
+          description?: string | null
+          ajpes_id?: string | null
+          is_verified?: boolean
+          verification_status?: 'pending' | 'verified' | 'rejected'
+          avg_rating?: number
+          total_reviews?: number
+          response_time_hours?: number | null
+          is_available?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['obrtnik_profiles']['Insert']>
+        Relationships: []
+      }
+      obrtnik_categories: {
+        Row: {
+          obrtnik_id: string
+          category_id: string
+        }
+        Insert: {
+          obrtnik_id: string
+          category_id: string
+        }
+        Update: Partial<Database['public']['Tables']['obrtnik_categories']['Insert']>
+        Relationships: []
+      }
+      povprasevanja: {
+        Row: {
+          id: string
+          narocnik_id: string
+          category_id: string
+          title: string
+          description: string
+          location_city: string
+          location_region: string | null
+          location_notes: string | null
+          urgency: 'normalno' | 'kmalu' | 'nujno'
+          preferred_date_from: string | null
+          preferred_date_to: string | null
+          budget_min: number | null
+          budget_max: number | null
+          status: 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          narocnik_id: string
+          category_id: string
+          title: string
+          description: string
+          location_city: string
+          location_region?: string | null
+          location_notes?: string | null
+          urgency?: 'normalno' | 'kmalu' | 'nujno'
+          preferred_date_from?: string | null
+          preferred_date_to?: string | null
+          budget_min?: number | null
+          budget_max?: number | null
+          status?: 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['povprasevanja']['Insert']>
+        Relationships: []
+      }
+      ponudbe: {
+        Row: {
+          id: string
+          povprasevanje_id: string
+          obrtnik_id: string
+          message: string
+          price_estimate: number | null
+          price_type: 'fiksna' | 'ocena' | 'po_ogledu'
+          available_date: string | null
+          status: 'poslana' | 'sprejeta' | 'zavrnjena'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          povprasevanje_id: string
+          obrtnik_id: string
+          message: string
+          price_estimate?: number | null
+          price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
+          available_date?: string | null
+          status?: 'poslana' | 'sprejeta' | 'zavrnjena'
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          body: string
+          message: string | null
+          resource_id: string | null
+          resource_type: string | null
+          link: string | null
+          metadata: Json
+          is_read: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          body: string
+          message?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          link?: string | null
+          metadata?: Json
+          is_read?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['notifications']['Insert']>
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string | null
+          auth: string | null
+          device_info: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh?: string | null
+          auth?: string | null
+          device_info?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['push_subscriptions']['Insert']>
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          id: string
+          referrer_id: string
+          referred_id: string
+          reward_granted: boolean
+          reward_type: string | null
+          reward_amount: number | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          referrer_id: string
+          referred_id: string
+          reward_granted?: boolean
+          reward_type?: string | null
+          reward_amount?: number | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['referrals']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
