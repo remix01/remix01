@@ -16,13 +16,14 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
 
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: admin, error: adminError } = await supabaseAdmin
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (profile?.role !== 'admin') {
+    if (adminError || !admin) {
       return NextResponse.json({ error: 'Prepovedano.' }, { status: 403 })
     }
 
