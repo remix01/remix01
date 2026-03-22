@@ -80,7 +80,7 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
             avgRating: craftworker.reviews?.length > 0
               ? craftworker.reviews.reduce((sum: number, r: any) => sum + (r.ocena || 0), 0) / craftworker.reviews.length
               : null,
-            loyaltyPoints: craftworker.loyalty_points || 0,
+            loyaltyPoints: 0,
             isVerified: craftworker.is_verified || false,
           }}
         />
