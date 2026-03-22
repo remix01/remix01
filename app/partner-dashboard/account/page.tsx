@@ -228,7 +228,7 @@ export default function AccountPage() {
 
   return (
     <div className="flex h-screen">
-      <PartnerSidebar partner={partner || { business_name: 'Moj portal', subscription_tier: 'start', avg_rating: 0, is_verified: false }} />
+      <PartnerSidebar partner={partner ? { business_name: partner.business_name, subscription_tier: partner.subscription_tier, avg_rating: 0, is_verified: false } : { business_name: 'Moj portal', subscription_tier: 'start' as const, avg_rating: 0, is_verified: false }} />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="mx-auto max-w-3xl p-6 lg:p-8">
           <div className="mb-8">

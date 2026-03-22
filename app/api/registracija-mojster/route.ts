@@ -69,12 +69,9 @@ export async function POST(request: NextRequest) {
     const { error: profileError } = await supabase
       .from('obrtnik_profiles')
       .insert({
-        user_id: userId,
-        full_name: `${validatedData.firstName} ${validatedData.lastName}`,
+        id: userId,
         business_name: validatedData.companyName,
-        tax_number: validatedData.taxNumber,
-        categories: validatedData.specialization,
-        location_city: validatedData.workArea,
+        description: `${validatedData.specialization} — ${validatedData.workArea}`,
         phone: validatedData.phone,
         subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : 'start',
         is_verified: false,
@@ -114,7 +111,7 @@ export async function POST(request: NextRequest) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net',
+            from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net',
             to: validatedData.email,
             subject: 'Dobrodošli na LiftGO - Potrdite vaš račun',
             html: `

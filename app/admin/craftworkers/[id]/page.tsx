@@ -73,14 +73,14 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
             phone: craftworker.phone || null,
           }}
           profile={{
-            packageType: craftworker.package_type || 'START',
+            packageType: (craftworker.subscription_tier || 'start').toUpperCase() as 'START' | 'PRO',
             stripeAccountId: craftworker.stripe_account_id || null,
-            stripeOnboardingComplete: craftworker.stripe_onboarding_complete || false,
+            stripeOnboardingComplete: !!craftworker.stripe_account_id,
             totalJobsCompleted: craftworker.assignedJobs?.length || 0,
             avgRating: craftworker.reviews?.length > 0
-              ? craftworker.reviews.reduce((sum: number, r: any) => sum + (r.ocena || 0), 0) / craftworker.reviews.length
+              ? craftworker.reviews.reduce((sum: number, r: { rating: number }) => sum + (r.rating || 0), 0) / craftworker.reviews.length
               : null,
-            loyaltyPoints: craftworker.loyalty_points || 0,
+            loyaltyPoints: 0,
             isVerified: craftworker.is_verified || false,
           }}
         />

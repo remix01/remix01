@@ -257,38 +257,40 @@ export async function POST(request: NextRequest) {
       // onboarding (KYC, requirements, capabilities, persons).
       // We re-fetch the account status from Stripe and sync it to DB.
 
-      case 'v2.core.account[requirements].updated':
-      case 'v2.core.account[identity].updated':
-      case 'v2.core.account[configuration.merchant].capability_status_updated': {
-        const v2Event = event as unknown as {
-          related_object: { id: string; type: string }
-          context: string
+      default: {
+        // Handle v2 Connect account events
+        const eventType = event.type as string
+        if (
+          eventType === 'v2.core.account[requirements].updated' ||
+          eventType === 'v2.core.account[identity].updated' ||
+          eventType === 'v2.core.account[configuration.merchant].capability_status_updated'
+        ) {
+          const v2Event = event as unknown as {
+            related_object: { id: string; type: string }
+            context: string
+          }
+          const connectedAccountId = v2Event.related_object?.id
+          if (connectedAccountId) {
+            await syncConnectedAccountStatus(connectedAccountId, event.id)
+          }
+        } else if (
+          eventType === 'v2.core.account_person.created' ||
+          eventType === 'v2.core.account_person.updated'
+        ) {
+          const v2Event = event as unknown as {
+            related_object: { id: string; type: string; url: string }
+            context: string
+          }
+          const urlParts = v2Event.related_object?.url?.split('/') ?? []
+          const acctIndex = urlParts.indexOf('accounts')
+          const connectedAccountId = acctIndex !== -1 ? urlParts[acctIndex + 1] : null
+          if (connectedAccountId) {
+            await syncConnectedAccountStatus(connectedAccountId, event.id)
+          }
+        } else {
+          console.log('[WEBHOOK] Unhandled event:', event.type)
         }
-        const connectedAccountId = v2Event.related_object?.id
-        if (!connectedAccountId) break
-
-        // Sync onboarding status for this connected account
-        await syncConnectedAccountStatus(connectedAccountId, event.id)
-        break
       }
-
-      case 'v2.core.account_person.created':
-      case 'v2.core.account_person.updated': {
-        const v2Event = event as unknown as {
-          related_object: { id: string; type: string; url: string }
-          context: string
-        }
-        // Extract account ID from the person URL: /v2/core/accounts/{acct_id}/persons/{person_id}
-        const urlParts = v2Event.related_object?.url?.split('/') ?? []
-        const acctIndex = urlParts.indexOf('accounts')
-        const connectedAccountId = acctIndex !== -1 ? urlParts[acctIndex + 1] : null
-        if (!connectedAccountId) break
-
-        await syncConnectedAccountStatus(connectedAccountId, event.id)
-        break
-      }
-
-      default:
         console.log('[WEBHOOK] Unhandled event:', event.type)
     }
 

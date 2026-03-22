@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       .from('agent_matches')
       .insert({
         povprasevanje_id: povprasevanjeId,
-        matches: result.topMatches,
+        matches: result.topMatches as unknown as import('@/types/supabase').Json,
         reasoning: result.reasoning,
         created_at: new Date().toISOString(),
       })

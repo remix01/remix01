@@ -87,8 +87,8 @@ export default async function InquiryDetailPage({
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">{povprasevanje.naslov}</h1>
-            <p className="text-slate-600 mt-2">{povprasevanje.opis}</p>
+            <h1 className="text-3xl font-bold text-slate-900">{povprasevanje.title}</h1>
+            <p className="text-slate-600 mt-2">{povprasevanje.description}</p>
           </div>
           <Badge className={statusBadgeColors[povprasevanje.status]}>
             {povprasevanje.status}
@@ -103,7 +103,7 @@ export default async function InquiryDetailPage({
           {/* Category */}
           <div>
             <p className="text-sm text-slate-600 font-medium">Kategorija</p>
-            <p className="text-slate-900 font-semibold mt-1">{povprasevanje.kategorija}</p>
+            <p className="text-slate-900 font-semibold mt-1">{povprasevanje.category_id}</p>
           </div>
 
           {/* Location */}
@@ -112,7 +112,7 @@ export default async function InquiryDetailPage({
               <MapPin className="w-4 h-4" />
               Lokacija
             </p>
-            <p className="text-slate-900 font-semibold mt-1">{povprasevanje.lokacija}</p>
+            <p className="text-slate-900 font-semibold mt-1">{povprasevanje.location_city}</p>
           </div>
 
           {/* Budget */}
@@ -122,7 +122,7 @@ export default async function InquiryDetailPage({
               Budžet
             </p>
             <p className="text-slate-900 font-semibold mt-1">
-              €{povprasevanje.budget_od}–€{povprasevanje.budget_do}
+              €{povprasevanje.budget_min}–€{povprasevanje.budget_max}
             </p>
           </div>
 

@@ -33,10 +33,8 @@ export default async function OpenDisputePage({ params }: PageProps) {
       id,
       status,
       amount_cents,
-      created_by,
-      customer_name,
-      partner_name
-    `
+      customer_email
+`
     )
     .eq('id', id)
     .maybeSingle()
@@ -46,7 +44,7 @@ export default async function OpenDisputePage({ params }: PageProps) {
   }
 
   // Verify ownership
-  if (escrow.created_by !== user.id) {
+  if (escrow.customer_email !== user.email) {
     redirect('/dashboard')
   }
 
@@ -75,8 +73,8 @@ export default async function OpenDisputePage({ params }: PageProps) {
         {/* Form */}
         <OpenDisputeForm
           escrowId={id}
-          customerName={escrow.customer_name || 'Stranka'}
-          partnerName={escrow.partner_name || 'Partner'}
+          customerName={escrow.customer_email || 'Stranka'}
+          partnerName={'Partner'}
           amount={escrow.amount_cents || 0}
         />
       </div>

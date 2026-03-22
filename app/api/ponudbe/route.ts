@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       price_estimate,
       price_type,
       available_date,
-      status: 'poslana'
+      // status is set by the service layer
     })
 
     return apiSuccess(ponudba)

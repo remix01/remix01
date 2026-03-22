@@ -69,15 +69,15 @@ export async function POST(req: NextRequest) {
       .select('id').single()
 
     await supabaseAdmin.from('profiles').update({ ai_messages_used_today: effectiveUsed + 1 }).eq('id', user.id)
-    await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
+    await Promise.resolve(supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
       p_user_id: user.id, p_agent_type: 'materials_agent',
       p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
-    }).catch(() => {})
-    await supabaseAdmin.from('ai_usage_logs').insert({
+    })).catch(() => {})
+    await Promise.resolve(supabaseAdmin.from('ai_usage_logs').insert({
       user_id: user.id, model_used: 'sonnet-4', tokens_input: inputTokens,
       tokens_output: outputTokens, cost_usd: costUsd, response_cached: false,
       agent_type: 'materials_agent', user_message: work_description.slice(0,200),
-    }).catch(() => {})
+    })).catch(() => {})
 
     return NextResponse.json({
       material_list: parsed.material_list ?? [],
