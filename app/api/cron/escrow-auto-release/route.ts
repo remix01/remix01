@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         eventType: 'released',
         actor: 'system',
         actorId: 'cron-auto-release',
-        statusBefore: 'releasing',
+        statusBefore: 'releasing' as any,
         statusAfter: 'released',
         amountCents: tx.amount_total_cents,
         metadata: {

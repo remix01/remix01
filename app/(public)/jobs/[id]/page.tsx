@@ -55,7 +55,7 @@ export default async function JobDetailPage(props: Props) {
     },
     {
       step: 'Ponudbe prejet',
-      status: povprasevanje.ponudbe_count > 0 ? ('completed' as const) : ('pending' as const),
+      status: (povprasevanje.ponudbe_count ?? 0) > 0 ? ('completed' as const) : ('pending' as const),
       date: povprasevanje.ponudbe?.[0]?.created_at,
       icon: 'CheckCircle2',
     },

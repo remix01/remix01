@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (updateError) throw updateError
 
     // Log the action
-    await supabase
+    const { error: auditError } = await supabase
       .from('admin_audit_log')
       .insert({
         action: flagged ? 'flag_user' : 'unflag_user',
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         new_value: { flagged },
         created_at: new Date().toISOString(),
       })
-      .catch(err => console.error('Audit log error:', err))
+    if (auditError) console.error('Audit log error:', auditError)
 
     return NextResponse.json({
       success: true,

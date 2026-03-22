@@ -4,6 +4,7 @@ import Link from 'next/link'
 
 async function getAgentStats() {
   const supabase = await createClient()
+  const db = supabase as any
 
   const [
     { count: totalMatches },
@@ -12,23 +13,23 @@ async function getAgentStats() {
     { count: pendingVerifications },
     { data: recentMatches },
   ] = await Promise.all([
-    supabase
+    db
       .from('agent_matches')
       .select('*', { count: 'exact', head: true }),
-    supabase
+    db
       .from('agent_matches')
       .select('score')
       .order('created_at', { ascending: false })
       .limit(100),
-    supabase
+    db
       .from('verifications')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'approved'),
-    supabase
+    db
       .from('verifications')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending'),
-    supabase
+    db
       .from('agent_matches')
       .select(`
         id,

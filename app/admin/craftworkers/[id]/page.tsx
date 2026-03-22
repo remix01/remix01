@@ -61,8 +61,23 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <CraftworkerProfileCard 
-          craftworker={craftworker}
+        <CraftworkerProfileCard
+          craftworker={{
+            name: craftworker.business_name || '',
+            email: craftworker.email || '',
+            phone: craftworker.phone || null,
+          }}
+          profile={{
+            packageType: craftworker.package_type || 'START',
+            stripeAccountId: craftworker.stripe_account_id || null,
+            stripeOnboardingComplete: craftworker.stripe_onboarding_complete || false,
+            totalJobsCompleted: craftworker.assignedJobs?.length || 0,
+            avgRating: craftworker.reviews?.length > 0
+              ? craftworker.reviews.reduce((sum: number, r: any) => sum + (r.ocena || 0), 0) / craftworker.reviews.length
+              : null,
+            loyaltyPoints: craftworker.loyalty_points || 0,
+            isVerified: craftworker.is_verified || false,
+          }}
         />
         <SuspensionPanel 
           userId={id} 

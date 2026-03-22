@@ -136,7 +136,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         <p><strong>${
           resolution === 'refund_to_customer' ? 'Vračilo stranki' :
           resolution === 'release_to_craftworker' ? 'Sprostitev obrtniku' :
-          `Razdelitev (${splitPct}% / ${100 - splitPct}%)`
+          `Razdelitev (${splitPct!}% / ${100 - splitPct!}%)`
         }</strong></p>
         <h3>Obrazložitev:</h3>
         <p>${reason}</p>
@@ -149,13 +149,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       `
 
       await Promise.all([
-        sendEmail({
-          to: job.customer.email,
+        sendEmail(job.customer.email, {
           subject: `Spor rešen: ${job.title}`,
           html: emailContent,
         }),
-        job.craftworker && sendEmail({
-          to: job.craftworker.email,
+        job.craftworker && sendEmail(job.craftworker.email, {
           subject: `Spor rešen: ${job.title}`,
           html: emailContent,
         })
