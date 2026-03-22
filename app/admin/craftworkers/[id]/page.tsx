@@ -73,7 +73,7 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
             phone: craftworker.phone || null,
           }}
           profile={{
-            packageType: craftworker.package_type || 'START',
+            packageType: craftworker.subscription_tier?.toUpperCase() || 'START',
             stripeAccountId: craftworker.stripe_account_id || null,
             stripeOnboardingComplete: craftworker.stripe_onboarding_complete || false,
             totalJobsCompleted: craftworker.assignedJobs?.length || 0,
