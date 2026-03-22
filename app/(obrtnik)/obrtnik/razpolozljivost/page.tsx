@@ -69,7 +69,7 @@ export default async function RazpolozljivostPage() {
       {/* Section 3: Service Areas */}
       <ServiceAreasSection
         obrtnikId={obrtnikProfile.id}
-        initialServiceAreas={serviceAreas}
+        initialServiceAreas={serviceAreas ?? []}
       />
     </main>
   )
