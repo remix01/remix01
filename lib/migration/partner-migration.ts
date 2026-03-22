@@ -40,12 +40,12 @@ export async function migratePartnerToNewSystem(
     // Step 2: Check if auth user exists for this partner
     const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers()
     
-    const authUser = authUsers?.find(u => u.email === partner.email)
+    const authUser = authUsers?.find(u => u.email === (partner as any).email)
     
     if (!authUser) {
       return {
         success: false,
-        error: `No auth user found for email: ${partner.email}`
+        error: `No auth user found for email: ${(partner as any).email}`
       }
     }
 
@@ -65,10 +65,10 @@ export async function migratePartnerToNewSystem(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .insert({
           auth_user_id: authUser.id,
-          full_name: partner.business_name,
-          email: partner.email,
+          full_name: (partner as any).business_name,
+          email: (partner as any).email,
           role: 'obrtnik',
-          location_city: partner.city || null
+          location_city: (partner as any).city || null
         } as any)
         .select('id')
         .single()
@@ -96,11 +96,11 @@ export async function migratePartnerToNewSystem(
         .from('obrtnik_profiles')
         .insert({
           id: profileId,
-          business_name: partner.business_name,
-          avg_rating: partner.rating || 0,
-          is_verified: partner.is_verified || false,
+          business_name: (partner as any).business_name,
+          avg_rating: (partner as any).rating || 0,
+          is_verified: (partner as any).is_verified || false,
           created_at: new Date().toISOString()
-        })
+        } as any)
 
       if (obrtnikError) {
         return {

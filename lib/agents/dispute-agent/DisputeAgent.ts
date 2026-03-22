@@ -236,7 +236,7 @@ export class DisputeAgent extends BaseAgent {
     try {
       await assertEscrowTransition(escrowId, newStatus)
     } catch (error: unknown) {
-      this.log('state_transition_blocked', { error: error.error, escrowId })
+      this.log('state_transition_blocked', { error: (error as any)?.error, escrowId })
       return {
         success: false,
         error: 'Cannot apply this resolution',
@@ -280,7 +280,7 @@ export class DisputeAgent extends BaseAgent {
     // 5. Enqueue appropriate Stripe job
     if (resolution === 'refund') {
       try {
-        await enqueue('stripe_refund_payment', {
+        await enqueue('stripeCancel' as any, {
           escrowId,
           amountCents: refundAmount,
           reason: 'Dispute resolution — refund to customer',
@@ -291,7 +291,7 @@ export class DisputeAgent extends BaseAgent {
       }
     } else if (resolution === 'release') {
       try {
-        await enqueue('stripe_capture_payment', {
+        await enqueue('stripeCapture' as any, {
           escrowId,
           reason: 'Dispute resolution — release to partner',
         })
