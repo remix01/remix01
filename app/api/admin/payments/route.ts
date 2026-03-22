@@ -75,9 +75,7 @@ export async function GET() {
     return NextResponse.json({ transactions, payouts })
   } catch (error: unknown) {
     console.error('[admin/payments] error:', error)
-    return NextResponse.json(
-      { error: error?.message || 'Failed to fetch payment data' },
-      { status: 500 }
-    )
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch payment data'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
