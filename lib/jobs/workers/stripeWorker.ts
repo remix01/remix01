@@ -20,7 +20,8 @@ interface StripeJobPayload {
 }
 
 export async function handleStripeJob(job: Job<StripeJobPayload>): Promise<void> {
-  const { type, payload } = job
+  const { data: payload } = job
+  const type = (job as any).type as string | undefined
   const { transactionId, paymentIntentId, amountCents, reason, metadata } = payload
 
   // Fetch transaction to verify state

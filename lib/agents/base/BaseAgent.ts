@@ -48,7 +48,13 @@ export abstract class BaseAgent {
     details?: Record<string, unknown>
   ): void {
     try {
-      agentLogger.log('info', event as any, details)
+      agentLogger.log({
+        sessionId: (details as any)?.sessionId ?? 'unknown',
+        userId: (details as any)?.userId ?? 'unknown',
+        level: 'info',
+        event: event as any,
+        ...(details ? { params: details as object } : {}),
+      })
     } catch (error) {
       console.error('[BaseAgent] Logging failed:', error)
     }

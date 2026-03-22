@@ -36,7 +36,7 @@ export async function saveCalendarTokens(
         refresh_token: tokens.refresh_token || null,
         expiry_date: tokens.expiry_date || null,
         updated_at: new Date().toISOString()
-      }, {
+      } as any, {
         onConflict: 'user_id'
       })
 
@@ -116,7 +116,7 @@ export async function createAppointmentEvent(params: {
           expiry_date: narocnikConnection.expiry_date
         })
 
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
+        const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any
         const { data } = await calendar.events.create({
           calendarId: 'primary',
           requestBody: eventBody
@@ -138,7 +138,7 @@ export async function createAppointmentEvent(params: {
           expiry_date: obrtknikConnection.expiry_date
         })
 
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
+        const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any
         const { data } = await calendar.events.create({
           calendarId: 'primary',
           requestBody: eventBody
@@ -163,8 +163,9 @@ export async function createAppointmentEvent(params: {
           narocnik_calendar_event_id: narocnikEventId,
           obrtnik_calendar_event_id: obrtknikEventId,
           status: 'scheduled'
-        })
-        .catch(err => console.error('[v0] Appointment record insert error:', err))
+        } as any)
+        .then(() => {})
+        .catch((err: any) => console.error('[v0] Appointment record insert error:', err))
     }
 
     return { narocnikEventId, obrtknikEventId }

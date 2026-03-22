@@ -129,7 +129,7 @@ export async function startVerification(params: {
           ajpes_id: params.ajpesId,
           ajpes_verified_at: new Date().toISOString(),
           ajpes_data: ajpesResult,
-        })
+        } as any)
         .eq('id', params.obrtknikId)
 
       if (updateError) {
@@ -150,14 +150,12 @@ export async function startVerification(params: {
     // Manual review needed (name mismatch or API unreachable)
     const { data: verificationRecord, error: insertError } = await supabase
       .from('verifications')
-      .insert([
-        {
-          obrtnik_id: params.obrtknikId,
-          ajpes_id: params.ajpesId,
-          ajpes_response: ajpesResult,
-          status: 'pending',
-        },
-      ])
+      .insert({
+        obrtnik_id: params.obrtknikId,
+        ajpes_id: params.ajpesId,
+        ajpes_response: ajpesResult as any,
+        status: 'pending',
+      } as any)
       .select('id')
       .single()
 
@@ -177,7 +175,7 @@ export async function startVerification(params: {
         verification_status: 'pending',
         ajpes_id: params.ajpesId,
         ajpes_data: ajpesResult,
-      })
+      } as any)
       .eq('id', params.obrtknikId)
 
     return {
@@ -213,7 +211,7 @@ export async function manuallyVerifyObrtnik(params: {
       .update({
         is_verified: params.approved,
         verification_status: params.approved ? 'verified' : 'rejected',
-      })
+      } as any)
       .eq('id', params.obrtknikId)
 
     if (profileError) {

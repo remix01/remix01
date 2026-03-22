@@ -59,10 +59,10 @@ export class DisputeAgent extends BaseAgent {
       const session: Session = { user: { id: userId, role: 'user' as any } }
       await runGuardrails('openDispute', payload, session)
     } catch (error: unknown) {
-      this.log('guardrails_failed', { error: error.error })
+      this.log('guardrails_failed', { error: (error as any)?.error })
       return {
         success: false,
-        error: error.error || 'Validation failed',
+        error: (error as any)?.error || 'Validation failed',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -95,10 +95,10 @@ export class DisputeAgent extends BaseAgent {
     try {
       await assertEscrowTransition(escrowId, 'disputed')
     } catch (error: unknown) {
-      this.log('state_transition_blocked', { error: error.error, escrowId })
+      this.log('state_transition_blocked', { error: (error as any)?.error, escrowId })
       return {
         success: false,
-        error: error.error || 'Cannot open dispute on this escrow',
+        error: (error as any)?.error || 'Cannot open dispute on this escrow',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -143,12 +143,17 @@ export class DisputeAgent extends BaseAgent {
     // 5. Broadcast to NotifyAgent
     try {
       await messageBus.send({
+        id: uuidv4(),
+        from: this.type,
         to: 'notify',
+        type: 'event',
         action: 'dispute_opened',
         payload: { disputeId, escrowId, userId, reason, description },
         userId,
         sessionId,
         correlationId: uuidv4(),
+        timestamp: Date.now(),
+        priority: 'normal',
       })
     } catch (error: unknown) {
       this.log('broadcast_failed', { error: getErrorMessage(error) })

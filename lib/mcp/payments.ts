@@ -7,7 +7,7 @@ function getStripe(): Stripe {
   if (!_stripe) {
     const key = process.env.STRIPE_SECRET_KEY
     if (!key) throw new Error('[payments] STRIPE_SECRET_KEY is not configured')
-    _stripe = new Stripe(key, { apiVersion: '2024-06-20' })
+    _stripe = new Stripe(key, { apiVersion: '2024-06-20' as any })
   }
   return _stripe
 }
@@ -43,7 +43,7 @@ export async function createPaymentIntent(params: {
     const supabase = await createClient()
     await supabase
       .from('ponudbe')
-      .update({ stripe_payment_intent_id: paymentIntent.id })
+      .update({ stripe_payment_intent_id: paymentIntent.id } as any)
       .eq('id', params.ponudbaId)
 
     return { clientSecret: paymentIntent.client_secret }
