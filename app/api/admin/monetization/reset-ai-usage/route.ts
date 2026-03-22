@@ -33,9 +33,7 @@ export async function POST(request: NextRequest) {
         action: 'reset_ai_usage',
         admin_id: 'system',
         user_id: userId,
-        old_value: { action: 'reset' },
-        new_value: { ai_messages_used_today: 0 },
-        created_at: new Date().toISOString(),
+        details: { old_value: { action: 'reset' }, new_value: { ai_messages_used_today: 0 } },
       })
     if (auditError) console.error('Audit log error:', auditError)
 

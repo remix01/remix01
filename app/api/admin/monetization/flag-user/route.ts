@@ -32,9 +32,7 @@ export async function POST(request: NextRequest) {
         action: flagged ? 'flag_user' : 'unflag_user',
         admin_id: 'system',
         user_id: userId,
-        old_value: { flagged: !flagged },
-        new_value: { flagged },
-        created_at: new Date().toISOString(),
+        details: { old_value: { flagged: !flagged }, new_value: { flagged } },
       })
     if (auditError) console.error('Audit log error:', auditError)
 

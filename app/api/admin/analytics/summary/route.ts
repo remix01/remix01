@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     // Check if user is admin
     const { data: userData } = await supabase
-      .from('User')
+      .from('user')
       .select('role')
       .eq('id', user.id)
       .single()

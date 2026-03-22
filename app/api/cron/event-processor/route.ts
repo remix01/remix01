@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await outbox.processPendingBatch(50)
+    const durationMs = Date.now() - start
 
     // Heartbeat is implicit in the HTTP response — health-sweep cron handles
     // dead-man alerting via checkEventLag() if outbox backlog accumulates.

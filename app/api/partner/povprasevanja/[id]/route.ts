@@ -105,7 +105,7 @@ export async function PATCH(
     await supabaseAdmin.from('admin_log').insert({
       akcija: 'PARTNER_REJECTED',
       tabela: 'povprasevanja',
-      zapis_id: params.id,
+      zapis_id: id,
       novo_stanje: { partner_id: partner.id, opomba },
     }).catch(() => null)
   }

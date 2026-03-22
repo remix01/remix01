@@ -2,7 +2,7 @@
  * Admin API — Health Status
  * 
  * Returns real-time system health snapshot.
- * Admin-only access (role = 'admin').
+ * Admin-only access (role = 'ADMIN').
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -31,15 +31,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
+    // Check admin role from user table
+    const { data: dbUser, error: userError } = await supabase
+      .from('user')
+      .select('id, role')
+      .eq('email', user.email!)
       .single()
 
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (userError || !dbUser || dbUser.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
 
     // Get health snapshot

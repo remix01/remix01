@@ -273,11 +273,13 @@ NIKOLI ne uporabi teh napačnih poti:
       .eq('id', user.id)
 
     // Increment lifetime totals (best-effort, non-blocking)
-    supabaseAdmin
-      .from('profiles')
-      .select('ai_total_tokens_used, ai_total_cost_usd')
-      .eq('id', user.id)
-      .maybeSingle()
+    Promise.resolve(
+      supabaseAdmin
+        .from('profiles')
+        .select('ai_total_tokens_used, ai_total_cost_usd')
+        .eq('id', user.id)
+        .maybeSingle()
+    )
       .then(({ data }) => {
         if (!data) return
         return supabaseAdmin

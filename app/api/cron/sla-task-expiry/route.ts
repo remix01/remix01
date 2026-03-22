@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
  * Log audit event for task expiry
  */
 async function logAuditEvent(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   taskId: string,
   reason: string
 ) {

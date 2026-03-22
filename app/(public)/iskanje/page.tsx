@@ -8,6 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Search, MapPin, Star, Filter } from 'lucide-react'
 import Link from 'next/link'
+import type { Database } from '@/types/supabase'
+
+type ObrtnikProfile = Database['public']['Tables']['obrtnik_profiles']['Row']
+type Category = Database['public']['Tables']['categories']['Row']
 
 interface SearchFilters {
   query: string
@@ -26,10 +30,10 @@ export default function SearchPage() {
     rating: 0,
     verified: false,
   })
-  const [results, setResults] = useState<any[]>([])
+  const [results, setResults] = useState<ObrtnikProfile[]>([])
   const [loading, setLoading] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
-  const [categories, setCategories] = useState<any[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
     loadCategories()
@@ -115,8 +119,8 @@ export default function SearchPage() {
                 placeholder="Iskanje po imenu ali vrsti dela..."
                 className="pl-10"
                 value={filters.query}
-                onChange={(e) => setFilters({ ...filters, query: e.target.value })}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters({ ...filters, query: e.target.value })}
+                onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && handleSearch()}
               />
             </div>
             <Button onClick={handleSearch} disabled={loading} className="min-h-[48px]">
@@ -130,22 +134,22 @@ export default function SearchPage() {
               placeholder="Mesto..."
               className="w-32"
               value={filters.city}
-              onChange={(e) => setFilters({ ...filters, city: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters({ ...filters, city: e.target.value })}
             />
             <select
               className="px-3 py-2 border rounded-lg bg-background text-foreground"
               value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilters({ ...filters, category: e.target.value })}
             >
               <option value="">Vse kategorije</option>
-              {categories.map(cat => (
+              {categories.map((cat: Category) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
             <select
               className="px-3 py-2 border rounded-lg bg-background text-foreground"
               value={filters.rating}
-              onChange={(e) => setFilters({ ...filters, rating: Number(e.target.value) })}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilters({ ...filters, rating: Number(e.target.value) })}
             >
               <option value="0">Vse ocene</option>
               <option value="4">4+ zvezdic</option>
@@ -156,7 +160,7 @@ export default function SearchPage() {
               <input
                 type="checkbox"
                 checked={filters.verified}
-                onChange={(e) => setFilters({ ...filters, verified: e.target.checked })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters({ ...filters, verified: e.target.checked })}
               />
               <span className="text-sm text-foreground">Samo preverjeni</span>
             </label>

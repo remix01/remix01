@@ -39,11 +39,9 @@ export async function POST(request: NextRequest) {
       .from('admin_audit_log')
       .insert({
         action: 'upgrade_user',
-        admin_id: 'system', // Would be from auth context in real app
+        admin_id: 'system',
         user_id: userId,
-        old_value: { action: 'manual_upgrade' },
-        new_value: { tier },
-        created_at: new Date().toISOString(),
+        details: { old_value: { action: 'manual_upgrade' }, new_value: { tier } },
       })
     if (auditError) console.error('Audit log error:', auditError)
 

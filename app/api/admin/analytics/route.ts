@@ -14,13 +14,13 @@ async function getAnalyticsData() {
       return { error: 'Unauthorized', status: 401 }
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
+    const { data: dbUser, error: userError } = await supabaseAdmin
+      .from('user')
+      .select('id, role')
+      .eq('email', user.email!)
       .single()
 
-    if (profile?.role !== 'admin') {
+    if (userError || !dbUser || dbUser.role !== 'ADMIN') {
       return { error: 'Forbidden', status: 403 }
     }
 
