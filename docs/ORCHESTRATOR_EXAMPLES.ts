@@ -5,7 +5,7 @@
  * and Job Queue system in your application.
  */
 
-import { taskOrchestrator, enqueue } from '@/lib/services'
+import { taskOrchestrator } from '@/lib/services'
 import { createClient } from '@/lib/supabase/server'
 
 // ──────────────────────────────────────────────────────────────────
