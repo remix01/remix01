@@ -99,19 +99,21 @@ export async function getJobTimeline(povprasevanjeId: string) {
     },
   ]
 
-  // Add status-based events
-  const statusMap: Record<string, { step: string; icon: string }> = {
-    'v_teku': { step: 'Prejeti ponudbe', icon: 'Mail' },
-    'zakljuceno': { step: 'Delo zaključeno', icon: 'CheckCircle2' },
-    'preklicano': { step: 'Zahtevek preklican', icon: 'X' },
+  // Add status-based events with proper type mapping
+  const statusMap: Record<string, { step: string; icon: string; timelineStatus: 'completed' | 'in_progress' | 'pending' }> = {
+    'odprto': { step: 'Zahtevek objavljen', icon: 'Clock', timelineStatus: 'pending' },
+    'v_teku': { step: 'Prejeti ponudbe', icon: 'Mail', timelineStatus: 'in_progress' },
+    'zakljuceno': { step: 'Delo zaključeno', icon: 'CheckCircle2', timelineStatus: 'completed' },
+    'preklicano': { step: 'Zahtevek preklican', icon: 'X', timelineStatus: 'completed' },
   }
 
-  if (data.status in statusMap) {
+  const statusMapping = statusMap[data.status] || statusMap['odprto']
+  if (statusMapping) {
     timeline.push({
-      step: statusMap[data.status].step,
-      status: data.status === 'zakljuceno' ? 'completed' : 'in_progress',
+      step: statusMapping.step,
+      status: statusMapping.timelineStatus,
       date: data.updated_at,
-      icon: statusMap[data.status].icon,
+      icon: statusMapping.icon,
     })
   }
 
