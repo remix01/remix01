@@ -79,7 +79,7 @@ export const paymentService = {
     const amount = Math.round((ponudba.price_estimate || 0) * 100)
     const result = await createPaymentIntent({
       amount,
-      povprasevanjeId: ponudba.povprasevanja_id,
+      povprasevanjeId: (ponudba as any).povprasevanje_id ?? (ponudba as any).povprasevanja_id,
       ponudbaId,
       narocnikEmail: userEmail,
     })

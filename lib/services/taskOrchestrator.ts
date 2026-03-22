@@ -110,7 +110,7 @@ export const taskOrchestrator = {
     if (insertError || !task) {
       throw new ServiceError(
         'Napaka pri ustvarjanju naloge',
-        'DATABASE_ERROR',
+        'DB_ERROR',
         500
       )
     }
@@ -184,7 +184,7 @@ export const taskOrchestrator = {
     if (!VALID_TRANSITIONS[currentStatus]?.includes(newStatus)) {
       throw new ServiceError(
         `Neveljaven prehod stanja: ${currentStatus} → ${newStatus}`,
-        'INVALID_STATE_TRANSITION',
+        'VALIDATION',
         400
       )
     }
@@ -202,7 +202,7 @@ export const taskOrchestrator = {
     if (updateError) {
       throw new ServiceError(
         'Napaka pri posodobitvi naloge',
-        'DATABASE_ERROR',
+        'DB_ERROR',
         500
       )
     }

@@ -119,7 +119,8 @@ export class OrchestratorAgent extends BaseAgent {
       }
 
       // 11. After INTERACTION_THRESHOLD interactions, trigger long-term memory update
-      const messages = shortTermMemory.getMessages(message.sessionId)
+      const memContext = shortTermMemory.getContext(message.sessionId)
+      const messages = memContext?.messages ?? []
       if (messages.length % INTERACTION_THRESHOLD === 0) {
         // This would trigger a background summarization task
         // For now, just log it
@@ -148,7 +149,7 @@ export class OrchestratorAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } finally {
-      span.end()
+      span.endTime = Date.now()
     }
   }
 

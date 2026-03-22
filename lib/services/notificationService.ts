@@ -52,7 +52,7 @@ export const notificationService = {
 
     const { error } = await supabase
       .from('notifications')
-      .update({ read_at: new Date().toISOString() })
+      .update({ read_at: new Date().toISOString() } as any)
       .eq('id', notificationId)
       .eq('user_id', userId)
 
@@ -75,9 +75,9 @@ export const notificationService = {
 
     const { error } = await supabase
       .from('notifications')
-      .update({ read_at: new Date().toISOString() })
+      .update({ read_at: new Date().toISOString() } as any)
       .eq('user_id', userId)
-      .is('read_at', null)
+      .is('read_at' as any, null)
 
     if (error) {
       throw new ServiceError(

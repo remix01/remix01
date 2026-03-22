@@ -101,7 +101,7 @@ export default async function InquiriesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {povprasevanja.map((inquiry) => {
+                {povprasevanja?.map((inquiry) => {
                   const offerCount = (inquiry.ponudbe as any)?.[0]?.count || 0
                   return (
                     <tr

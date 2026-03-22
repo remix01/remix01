@@ -303,12 +303,17 @@ export class DisputeAgent extends BaseAgent {
     // 6. Broadcast to NotifyAgent
     try {
       await messageBus.send({
+        id: uuidv4(),
+        from: this.type,
         to: 'notify',
+        type: 'event',
         action: 'dispute_resolved',
         payload: { disputeId, escrowId, resolution, newStatus },
         userId,
         sessionId,
         correlationId: uuidv4(),
+        timestamp: Date.now(),
+        priority: 'normal',
       })
     } catch (error: unknown) {
       this.log('broadcast_failed', { error: getErrorMessage(error) })

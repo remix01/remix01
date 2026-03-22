@@ -88,7 +88,7 @@ export async function migratePartnerToNewSystem(
     const { data: existingObrtnik } = await supabase
       .from('obrtnik_profiles')
       .select('id')
-      .eq('id', profileId)
+      .eq('id', profileId!)
       .single()
 
     if (!existingObrtnik) {

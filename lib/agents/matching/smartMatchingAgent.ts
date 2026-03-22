@@ -237,7 +237,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
     const eligible = filterEligiblePartners(
       partnersWithCategories,
       input.categoryId
-    )
+    ) as any[]
 
     if (eligible.length === 0) {
       return {

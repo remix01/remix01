@@ -148,14 +148,14 @@ export async function startVerification(params: {
     }
 
     // Manual review needed (name mismatch or API unreachable)
-    const { data: verificationRecord, error: insertError } = await supabase
-      .from('verifications')
+    const { data: verificationRecord, error: insertError } = await (supabase
+      .from('verifications' as any)
       .insert({
         obrtnik_id: params.obrtknikId,
         ajpes_id: params.ajpesId,
-        ajpes_response: ajpesResult as any,
+        ajpes_response: ajpesResult,
         status: 'pending',
-      } as any)
+      }) as any)
       .select('id')
       .single()
 
@@ -223,14 +223,14 @@ export async function manuallyVerifyObrtnik(params: {
     }
 
     // Log in verifications table
-    const { error: logError } = await supabase
-      .from('verifications')
+    const { error: logError } = await (supabase
+      .from('verifications' as any)
       .update({
         status: params.approved ? 'approved' : 'rejected',
         reviewed_by: params.adminId,
         reviewed_at: new Date().toISOString(),
         notes: params.notes,
-      })
+      }) as any)
       .eq('obrtnik_id', params.obrtknikId)
       .eq('status', 'pending')
 

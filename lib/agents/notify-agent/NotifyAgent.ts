@@ -232,7 +232,7 @@ export class NotifyAgent extends BaseAgent {
         .in('id', [customerId, partnerId])
 
       for (const profile of profiles.data || []) {
-        await enqueue('send_payment_confirmed_email', {
+        await enqueue('sendEmail' as any, {
           recipientEmail: profile.email,
           template: 'escrow_captured',
           templateData: { escrowId, amount },
@@ -377,7 +377,7 @@ export class NotifyAgent extends BaseAgent {
       if (escrow) {
         for (const email of [escrow.customer_email, escrow.partner_email]) {
           if (email) {
-            await enqueue('notify_dispute_resolved', {
+            await enqueue('sendEmail' as any, {
               recipientEmail: email,
               template: 'dispute_resolved',
               templateData: { disputeId, escrowId, resolution, newStatus },

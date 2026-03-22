@@ -116,11 +116,10 @@ class AnomalyDetector {
     // Log via agentLogger
     agentLogger.log({
       level: 'warn',
-      event: 'anomaly_detected',
-      details: alert.details,
-      sessionId: alert.sessionId,
-      userId: alert.userId,
-    })
+      event: 'guardrail_rejected' as any,
+      sessionId: alert.sessionId || '',
+      userId: alert.userId || '',
+    } as any)
 
     // Save to DB
     try {

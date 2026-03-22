@@ -116,7 +116,7 @@ export async function createAppointmentEvent(params: {
           expiry_date: narocnikConnection.expiry_date
         })
 
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any
+        const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any as any
         const { data } = await calendar.events.create({
           calendarId: 'primary',
           requestBody: eventBody
@@ -138,7 +138,7 @@ export async function createAppointmentEvent(params: {
           expiry_date: obrtknikConnection.expiry_date
         })
 
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any
+        const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any as any
         const { data } = await calendar.events.create({
           calendarId: 'primary',
           requestBody: eventBody
@@ -152,7 +152,7 @@ export async function createAppointmentEvent(params: {
 
     // Save appointment record
     if (narocnikEventId || obrtknikEventId) {
-      await supabase
+      await (supabase
         .from('appointments')
         .insert({
           ponudba_id: params.ponudbaId,
@@ -163,9 +163,7 @@ export async function createAppointmentEvent(params: {
           narocnik_calendar_event_id: narocnikEventId,
           obrtnik_calendar_event_id: obrtknikEventId,
           status: 'scheduled'
-        } as any)
-        .then(() => {})
-        .catch((err: any) => console.error('[v0] Appointment record insert error:', err))
+        } as any) as unknown as Promise<any>).catch((err: any) => console.error('[v0] Appointment record insert error:', err))
     }
 
     return { narocnikEventId, obrtknikEventId }
@@ -219,7 +217,7 @@ export async function cancelAppointmentEvent(params: {
             expiry_date: narocnikConnection.expiry_date
           })
 
-          const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
+          const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any
           await calendar.events.delete({
             calendarId: 'primary',
             eventId: appointment.narocnik_calendar_event_id
@@ -241,7 +239,7 @@ export async function cancelAppointmentEvent(params: {
             expiry_date: obrtknikConnection.expiry_date
           })
 
-          const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
+          const calendar = google.calendar({ version: 'v3', auth: oauth2Client }) as any
           await calendar.events.delete({
             calendarId: 'primary',
             eventId: appointment.obrtnik_calendar_event_id
