@@ -15,10 +15,7 @@ async function getCraftworkerData(userId: string) {
   
   const { data: craftworker } = await supabase
     .from('obrtnik_profiles')
-    .select(`
-      *,
-      profiles!inner(id, email, phone, full_name)
-    `)
+    .select('*')
     .eq('id', userId)
     .maybeSingle()
 
@@ -40,15 +37,8 @@ async function getCraftworkerData(userId: string) {
     .eq('obrtnik_id', userId)
     .order('created_at', { ascending: false })
 
-  // Extract profile data
-  const profile = Array.isArray(craftworker.profiles)
-    ? craftworker.profiles[0]
-    : craftworker.profiles
-
   return {
     ...craftworker,
-    email: profile?.email || null,
-    phone: profile?.phone || null,
     assignedJobs: povprasevanja || [],
     violations: [],
     reviews: ocene || [],
