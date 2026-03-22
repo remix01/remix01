@@ -83,7 +83,7 @@ export async function acceptOffer(
         offer_id: offerId,
         amount_cents: offer.price_cents,
         status: 'pending',
-      })
+      } as any)
       .select('id')
       .single()
 
