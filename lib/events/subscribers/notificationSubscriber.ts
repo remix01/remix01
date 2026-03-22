@@ -30,7 +30,7 @@ export function registerNotificationSubscriber() {
       if (!partners?.length) return
 
       // Notify partners — via Realtime + email
-      await notificationService.notifyPartnersMatched(
+      await (notificationService as any).notifyPartnersMatched(
         payload.taskId,
         partners,
         payload.deadlineAt
@@ -69,7 +69,7 @@ export function registerNotificationSubscriber() {
 
       if (!customer || !partner) return
 
-      await notificationService.notifyAccepted(payload.taskId, customer, partner)
+      await (notificationService as any).notifyAccepted(payload.taskId, customer, partner)
 
       // Slack — fire and forget
       sendBusinessEvent({
@@ -92,7 +92,7 @@ export function registerNotificationSubscriber() {
       const skip = await idempotency.checkAndMark('task.completed', 'notify', payload.taskId)
       if (skip) return
 
-      await notificationService.requestReview(payload.taskId, payload.customerId, payload.partnerId)
+      await (notificationService as any).requestReview(payload.taskId, payload.customerId, payload.partnerId)
 
       // Slack — fire and forget
       sendBusinessEvent({
@@ -113,7 +113,7 @@ export function registerNotificationSubscriber() {
       const skip = await idempotency.checkAndMark('payment.released', 'notify', payload.taskId)
       if (skip) return
 
-      await notificationService.notifyPaymentReleased(payload.partnerId, payload.netAmount, payload.taskId)
+      await (notificationService as any).notifyPaymentReleased(payload.partnerId, payload.netAmount, payload.taskId)
 
       // Slack — fire and forget
       sendBusinessEvent({
@@ -135,7 +135,7 @@ export function registerNotificationSubscriber() {
       const skip = await idempotency.checkAndMark('offer.sent', 'notify', payload.taskId)
       if (skip) return
 
-      await notificationService.notifyOfferReceived(payload.taskId, payload.partnerId)
+      await (notificationService as any).notifyOfferReceived(payload.taskId, payload.partnerId)
 
       // Slack — fire and forget
       sendBusinessEvent({
@@ -165,7 +165,7 @@ export function registerNotificationSubscriber() {
 
       if (!partner) return
 
-      await notificationService.notifyReviewSubmitted(payload.taskId, partner, payload.rating)
+      await (notificationService as any).notifyReviewSubmitted(payload.taskId, partner, payload.rating)
 
       // Slack — fire and forget
       sendBusinessEvent({

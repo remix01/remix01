@@ -34,7 +34,7 @@ export function useRealtimeNotifications(userId: string | null) {
             table: 'notifications',
             filter: `user_id=eq.${userId}`,
           },
-          (payload) => {
+          (payload: any) => {
             try {
               const newNotif = payload.new as any
               const notification: Notification = {

@@ -46,7 +46,7 @@ export function ChatWindow({ jobId, currentUserId }: ChatWindowProps) {
   
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout>()
+  const typingTimeoutRef = useRef<NodeJS.Timeout>(undefined)
 
   // Initialize Twilio client
   useEffect(() => {
@@ -103,7 +103,7 @@ export function ChatWindow({ jobId, currentUserId }: ChatWindowProps) {
           timestamp: msg.dateCreated || new Date(),
           isOwn: msg.author === currentUserId,
           isSystem: msg.author === 'LiftGO',
-          isBlocked: msg.attributes && (msg.attributes as any).blocked === true,
+          isBlocked: !!(msg.attributes && (msg.attributes as any).blocked === true),
         }))
 
         setMessages(displayMessages)
@@ -114,7 +114,7 @@ export function ChatWindow({ jobId, currentUserId }: ChatWindowProps) {
         const participants = await conv.getParticipants()
         const otherParticipant = participants.find((p) => p.identity !== currentUserId)
         if (otherParticipant) {
-          setOtherParticipantName(otherParticipant.identity)
+          setOtherParticipantName(otherParticipant.identity ?? 'Sogovornik')
           // Check if online (simplified - you'd implement presence logic)
           setIsOnline(false)
         }
@@ -128,7 +128,7 @@ export function ChatWindow({ jobId, currentUserId }: ChatWindowProps) {
             timestamp: message.dateCreated || new Date(),
             isOwn: message.author === currentUserId,
             isSystem: message.author === 'LiftGO',
-            isBlocked: message.attributes && (message.attributes as any).blocked === true,
+            isBlocked: !!(message.attributes && (message.attributes as any).blocked === true),
           }
           setMessages((prev) => [...prev, newMessage])
           

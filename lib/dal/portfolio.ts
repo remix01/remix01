@@ -17,7 +17,7 @@ export async function getObrtnikPortfolio(obrtnikId: string): Promise<PortfolioI
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('obrtnik_portfolio')
+    .from('obrtnik_portfolio' as any)
     .select('*')
     .eq('obrtnik_id', obrtnikId)
     .order('created_at', { ascending: false })
@@ -27,7 +27,7 @@ export async function getObrtnikPortfolio(obrtnikId: string): Promise<PortfolioI
     return []
   }
 
-  return data || []
+  return (data || []) as unknown as PortfolioImage[]
 }
 
 /**
