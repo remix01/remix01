@@ -15,7 +15,10 @@ async function getCraftworkerData(userId: string) {
   
   const { data: craftworker } = await supabase
     .from('obrtnik_profiles')
-    .select('*')
+    .select(`
+      *,
+      profiles:id(email, phone, full_name)
+    `)
     .eq('id', userId)
     .maybeSingle()
 
@@ -39,6 +42,8 @@ async function getCraftworkerData(userId: string) {
 
   return {
     ...craftworker,
+    email: craftworker.profiles?.email,
+    phone: craftworker.profiles?.phone || craftworker.phone,
     assignedJobs: povprasevanja || [],
     violations: [],
     reviews: ocene || [],
