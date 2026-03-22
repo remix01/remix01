@@ -25,7 +25,7 @@ export async function releaseEscrow(
     const supabase = await createClient()
 
     // Get escrow
-    const { data: escrow, error: escrowError } = await supabase
+    const { data: escrow, error: escrowError } = await (supabase as any)
       .from('escrow_transactions')
       .select('id, status, customer_id')
       .eq('id', escrowId)
@@ -57,7 +57,7 @@ export async function releaseEscrow(
     }
 
     // Update to released
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('escrow_transactions')
       .update({
         status: 'released',
@@ -78,7 +78,7 @@ export async function releaseEscrow(
       escrowId,
       status: 'released',
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to release escrow',

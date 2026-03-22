@@ -229,5 +229,6 @@ export function withPermissionCheck(
 }
 
 // Re-export role utilities
-export { canAccess, Role, roleHierarchy } from './roles'
+export { canAccess, roleHierarchy } from './roles'
+export type { Role } from './roles'
 export { assertOwnership, OwnershipError } from './ownership'

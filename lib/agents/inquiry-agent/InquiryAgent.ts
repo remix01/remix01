@@ -27,7 +27,7 @@ export class InquiryAgent extends BaseAgent {
         }
         await runGuardrails(action, payload, session)
       } catch (error: unknown) {
-        this.log('guardrails_failed', { action, error: error.error })
+        this.log('guardrails_failed', { action, error: (error as any).error })
         return {
           success: false,
           error: (error as any).error || 'Guardrails validation failed',

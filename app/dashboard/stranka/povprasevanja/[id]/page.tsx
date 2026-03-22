@@ -89,7 +89,7 @@ export default async function InquiryDetailPage({
             <h1 className="text-3xl font-bold text-slate-900">{povprasevanje.naslov}</h1>
             <p className="text-slate-600 mt-2">{povprasevanje.opis}</p>
           </div>
-          <Badge className={statusBadgeColors[povprasevanje.status]}>
+          <Badge className={statusBadgeColors[povprasevanje.status as keyof typeof statusBadgeColors]}>
             {povprasevanje.status}
           </Badge>
         </div>

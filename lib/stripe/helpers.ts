@@ -78,7 +78,7 @@ export function getPlanName(planType: PlanType): string {
  * @returns Array of feature descriptions
  */
 export function getPlanFeatures(planType: PlanType): string[] {
-  return STRIPE_PRODUCTS[planType].features
+  return [...STRIPE_PRODUCTS[planType].features] as string[]
 }
 
 /**

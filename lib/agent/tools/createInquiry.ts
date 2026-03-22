@@ -25,7 +25,7 @@ export async function createInquiry(
     const supabase = await createClient()
 
     // Get category ID from slug
-    const { data: categoryData, error: catError } = await supabase
+    const { data: categoryData, error: catError } = await (supabase as any)
       .from('categories')
       .select('id')
       .eq('slug', categorySlug)
@@ -40,7 +40,7 @@ export async function createInquiry(
     }
 
     // Create inquiry
-    const { data: inquiry, error: createError } = await supabase
+    const { data: inquiry, error: createError } = await (supabase as any)
       .from('povprasevanja')
       .insert({
         title,
@@ -68,7 +68,7 @@ export async function createInquiry(
       inquiryId: inquiry.id,
       status: 'open',
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to create inquiry',

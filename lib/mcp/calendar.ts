@@ -80,8 +80,8 @@ export async function createAppointmentEvent(params: {
       .select('*')
       .in('user_id', [params.narocnikId, params.obrtknikId])
 
-    const connectionMap = new Map(
-      connections?.map(c => [c.user_id, c]) || []
+    const connectionMap = new Map<string, any>(
+      connections?.map((c: any) => [c.user_id, c]) || []
     )
 
     // Event details
@@ -203,8 +203,8 @@ export async function cancelAppointmentEvent(params: {
       .select('*')
       .in('user_id', [params.narocnikId, params.obrtknikId])
 
-    const connectionMap = new Map(
-      connections?.map(c => [c.user_id, c]) || []
+    const connectionMap = new Map<string, any>(
+      connections?.map((c: any) => [c.user_id, c]) || []
     )
 
     // Delete narocnik event

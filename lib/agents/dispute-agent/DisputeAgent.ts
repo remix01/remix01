@@ -95,7 +95,7 @@ export class DisputeAgent extends BaseAgent {
     try {
       await assertEscrowTransition(escrowId, 'disputed')
     } catch (error: unknown) {
-      this.log('state_transition_blocked', { error: error.error, escrowId })
+      this.log('state_transition_blocked', { error: (error as any).error, escrowId })
       return {
         success: false,
         error: (error as any).error || 'Cannot open dispute on this escrow',
@@ -236,7 +236,7 @@ export class DisputeAgent extends BaseAgent {
     try {
       await assertEscrowTransition(escrowId, newStatus)
     } catch (error: unknown) {
-      this.log('state_transition_blocked', { error: error.error, escrowId })
+      this.log('state_transition_blocked', { error: (error as any).error, escrowId })
       return {
         success: false,
         error: 'Cannot apply this resolution',

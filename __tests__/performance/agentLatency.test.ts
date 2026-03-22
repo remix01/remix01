@@ -70,7 +70,7 @@ describe('Agent Response Latency', () => {
     } as any
 
     const start = Date.now()
-    const result = await InquiryAgent.handle(testMessage)
+    const result = await (InquiryAgent as any).handle(testMessage)
     const duration = Date.now() - start
 
     expect(result.success).toBe(true)
