@@ -11,7 +11,7 @@ interface Metrics {
 }
 
 export function MetricsBar() {
-  const supabase = createClient()
+  const supabase = createClient() as any
   const [metrics, setMetrics] = useState<Metrics>({
     totalToolCalls: 0,
     guardrailRejections: 0,
@@ -31,11 +31,11 @@ export function MetricsBar() {
 
       if (logsError) throw logsError
 
-      const toolCalls = logs?.filter(l => l.event === 'tool_executed').length || 0
-      const rejections = logs?.filter(l => l.event?.includes('rejected')).length || 0
-      const durations = logs?.filter(l => l.duration_ms).map(l => l.duration_ms) || []
-      const avgDuration = durations.length > 0 
-        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+      const toolCalls = logs?.filter((l: any) => l.event === 'tool_executed').length || 0
+      const rejections = logs?.filter((l: any) => l.event?.includes('rejected')).length || 0
+      const durations: number[] = logs?.filter((l: any) => l.duration_ms).map((l: any) => l.duration_ms) || []
+      const avgDuration = durations.length > 0
+        ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length)
         : 0
 
       // Get active alerts

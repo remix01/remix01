@@ -33,9 +33,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
         *,
         conversation:conversation_id(
           *,
-          message(id, body, is_blocked, created_at, sender:user_id(name), order_by: { created_at: asc })
+          message(id, body, is_blocked, created_at, sender:user_id(name))
         ),
-        violation(id, type, severity, detected_content, created_at, order_by: { created_at: desc }),
+        violation(id, type, severity, detected_content, created_at),
         payment:payment_id(*)
       `)
       .eq('id', jobId)

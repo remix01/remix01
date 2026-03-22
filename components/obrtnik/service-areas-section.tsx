@@ -7,9 +7,14 @@ import { CheckCircle2, AlertCircle, X } from 'lucide-react'
 
 interface ServiceAreasData {
   id: string
-  city: string | null
-  region: string
-  radius_km?: number | null
+  obrtnik_id: string
+  city: string
+  region: string | null
+  radius_km: number | null
+  lat: number | null
+  lng: number | null
+  is_active: boolean | null
+  created_at: string | null
 }
 
 interface ServiceAreasSectionProps {

@@ -23,7 +23,7 @@ export async function POST(
 
     const { data: dbUser, error: userError } = await supabaseAdmin
       .from('user')
-      .select('role')
+      .select('id, role')
       .eq('email', user.email!)
       .single()
 

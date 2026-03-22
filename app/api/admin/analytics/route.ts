@@ -135,9 +135,10 @@ async function getAnalyticsData() {
       .gte('created_at', prevMonthStart.toISOString())
       .lte('created_at', prevMonthEnd.toISOString())
 
+    const prevCount = prevJobsCount ?? 0
     const completedJobsChange =
-      prevJobsCount > 0
-        ? Math.round(((completedJobs - prevJobsCount) / prevJobsCount) * 100)
+      prevCount > 0
+        ? Math.round(((completedJobs - prevCount) / prevCount) * 100)
         : completedJobs > 0
         ? 100
         : 0

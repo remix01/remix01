@@ -22,6 +22,11 @@ export interface ObrtnikiPublic {
   subscription_tier: 'start' | 'pro'
   hourly_rate: number | null
   years_experience: number | null
+  number_of_ratings: number | null
+  website_url: string | null
+  facebook_url: string | null
+  instagram_url: string | null
+  service_radius_km: number | null
   created_at: string
   profiles: {
     id: string
