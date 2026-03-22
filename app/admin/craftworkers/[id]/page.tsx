@@ -75,7 +75,7 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
           profile={{
             packageType: craftworker.subscription_tier?.toUpperCase() || 'START',
             stripeAccountId: craftworker.stripe_account_id || null,
-            stripeOnboardingComplete: craftworker.stripe_onboarding_complete || false,
+            stripeOnboardingComplete: !!craftworker.stripe_account_id,
             totalJobsCompleted: craftworker.assignedJobs?.length || 0,
             avgRating: craftworker.reviews?.length > 0
               ? craftworker.reviews.reduce((sum: number, r: any) => sum + (r.ocena || 0), 0) / craftworker.reviews.length
