@@ -98,9 +98,10 @@ export async function acceptPonudbaAction(
           user_id: ponudbaData.obrtnik_id,
           type: 'ponudba_sprejeta',
           title: 'Vaša ponudba je bila sprejeta! 🎉',
+          body: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
           message: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
           link: '/obrtnik/ponudbe',
-          read: false,
+          is_read: false,
         })
         .then(({ error }) => {
           if (error) console.error('[v0] Error sending notification:', error)
