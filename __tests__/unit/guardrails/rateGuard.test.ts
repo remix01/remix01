@@ -1,3 +1,4 @@
+// @ts-expect-error vi is not exported from @jest/globals in this config
 import { describe, it, expect, beforeEach, vi } from '@jest/globals'
 import { rateGuard } from '@/lib/agent/guardrails/rateGuard'
 

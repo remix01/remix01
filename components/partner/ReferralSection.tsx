@@ -134,7 +134,7 @@ export function ReferralSection() {
           </div>
 
           {/* Share Button */}
-          {typeof navigator !== 'undefined' && navigator.share && (
+          {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
             <Button
               onClick={handleShare}
               variant="outline"

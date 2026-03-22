@@ -134,8 +134,7 @@ function getSubscriptionBoostMultiplier(tier: string | null): number {
 /**
  * Filter partners by eligibility requirements
  */
-function filterEligiblePartners(
-  partners: Array<{
+function filterEligiblePartners<T extends {
     id: string
     is_verified: boolean
     is_available: boolean
@@ -143,17 +142,10 @@ function filterEligiblePartners(
     total_reviews: number
     categories: string[]
     subscription_tier?: string | null
-  }>,
+  }>(
+  partners: T[],
   categoryId: string
-): Array<{
-  id: string
-  is_verified: boolean
-  is_available: boolean
-  avg_rating: number
-  total_reviews: number
-  categories: string[]
-  subscription_tier?: string | null
-}> {
+): T[] {
   return partners.filter((p) => {
     // Must be verified
     if (!p.is_verified) return false
@@ -279,7 +271,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
 
         // Apply subscription tier boost
         const boostMultiplier = getSubscriptionBoostMultiplier(
-          partner.subscription_tier
+          partner.subscription_tier ?? null
         )
         const subscriptionBoost = (boostMultiplier - 1) * baseScore * 100 // Convert to points for logging
         const finalScore = baseScore * boostMultiplier
@@ -299,7 +291,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
           estimatedResponseMinutes: partner.response_time_hours
             ? Math.round(partner.response_time_hours * 60)
             : 120,
-          subscriptionTier: partner.subscription_tier,
+          subscriptionTier: partner.subscription_tier ?? 'start',
         }
       })
       .sort((a, b) => b.score - a.score)
@@ -337,7 +329,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
 
     // 8. Log subscription boost details
     console.log(
-      `[Matching] Request ${input.requestId}: Top match = ${topMatches[0].partnerId} (${topMatches[0].subscriptionTier.toUpperCase()}) with score ${topMatches[0].score} (base: ${topMatches[0].breakdown.baseScore}, boost: +${topMatches[0].breakdown.subscriptionBoost})`
+      `[Matching] Request ${input.requestId}: Top match = ${topMatches[0]!.partnerId} (${topMatches[0]!.subscriptionTier.toUpperCase()}) with score ${topMatches[0]!.score} (base: ${topMatches[0]!.breakdown.baseScore}, boost: +${topMatches[0]!.breakdown.subscriptionBoost})`
     )
 
     return {

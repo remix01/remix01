@@ -29,10 +29,10 @@ export default async function DashboardPage() {
   // Fetch stats
   const { data: povprasevanja } = await supabase
     .from('povprasevanja')
-    .select('id, naslov, kategorija, lokacija, created_at, status, budget_od, budget_do')
+    .select('id, title, category_id, location_city, created_at, status')
     .eq('narocnik_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(50)
+    .limit(50) as { data: any[] | null }
 
   // Calculate stats
   const stats = {

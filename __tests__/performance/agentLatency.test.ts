@@ -3,17 +3,17 @@ jest.mock('@/lib/jobs/queue')
 jest.mock('@/lib/agent/permissions')
 jest.mock('@/lib/agent/state-machine')
 
-import { guardrails, type Session } from '@/lib/agent/guardrails'
+import { runGuardrails, type Session } from '@/lib/agent/guardrails'
 import { checkPermission } from '@/lib/agent/permissions'
 import { assertTransition } from '@/lib/agent/state-machine'
-import { InquiryAgent } from '@/lib/agents/inquiry-agent'
+import { InquiryAgent } from '@/lib/agents/inquiry-agent/InquiryAgent'
 import { messageBus } from '@/lib/agents/base/MessageBus'
 
 describe('Agent Response Latency', () => {
-  const testSession: Session = {
+  const testSession: Session & { sessionId: string } = {
     user: { id: 'test-user-id', email: 'test@test.com', role: 'user' },
     sessionId: 'test-session-id',
-  }
+  } as any
 
   const validParams = {
     category: 'plumbing',
@@ -30,7 +30,7 @@ describe('Agent Response Latency', () => {
     ;(checkPermission as jest.Mock).mockResolvedValue({ allowed: true })
 
     const start = Date.now()
-    await guardrails('createInquiry', validParams, testSession)
+    await runGuardrails('createInquiry', validParams, testSession)
     const duration = Date.now() - start
 
     expect(duration).toBeLessThan(10)
@@ -67,7 +67,7 @@ describe('Agent Response Latency', () => {
       userId: testSession.user.id,
       sessionId: testSession.sessionId,
       params: validParams,
-    }
+    } as any
 
     const start = Date.now()
     const result = await InquiryAgent.handle(testMessage)
@@ -90,7 +90,7 @@ describe('Agent Response Latency', () => {
           userId: `test-user-${i}`,
           sessionId: `test-session-${i}`,
           params: validParams,
-        })
+        } as any)
       )
 
     const start = Date.now()

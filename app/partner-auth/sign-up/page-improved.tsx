@@ -400,7 +400,7 @@ export default function PartnerSignUp() {
                   <Checkbox
                     id="terms"
                     checked={termsAccepted}
-                    onCheckedChange={setTermsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(!!checked)}
                     className="mt-1"
                   />
                   <label htmlFor="terms" className="text-xs text-muted-foreground">

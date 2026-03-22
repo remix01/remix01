@@ -278,7 +278,7 @@ NIKOLI ne uporabi teh napačnih poti:
       .select('ai_total_tokens_used, ai_total_cost_usd')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (!data) return
         return supabaseAdmin
           .from('profiles')

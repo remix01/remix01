@@ -61,8 +61,7 @@ export async function processJob(jobType: JobType, job: Job): Promise<void> {
     case 'agent_video_analyze':
       return handleAgentVideoAnalyze(job)
     default:
-      const _exhaustive: never = jobType
-      throw new Error(`Unknown job type: ${_exhaustive}`)
+      throw new Error(`Unknown job type: ${jobType}`)
   }
 }
 
