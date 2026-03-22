@@ -19,20 +19,20 @@ function getStripeClient(): Stripe {
 
 export const stripe = {
   paymentIntents: {
-    create: (...args: any[]) => getStripeClient().paymentIntents.create(...args),
-    retrieve: (...args: any[]) => getStripeClient().paymentIntents.retrieve(...args),
-    cancel: (...args: any[]) => getStripeClient().paymentIntents.cancel(...args),
-    capture: (...args: any[]) => getStripeClient().paymentIntents.capture(...args),
-    update: (...args: any[]) => getStripeClient().paymentIntents.update(...args),
+    create: (...args: [any, ...any[]]) => getStripeClient().paymentIntents.create(...args as [any]),
+    retrieve: (...args: [any, ...any[]]) => getStripeClient().paymentIntents.retrieve(...args as [any]),
+    cancel: (...args: [any, ...any[]]) => getStripeClient().paymentIntents.cancel(...args as [any]),
+    capture: (...args: [any, ...any[]]) => getStripeClient().paymentIntents.capture(...args as [any]),
+    update: (...args: [any, ...any[]]) => getStripeClient().paymentIntents.update(...args as [any, any]),
   },
   checkout: {
     sessions: {
-      create: (...args: any[]) => getStripeClient().checkout.sessions.create(...args),
-      retrieve: (...args: any[]) => getStripeClient().checkout.sessions.retrieve(...args),
+      create: (...args: [any, ...any[]]) => getStripeClient().checkout.sessions.create(...args as [any]),
+      retrieve: (...args: [any, ...any[]]) => getStripeClient().checkout.sessions.retrieve(...args as [any]),
     },
   },
   refunds: {
-    create: (...args: any[]) => getStripeClient().refunds.create(...args),
+    create: (...args: [any, ...any[]]) => getStripeClient().refunds.create(...args as [any]),
   },
   webhooks: {
     constructEvent: (payload: string | Buffer, sig: string, secret: string) =>

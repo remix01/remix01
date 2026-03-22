@@ -10,9 +10,9 @@ interface AnalyticsChartProps {
 export function AnalyticsChart({ data }: AnalyticsChartProps) {
   const categoryData = useMemo(() => {
     const grouped = data.reduce(
-      (acc, item) => {
+      (acc: { name: string; value: number }[], item: any) => {
         const category = item.category || 'Ostalo'
-        const existing = acc.find((g) => g.name === category)
+        const existing = acc.find((g: { name: string; value: number }) => g.name === category)
         if (existing) {
           existing.value += 1
         } else {

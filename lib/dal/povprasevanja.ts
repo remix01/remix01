@@ -37,7 +37,7 @@ export async function getPovprasevanje(id: string): Promise<Povprasevanje | null
   // Add ponudbe count
   const result = {
     ...data,
-    ponudbe_count: data.ponudbe?.length || 0
+    ponudbe_count: (data as any)?.ponudbe?.length || 0
   }
 
   return result as unknown as Povprasevanje

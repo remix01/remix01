@@ -37,8 +37,8 @@ export async function sendNotification(params: {
   try {
     const supabase = await createClient()
 
-    const { error } = await supabase
-      .from('notifications')
+    const { error } = await (supabase
+      .from('notifications' as any) as any)
       .insert({
         user_id: params.userId,
         type: params.type,

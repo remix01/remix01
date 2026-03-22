@@ -39,7 +39,7 @@ export async function submitOffer(
       }
     }
 
-    if (inquiry.status !== 'open') {
+    if ((inquiry.status as string) !== 'open') {
       throw {
         success: false,
         error: `Cannot submit offer to ${inquiry.status} inquiry`,
@@ -91,8 +91,8 @@ export async function submitOffer(
   } catch (error: unknown) {
     throw {
       success: false,
-      error: error?.error || error?.message || 'Failed to submit offer',
-      code: error?.code || 500,
+      error: (error as any)?.error || (error as any)?.message || 'Failed to submit offer',
+      code: (error as any)?.code || 500,
     }
   }
 }

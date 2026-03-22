@@ -132,7 +132,7 @@ export async function listVerifiedObrtniki(
     )
   }
 
-  return results
+  return results as unknown as ObrtnikiPublic[]
 }
 
 /**
@@ -165,7 +165,7 @@ export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null
     categories: (raw.obrtnik_categories || [])
       .map((oc) => oc.categories)
       .filter((c): c is { name: string; slug: string; icon_name: string | null } => c !== null),
-  }
+  } as unknown as ObrtnikiPublic
 }
 
 /**

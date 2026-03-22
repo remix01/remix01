@@ -69,7 +69,7 @@ export function useTaskEvents(options?: UseTaskEventsOptions) {
               }
             }
           )
-          .subscribe(async (status) => {
+          .subscribe(async (status: any) => {
             console.log('[v0] Task events subscription status:', status)
             if (status === 'SUBSCRIBED') {
               setIsSubscribed(true)

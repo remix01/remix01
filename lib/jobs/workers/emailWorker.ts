@@ -35,7 +35,8 @@ interface EmailJobPayload {
 }
 
 export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
-  const { type, payload } = job
+  const { data: payload } = job
+  const type = (job as any).type as string | undefined
   const { jobType, povprasevanjeId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
 
   // Handle povprasevanje confirmation (both authenticated and public)

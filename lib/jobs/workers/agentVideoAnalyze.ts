@@ -94,7 +94,7 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
       p_tokens_in: inputTokens,
       p_tokens_out: outputTokens,
       p_cost_usd: costUsd,
-    }).catch(() => {})
+    }).then(() => {}).catch(() => {})
 
     await supabaseAdmin.from('ai_usage_logs').insert({
       user_id,
@@ -105,7 +105,7 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
       response_cached: false,
       agent_type: 'video_diagnosis',
       user_message: `[async video analysis] ${file_type}`,
-    }).catch(() => {})
+    }).then(() => {}).catch(() => {})
 
   } catch (error) {
     await supabaseAdmin.from('agent_jobs').update({

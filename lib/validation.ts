@@ -67,21 +67,21 @@ export function validateAmount(amount: unknown, fieldName: string = 'amount', mi
 
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
 
-  if (isNaN(numAmount)) {
+  if (isNaN(numAmount as number)) {
     return { field: fieldName, message: `${fieldName} must be a valid number` }
   }
 
-  if (numAmount <= 0) {
+  if ((numAmount as number) <= 0) {
     return { field: fieldName, message: `${fieldName} must be positive` }
   }
 
-  if (numAmount < minCents) {
+  if ((numAmount as number) < minCents) {
     const euros = (minCents / 100).toFixed(2)
     return { field: fieldName, message: `${fieldName} must be at least €${euros}` }
   }
 
   // Max 1M EUR (100M cents)
-  if (numAmount > 100_000_000) {
+  if ((numAmount as number) > 100_000_000) {
     return { field: fieldName, message: `${fieldName} exceeds maximum allowed amount` }
   }
 
@@ -141,7 +141,7 @@ export function validateEnum(value: unknown, fieldName: string, allowedValues: s
     return { field: fieldName, message: `${fieldName} is required` }
   }
 
-  if (!allowedValues.includes(value)) {
+  if (!allowedValues.includes(value as string)) {
     return { field: fieldName, message: `${fieldName} must be one of: ${allowedValues.join(', ')}` }
   }
 

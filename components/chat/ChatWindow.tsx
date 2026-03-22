@@ -128,7 +128,7 @@ export function ChatWindow({ jobId, currentUserId }: ChatWindowProps) {
             timestamp: message.dateCreated || new Date(),
             isOwn: message.author === currentUserId,
             isSystem: message.author === 'LiftGO',
-            isBlocked: message.attributes && (message.attributes as any).blocked === true,
+            isBlocked: !!(message.attributes && (message.attributes as any).blocked === true),
           }
           setMessages((prev) => [...prev, newMessage])
           

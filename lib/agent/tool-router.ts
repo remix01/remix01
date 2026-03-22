@@ -141,8 +141,8 @@ export async function routeTool(
       data: result,
     }
   } catch (error: unknown) {
-    const errorMessage = error?.error || error?.message || String(error)
-    const errorCode = error?.code || 500
+    const errorMessage = (error as any)?.error || (error as any)?.message || String(error)
+    const errorCode = (error as any)?.code || 500
 
     doneLog(errorMessage)
     console.error(`[TOOL ROUTER] Error executing ${toolName}:`, error)

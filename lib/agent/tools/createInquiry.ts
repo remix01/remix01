@@ -52,7 +52,7 @@ export async function createInquiry(
         budget_cents: budget ? Math.round(budget * 100) : null,
         max_responses: maxResponses || 5,
         status: 'open',
-      })
+      } as any)
       .select('id')
       .single()
 
@@ -71,8 +71,8 @@ export async function createInquiry(
   } catch (error: unknown) {
     throw {
       success: false,
-      error: error?.error || error?.message || 'Failed to create inquiry',
-      code: error?.code || 500,
+      error: (error as any)?.error || (error as any)?.message || 'Failed to create inquiry',
+      code: (error as any)?.code || 500,
     }
   }
 }

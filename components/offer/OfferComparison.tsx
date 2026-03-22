@@ -76,7 +76,7 @@ const getCriteriaValues = (offers: Offer[]): Record<string, CriteriaValue[]> => 
 const getPros = (offer: Offer): string[] => {
   const pros: string[] = []
   
-  const allPrices = offers.map(o => o.price) // This will be fixed in component
+  const allPrices = [offer.price] // standalone fallback; full list passed from component
   if (offer.price === Math.min(...allPrices)) pros.push('Najnižja cena')
   
   if (offer.rating >= 4.7) pros.push('Odličnega ocenjena')

@@ -14,7 +14,7 @@ interface CraftworkerProfile {
   package_type: 'START' | 'PRO'
   total_jobs_completed: number
   loyalty_points: number
-  commission_override?: number | null
+  commission_override: number | null
   referral_code?: string
 }
 

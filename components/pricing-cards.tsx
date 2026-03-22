@@ -201,7 +201,7 @@ export function PricingCards() {
                   className="mt-6 gap-2"
                   variant="outline"
                 >
-                  <Link href={plan.href}>
+                  <Link href={(plan as any).href ?? '#'}>
                     {plan.cta}
                     <ArrowRight className="h-4 w-4" />
                   </Link>

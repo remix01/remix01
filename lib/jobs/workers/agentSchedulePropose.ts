@@ -71,13 +71,13 @@ export async function handleAgentSchedulePropose(job: Job<AgentScheduleProposePa
     await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
       p_user_id: user_id, p_agent_type: 'scheduling_assistant',
       p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
-    }).catch(() => {})
+    }).then(() => {}).catch(() => {})
 
     await supabaseAdmin.from('ai_usage_logs').insert({
       user_id, model_used: 'haiku-4', tokens_input: inputTokens,
       tokens_output: outputTokens, cost_usd: costUsd, response_cached: false,
       agent_type: 'scheduling_assistant', user_message: `[async] ${preferences.raw.slice(0,200)}`,
-    }).catch(() => {})
+    }).then(() => {}).catch(() => {})
 
   } catch (error) {
     await supabaseAdmin.from('agent_jobs').update({

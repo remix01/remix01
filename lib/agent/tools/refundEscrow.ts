@@ -72,8 +72,8 @@ export async function refundEscrow(
   } catch (error: unknown) {
     throw {
       success: false,
-      error: error?.error || error?.message || 'Failed to refund escrow',
-      code: error?.code || 500,
+      error: (error as any)?.error || (error as any)?.message || 'Failed to refund escrow',
+      code: (error as any)?.code || 500,
     }
   }
 }

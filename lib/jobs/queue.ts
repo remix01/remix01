@@ -166,7 +166,7 @@ export async function getQueueStats(): Promise<{
   
   stats.dead_letter = 0
   
-  return stats
+  return stats as Record<JobType | 'dead_letter', number>
 }
 
 // ── CLEAR QUEUE (for testing)

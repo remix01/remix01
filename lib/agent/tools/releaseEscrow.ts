@@ -29,7 +29,7 @@ export async function releaseEscrow(
       .from('escrow_transactions')
       .select('id, status, customer_id')
       .eq('id', escrowId)
-      .single()
+      .single() as { data: any; error: any }
 
     if (escrowError || !escrow) {
       throw {
@@ -81,8 +81,8 @@ export async function releaseEscrow(
   } catch (error: unknown) {
     throw {
       success: false,
-      error: error?.error || error?.message || 'Failed to release escrow',
-      code: error?.code || 500,
+      error: (error as any)?.error || (error as any)?.message || 'Failed to release escrow',
+      code: (error as any)?.code || 500,
     }
   }
 }

@@ -34,7 +34,7 @@ export async function acceptOffer(
         povprasevanja!offers_povprasevanje_id_fkey(narocnik_id)
       `)
       .eq('id', offerId)
-      .single()
+      .single() as { data: any; error: any }
 
     if (offerError || !offer) {
       throw {
@@ -45,7 +45,7 @@ export async function acceptOffer(
     }
 
     // Verify user is the customer
-    if (offer.povprasevanja.narocnik_id !== context.userId) {
+    if (offer.povprasevanja?.narocnik_id !== context.userId) {
       throw {
         success: false,
         error: 'Forbidden: you are not the inquiry creator',
@@ -102,8 +102,8 @@ export async function acceptOffer(
   } catch (error: unknown) {
     throw {
       success: false,
-      error: error?.error || error?.message || 'Failed to accept offer',
-      code: error?.code || 500,
+      error: (error as any)?.error || (error as any)?.message || 'Failed to accept offer',
+      code: (error as any)?.code || 500,
     }
   }
 }

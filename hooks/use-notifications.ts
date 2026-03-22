@@ -99,7 +99,7 @@ export function useNotifications() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          (payload) => {
+          (payload: any) => {
             if (!mounted) return
             
             // Add new notification to the beginning of the list
@@ -115,7 +115,7 @@ export function useNotifications() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          (payload) => {
+          (payload: any) => {
             if (!mounted) return
             
             // Update notification in the list

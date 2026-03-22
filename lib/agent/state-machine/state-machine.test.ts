@@ -59,7 +59,7 @@ describe('Escrow State Machine', () => {
       .eq('id', testEscrowId)
       .single()
 
-    expect(data.status).toBe('pending') // Still pending - only validated
+    expect(data!.status).toBe('pending') // Still pending - only validated
   })
 
   it('should allow pending → cancelled transition', async () => {
@@ -219,7 +219,7 @@ describe('Escrow State Machine', () => {
       .limit(1)
 
     expect(logs).toHaveLength(1)
-    expect(logs[0]).toMatchObject({
+    expect(logs![0]).toMatchObject({
       transaction_id: testEscrowId,
       event_type: 'transition_rejected',
       actor: 'system',
@@ -227,7 +227,7 @@ describe('Escrow State Machine', () => {
       status_before: 'pending',
       status_after: 'released',
     })
-    expect(logs[0].metadata.reason).toBe('INVALID_TRANSITION')
+    expect((logs![0] as any).metadata.reason).toBe('INVALID_TRANSITION')
   })
 
   it('should log terminal state violations', async () => {
@@ -251,7 +251,7 @@ describe('Escrow State Machine', () => {
       .order('created_at', { ascending: false })
       .limit(1)
 
-    expect(logs[0].metadata.reason).toBe('TERMINAL_STATE')
+    expect((logs![0] as any).metadata.reason).toBe('TERMINAL_STATE')
   })
 
   // ============================================================================

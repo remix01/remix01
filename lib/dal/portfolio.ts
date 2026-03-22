@@ -16,8 +16,8 @@ export interface PortfolioImage {
 export async function getObrtnikPortfolio(obrtnikId: string): Promise<PortfolioImage[]> {
   const supabase = await createClient()
   
-  const { data, error } = await supabase
-    .from('obrtnik_portfolio')
+  const { data, error } = await (supabase
+    .from('obrtnik_portfolio' as any) as any)
     .select('*')
     .eq('obrtnik_id', obrtnikId)
     .order('created_at', { ascending: false })
@@ -27,7 +27,7 @@ export async function getObrtnikPortfolio(obrtnikId: string): Promise<PortfolioI
     return []
   }
 
-  return data || []
+  return (data || []) as PortfolioImage[]
 }
 
 /**

@@ -8,7 +8,9 @@
  */
 
 import { eventBus } from '../eventBus'
-import { notificationService } from '@/lib/services'
+import { notificationService as _notificationService } from '@/lib/services'
+
+const notificationService = _notificationService as any
 import { idempotency } from '../idempotency'
 import { createAdminClient } from '@/lib/supabase/server'
 import { sendBusinessEvent } from '@/lib/slack'

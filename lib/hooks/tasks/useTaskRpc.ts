@@ -113,7 +113,7 @@ export function useTaskRpcWithOptimisticUpdate<T>(
   options?: UseTaskRpcOptions & { onOptimisticUpdate?: (data: T) => T }
 ) {
   const [optimisticData, setOptimisticData] = useState<T>(currentData)
-  const { execute, ...rest } = useTaskRpc(functionName, {
+  const { execute, data: _rpcData, ...rest } = useTaskRpc(functionName, {
     onSuccess: (data) => {
       setOptimisticData(data as T)
       options?.onSuccess?.(data)
