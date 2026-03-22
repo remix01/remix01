@@ -8,6 +8,7 @@ import { workingMemory } from '@/lib/agent/memory/workingMemory'
 import { messageBus } from '../base/MessageBus'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueue } from '@/lib/jobs/queue'
+import { tracer } from '@/lib/observability/tracing'
 import { v4 as uuidv4 } from 'uuid'
 
 export class EscrowAgent extends BaseAgent {
@@ -116,7 +117,7 @@ export class EscrowAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } finally {
-      span.end()
+      tracer.endSpan(span)
     }
   }
 

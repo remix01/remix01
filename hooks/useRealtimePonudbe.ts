@@ -31,7 +31,7 @@ export function useRealtimePonudbe(povprasevanjeId: string) {
         .select('*')
         .eq('povprasevanje_id', povprasevanjeId)
         .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
+        .then(({ data, error }: { data: any; error: any }) => {
           if (error) {
             console.error('[v0] Error loading ponudbe:', error)
             return
@@ -40,7 +40,7 @@ export function useRealtimePonudbe(povprasevanjeId: string) {
             setPonudbe(data)
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           console.error('[v0] Error in ponudbe query:', error)
         })
 
@@ -55,7 +55,7 @@ export function useRealtimePonudbe(povprasevanjeId: string) {
             table: 'ponudbe',
             filter: `povprasevanje_id=eq.${povprasevanjeId}`,
           },
-          (payload) => {
+          (payload: any) => {
             try {
               const newPonudba = payload.new as Ponudba
               setPonudbe(prev => [newPonudba, ...prev])

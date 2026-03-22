@@ -6,6 +6,7 @@ import { checkPermission, type Session } from '@/lib/agent/permissions'
 import { assertTransition } from '@/lib/agent/state-machine'
 import { messageBus } from '../base/MessageBus'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { tracer } from '@/lib/observability/tracing'
 import { v4 as uuidv4 } from 'uuid'
 
 export class InquiryAgent extends BaseAgent {
@@ -91,7 +92,7 @@ export class InquiryAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } finally {
-      span.end()
+      tracer.endSpan(span)
     }
   }
 
