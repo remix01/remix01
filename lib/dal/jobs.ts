@@ -90,7 +90,7 @@ export async function getJobTimeline(povprasevanjeId: string) {
   }
 
   // Build timeline from status and timestamps
-  const timeline = [
+  const timeline: { step: string; status: 'completed' | 'in_progress' | 'pending'; date: string; icon: string }[] = [
     {
       step: 'Zahtevek ustvarjen',
       status: 'completed',
