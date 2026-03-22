@@ -446,18 +446,24 @@ export interface Database {
         Row: {
           id: string
           obrtnik_id: string
-          region: string
-          city: string | null
-          is_active: boolean
-          created_at: string
+          city: string
+          region: string | null
+          radius_km: number | null
+          lat: number | null
+          lng: number | null
+          is_active: boolean | null
+          created_at: string | null
         }
         Insert: {
           id?: string
           obrtnik_id: string
-          region: string
-          city?: string | null
-          is_active?: boolean
-          created_at?: string
+          city: string
+          region?: string | null
+          radius_km?: number | null
+          lat?: number | null
+          lng?: number | null
+          is_active?: boolean | null
+          created_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['service_areas']['Insert']>
         Relationships: [
