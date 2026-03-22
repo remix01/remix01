@@ -84,7 +84,7 @@ export function isSLAWarning(
   const timeRemaining = calculateTimeRemaining(slaDeadline)
   if (timeRemaining.isExpired) return false
 
-  return timeRemaining.hours <= warningThresholdHours
+  return timeRemaining.hours! <= warningThresholdHours
 }
 
 /**
@@ -111,7 +111,7 @@ export function getSLAStatus(task: Task): 'urgent' | 'warning' | 'on_track' | 'e
   const timeRemaining = calculateTimeRemaining(task.sla_deadline)
 
   // Urgent if less than 1 hour remaining
-  if (timeRemaining.hours < 1) {
+  if (timeRemaining.hours! < 1) {
     return 'urgent'
   }
 
