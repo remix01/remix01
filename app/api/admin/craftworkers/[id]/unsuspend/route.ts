@@ -21,13 +21,14 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('id, role')
-      .eq('email', user.email!)
-      .single()
+    const { data: admin, error: adminError } = await supabaseAdmin
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (userError || !dbUser || dbUser.role !== 'ADMIN') {
+    if (adminError || !admin) {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
 
@@ -60,7 +61,7 @@ export async function POST(
 
     if (updateError) throw new Error(updateError.message)
 
-    console.log(`[unsuspend] Craftworker ${craftworkerId} unsuspended by admin ${dbUser.id}`)
+    console.log(`[unsuspend] Craftworker ${craftworkerId} unsuspended by admin ${admin.id}`)
 
     // Send unsuspension email
     const emailTemplate = craftworkerUnsuspensionEmail(profile.user.name)
