@@ -43,7 +43,7 @@ async function getCraftworkerData(userId: string) {
   return {
     ...craftworker,
     email: craftworker.profiles?.email,
-    phone: craftworker.profiles?.phone || craftworker.phone,
+    phone: craftworker.profiles?.phone,
     assignedJobs: povprasevanja || [],
     violations: [],
     reviews: ocene || [],
