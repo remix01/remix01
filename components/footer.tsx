@@ -113,7 +113,7 @@ export function Footer() {
               <ul className="mt-4 flex flex-col gap-3">
                 {links.map((link) => (
                   <li key={link.label}>
-                    {link.disabled ? (
+                    {(link as any).disabled ? (
                       <span
                         className="text-sm cursor-not-allowed py-1"
                         style={{ color: '#9ca3af' }}
@@ -127,7 +127,7 @@ export function Footer() {
                       >
                         {link.label}
                       </a>
-                    ) : link.requiresAuth ? (
+                    ) : (link as any).requiresAuth ? (
                       <a
                         href={link.href}
                         onClick={(e) => handleProtectedLinkClick(e, link.href)}

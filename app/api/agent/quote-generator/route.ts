@@ -86,16 +86,20 @@ export async function POST(req: NextRequest) {
       .single()
 
     await supabaseAdmin.from('profiles').update({ ai_messages_used_today: effectiveUsed + 1 }).eq('id', user.id)
-    await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
-      p_user_id: user.id, p_agent_type: 'quote_generator',
-      p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
-    }).catch(() => {})
-    await supabaseAdmin.from('ai_usage_logs').insert({
-      user_id: user.id, model_used: 'sonnet-4', tokens_input: inputTokens,
-      tokens_output: outputTokens, cost_usd: costUsd, response_cached: false,
-      agent_type: 'quote_generator', user_message: `quote for: ${pov.title?.slice(0,100)}`,
-      response_time_ms: Date.now() - startTime,
-    }).catch(() => {})
+    try {
+      await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
+        p_user_id: user.id, p_agent_type: 'quote_generator',
+        p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
+      })
+    } catch { /* best-effort */ }
+    try {
+      await supabaseAdmin.from('ai_usage_logs').insert({
+        user_id: user.id, model_used: 'sonnet-4', tokens_input: inputTokens,
+        tokens_output: outputTokens, cost_usd: costUsd, response_cached: false,
+        agent_type: 'quote_generator', user_message: `quote for: ${pov.title?.slice(0,100)}`,
+        response_time_ms: Date.now() - startTime,
+      })
+    } catch { /* best-effort */ }
 
     return NextResponse.json({
       draft_text: draftText,

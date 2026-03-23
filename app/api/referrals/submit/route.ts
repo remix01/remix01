@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // Send email notification to referrer
     try {
-      await sendEmail({
+      await (sendEmail as any)({
         to: referrerData.user.email,
         subject: '🎉 Hvala za priporočilo!',
         html: `

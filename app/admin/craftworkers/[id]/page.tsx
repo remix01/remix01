@@ -43,7 +43,7 @@ async function getCraftworkerData(userId: string) {
   return {
     ...craftworker,
     email: craftworker.profiles?.email,
-    phone: craftworker.profiles?.phone || craftworker.phone,
+    phone: craftworker.profiles?.phone ?? null,
     assignedJobs: povprasevanja || [],
     violations: [],
     reviews: ocene || [],
@@ -73,14 +73,14 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
             phone: craftworker.phone || null,
           }}
           profile={{
-            packageType: craftworker.package_type || 'START',
+            packageType: (craftworker as any).package_type || craftworker.subscription_tier || 'start',
             stripeAccountId: craftworker.stripe_account_id || null,
-            stripeOnboardingComplete: craftworker.stripe_onboarding_complete || false,
+            stripeOnboardingComplete: (craftworker as any).stripe_onboarding_complete ?? false,
             totalJobsCompleted: craftworker.assignedJobs?.length || 0,
             avgRating: craftworker.reviews?.length > 0
               ? craftworker.reviews.reduce((sum: number, r: any) => sum + (r.ocena || 0), 0) / craftworker.reviews.length
               : null,
-            loyaltyPoints: craftworker.loyalty_points || 0,
+            loyaltyPoints: (craftworker as any).loyalty_points ?? 0,
             isVerified: craftworker.is_verified || false,
           }}
         />

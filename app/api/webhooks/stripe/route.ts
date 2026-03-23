@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    switch (event.type) {
+    switch (event.type as string) {
 
       // Začetni nakup — najpomembnejši event
       case 'checkout.session.completed': {

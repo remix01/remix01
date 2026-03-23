@@ -12,7 +12,7 @@ interface ObrtnikCardProps {
 
 export function ObrtnikCard({ obrtnik }: ObrtnikCardProps) {
   const avgRating = obrtnik.avg_rating || 0
-  const reviewCount = obrtnik.review_count || 0
+  const reviewCount = (obrtnik as any).review_count || 0
 
   return (
     <Link href={`/obrtnik/${obrtnik.id}`}>
@@ -57,7 +57,7 @@ export function ObrtnikCard({ obrtnik }: ObrtnikCardProps) {
           </div>
 
           <p className="text-sm text-gray-600 line-clamp-2">
-            {obrtnik.bio}
+            {(obrtnik as any).bio}
           </p>
         </div>
       </Card>

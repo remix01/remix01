@@ -37,14 +37,12 @@ export default async function InquiriesPage() {
     .from('povprasevanja')
     .select(
       `id,
-       naslov,
-       kategorija,
-       lokacija,
+       title,
+       category_id,
+       location_city,
        created_at,
        status,
        urgency,
-       budget_od,
-       budget_do,
        ponudbe:ponudbe(count)`
     )
     .eq('narocnik_id', user.id)
@@ -101,7 +99,7 @@ export default async function InquiriesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {povprasevanja.map((inquiry) => {
+                {(povprasevanja || []).map((inquiry) => {
                   const offerCount = (inquiry.ponudbe as any)?.[0]?.count || 0
                   return (
                     <tr
@@ -109,13 +107,13 @@ export default async function InquiriesPage() {
                       className="hover:bg-slate-50 transition-colors"
                     >
                       <td className="px-6 py-4 text-sm text-slate-900 font-medium max-w-xs truncate">
-                        {inquiry.naslov}
+                        {inquiry.title}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {inquiry.kategorija}
+                        {inquiry.category_id}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {inquiry.lokacija}
+                        {inquiry.location_city}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {new Date(inquiry.created_at).toLocaleDateString('sl-SI')}

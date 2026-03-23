@@ -29,7 +29,7 @@ export default async function DashboardPage() {
   // Fetch stats
   const { data: povprasevanja } = await supabase
     .from('povprasevanja')
-    .select('id, naslov, kategorija, lokacija, created_at, status, budget_od, budget_do')
+    .select('id, title, category_id, location_city, created_at, status')
     .eq('narocnik_id', user.id)
     .order('created_at', { ascending: false })
     .limit(50)
@@ -138,18 +138,17 @@ export default async function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold text-slate-900 truncate">
-                        {inquiry.naslov}
+                        {inquiry.title}
                       </h3>
                       <Badge className={statusBadgeColors[inquiry.status as keyof typeof statusBadgeColors]}>
                         {inquiry.status}
                       </Badge>
                     </div>
-                    <p className="text-sm text-slate-600 truncate">{inquiry.kategorija}</p>
-                    <p className="text-sm text-slate-500 mt-1">{inquiry.lokacija}</p>
+                    <p className="text-sm text-slate-600 truncate">{inquiry.category_id}</p>
+                    <p className="text-sm text-slate-500 mt-1">{inquiry.location_city}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-medium text-slate-900">
-                      €{inquiry.budget_od}–€{inquiry.budget_do}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
                       {new Date(inquiry.created_at).toLocaleDateString('sl-SI')}

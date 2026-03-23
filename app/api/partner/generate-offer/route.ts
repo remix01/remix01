@@ -17,8 +17,8 @@ export async function POST(req: Request) {
     // Get obrtnik profile to verify they exist and check package
     const { data: obrtnikProfile } = await supabase
       .from('obrtnik_profiles')
-      .select('id, package_type')
-      .eq('user_id', user.id)
+      .select('id, subscription_tier')
+      .eq('id', user.id)
       .maybeSingle()
 
     if (!obrtnikProfile) {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     // AI offer generation requires PRO package
-    if (obrtnikProfile.package_type !== 'PRO') {
+    if (obrtnikProfile.subscription_tier !== 'pro') {
       return new Response(
         JSON.stringify({ success: false, error: 'PRO paket je obvezen za AI generiranje ponudb' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }

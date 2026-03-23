@@ -73,11 +73,11 @@ const getCriteriaValues = (offers: Offer[]): Record<string, CriteriaValue[]> => 
   }
 }
 
-const getPros = (offer: Offer): string[] => {
+const getPros = (offer: Offer, offers: Offer[] = []): string[] => {
   const pros: string[] = []
-  
-  const allPrices = offers.map(o => o.price) // This will be fixed in component
-  if (offer.price === Math.min(...allPrices)) pros.push('Najnižja cena')
+
+  const allPrices = offers.map(o => o.price)
+  if (allPrices.length > 0 && offer.price === Math.min(...allPrices)) pros.push('Najnižja cena')
   
   if (offer.rating >= 4.7) pros.push('Odličnega ocenjena')
   if (offer.materialIncluded) pros.push('Material je vključen')
@@ -252,7 +252,7 @@ export function OfferComparison({
                       {offer.mojsterName}
                     </h4>
                     <ul className="space-y-2">
-                      {getPros(offer).map((pro, idx) => (
+                      {getPros(offer, offers).map((pro, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                           <span className="text-sm text-slate-600">{pro}</span>

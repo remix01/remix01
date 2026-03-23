@@ -20,7 +20,6 @@
     "@hookform/resolvers": "^3.9.1",
     "@jest/globals": "^30.2.0",
     "@next/third-parties": "^16.1.6",
-    "@vercel/speed-insights": "^1.0.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
     "@radix-ui/react-aspect-ratio": "1.1.1",
@@ -56,6 +55,7 @@
     "@upstash/qstash": "^2.9.0",
     "@upstash/redis": "^1.36.2",
     "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^1.0.0",
     "autoprefixer": "^10.4.20",
     "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.1",
@@ -89,6 +89,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22",
     "@types/react": "19.2.7",

@@ -88,24 +88,28 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
       completed_at: new Date().toISOString(),
     }).eq('id', job_id)
 
-    await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
-      p_user_id: user_id,
-      p_agent_type: 'video_diagnosis',
-      p_tokens_in: inputTokens,
-      p_tokens_out: outputTokens,
-      p_cost_usd: costUsd,
-    }).catch(() => {})
+    try {
+      await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
+        p_user_id: user_id,
+        p_agent_type: 'video_diagnosis',
+        p_tokens_in: inputTokens,
+        p_tokens_out: outputTokens,
+        p_cost_usd: costUsd,
+      })
+    } catch { /* best-effort */ }
 
-    await supabaseAdmin.from('ai_usage_logs').insert({
-      user_id,
-      model_used: 'opus-4-1',
-      tokens_input: inputTokens,
-      tokens_output: outputTokens,
-      cost_usd: costUsd,
-      response_cached: false,
-      agent_type: 'video_diagnosis',
-      user_message: `[async video analysis] ${file_type}`,
-    }).catch(() => {})
+    try {
+      await supabaseAdmin.from('ai_usage_logs').insert({
+        user_id,
+        model_used: 'opus-4-1',
+        tokens_input: inputTokens,
+        tokens_output: outputTokens,
+        cost_usd: costUsd,
+        response_cached: false,
+        agent_type: 'video_diagnosis',
+        user_message: `[async video analysis] ${file_type}`,
+      })
+    } catch { /* best-effort */ }
 
   } catch (error) {
     await supabaseAdmin.from('agent_jobs').update({

@@ -15,13 +15,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is admin
-    const { data: userData } = await supabase
-      .from('User')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: adminData } = await supabaseAdmin
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (!userData || userData.role !== 'ADMIN') {
+    if (!adminData) {
       return NextResponse.json({ error: 'Dostop zavrnjen' }, { status: 403 })
     }
 

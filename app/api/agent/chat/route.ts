@@ -273,22 +273,23 @@ NIKOLI ne uporabi teh napačnih poti:
       .eq('id', user.id)
 
     // Increment lifetime totals (best-effort, non-blocking)
-    supabaseAdmin
-      .from('profiles')
-      .select('ai_total_tokens_used, ai_total_cost_usd')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+    void (async () => {
+      try {
+        const { data } = await supabaseAdmin
+          .from('profiles')
+          .select('ai_total_tokens_used, ai_total_cost_usd')
+          .eq('id', user.id)
+          .maybeSingle()
         if (!data) return
-        return supabaseAdmin
+        await supabaseAdmin
           .from('profiles')
           .update({
             ai_total_tokens_used: (data.ai_total_tokens_used ?? 0) + inputTokens + outputTokens,
             ai_total_cost_usd: Number((data.ai_total_cost_usd ?? 0)) + costUsd,
           })
           .eq('id', user.id)
-      })
-      .catch(() => {})
+      } catch { /* best-effort */ }
+    })()
 
     // Map full model ID to short name for DB CHECK constraint
     const modelShortName = modelSelection.modelId.includes('haiku') ? 'haiku-4' : 'sonnet-4'

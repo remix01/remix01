@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Save results to Supabase
     const { error: insertError } = await supabase
-      .from('agent_matches')
+      .from('agent_matches' as any)
       .insert({
         povprasevanje_id: povprasevanjeId,
         matches: result.topMatches,

@@ -101,10 +101,12 @@ async function logRejectedTransition(
       }
       
       // Attempt to log - this may fail if the audit table doesn't support offer IDs
-      await supabaseAdmin.from('escrow_audit_log').insert(auditData).catch(() => {
+      try {
+        await supabaseAdmin.from('escrow_audit_log').insert(auditData as any)
+      } catch {
         // If escrow_audit_log doesn't work, just log to console
         console.log('[STATE-MACHINE] Audit logging not available for offer, but transition was rejected')
-      })
+      }
     }
   } catch (err) {
     console.error(`[STATE-MACHINE] Failed to log rejected transition:`, err)

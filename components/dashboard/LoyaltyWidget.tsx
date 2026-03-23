@@ -25,7 +25,7 @@ interface LoyaltyWidgetProps {
 export function LoyaltyWidget({ profile }: LoyaltyWidgetProps) {
   const [copied, setCopied] = useState(false)
   
-  const commission = getEffectiveCommission(profile)
+  const commission = getEffectiveCommission(profile as any)
   const explanation = getCommissionExplanation(commission)
   
   // Calculate progress percentage to next tier
