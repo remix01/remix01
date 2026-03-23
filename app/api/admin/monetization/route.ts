@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
         id,
         job_id,
         partner_id,
-        total_amount,
-        commission_amount,
-        payout_amount,
+        gross_amount_cents,
+        commission_cents,
+        partner_payout_cents,
         status,
         created_at,
         obrtnik_profiles!inner(full_name)
@@ -49,12 +49,12 @@ export async function GET(request: NextRequest) {
 
     if (commError) throw commError
 
-    // Calculate stats
-    const totalRevenue = commissions?.reduce((sum, c) => sum + (c.commission_amount || 0), 0) || 0
-    const totalCommissions = commissions?.reduce((sum, c) => sum + (c.payout_amount || 0), 0) || 0
+    // Calculate stats (amounts are in cents in the schema)
+    const totalRevenue = commissions?.reduce((sum, c) => sum + ((c.commission_cents || 0) / 100), 0) || 0
+    const totalCommissions = commissions?.reduce((sum, c) => sum + ((c.partner_payout_cents || 0) / 100), 0) || 0
     const pendingPayouts = commissions
       ?.filter(c => c.status === 'pending' || c.status === 'earned')
-      .reduce((sum, c) => sum + (c.payout_amount || 0), 0) || 0
+      .reduce((sum, c) => sum + ((c.partner_payout_cents || 0) / 100), 0) || 0
     const proUsers = (subscriptions || []).filter(s => s.subscription_tier === 'pro' || s.subscription_tier === 'elite').length
 
     // Fetch user statistics
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     // Fetch commission totals per user
     const { data: commissionsByUser, error: commByUserError } = await supabase
       .from('commission_logs')
-      .select('partner_id, total_amount, payout_amount')
+      .select('partner_id, gross_amount_cents, partner_payout_cents')
 
     if (commByUserError) throw commByUserError
 
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
         userEarnings.set(c.partner_id, { total: 0, jobs: 0 })
       }
       const current = userEarnings.get(c.partner_id)!
-      current.total += c.payout_amount || 0
+      current.total += (c.partner_payout_cents || 0) / 100
       current.jobs += 1
     })
 
@@ -125,9 +125,9 @@ export async function GET(request: NextRequest) {
         jobId: c.job_id,
         partnerId: c.partner_id,
         partnerName: c.obrtnik_profiles?.[0]?.full_name || 'Unknown',
-        totalAmount: c.total_amount,
-        commission: c.commission_amount,
-        payout: c.payout_amount,
+        totalAmount: (c.gross_amount_cents || 0) / 100,
+        commission: (c.commission_cents || 0) / 100,
+        payout: (c.partner_payout_cents || 0) / 100,
         status: c.status,
         createdAt: c.created_at,
       })),
