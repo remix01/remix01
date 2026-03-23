@@ -5,11 +5,11 @@
  * Triggered by Vercel Cron or QStash scheduler.
  *
  * Schedule: Every 15 minutes
- * vercel.json:
+ * vercel.json configuration:
  * {
  *   "crons": [{
  *     "path": "/api/cron/backfill-embeddings",
- *     "schedule": "*/15 * * * *"
+ *     "schedule": "0 */15 * * * *"
  *   }]
  * }
  */
