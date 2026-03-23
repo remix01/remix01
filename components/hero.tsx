@@ -1,29 +1,25 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, CheckCircle, Star, Phone, Mail, MapPin, X, Clock, Shield, Wrench, Loader2 } from "lucide-react"
-import { useState, useCallback } from "react"
+import { ArrowRight, CheckCircle, Star, Clock, Shield } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
+import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { FileUploadZone } from "@/components/file-upload-zone"
-import HeroDemonstrator from "@/components/hero-demonstrator"
+import { Input } from "@/components/ui/input"
+import { HeroFormDialog } from "@/components/hero-form-dialog"
+import dynamic from "next/dynamic"
+
+// Lazy load the heavy demonstrator
+const HeroDemonstrator = dynamic(
+  () => import("@/components/hero-demonstrator"),
+  { loading: () => <div className="w-full h-full bg-slate-100 rounded-2xl animate-pulse" /> }
+)
 
 const STORITVE = [
   "Gradnja & adaptacije",
@@ -63,43 +59,19 @@ const LOKACIJE = [
 
 export function Hero() {
   const [showForm, setShowForm] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [gdprChecked, setGdprChecked] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [formData, setFormData] = useState({
-    storitev: "",
-    lokacija: "",
-    email: "",
-    telefon: "",
-    zeljeniDatum: "",
-    opis: "",
-  })
-  const [showLokacijaSuggestions, setShowLokacijaSuggestions] = useState(false)
   const [lokacijaInput, setLokacijaInput] = useState("")
   const [filteredLokacije, setFilteredLokacije] = useState<string[]>([])
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
-  const [formFiles, setFormFiles] = useState<File[]>([])
-
-  const validatePhone = (phone: string) => {
-    const cleaned = phone.replace(/\s/g, "")
-    return /^(\+386|0)[0-9]{8,9}$/.test(cleaned)
-  }
-
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  }
+  const [showLokacijaSuggestions, setShowLokacijaSuggestions] = useState(false)
+  const [selectedService, setSelectedService] = useState("")
 
   const handleLokacijaChange = (value: string) => {
     setLokacijaInput(value)
-    setFormData({ ...formData, lokacija: value })
-    if (errors.lokacija) setErrors({ ...errors, lokacija: "" })
-    
+
     if (value.trim() === "") {
       setFilteredLokacije([])
       setShowLokacijaSuggestions(false)
     } else {
-      const filtered = LOKACIJE.filter(lok => 
+      const filtered = LOKACIJE.filter((lok) =>
         lok.toLowerCase().includes(value.toLowerCase())
       )
       setFilteredLokacije(filtered)
@@ -109,284 +81,189 @@ export function Hero() {
 
   const selectLokacija = (lokacija: string) => {
     setLokacijaInput(lokacija)
-    setFormData({ ...formData, lokacija })
     setShowLokacijaSuggestions(false)
-    if (errors.lokacija) setErrors({ ...errors, lokacija: "" })
-  }
-
-  const validate = () => {
-    const newErrors: Record<string, string> = {}
-    if (!formData.storitev) newErrors.storitev = "Izberite storitev"
-    if (!formData.lokacija) newErrors.lokacija = "Izberite lokacijo"
-    if (!formData.email.trim()) {
-      newErrors.email = "Vnesite e-poštni naslov"
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = "Nepravilen e-poštni naslov"
-    }
-    if (!formData.telefon.trim()) {
-      newErrors.telefon = "Vnesite telefonsko številko"
-    } else if (!validatePhone(formData.telefon)) {
-      newErrors.telefon = "Nepravilna telefonska številka (npr. +386 41 123 456)"
-    }
-    if (!formData.opis.trim()) {
-      newErrors.opis = "Opis dela je obvezen"
-    } else if (formData.opis.length > 500) {
-      newErrors.opis = "Opis je predolg (max 500 znakov)"
-    }
-    if (!gdprChecked) newErrors.gdpr = "Soglasje je obvezno"
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validate()) return
-    
-    setIsLoading(true)
-    setErrors({})
-    
-    try {
-      const response = await fetch('/api/povprasevanje', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-      
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Napaka pri oddaji povpraševanja')
-      }
-      
-      setSubmitted(true)
-    } catch (error) {
-      console.error('[v0] Form submission error:', error)
-      setErrors({ 
-        submit: error instanceof Error ? error.message : 'Napaka pri pošiljanju. Poskusite znova.' 
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const resetForm = () => {
-    setShowForm(false)
-    setSubmitted(false)
-    setGdprChecked(false)
-    setErrors({})
-    setFormData({ storitev: "", lokacija: "", email: "", telefon: "", zeljeniDatum: "", opis: "" })
-    setLokacijaInput("")
-    setShowLokacijaSuggestions(false)
-    setFilteredLokacije([])
-    setUploadedFiles([])
-    setFormFiles([])
   }
 
   return (
-    <section className="relative overflow-hidden pt-20 pb-12 lg:pb-0">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-background to-secondary/30" />
+    <>
+      <section className="relative overflow-hidden pt-20 pb-12 lg:pb-0">
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-background to-secondary/30" />
 
-      <div className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 lg:py-16">
-          {/* Left content */}
-          <div className="flex flex-col justify-center">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-card px-4 py-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-              </span>
-              <span className="text-xs font-medium text-muted-foreground">
-                225+ aktivnih mojstrov po vsej Sloveniji
-              </span>
-            </div>
-
-            <h1 className="mt-6 font-display text-[28px] font-bold leading-tight text-foreground text-balance sm:text-5xl md:text-6xl">
-              Povejte, kaj potrebujete.
-              <span className="text-primary"> Mi najdemo mojstra.</span>
-            </h1>
-
-            <p className="mt-5 max-w-lg text-[15px] sm:text-lg leading-relaxed text-muted-foreground">
-              Oddajte brezplačno povpraševanje in prejmite ponudbo preverjenega obrtnika v manj kot 2 urah.
-            </p>
-
-            {/* Inline Quick Form */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const el = document.getElementById("oddaj-povprasevanje")
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth" })
-                }
-              }}
-              className="mt-8"
-            >
-              <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-lg sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  <Select
-                    value={formData.storitev}
-                    onValueChange={(val) => setFormData({ ...formData, storitev: val })}
-                  >
-                    <SelectTrigger className="border-0 shadow-none focus:ring-0 min-h-[48px] text-[16px]">
-                      <SelectValue placeholder="Kaj potrebujete?" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STORITVE.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="hidden h-8 w-px bg-border sm:block" />
-                <div className="flex-1 relative">
-                  <Input
-                    type="text"
-                    inputMode="text"
-                    autoComplete="address-level2"
-                    placeholder="Lokacija?"
-                    value={lokacijaInput}
-                    onChange={(e) => handleLokacijaChange(e.target.value)}
-                    onFocus={() => {
-                      if (lokacijaInput.trim() && filteredLokacije.length > 0) {
-                        setShowLokacijaSuggestions(true)
-                      }
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => setShowLokacijaSuggestions(false), 200)
-                    }}
-                    className="border-0 shadow-none focus-visible:ring-0 min-h-[48px] text-[16px]"
-                  />
-                  {showLokacijaSuggestions && filteredLokacije.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-md">
-                      {filteredLokacije.map((lok) => (
-                        <div
-                          key={lok}
-                          onClick={() => selectLokacija(lok)}
-                          className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                        >
-                          {lok}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button type="submit" size="lg" className="gap-2 sm:px-8 w-full sm:w-auto min-h-[48px]">
-                  Oddajte povpraševanje
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3 text-primary" />
-                  Brezplačno
+        <div className="mx-auto max-w-7xl px-4 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 lg:py-16">
+            {/* Left content */}
+            <div className="flex flex-col justify-center">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-card px-4 py-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
                 </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3 text-primary" />
-                  Odziv v 2 urah
-                </span>
-                <span className="flex items-center gap-1">
-                  <Shield className="h-3 w-3 text-primary" />
-                  Brez obveznosti
+                <span className="text-xs font-medium text-muted-foreground">
+                  225+ aktivnih mojstrov po vsej Sloveniji
                 </span>
               </div>
-            </form>
 
-            {/* Trust strip */}
-            <div className="mt-8 flex flex-wrap items-center gap-6 border-t pt-6">
-              <div className="flex items-center gap-1.5">
-                <div className="flex -space-x-1.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-                  ))}
-                </div>
-                <span className="text-sm font-semibold text-foreground">4.9</span>
-                <span className="text-xs text-muted-foreground">iz 1.200+ ocen</span>
-              </div>
-              <div className="h-4 w-px bg-border" />
-              <p className="text-xs text-muted-foreground">
-                Zaupajo nam stranke iz Ljubljane, Maribora, Celja, Kopra in še 50+ mest
+              <h1 className="mt-6 font-display text-[28px] font-bold leading-tight text-foreground text-balance sm:text-5xl md:text-6xl">
+                Povejte, kaj potrebujete.
+                <span className="text-primary"> Mi najdemo mojstra.</span>
+              </h1>
+
+              <p className="mt-5 max-w-lg text-[15px] sm:text-lg leading-relaxed text-muted-foreground">
+                Oddajte brezplačno povpraševanje in prejmite ponudbo preverjenega obrtnika v manj kot 2 urah.
               </p>
-            </div>
 
-            <div className="mt-6">
-              <Link
-                href="/cenik"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-              >
-                Ste obrtnik? Oglejte si cenik
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Right - Demonstrator */}
-          <div className="relative lg:mt-0">
-            <div className="relative overflow-hidden rounded-2xl min-h-[400px] sm:min-h-[500px] lg:min-h-[620px] flex items-center justify-center">
-              <HeroDemonstrator />
-            </div>
-
-            <div className="absolute left-2 bottom-20 rounded-xl border bg-card p-3 shadow-xl sm:left-4 sm:bottom-24 sm:p-4 lg:-left-8">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary/10">
-                  <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              {/* Inline Quick Form */}
+              <div className="mt-8">
+                <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-lg sm:flex-row sm:items-center">
+                  <div className="flex-1">
+                    <Select value={selectedService} onValueChange={setSelectedService}>
+                      <SelectTrigger className="border-0 shadow-none focus:ring-0 min-h-[48px] text-[16px]">
+                        <SelectValue placeholder="Kaj potrebujete?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STORITVE.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="hidden h-8 w-px bg-border sm:block" />
+                  <div className="flex-1 relative">
+                    <Input
+                      type="text"
+                      inputMode="text"
+                      autoComplete="address-level2"
+                      placeholder="Lokacija?"
+                      value={lokacijaInput}
+                      onChange={(e) => handleLokacijaChange(e.target.value)}
+                      onFocus={() => {
+                        if (lokacijaInput.trim() && filteredLokacije.length > 0) {
+                          setShowLokacijaSuggestions(true)
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setShowLokacijaSuggestions(false), 200)
+                      }}
+                      className="border-0 shadow-none focus-visible:ring-0 min-h-[48px] text-[16px]"
+                    />
+                    {showLokacijaSuggestions && filteredLokacije.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-md">
+                        {filteredLokacije.map((lok) => (
+                          <div
+                            key={lok}
+                            onClick={() => selectLokacija(lok)}
+                            className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                          >
+                            {lok}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => setShowForm(true)}
+                    size="lg"
+                    className="gap-2 sm:px-8 w-full sm:w-auto min-h-[48px]"
+                  >
+                    Oddajte povpraševanje
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-semibold text-foreground">Pravkar zaključeno</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Prenova kopalnice - Ljubljana</p>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3 text-primary" />
+                    Brezplačno
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-primary" />
+                    Odziv v 2 urah
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Shield className="h-3 w-3 text-primary" />
+                    Brez obveznosti
+                  </span>
                 </div>
               </div>
-              <div className="mt-2 flex items-center gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-3 w-3 fill-accent text-accent" />
-                ))}
-                <span className="ml-1 text-xs text-muted-foreground">5.0</span>
+
+              {/* Trust strip */}
+              <div className="mt-8 flex flex-wrap items-center gap-6 border-t pt-6">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex -space-x-1.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-accent text-accent" />
+                    ))}
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">4.9</span>
+                  <span className="text-xs text-muted-foreground">iz 1.200+ ocen</span>
+                </div>
+                <div className="h-4 w-px bg-border" />
+                <p className="text-xs text-muted-foreground">
+                  Zaupajo nam stranke iz Ljubljane, Maribora, Celja, Kopra in še 50+ mest
+                </p>
+              </div>
+
+              <div className="mt-6">
+                <Link
+                  href="/cenik"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                >
+                  Ste obrtnik? Oglejte si cenik
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             </div>
 
-            <div className="absolute right-2 top-6 rounded-xl border bg-card p-3 shadow-xl sm:right-4 sm:top-8 sm:p-4 lg:-right-8">
-              <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Ta mesec</p>
-              <p className="font-display text-xl sm:text-2xl font-bold text-primary">347</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">uspešno povezav</p>
+            {/* Right - Demonstrator */}
+            <div className="relative lg:mt-0">
+              <div className="relative overflow-hidden rounded-2xl min-h-[400px] sm:min-h-[500px] lg:min-h-[620px] flex items-center justify-center">
+                <HeroDemonstrator />
+              </div>
+
+              <div className="absolute left-2 bottom-20 rounded-xl border bg-card p-3 shadow-xl sm:left-4 sm:bottom-24 sm:p-4 lg:-left-8">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary/10">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-foreground">
+                      Pravkar zaključeno
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Prenova kopalnice - Ljubljana
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-accent text-accent" />
+                  ))}
+                  <span className="ml-1 text-xs text-muted-foreground">5.0</span>
+                </div>
+              </div>
+
+              <div className="absolute right-2 top-6 rounded-xl border bg-card p-3 shadow-xl sm:right-4 sm:top-8 sm:p-4 lg:-right-8">
+                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">
+                  Ta mesec
+                </p>
+                <p className="font-display text-xl sm:text-2xl font-bold text-primary">
+                  347
+                </p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  uspešno povezav
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Full inquiry dialog */}
-      <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm() }}>
-        <DialogContent className="sm:max-w-lg">
-          {submitted ? (
-            <div className="flex flex-col items-center gap-4 py-8 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle className="h-10 w-10 text-green-600" />
-              </div>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold">Povpraševanje prejeto!</DialogTitle>
-                <DialogDescription className="text-base">
-                  V roku 2 ur boste prejeli email s ponudbami ustreznih mojstrov. Preverite mapo Prejeto.
-                </DialogDescription>
-              </DialogHeader>
-
-              <Button 
-                size="lg" 
-                className="mt-4 w-full sm:w-auto min-h-[48px]" 
-                onClick={() => {
-                  resetForm()
-                  setShowForm(true)
-                  setSubmitted(false)
-                }}
-              >
-                Oddaj novo povpraševanje
-              </Button>
-            </div>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl">Oddajte povpraševanje</DialogTitle>
-                <DialogDescription>
-                  Izpolnitev traja ~2 minuti
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-4">
+      {/* Form Dialog */}
+      <HeroFormDialog open={showForm} onOpenChange={setShowForm} />
+    </>
+  )
+}
                 <div className="grid gap-1.5">
                   <Label htmlFor="inq-storitev">Storitev *</Label>
                   <Select
