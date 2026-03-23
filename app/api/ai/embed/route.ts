@@ -5,13 +5,7 @@
  * Triggered by Vercel Cron or QStash scheduler.
  *
  * Schedule: Every 15 minutes
- * vercel.json configuration:
- * {
- *   "crons": [{
- *     "path": "/api/cron/backfill-embeddings",
- *     "schedule": "0 */15 * * * *"
- *   }]
- * }
+ * Configure in vercel.json with cron schedule: 0 [slash]15 [space] [asterisk] [space] [asterisk] [space] [asterisk] [space] [asterisk]
  */
 
 import { NextRequest, NextResponse } from 'next/server'
