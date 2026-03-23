@@ -264,8 +264,6 @@ export function Hero() {
     </>
   )
 }
-                <div className="grid gap-1.5">
-                  <Label htmlFor="inq-storitev">Storitev *</Label>
                   <Select
                     value={formData.storitev}
                     onValueChange={(val) => {
