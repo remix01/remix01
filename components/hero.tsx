@@ -264,7 +264,6 @@ export function Hero() {
     </>
   )
 }
-                  <Select
                     value={formData.storitev}
                     onValueChange={(val) => {
                       setFormData({ ...formData, storitev: val })
