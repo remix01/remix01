@@ -31,6 +31,7 @@ export const env = {
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? '',
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY ?? '',
   LANGFUSE_HOST: process.env.LANGFUSE_HOST ?? '',
+  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
 
   // ─── Email & Notifications ───
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
@@ -89,6 +90,7 @@ export const hasEmbeddings = () => hasOpenAI() || hasVoyageAPI() || hasGemini()
 
 // Observability
 export const hasLangfuse = () => !!env.LANGFUSE_SECRET_KEY
+export const hasSentry = () => !!env.NEXT_PUBLIC_SENTRY_DSN
 export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
 
 // ═══════════════════════════════════════════════════════════════════════════
