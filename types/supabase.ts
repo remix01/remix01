@@ -1029,6 +1029,28 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
         Relationships: []
       }
+      admin_audit_log: {
+        Row: {
+          id: string
+          action: string
+          admin_id: string
+          user_id: string
+          old_value: Json
+          new_value: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          action: string
+          admin_id: string
+          user_id: string
+          old_value?: Json
+          new_value?: Json
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
