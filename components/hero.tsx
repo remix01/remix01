@@ -264,39 +264,6 @@ export function Hero() {
     </>
   )
 }
-          {submitted ? (
-            <div className="flex flex-col items-center gap-4 py-8 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle className="h-10 w-10 text-green-600" />
-              </div>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold">Povpraševanje prejeto!</DialogTitle>
-                <DialogDescription className="text-base">
-                  V roku 2 ur boste prejeli email s ponudbami ustreznih mojstrov. Preverite mapo Prejeto.
-                </DialogDescription>
-              </DialogHeader>
-
-              <Button 
-                size="lg" 
-                className="mt-4 w-full sm:w-auto min-h-[48px]" 
-                onClick={() => {
-                  resetForm()
-                  setShowForm(true)
-                  setSubmitted(false)
-                }}
-              >
-                Oddaj novo povpraševanje
-              </Button>
-            </div>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl">Oddajte povpraševanje</DialogTitle>
-                <DialogDescription>
-                  Izpolnitev traja ~2 minuti
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-4">
                 <div className="grid gap-1.5">
                   <Label htmlFor="inq-storitev">Storitev *</Label>
                   <Select
