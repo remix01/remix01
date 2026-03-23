@@ -12,7 +12,7 @@ export function AnalyticsChart({ data }: AnalyticsChartProps) {
     const grouped = data.reduce(
       (acc, item) => {
         const category = item.category || 'Ostalo'
-        const existing = acc.find((g) => g.name === category)
+        const existing = acc.find((g: any) => g.name === category)
         if (existing) {
           existing.value += 1
         } else {

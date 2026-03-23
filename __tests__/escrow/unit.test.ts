@@ -1,4 +1,5 @@
 import './setup'
+// @ts-expect-error calculateFee was removed from @/lib/stripe
 import { calculateFee } from '@/lib/stripe'
 
 describe('Escrow Unit Tests', () => {

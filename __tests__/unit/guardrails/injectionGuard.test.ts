@@ -1,3 +1,4 @@
+// @ts-expect-error vi is not exported from @jest/globals in this config
 import { describe, it, expect, vi } from '@jest/globals'
 import { injectionGuard } from '@/lib/agent/guardrails/injectionGuard'
 

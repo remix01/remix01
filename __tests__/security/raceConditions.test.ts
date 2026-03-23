@@ -19,31 +19,31 @@ describe('Race Conditions', () => {
     })
 
     const results = await Promise.all([
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'captureEscrow',
         params: { escrowId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'captureEscrow',
         params: { escrowId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'captureEscrow',
         params: { escrowId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'captureEscrow',
         params: { escrowId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'captureEscrow',
@@ -51,8 +51,8 @@ describe('Race Conditions', () => {
       }),
     ])
 
-    const successCount = results.filter(r => r.success).length
-    const conflictCount = results.filter(r => r.statusCode === 409).length
+    const successCount = results.filter((r: any) => r.success).length
+    const conflictCount = results.filter((r: any) => r.statusCode === 409).length
 
     expect(successCount).toBe(1)
     expect(conflictCount).toBe(4)
@@ -73,19 +73,19 @@ describe('Race Conditions', () => {
     })
 
     const results = await Promise.all([
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'releaseEscrow',
         params: { escrowId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'releaseEscrow',
         params: { escrowId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'releaseEscrow',
@@ -93,8 +93,8 @@ describe('Race Conditions', () => {
       }),
     ])
 
-    const successCount = results.filter(r => r.success).length
-    const conflictCount = results.filter(r => r.statusCode === 409).length
+    const successCount = results.filter((r: any) => r.success).length
+    const conflictCount = results.filter((r: any) => r.statusCode === 409).length
 
     expect(successCount).toBe(1)
     expect(conflictCount).toBe(2)
@@ -116,19 +116,19 @@ describe('Race Conditions', () => {
     })
 
     const results = await Promise.all([
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'acceptOffer',
         params: { offerId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'acceptOffer',
         params: { offerId, userId, sessionId },
       }),
-      MessageBus.send({
+      (MessageBus as any).send({
         from: 'orchestrator',
         to: 'escrow',
         action: 'acceptOffer',
@@ -136,8 +136,8 @@ describe('Race Conditions', () => {
       }),
     ])
 
-    const successCount = results.filter(r => r.success).length
-    const conflictCount = results.filter(r => r.statusCode === 409).length
+    const successCount = results.filter((r: any) => r.success).length
+    const conflictCount = results.filter((r: any) => r.statusCode === 409).length
 
     expect(successCount).toBe(1)
     expect(conflictCount).toBe(2)
@@ -159,7 +159,7 @@ describe('Race Conditions', () => {
 
     let midTransitionState: string | null = null
 
-    const updatePromise = MessageBus.send({
+    const updatePromise = (MessageBus as any).send({
       from: 'orchestrator',
       to: 'escrow',
       action: 'captureEscrow',

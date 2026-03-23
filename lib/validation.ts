@@ -65,7 +65,7 @@ export function validateAmount(amount: unknown, fieldName: string = 'amount', mi
     return { field: fieldName, message: `${fieldName} is required` }
   }
 
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  const numAmount: number = typeof amount === 'string' ? parseFloat(amount) : Number(amount)
 
   if (isNaN(numAmount)) {
     return { field: fieldName, message: `${fieldName} must be a valid number` }
@@ -141,7 +141,7 @@ export function validateEnum(value: unknown, fieldName: string, allowedValues: s
     return { field: fieldName, message: `${fieldName} is required` }
   }
 
-  if (!allowedValues.includes(value)) {
+  if (!allowedValues.includes(value as string)) {
     return { field: fieldName, message: `${fieldName} must be one of: ${allowedValues.join(', ')}` }
   }
 

@@ -8,6 +8,7 @@ import { workingMemory } from '@/lib/agent/memory/workingMemory'
 import { messageBus } from '../base/MessageBus'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueue } from '@/lib/jobs/queue'
+import { tracer } from '@/lib/observability/tracing'
 import { v4 as uuidv4 } from 'uuid'
 
 export class EscrowAgent extends BaseAgent {
@@ -28,10 +29,10 @@ export class EscrowAgent extends BaseAgent {
         }
         await runGuardrails(action, payload, session)
       } catch (error: unknown) {
-        this.log('guardrails_failed', { action, error: error.error })
+        this.log('guardrails_failed', { action, error: (error as any).error })
         return {
           success: false,
-          error: error.error || 'Guardrails validation failed',
+          error: (error as any).error || 'Guardrails validation failed',
           handledBy: this.type,
           durationMs: Date.now() - startTime,
         }
@@ -53,7 +54,7 @@ export class EscrowAgent extends BaseAgent {
           }
         }
       } catch (error: unknown) {
-        this.log('permission_check_failed', { action, error })
+        this.log('permission_check_failed', { action, error: getErrorMessage(error) })
         return {
           success: false,
           error: 'Permission check failed',
@@ -108,15 +109,15 @@ export class EscrowAgent extends BaseAgent {
 
       return response
     } catch (error: unknown) {
-      this.log('handler_error', { error: error?.message })
+      this.log('handler_error', { error: (error as Error)?.message })
       return {
         success: false,
-        error: error?.message || 'Internal agent error',
+        error: (error as Error)?.message || 'Internal agent error',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
     } finally {
-      span.end()
+      tracer.endSpan(span)
     }
   }
 
@@ -180,10 +181,10 @@ export class EscrowAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } catch (error: unknown) {
-      this.log('submit_offer_error', { error: error?.message })
+      this.log('submit_offer_error', { error: (error as Error)?.message })
       return {
         success: false,
-        error: error?.message || 'Failed to submit offer',
+        error: (error as Error)?.message || 'Failed to submit offer',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -250,10 +251,10 @@ export class EscrowAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } catch (error: unknown) {
-      this.log('accept_offer_error', { error: error?.message })
+      this.log('accept_offer_error', { error: (error as Error)?.message })
       return {
         success: false,
-        error: error?.message || 'Failed to accept offer',
+        error: (error as Error)?.message || 'Failed to accept offer',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -272,10 +273,10 @@ export class EscrowAgent extends BaseAgent {
       try {
         await assertTransition('escrow', payload.escrowId, 'captured', sessionId)
       } catch (error: unknown) {
-        this.log('state_transition_failed', { error: error.error })
+        this.log('state_transition_failed', { error: (error as any).error })
         return {
           success: false,
-          error: error.error || 'Invalid state transition',
+          error: (error as any).error || 'Invalid state transition',
           handledBy: this.type,
           durationMs: Date.now() - startTime,
         }
@@ -339,10 +340,10 @@ export class EscrowAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } catch (error: unknown) {
-      this.log('capture_escrow_error', { error: error?.message })
+      this.log('capture_escrow_error', { error: (error as Error)?.message })
       return {
         success: false,
-        error: error?.message || 'Failed to capture escrow',
+        error: (error as Error)?.message || 'Failed to capture escrow',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -361,10 +362,10 @@ export class EscrowAgent extends BaseAgent {
       try {
         await assertTransition('escrow', payload.escrowId, 'released', sessionId)
       } catch (error: unknown) {
-        this.log('state_transition_failed', { error: error.error })
+        this.log('state_transition_failed', { error: (error as any).error })
         return {
           success: false,
-          error: error.error || 'Invalid state transition',
+          error: (error as any).error || 'Invalid state transition',
           handledBy: this.type,
           durationMs: Date.now() - startTime,
         }
@@ -428,10 +429,10 @@ export class EscrowAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } catch (error: unknown) {
-      this.log('release_escrow_error', { error: error?.message })
+      this.log('release_escrow_error', { error: (error as Error)?.message })
       return {
         success: false,
-        error: error?.message || 'Failed to release escrow',
+        error: (error as Error)?.message || 'Failed to release escrow',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -450,10 +451,10 @@ export class EscrowAgent extends BaseAgent {
       try {
         await assertTransition('escrow', payload.escrowId, 'refunded', sessionId)
       } catch (error: unknown) {
-        this.log('state_transition_failed', { error: error.error })
+        this.log('state_transition_failed', { error: (error as any).error })
         return {
           success: false,
-          error: error.error || 'Invalid state transition',
+          error: (error as any).error || 'Invalid state transition',
           handledBy: this.type,
           durationMs: Date.now() - startTime,
         }
@@ -518,10 +519,10 @@ export class EscrowAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } catch (error: unknown) {
-      this.log('refund_escrow_error', { error: error?.message })
+      this.log('refund_escrow_error', { error: (error as Error)?.message })
       return {
         success: false,
-        error: error?.message || 'Failed to refund escrow',
+        error: (error as Error)?.message || 'Failed to refund escrow',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -538,7 +539,7 @@ export class EscrowAgent extends BaseAgent {
         .single()
 
       if (error || !data) {
-        this.log('get_status_failed', { error: error?.message })
+        this.log('get_status_failed', { error: (error as Error)?.message })
         return {
           success: false,
           error: 'Escrow not found',
@@ -554,10 +555,10 @@ export class EscrowAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } catch (error: unknown) {
-      this.log('get_status_error', { error: error?.message })
+      this.log('get_status_error', { error: (error as Error)?.message })
       return {
         success: false,
-        error: error?.message || 'Failed to get escrow status',
+        error: (error as Error)?.message || 'Failed to get escrow status',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }

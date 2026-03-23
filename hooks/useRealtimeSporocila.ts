@@ -63,7 +63,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           table: 'sporocila',
           filter: `povprasevanje_id=eq.${povprasevanjeId}`,
         },
-        (payload) => {
+        (payload: any) => {
           const newMessage = payload.new as Message
           setSporocila((prev) => [...prev, newMessage])
 

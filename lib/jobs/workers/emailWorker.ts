@@ -34,8 +34,9 @@ interface EmailJobPayload {
   budget?: number
 }
 
-export async function handleEmailJob(job: Job<EmailJobPayload>): Promise<void> {
-  const { type, payload } = job
+export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string }): Promise<void> {
+  const type = (job as any).type
+  const payload = job.data
   const { jobType, povprasevanjeId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
 
   // Handle povprasevanje confirmation (both authenticated and public)

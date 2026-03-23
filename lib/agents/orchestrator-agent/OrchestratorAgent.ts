@@ -17,6 +17,7 @@ import { routeIntent, intentMap } from './intentRouter'
 import { shortTermMemory, type ConversationState } from '@/lib/agent/memory/shortTerm'
 import { loadLongTermMemory, appendActivity } from '@/lib/agent/memory/longTerm'
 import { messageBus } from '../base/MessageBus'
+import { tracer } from '@/lib/observability/tracing'
 
 const anthropic = new Anthropic()
 const INTERACTION_THRESHOLD = 10 // Update long-term memory every N interactions
@@ -119,7 +120,8 @@ export class OrchestratorAgent extends BaseAgent {
       }
 
       // 11. After INTERACTION_THRESHOLD interactions, trigger long-term memory update
-      const messages = shortTermMemory.getMessages(message.sessionId)
+      const memCtx = shortTermMemory.getContext(message.sessionId)
+      const messages = memCtx?.messages ?? []
       if (messages.length % INTERACTION_THRESHOLD === 0) {
         // This would trigger a background summarization task
         // For now, just log it
@@ -148,7 +150,7 @@ export class OrchestratorAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } finally {
-      span.end()
+      tracer.endSpan(span)
     }
   }
 

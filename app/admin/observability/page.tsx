@@ -23,14 +23,14 @@ export default function ObservabilityPage() {
           return
         }
 
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-        const profile = profileData as { role: string | null } | null
+        const { data: admin, error: adminError } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('auth_user_id', user.id)
+          .eq('aktiven', true)
+          .maybeSingle()
 
-        if (profile?.role !== 'admin') {
+        if (adminError || !admin) {
           router.push('/dashboard')
           return
         }

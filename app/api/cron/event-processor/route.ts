@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
     // dead-man alerting via checkEventLag() if outbox backlog accumulates.
     // Do NOT insert into alert_log here: that table is for real alerts only.
 
+    const durationMs = Date.now() - start
     return NextResponse.json({ ok: true, processed: result.processed, failed: result.failed, durationMs })
   } catch (err) {
     const durationMs = Date.now() - start

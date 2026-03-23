@@ -222,7 +222,6 @@ export default function RootLayout({
           rel="preload"
           as="image"
           href="/images/hero-craftsman.jpg"
-          // @ts-expect-error — fetchPriority je veljaven HTML atribut
           fetchPriority="high"
         />
 

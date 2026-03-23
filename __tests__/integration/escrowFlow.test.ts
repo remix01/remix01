@@ -57,9 +57,9 @@ describe('Escrow Happy Path Integration', () => {
     })
 
     expect(response.success).toBe(true)
-    expect(response.data).toHaveProperty('inquiryId')
+    expect((response as any).data).toHaveProperty('inquiryId')
 
-    const inquiry = await testDb.getInquiry(response.data.inquiryId)
+    const inquiry = await testDb.getInquiry((response as any).data.inquiryId)
     expect(inquiry).toBeDefined()
     expect(inquiry.status).toBe('open')
     expect(inquiry.created_by).toBe(testUser.id)
@@ -86,7 +86,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    inquiryId = inquiryResp.data.inquiryId
+    inquiryId = (inquiryResp as any).data.inquiryId
 
     // Partner submits offer
     const offerResp = await escrowAgent.handle({
@@ -108,9 +108,9 @@ describe('Escrow Happy Path Integration', () => {
     })
 
     expect(offerResp.success).toBe(true)
-    expect(offerResp.data).toHaveProperty('offerId')
+    expect((offerResp as any).data).toHaveProperty('offerId')
 
-    const offer = await testDb.getOffer(offerResp.data.offerId)
+    const offer = await testDb.getOffer((offerResp as any).data.offerId)
     expect(offer).toBeDefined()
     expect(offer.status).toBe('pending')
   })
@@ -136,7 +136,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    inquiryId = inquiryResp.data.inquiryId
+    inquiryId = (inquiryResp as any).data.inquiryId
 
     // User tries to submit offer (should fail)
     const offerResp = await escrowAgent.handle({
@@ -182,7 +182,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    inquiryId = inquiryResp.data.inquiryId
+    inquiryId = (inquiryResp as any).data.inquiryId
 
     const offerResp = await escrowAgent.handle({
       id: uuidv4(),
@@ -202,7 +202,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    offerId = offerResp.data.offerId
+    offerId = (offerResp as any).data.offerId
 
     // User accepts offer
     const acceptResp = await escrowAgent.handle({
@@ -223,12 +223,12 @@ describe('Escrow Happy Path Integration', () => {
     })
 
     expect(acceptResp.success).toBe(true)
-    expect(acceptResp.data).toHaveProperty('escrowId')
+    expect((acceptResp as any).data).toHaveProperty('escrowId')
 
     const offer = await testDb.getOffer(offerId)
     expect(offer.status).toBe('accepted')
 
-    const escrow = await testDb.getEscrow(acceptResp.data.escrowId)
+    const escrow = await testDb.getEscrow((acceptResp as any).data.escrowId)
     expect(escrow).toBeDefined()
     expect(escrow.status).toBe('pending')
 
@@ -257,7 +257,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    inquiryId = inquiryResp.data.inquiryId
+    inquiryId = (inquiryResp as any).data.inquiryId
 
     const offerResp = await escrowAgent.handle({
       id: uuidv4(),
@@ -277,7 +277,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    offerId = offerResp.data.offerId
+    offerId = (offerResp as any).data.offerId
 
     const acceptResp = await escrowAgent.handle({
       id: uuidv4(),
@@ -296,7 +296,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    escrowId = acceptResp.data.escrowId
+    escrowId = (acceptResp as any).data.escrowId
 
     // Try to capture before escrow is active (should fail with 409)
     clearEnqueuedJobs()
@@ -348,7 +348,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    inquiryId = inquiryResp.data.inquiryId
+    inquiryId = (inquiryResp as any).data.inquiryId
 
     // Step 2: Submit offer
     const offerResp = await escrowAgent.handle({
@@ -369,7 +369,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    offerId = offerResp.data.offerId
+    offerId = (offerResp as any).data.offerId
 
     // Step 3: Accept offer
     const acceptResp = await escrowAgent.handle({
@@ -389,7 +389,7 @@ describe('Escrow Happy Path Integration', () => {
       priority: 'normal',
     })
 
-    escrowId = acceptResp.data.escrowId
+    escrowId = (acceptResp as any).data.escrowId
     clearEnqueuedJobs()
 
     // Step 4: Capture escrow (need to transition to active first)

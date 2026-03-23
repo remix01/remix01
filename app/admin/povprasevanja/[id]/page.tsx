@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 
@@ -29,7 +29,9 @@ interface Obrtnik {
   ocena: number
 }
 
-export default function PovprasevanjeDetailPage({ params }: { params: { id: string } }) {
+export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = React.use(params)
+  const id = resolvedParams.id
   const router = useRouter()
   const [povprasevanje, setPovprasevanje] = useState<Povprasevanje | null>(null)
   const [obrtniki, setObrtniki] = useState<Obrtnik[]>([])
@@ -38,12 +40,17 @@ export default function PovprasevanjeDetailPage({ params }: { params: { id: stri
   const [formData, setFormData] = useState<Partial<Povprasevanje>>({})
 
   useEffect(() => {
+    if (!id || id === 'undefined') {
+      setLoading(false)
+      return
+    }
+
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('sb-token')
 
         // Fetch povprasevanje
-        const response = await fetch(`/api/povprasevanje/${params.id}`, {
+        const response = await fetch(`/api/povprasevanje/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await response.json()
@@ -64,7 +71,7 @@ export default function PovprasevanjeDetailPage({ params }: { params: { id: stri
     }
 
     fetchData()
-  }, [params.id])
+  }, [id])
 
   const handleSave = async () => {
     if (!povprasevanje) return

@@ -16,12 +16,12 @@ export async function GET(request: NextRequest) {
 
     // Check if user is admin
     const { data: userData } = await supabase
-      .from('User')
-      .select('role')
+      .from('profiles')
+      .select('*')
       .eq('id', user.id)
-      .single()
+      .single() as { data: any }
 
-    if (!userData || userData.role !== 'ADMIN') {
+    if (!userData || (userData as any).role !== 'ADMIN') {
       return NextResponse.json({ error: 'Dostop zavrnjen' }, { status: 403 })
     }
 

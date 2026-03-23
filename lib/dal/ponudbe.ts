@@ -376,7 +376,7 @@ export async function getObrtnikAverageRating(obrtnikId: string): Promise<{ avg_
   }
 
   return {
-    avg_rating: data.avg_rating || 0,
-    total_reviews: data.total_reviews || 0
+    avg_rating: data?.avg_rating || 0,
+    total_reviews: data?.total_reviews || 0
   }
 }

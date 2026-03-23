@@ -1,3 +1,4 @@
+// @ts-expect-error vi is not exported from @jest/globals in this config
 import { describe, it, expect, beforeEach, afterEach, vi } from '@jest/globals'
 import { assertEscrowTransition } from '@/lib/agent/state-machine/escrowMachine'
 import { supabaseAdmin } from '@/lib/supabase-admin'

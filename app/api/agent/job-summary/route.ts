@@ -84,15 +84,15 @@ export async function POST(req: NextRequest) {
       .select('id').single()
 
     await supabaseAdmin.from('profiles').update({ ai_messages_used_today: effectiveUsed + 1 }).eq('id', user.id)
-    await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
+    await (supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
       p_user_id: user.id, p_agent_type: 'job_summary',
       p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
-    }).catch(() => {})
-    await supabaseAdmin.from('ai_usage_logs').insert({
+    }) as any).catch(() => {})
+    await (supabaseAdmin.from('ai_usage_logs').insert({
       user_id: user.id, model_used: 'haiku-4', tokens_input: inputTokens,
       tokens_output: outputTokens, cost_usd: costUsd, response_cached: false,
       agent_type: 'job_summary', user_message: `report for: ${pov?.title?.slice(0,100)}`,
-    }).catch(() => {})
+    }) as any).catch(() => {})
 
     return NextResponse.json({
       report_text: reportText,

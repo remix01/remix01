@@ -1,7 +1,8 @@
 jest.mock('@/lib/jobs/queue')
 jest.mock('@upstash/redis')
 
-import { enqueue, process as processJob } from '@/lib/jobs/queue'
+import { enqueue } from '@/lib/jobs/queue'
+const processJob = jest.fn() as jest.Mock
 import Stripe from 'stripe'
 
 // Mock Stripe
@@ -33,7 +34,7 @@ describe('Job Queue Throughput', () => {
     })
     const duration = Date.now() - start
 
-    expect(result.status).toBe('queued')
+    expect((result as any).status).toBe('queued')
     expect(duration).toBeLessThan(5)
   })
 
@@ -92,7 +93,7 @@ describe('Job Queue Throughput', () => {
   })
 
   it('job retry does not re-charge Stripe', async () => {
-    const stripe = new Stripe('sk_test_123', { apiVersion: '2023-10-16' })
+    const stripe = new Stripe('sk_test_123', { apiVersion: '2026-02-25.clover' as any })
     const mockCapture = stripe.paymentIntents.capture as jest.Mock
 
     // Idempotency key prevents double charge
