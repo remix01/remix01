@@ -43,7 +43,7 @@ async function getCraftworkerData(userId: string) {
   return {
     ...craftworker,
     email: craftworker.profiles?.email,
-    phone: craftworker.profiles?.phone || craftworker.phone,
+    phone: craftworker.profiles?.phone,
     assignedJobs: povprasevanja || [],
     violations: [],
     reviews: ocene || [],
@@ -70,7 +70,7 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
           craftworker={{
             name: craftworker.business_name || '',
             email: craftworker.email || '',
-            phone: craftworker.phone || null,
+            phone: craftworker.phone,
           }}
           profile={{
             packageType: craftworker.package_type || 'START',
