@@ -257,9 +257,9 @@ export async function POST(request: NextRequest) {
       // onboarding (KYC, requirements, capabilities, persons).
       // We re-fetch the account status from Stripe and sync it to DB.
 
-      case 'v2.core.account[requirements].updated':
-      case 'v2.core.account[identity].updated':
-      case 'v2.core.account[configuration.merchant].capability_status_updated': {
+      case 'v2.core.account[requirements].updated' as any:
+      case 'v2.core.account[identity].updated' as any:
+      case 'v2.core.account[configuration.merchant].capability_status_updated' as any: {
         const v2Event = event as unknown as {
           related_object: { id: string; type: string }
           context: string
@@ -272,8 +272,8 @@ export async function POST(request: NextRequest) {
         break
       }
 
-      case 'v2.core.account_person.created':
-      case 'v2.core.account_person.updated': {
+      case 'v2.core.account_person.created' as any:
+      case 'v2.core.account_person.updated' as any: {
         const v2Event = event as unknown as {
           related_object: { id: string; type: string; url: string }
           context: string

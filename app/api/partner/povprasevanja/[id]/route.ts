@@ -102,12 +102,13 @@ export async function PATCH(
 
   // Notify admin on rejection
   if (status === 'zavrnjeno') {
-    await supabaseAdmin.from('admin_log').insert({
+    const { error: logError } = await supabaseAdmin.from('admin_log').insert({
       akcija: 'PARTNER_REJECTED',
       tabela: 'povprasevanja',
-      zapis_id: params.id,
+      zapis_id: id,
       novo_stanje: { partner_id: partner.id, opomba },
-    }).catch(() => null)
+    })
+    if (logError) console.error('[admin_log]', logError)
   }
 
   return NextResponse.json(data)

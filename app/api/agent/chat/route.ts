@@ -273,12 +273,12 @@ NIKOLI ne uporabi teh napačnih poti:
       .eq('id', user.id)
 
     // Increment lifetime totals (best-effort, non-blocking)
-    supabaseAdmin
+    Promise.resolve(supabaseAdmin
       .from('profiles')
       .select('ai_total_tokens_used, ai_total_cost_usd')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (!data) return
         return supabaseAdmin
           .from('profiles')
@@ -287,7 +287,7 @@ NIKOLI ne uporabi teh napačnih poti:
             ai_total_cost_usd: Number((data.ai_total_cost_usd ?? 0)) + costUsd,
           })
           .eq('id', user.id)
-      })
+      }))
       .catch(() => {})
 
     // Map full model ID to short name for DB CHECK constraint

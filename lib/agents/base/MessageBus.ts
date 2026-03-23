@@ -79,24 +79,36 @@ export class MessageBus {
       }
 
       // Log incoming message
-      agentLogger.log('info', 'message_received', {
-        from: message.from,
-        to: message.to,
-        action: message.action,
-        priority: message.priority,
-        correlationId: message.correlationId,
+      agentLogger.log({
+        sessionId: message.sessionId ?? '',
+        userId: message.userId ?? '',
+        level: 'info',
+        event: 'tool_call_started' as any,
+        params: {
+          from: message.from,
+          to: message.to,
+          action: message.action,
+          priority: message.priority,
+          correlationId: message.correlationId,
+        },
       })
 
       // Dispatch to handler
       const response = await handler.handle(message)
 
       // Log response
-      agentLogger.log(response.success ? 'info' : 'error', 'message_processed', {
-        handledBy: response.handledBy,
-        action: message.action,
-        success: response.success,
-        durationMs: response.durationMs,
-        correlationId: message.correlationId,
+      agentLogger.log({
+        sessionId: message.sessionId ?? '',
+        userId: message.userId ?? '',
+        level: response.success ? 'info' : 'error',
+        event: (response.success ? 'tool_call_succeeded' : 'tool_call_failed') as any,
+        params: {
+          handledBy: response.handledBy,
+          action: message.action,
+          success: response.success,
+          durationMs: response.durationMs,
+          correlationId: message.correlationId,
+        },
       })
 
       span.attributes['success'] = response.success
@@ -107,11 +119,17 @@ export class MessageBus {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       
-      agentLogger.log('error', 'message_failed', {
-        to: message.to,
-        action: message.action,
-        error: errorMsg,
-        correlationId: message.correlationId,
+      agentLogger.log({
+        sessionId: message.sessionId ?? '',
+        userId: message.userId ?? '',
+        level: 'error',
+        event: 'tool_call_failed' as any,
+        params: {
+          to: message.to,
+          action: message.action,
+          error: errorMsg,
+          correlationId: message.correlationId,
+        },
       })
 
       span.attributes['error'] = errorMsg
@@ -158,10 +176,16 @@ export class MessageBus {
       priority: 'normal',
     }
 
-    agentLogger.log('info', 'event_broadcast', {
-      from,
-      event,
-      affectedUsers: 1,
+    agentLogger.log({
+      sessionId: sessionId ?? '',
+      userId: userId ?? '',
+      level: 'info',
+      event: 'tool_call_started' as any,
+      params: {
+        from,
+        event,
+        affectedUsers: 1,
+      },
     })
 
     // Fire and forget — don't await

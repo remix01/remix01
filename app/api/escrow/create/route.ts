@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limit check (use customerEmail as key)
-    const { allowed, retryAfter } = checkRateLimit(
+    const { allowed, retryAfter } = await checkRateLimit(
       `escrow_create:${customerEmail}`,
       5,       // max 5 escrows
       60_000   // per minute

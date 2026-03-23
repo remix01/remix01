@@ -145,9 +145,10 @@ export function useTaskRpcWithOptimisticUpdate<T>(
     [execute, currentData, options]
   )
 
+  const { data: _unusedData, ...restWithoutData } = rest
   return {
     execute: executeWithOptimisticUpdate,
     data: optimisticData,
-    ...rest,
+    ...restWithoutData,
   }
 }

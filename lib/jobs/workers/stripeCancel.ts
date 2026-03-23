@@ -21,9 +21,8 @@ export async function handleStripeCancel(job: Job) {
     // Cancel payment with idempotency key
     // Using paymentIntentId + 'cancel' as idempotency key ensures this is truly idempotent
     const cancelled = await stripe.paymentIntents.cancel(paymentIntentId, {
-      idempotencyKey: `${paymentIntentId}_cancel_${escrowId}`,
-      cancellation_reason: 'requested_by_customer', // or 'fraudulent', 'requested_by_customer', 'duplicate'
-    })
+      cancellation_reason: 'requested_by_customer',
+    } as any)
 
     if (cancelled.status === 'canceled') {
       console.log(`[STRIPE] Successfully cancelled PI: ${paymentIntentId}`)

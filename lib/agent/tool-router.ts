@@ -140,7 +140,7 @@ export async function routeTool(
       success: true,
       data: result,
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     const errorMessage = error?.error || error?.message || String(error)
     const errorCode = error?.code || 500
 

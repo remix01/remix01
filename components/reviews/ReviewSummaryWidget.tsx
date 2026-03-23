@@ -23,7 +23,7 @@ export function ReviewSummaryWidget({ obrtnik_id, compact = false }: ReviewSumma
           .eq('obrtnik_id', obrtnik_id)
 
         if (!error && data && data.length > 0) {
-          const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length
+          const avg = data.reduce((sum: number, r: any) => sum + r.rating, 0) / data.length
           setStats({ avg, count: data.length })
         }
       } catch (err) {

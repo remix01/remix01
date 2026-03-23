@@ -86,7 +86,7 @@ export function EKljucWizard({ open, onOpenChange }: EKljucWizardProps) {
     setTimeout(() => setPinCopied(false), 2000)
   }
 
-  const canProceedStep1 = accessMethod !== ""
+  const canProceedStep1 = accessMethod !== ("" as string)
   const canProceedStep2 =
     (accessMethod === "pin" && pinCode) ||
     (accessMethod === "smart-lock" && smartDevice && deviceKey) ||

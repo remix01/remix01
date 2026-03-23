@@ -116,11 +116,10 @@ class AnomalyDetector {
     // Log via agentLogger
     agentLogger.log({
       level: 'warn',
-      event: 'anomaly_detected',
-      details: alert.details,
-      sessionId: alert.sessionId,
-      userId: alert.userId,
-    })
+      event: 'anomaly_detected' as any,
+      sessionId: alert.sessionId ?? 'unknown',
+      userId: alert.userId ?? 'unknown',
+    } as any)
 
     // Save to DB
     try {

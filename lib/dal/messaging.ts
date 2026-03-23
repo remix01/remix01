@@ -32,7 +32,7 @@ export async function getOrCreateConversation(
   
   // Try to find existing conversation
   let query = supabase
-    .from('conversations')
+    .from('conversations' as any)
     .select('*')
     .eq('obrtnik_id', obrtnikId)
     .eq('narocnik_id', narocnikId)
@@ -49,12 +49,12 @@ export async function getOrCreateConversation(
   }
 
   if (existing) {
-    return existing
+    return existing as unknown as Conversation
   }
 
   // Create new conversation if it doesn't exist
   const { data: created, error: createError } = await supabase
-    .from('conversations')
+    .from('conversations' as any)
     .insert({
       obrtnik_id: obrtnikId,
       narocnik_id: narocnikId,
@@ -68,7 +68,7 @@ export async function getOrCreateConversation(
     return null
   }
 
-  return created
+  return created as unknown as Conversation
 }
 
 /**
@@ -81,7 +81,7 @@ export async function getConversationMessages(
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('messages')
+    .from('messages' as any)
     .select('*')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: false })
@@ -92,7 +92,7 @@ export async function getConversationMessages(
     return []
   }
 
-  return (data || []).reverse()
+  return ((data || []) as unknown as Message[]).reverse()
 }
 
 /**
@@ -106,7 +106,7 @@ export async function sendMessage(
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('messages')
+    .from('messages' as any)
     .insert({
       conversation_id: conversationId,
       sender_id: senderId,
@@ -120,7 +120,7 @@ export async function sendMessage(
     return null
   }
 
-  return data
+  return data as unknown as Message
 }
 
 /**
@@ -130,7 +130,7 @@ export async function markMessageAsRead(messageId: string): Promise<boolean> {
   const supabase = await createClient()
   
   const { error } = await supabase
-    .from('messages')
+    .from('messages' as any)
     .update({ read_at: new Date().toISOString() })
     .eq('id', messageId)
 
@@ -149,7 +149,7 @@ export async function getUserConversations(userId: string): Promise<Conversation
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from('conversations')
+    .from('conversations' as any)
     .select('*')
     .or(`obrtnik_id.eq.${userId},narocnik_id.eq.${userId}`)
     .order('last_message_at', { ascending: false })
@@ -159,7 +159,7 @@ export async function getUserConversations(userId: string): Promise<Conversation
     return []
   }
 
-  return data || []
+  return (data || []) as unknown as Conversation[]
 }
 
 /**
@@ -169,7 +169,7 @@ export async function getUnreadCount(conversationId: string, userId: string): Pr
   const supabase = await createClient()
   
   const { count, error } = await supabase
-    .from('messages')
+    .from('messages' as any)
     .select('*', { count: 'exact', head: true })
     .eq('conversation_id', conversationId)
     .neq('sender_id', userId)

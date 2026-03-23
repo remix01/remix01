@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       currency: 'eur',
       application_fee_amount: applicationFeeAmount,
       transfer_data: {
-        destination: partner.stripe_account_id, // Craftsman's Stripe Connect account
+        destination: partner.stripe_account_id!, // Craftsman's Stripe Connect account
       },
       metadata: {
         offerId,
