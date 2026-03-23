@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       .from('commission_logs')
       .select(`
         id,
-        job_id,
+        inquiry_id,
         partner_id,
         gross_amount_cents,
         commission_cents,
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       })),
       commissions: (commissions || []).map((c: any) => ({
         id: c.id,
-        jobId: c.job_id,
+        inquiryId: c.inquiry_id,
         partnerId: c.partner_id,
         partnerName: c.obrtnik_profiles?.[0]?.full_name || 'Unknown',
         totalAmount: (c.gross_amount_cents || 0) / 100,
