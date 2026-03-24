@@ -18,9 +18,13 @@ async function exampleRateLimiting(userId: string, clientIp: string) {
   const result = await checkRateLimit(`user:${userId}`, 10, 60_000)
   
   if (!result.allowed) {
+    const headers: Record<string, string> = {}
+    if (result.retryAfter) {
+      headers['Retry-After'] = result.retryAfter.toString()
+    }
     return new Response('Too many requests', { 
       status: 429,
-      headers: { 'Retry-After': result.retryAfter?.toString() }
+      headers
     })
   }
   
