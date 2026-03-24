@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         const obrtnikIds = matchedCategories.map((c) => c.obrtnik_id)
         const { data: obrtniki } = await supabase
           .from('obrtnik_profiles')
-          .select('id, user_id')
+          .select('id')
           .in('id', obrtnikIds)
           .eq('is_verified', true)
           .eq('is_available', true)
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
         // 4. Insert in-app notification for each matched obrtnik
         const notifications = obrtniki.map((o) => ({
-          user_id: o.user_id,
+          user_id: o.id,
           type: 'novo_povprasevanje',
           title: 'Novo povpraševanje v vaši kategoriji',
           message: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
