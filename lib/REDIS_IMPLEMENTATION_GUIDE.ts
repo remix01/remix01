@@ -99,6 +99,7 @@ async function exampleSessions(user: { id: string; email: string; name: string }
     ipAddress: request.ip || 'unknown',
     userAgent: request.headers['user-agent'] || 'unknown',
     metadata: {
+      isAuthenticated: true,
       loginMethod: 'email',
       deviceType: 'web'
     }
