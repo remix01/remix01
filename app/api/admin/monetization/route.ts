@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       .reduce((sum, c: any) => sum + ((c.partner_payout_cents || c.payout_amount || 0) / (c.partner_payout_cents ? 100 : 1)), 0) || 0
     const proUsers = (subscriptions || []).filter(s => s.subscription_tier === 'pro' || s.subscription_tier === 'elite').length
 
-    // Fetch user statistics
+    // Fetch user statistics - only select existing columns
     const { data: userStats, error: userError } = await supabase
       .from('profiles')
       .select(`
@@ -53,10 +53,7 @@ export async function GET(request: NextRequest) {
         email,
         full_name,
         subscription_tier,
-        is_active,
-        flagged,
-        last_activity_at,
-        ai_messages_used_today
+        created_at
       `)
       .order('created_at', { ascending: false })
 
@@ -90,9 +87,6 @@ export async function GET(request: NextRequest) {
         tier: user.subscription_tier || 'start',
         totalEarned: earnings.total,
         jobsCompleted: earnings.jobs,
-        lastActive: user.last_activity_at || new Date().toISOString(),
-        isActive: user.is_active !== false,
-        isFlagged: user.flagged === true,
       }
     })
 
