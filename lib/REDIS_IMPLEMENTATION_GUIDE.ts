@@ -13,7 +13,7 @@
 import { checkRateLimit } from '@/lib/rateLimit'
 
 // Example: Rate limit an API endpoint
-async function exampleRateLimiting() {
+async function exampleRateLimiting(userId: string, clientIp: string) {
   // Basic usage - 10 requests per minute per user
   const result = await checkRateLimit(`user:${userId}`, 10, 60_000)
   
@@ -44,7 +44,7 @@ import {
 } from '@/lib/cache'
 
 // Example: Cache user profile
-async function exampleCaching() {
+async function exampleCaching(userId: string) {
   // Get or set - Automatic caching
   const userProfile = await getOrSetCache(
     CACHE_KEYS.user(userId),
@@ -58,14 +58,14 @@ async function exampleCaching() {
   // Manual cache operations
   await setInCache(
     CACHE_KEYS.taskList('frontend', 1),
-    tasks,
+    [],
     CACHE_TTL.SHORT // 5 minutes
   )
   
   const cachedTasks = await getFromCache(CACHE_KEYS.taskList('frontend', 1))
   
   // Invalidate on data changes
-  await cascadeInvalidateTask(taskId) // Invalidates task and related data
+  await cascadeInvalidateTask('task-123') // Invalidates task and related data
   await cascadeInvalidateUser(userId) // Invalidates user and related data
 }
 
@@ -85,14 +85,14 @@ import {
 import type { Session, CreateSessionPayload } from '@/lib/sessions/types'
 
 // Example: Session management in authentication
-async function exampleSessions() {
+async function exampleSessions(user: { id: string; email: string; name: string }, request: { ip?: string; headers: Record<string, string> }) {
   // Create session on login
   const session = await createSession({
     userId: user.id,
     userEmail: user.email,
     userName: user.name,
-    ipAddress: request.ip,
-    userAgent: request.headers['user-agent'],
+    ipAddress: request.ip || 'unknown',
+    userAgent: request.headers['user-agent'] || 'unknown',
     metadata: {
       loginMethod: 'email',
       deviceType: 'web'
@@ -100,13 +100,13 @@ async function exampleSessions() {
   })
   
   // Validate session
-  const validation = await validateSession(session.id)
-  if (!validation.valid) {
+  const validation = await getSession(session.id)
+  if (!validation) {
     // Session expired or invalid
   }
   
   // Update session on activity
-  await touchSession(session.id)
+  await updateSession(session.id, {})
   
   // Extend session for "remember me"
   await extendSession(session.id, 7 * 24 * 60 * 60) // 7 days
@@ -115,10 +115,10 @@ async function exampleSessions() {
   await destroySession(session.id)
   
   // Logout from all devices
-  await clearUserSessions(userId)
+  await clearUserSessions(user.id)
   
   // Get all active sessions for user
-  const allSessions = await getUserSessions(userId)
+  const allSessions = await getUserSessions(user.id)
 }
 
 // ============================================================================
@@ -136,7 +136,7 @@ import {
 } from '@/lib/queue/job-monitoring'
 
 // Example: Track background jobs
-async function exampleJobQueue() {
+async function exampleJobQueue(jobId: string) {
   // When job is created
   await trackJobStatus(jobId, 'sendEmail', 'pending', {
     createdAt: Date.now(),
@@ -176,7 +176,7 @@ import {
   getTotalOnlineUsers
 } from '@/lib/realtime/presence'
 
-async function examplePresence() {
+async function examplePresence(userId: string) {
   // When user logs in
   await setUserOnline(userId, {
     currentPage: '/tasks',
@@ -208,7 +208,7 @@ import {
 } from '@/lib/realtime/activity-stream'
 import type { ActivityEvent } from '@/lib/realtime/activity-stream'
 
-async function exampleActivityStream() {
+async function exampleActivityStream(userId: string) {
   // Log user activities
   await logActivity('task-123', {
     type: 'task_created',
@@ -235,7 +235,7 @@ import {
   broadcastNotification
 } from '@/lib/realtime/notifications'
 
-async function exampleNotifications() {
+async function exampleNotifications(recipientId: string, userId: string, notificationId: string) {
   // Create notification
   await createNotification({
     userId: recipientId,
@@ -260,7 +260,7 @@ async function exampleNotifications() {
   
   // Broadcast to multiple users
   await broadcastNotification(
-    [userId1, userId2, userId3],
+    ['user-1', 'user-2', 'user-3'],
     {
       type: 'system_alert',
       title: 'Maintenance alert',
@@ -288,7 +288,7 @@ import {
 } from '@/lib/analytics'
 
 // Example: Record metrics throughout your app
-async function exampleAnalytics() {
+async function exampleAnalytics(userId: string) {
   // Record API metrics
   const startTime = Date.now()
   const response = await fetch('/api/users')
@@ -309,7 +309,7 @@ async function exampleAnalytics() {
   await recordErrorMetric('database_connection', '/api/tasks', userId)
   
   // Record search metrics
-  await recordSearchMetric('react components', resultCount, searchTime)
+  await recordSearchMetric('react components', 42, 125)
   
   // Record database operations
   await recordDatabaseMetric('create', 'task', 245) // 245ms
@@ -330,7 +330,7 @@ async function exampleAnalytics() {
 
 // Example 1: Secure API Endpoint with Rate Limiting
 export async function POST_createTask(request: Request) {
-  const userId = await getUserIdFromSession(request)
+  const userId = 'user-123' // await getUserIdFromSession(request)
   
   // Rate limit: 10 tasks per hour per user
   const rateLimit = await checkRateLimit(`createTask:${userId}`, 10, 3600_000)
@@ -339,7 +339,8 @@ export async function POST_createTask(request: Request) {
   }
   
   const data = await request.json()
-  const task = await db.task.create({ data: { ...data, createdBy: userId } })
+  // const task = await db.task.create({ data: { ...data, createdBy: userId } })
+  const task = { id: 'task-1', ...data, createdBy: userId }
   
   // Record metric
   await recordUserEngagement(userId, 'task_created')
@@ -352,13 +353,13 @@ export async function POST_createTask(request: Request) {
 
 // Example 2: Dashboard with Real-time Updates
 export async function GET_dashboard(request: Request) {
-  const userId = await getUserIdFromSession(request)
+  const userId = 'user-123' // await getUserIdFromSession(request)
   
   // Get all data with caching
   const [profile, tasks, stats] = await Promise.all([
-    getOrSetCache(CACHE_KEYS.user(userId), () => db.user.findUnique({ where: { id: userId } }), CACHE_TTL.MEDIUM),
-    getOrSetCache(CACHE_KEYS.taskList(userId, 1), () => db.task.findMany({ where: { createdBy: userId } }), CACHE_TTL.SHORT),
-    getOrSetCache(CACHE_KEYS.userStats(userId), () => computeStats(userId), CACHE_TTL.MEDIUM_SHORT)
+    getOrSetCache(CACHE_KEYS.user(userId), () => Promise.resolve({ id: userId, name: 'John' }), CACHE_TTL.MEDIUM),
+    getOrSetCache(CACHE_KEYS.taskList(userId, 1), () => Promise.resolve([]), CACHE_TTL.SHORT),
+    getOrSetCache(CACHE_KEYS.userStats(userId), () => Promise.resolve({}), CACHE_TTL.MEDIUM_SHORT)
   ])
   
   // Get real-time data
