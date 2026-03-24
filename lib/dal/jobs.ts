@@ -107,12 +107,13 @@ export async function getJobTimeline(povprasevanjeId: string): Promise<TimelineE
     'preklicano': { step: 'Zahtevek preklican', icon: 'X', status: 'completed' },
   }
 
-  if (data.status in statusMap) {
+  const statusMapping = statusMap[data.status] || statusMap['odprto']
+  if (statusMapping) {
     timeline.push({
       step: statusMap[data.status].step,
       status: statusMap[data.status].status,
       date: data.updated_at,
-      icon: statusMap[data.status].icon,
+      icon: statusMapping.icon,
     })
   }
 

@@ -5,6 +5,13 @@ import { AvailabilityToggleSection } from '@/components/obrtnik/availability-tog
 import { WeeklyScheduleSection } from '@/components/obrtnik/weekly-schedule-section'
 import { ServiceAreasSection } from '@/components/obrtnik/service-areas-section'
 
+interface ServiceAreasData {
+  id: string
+  city: string | null
+  region: string
+  radius_km?: number | null
+}
+
 export const metadata = {
   title: 'Razpoložljivost in pokrita območja | LiftGO',
   description: 'Upravljanje vaše razpoložljivosti in pokritih območij',
@@ -45,6 +52,14 @@ export default async function RazpolozljivostPage() {
     .eq('is_active', true)
     .order('created_at')
 
+  // Enrich service areas with radius_km fallback
+  const enrichedServiceAreas: ServiceAreasData[] = (serviceAreas || []).map((area) => ({
+    id: area.id,
+    city: area.city,
+    region: area.region,
+    radius_km: (area as any).radius_km ?? 30,
+  }))
+
   return (
     <main className="flex-1 p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -69,7 +84,7 @@ export default async function RazpolozljivostPage() {
       {/* Section 3: Service Areas */}
       <ServiceAreasSection
         obrtnikId={obrtnikProfile.id}
-        initialServiceAreas={serviceAreas ?? []}
+        initialServiceAreas={enrichedServiceAreas}
       />
     </main>
   )
