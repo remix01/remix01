@@ -30,31 +30,21 @@ export async function GET(request: NextRequest) {
 
     if (subError) throw subError
 
-    // Fetch commission logs
+    // Fetch commission logs - using simple select to avoid schema conflicts
     const { data: commissions, error: commError } = await supabase
       .from('commission_logs')
-      .select(`
-        id,
-        inquiry_id,
-        partner_id,
-        gross_amount_cents,
-        commission_cents,
-        partner_payout_cents,
-        status,
-        created_at,
-        obrtnik_profiles!inner(full_name)
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(100)
 
     if (commError) throw commError
 
     // Calculate stats (amounts are in cents in the schema)
-    const totalRevenue = commissions?.reduce((sum, c) => sum + ((c.commission_cents || 0) / 100), 0) || 0
-    const totalCommissions = commissions?.reduce((sum, c) => sum + ((c.partner_payout_cents || 0) / 100), 0) || 0
+    const totalRevenue = commissions?.reduce((sum, c: any) => sum + ((c.commission_cents || c.commission_amount || 0) / (c.commission_cents ? 100 : 1)), 0) || 0
+    const totalCommissions = commissions?.reduce((sum, c: any) => sum + ((c.partner_payout_cents || c.payout_amount || 0) / (c.partner_payout_cents ? 100 : 1)), 0) || 0
     const pendingPayouts = commissions
-      ?.filter(c => c.status === 'pending' || c.status === 'earned')
-      .reduce((sum, c) => sum + ((c.partner_payout_cents || 0) / 100), 0) || 0
+      ?.filter((c: any) => c.status === 'pending' || c.status === 'earned')
+      .reduce((sum, c: any) => sum + ((c.partner_payout_cents || c.payout_amount || 0) / (c.partner_payout_cents ? 100 : 1)), 0) || 0
     const proUsers = (subscriptions || []).filter(s => s.subscription_tier === 'pro' || s.subscription_tier === 'elite').length
 
     // Fetch user statistics
@@ -74,20 +64,22 @@ export async function GET(request: NextRequest) {
 
     if (userError) throw userError
 
-    // Fetch commission totals per user
+    // Fetch commission totals per user - using simple select
     const { data: commissionsByUser, error: commByUserError } = await supabase
       .from('commission_logs')
-      .select('partner_id, gross_amount_cents, partner_payout_cents')
+      .select('partner_id, gross_amount_cents, partner_payout_cents, payout_amount')
 
     if (commByUserError) throw commByUserError
 
     const userEarnings = new Map<string, { total: number; jobs: number }>()
-    commissionsByUser?.forEach(c => {
+    commissionsByUser?.forEach((c: any) => {
       if (!userEarnings.has(c.partner_id)) {
         userEarnings.set(c.partner_id, { total: 0, jobs: 0 })
       }
       const current = userEarnings.get(c.partner_id)!
-      current.total += (c.partner_payout_cents || 0) / 100
+      // Handle both formats: cents (divide by 100) or already formatted
+      const payout = (c.partner_payout_cents ? c.partner_payout_cents / 100 : c.payout_amount) || 0
+      current.total += payout
       current.jobs += 1
     })
 
@@ -125,9 +117,9 @@ export async function GET(request: NextRequest) {
         inquiryId: c.inquiry_id,
         partnerId: c.partner_id,
         partnerName: c.obrtnik_profiles?.[0]?.full_name || 'Unknown',
-        totalAmount: (c.gross_amount_cents || 0) / 100,
-        commission: (c.commission_cents || 0) / 100,
-        payout: (c.partner_payout_cents || 0) / 100,
+        totalAmount: (c.gross_amount_cents ? c.gross_amount_cents / 100 : c.total_amount) || 0,
+        commission: (c.commission_cents ? c.commission_cents / 100 : c.commission_amount) || 0,
+        payout: (c.partner_payout_cents ? c.partner_payout_cents / 100 : c.payout_amount) || 0,
         status: c.status,
         createdAt: c.created_at,
       })),
