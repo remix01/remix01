@@ -5,7 +5,7 @@ import { ReactNode } from 'react'
 
 interface SentryErrorBoundaryProps {
   children: ReactNode
-  fallback?: (error: Error, reset: () => void) => ReactNode
+  fallback?: (error: unknown, reset: () => void) => ReactNode
 }
 
 export function SentryErrorBoundary({ 
