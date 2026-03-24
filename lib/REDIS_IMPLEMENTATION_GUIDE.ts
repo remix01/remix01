@@ -81,10 +81,10 @@ async function exampleCaching(userId: string) {
 import {
   createSession,
   getSession,
-  updateSession,
-  destroySession,
+  touchSession,
+  deleteSession,
   extendSession,
-  clearUserSessions,
+  deleteUserSessions,
   getUserSessions
 } from '@/lib/sessions/redis-session-store'
 import type { Session, CreateSessionPayload } from '@/lib/sessions/types'
@@ -111,16 +111,16 @@ async function exampleSessions(user: { id: string; email: string; name: string }
   }
   
   // Update session on activity
-  await updateSession(session.id, {})
+  await touchSession(session.id)
   
   // Extend session for "remember me"
   await extendSession(session.id, 7 * 24 * 60 * 60) // 7 days
   
   // Logout - destroy session
-  await destroySession(session.id)
+  await deleteSession(session.id)
   
   // Logout from all devices
-  await clearUserSessions(user.id)
+  await deleteUserSessions(user.id)
   
   // Get all active sessions for user
   const allSessions = await getUserSessions(user.id)
