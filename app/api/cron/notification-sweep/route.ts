@@ -70,12 +70,13 @@ export async function GET(request: NextRequest) {
           user_id: o.id,
           type: 'novo_povprasevanje',
           title: 'Novo povpraševanje v vaši kategoriji',
+          body: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
           message: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
           link: '/obrtnik/povprasevanja',
           read: false,
           metadata: {
             povprasevanje_id: p.id,
-            urgency: p.urgency || 'normal',
+            urgency: p.urgency || 'normalno',
           },
         }))
 
