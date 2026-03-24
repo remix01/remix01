@@ -216,12 +216,14 @@ import type { ActivityEvent } from '@/lib/realtime/activity-stream'
 
 async function exampleActivityStream(userId: string) {
   // Log user activities
-  await logActivity('task-123', {
-    type: 'task_created',
+  await logActivity({
+    type: 'created',
+    entityType: 'task',
+    entityId: 'task-123',
     userId: userId,
     userName: 'John',
-    description: 'Created task "Build homepage"',
-    timestamp: Date.now()
+    message: 'Created task "Build homepage"',
+    metadata: { taskTitle: 'Build homepage' }
   })
   
   // Get activity feed for task
