@@ -250,8 +250,7 @@ async function exampleNotifications(recipientId: string, userId: string, notific
     type: 'bid-received',
     title: 'New bid on your task',
     message: 'Someone placed a bid on your task',
-    link: '/tasks/123',
-    icon: 'badge'
+    actionUrl: '/tasks/123'
   })
   
   // Get user's notifications
