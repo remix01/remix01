@@ -45,6 +45,13 @@ export default async function RazpolozljivostPage() {
     .eq('is_active', true)
     .order('created_at')
 
+  // Transform service areas to ensure proper types
+  const enrichedServiceAreas = (serviceAreas ?? []).map(area => ({
+    ...area,
+    region: area.region ?? '',
+    radius_km: area.radius_km ?? 0,
+  }))
+
   return (
     <main className="flex-1 p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -69,7 +76,7 @@ export default async function RazpolozljivostPage() {
       {/* Section 3: Service Areas */}
       <ServiceAreasSection
         obrtnikId={obrtnikProfile.id}
-        initialServiceAreas={serviceAreas ?? []}
+        initialServiceAreas={enrichedServiceAreas}
       />
     </main>
   )
