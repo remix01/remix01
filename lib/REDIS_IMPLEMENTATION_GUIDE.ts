@@ -54,7 +54,8 @@ async function exampleCaching(userId: string) {
     CACHE_KEYS.user(userId),
     async () => {
       // This function is called only if cache miss
-      return await db.user.findUnique({ where: { id: userId } })
+      // Replace with your actual database call
+      return Promise.resolve({ id: userId, name: 'John Doe', email: 'john@example.com' })
     },
     CACHE_TTL.MEDIUM_SHORT // 15 minutes
   )
