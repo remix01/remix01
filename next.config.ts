@@ -1,29 +1,57 @@
 import type { NextConfig } from 'next'
 
-// Cache bust: 2026-03-15
+// Cache bust: 2026-03-23
 const nextConfig: NextConfig = {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // IMAGES - OPTIMIZED
+  // ═══════════════════════════════════════════════════════════════════════════
   images: {
-    unoptimized: true,
+    // Podprti formati - AVIF je manjši kot WebP
+    formats: ['image/avif', 'image/webp'],
+    
+    // Dovoli slike iz teh domen
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'whabaeatixtymbccwigu.supabase.co',
+      },
     ],
+    
+    // Device sizes za responsive images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EXPERIMENTAL
+  // ═══════════════════════════════════════════════════════════════════════════
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
     },
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TURBOPACK
+  // ═══════════════════════════════════════════════════════════════════════════
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
   },
 
-  // Merged: All redirects in single function to avoid duplicate key issues
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REDIRECTS
+  // ═══════════════════════════════════════════════════════════════════════════
   async redirects() {
     return [
-      // Apple touch icon redirects
       {
         source: '/apple-touch-icon.png',
         destination: '/icons/icon-180x180.png',
@@ -34,7 +62,6 @@ const nextConfig: NextConfig = {
         destination: '/icons/icon-180x180.png',
         permanent: false,
       },
-      // Blog and asset redirects
       {
         source: '/blog/kako-izbrati-elektroinatalaterja',
         destination: '/blog/kako-izbrati-elektroinatalaterja',
@@ -52,7 +79,10 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HEADERS
+  // ═══════════════════════════════════════════════════════════════════════════
   async headers() {
     return [
       {
@@ -66,6 +96,10 @@ const nextConfig: NextConfig = {
       {
         source: '/manifest.json',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=3600' }],
+      },
+      {
+        source: '/_next/image/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
     ]
   },

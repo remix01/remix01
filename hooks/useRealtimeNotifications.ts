@@ -34,7 +34,7 @@ export function useRealtimeNotifications(userId: string | null) {
             table: 'notifications',
             filter: `user_id=eq.${userId}`,
           },
-          (payload) => {
+          (payload: any) => {
             try {
               const newNotif = payload.new as any
               const notification: Notification = {
@@ -74,7 +74,7 @@ export function useRealtimeNotifications(userId: string | null) {
         .eq('is_read', false)
         .order('created_at', { ascending: false })
         .limit(20)
-        .then(({ data, error }) => {
+        .then(({ data, error }: { data: any; error: any }) => {
           if (error) {
             console.error('[v0] Error loading notifications:', error)
             return
@@ -93,7 +93,7 @@ export function useRealtimeNotifications(userId: string | null) {
             setUnreadCount(mapped.length)
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           console.error('[v0] Error in notification query:', error)
         })
 

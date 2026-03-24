@@ -278,7 +278,7 @@ export function rankWorkersForTask(
   let ranked = scores
 
   if (options?.minScore !== undefined) {
-    ranked = ranked.filter(score => score.score >= options.minScore)
+    ranked = ranked.filter(score => score.score >= options.minScore!)
   }
 
   if (options?.limit) {

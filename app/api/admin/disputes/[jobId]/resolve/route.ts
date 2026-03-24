@@ -25,13 +25,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role')
-      .eq('email', user.email!)
-      .single()
+    const { data: admin, error: adminError } = await supabaseAdmin
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (userError || dbUser?.role !== 'ADMIN') {
+    if (adminError || !admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         <p><strong>${
           resolution === 'refund_to_customer' ? 'Vračilo stranki' :
           resolution === 'release_to_craftworker' ? 'Sprostitev obrtniku' :
-          `Razdelitev (${splitPct}% / ${100 - splitPct}%)`
+          `Razdelitev (${splitPct!}% / ${100 - splitPct!}%)`
         }</strong></p>
         <h3>Obrazložitev:</h3>
         <p>${reason}</p>
@@ -149,13 +150,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       `
 
       await Promise.all([
-        sendEmail({
-          to: job.customer.email,
+        sendEmail(job.customer.email, {
           subject: `Spor rešen: ${job.title}`,
           html: emailContent,
         }),
-        job.craftworker && sendEmail({
-          to: job.craftworker.email,
+        job.craftworker && sendEmail(job.craftworker.email, {
           subject: `Spor rešen: ${job.title}`,
           html: emailContent,
         })

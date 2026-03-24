@@ -73,7 +73,7 @@ export function ChatPanel({
               table: 'messages',
               filter: `povprasevanje_id=eq.${povprasevanjeId}`,
             },
-            (payload) => {
+            (payload: any) => {
               setMessages((prev) => [...prev, payload.new as Message])
             }
           )

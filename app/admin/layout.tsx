@@ -36,9 +36,9 @@ export default async function AdminLayout({
   return (
     <AdminAuthProvider>
       <div className="flex h-screen overflow-hidden bg-background">
-        <AdminSidebar user={adminUser} />
+        <AdminSidebar user={adminUser as { ime: string; priimek: string; email: string; vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER' }} />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <AdminHeader user={adminUser} />
+          <AdminHeader user={adminUser as { ime: string; priimek: string; email: string; vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER' }} />
           <main className="flex-1 overflow-y-auto bg-muted/30 p-6">
             {children}
           </main>

@@ -446,18 +446,24 @@ export interface Database {
         Row: {
           id: string
           obrtnik_id: string
-          region: string
-          city: string | null
-          is_active: boolean
-          created_at: string
+          city: string
+          region: string | null
+          radius_km: number | null
+          lat: number | null
+          lng: number | null
+          is_active: boolean | null
+          created_at: string | null
         }
         Insert: {
           id?: string
           obrtnik_id: string
-          region: string
-          city?: string | null
-          is_active?: boolean
-          created_at?: string
+          city: string
+          region?: string | null
+          radius_km?: number | null
+          lat?: number | null
+          lng?: number | null
+          is_active?: boolean | null
+          created_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['service_areas']['Insert']>
         Relationships: [
@@ -1021,6 +1027,28 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
+        Relationships: []
+      }
+      admin_audit_log: {
+        Row: {
+          id: string
+          action: string
+          admin_id: string
+          user_id: string
+          old_value: Json
+          new_value: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          action: string
+          admin_id: string
+          user_id: string
+          old_value?: Json
+          new_value?: Json
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
         Relationships: []
       }
     }

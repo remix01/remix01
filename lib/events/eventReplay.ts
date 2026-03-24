@@ -69,7 +69,7 @@ export const eventReplay = {
       try {
         await eventBus.dispatchHandlers(
           ev.event_name as EventName,
-          ev.payload as Record<string, unknown>
+          ev.payload as any
         )
         replayed++
         // Small pause to avoid overwhelming subscribers
@@ -103,7 +103,7 @@ export const eventReplay = {
 
     await eventBus.dispatchHandlers(
       data.event_name as EventName,
-      data.payload as Record<string, unknown>
+      data.payload as any
     )
   },
 

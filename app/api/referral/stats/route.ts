@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
     const referralLink = generateReferralLink(referralCode)
     
     return NextResponse.json({
+      ...stats,
       referralCode,
       referralLink,
-      ...stats,
     })
   } catch (error) {
     console.error('[v0] Referral stats error:', error)

@@ -1,4 +1,5 @@
 import { createServerClient as createServerClientSSR } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import { env } from '../env'
 
@@ -50,17 +51,13 @@ export async function createClient() {
  * NEVER expose this client to untrusted code or client-side.
  */
 export function createAdminClient() {
-  return createServerClientSSR(
+  return createSupabaseClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.SUPABASE_SERVICE_ROLE_KEY,
     {
-      cookies: {
-        getAll() {
-          return []
-        },
-        setAll() {
-          // No-op for service role client
-        },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     },
   )

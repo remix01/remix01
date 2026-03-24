@@ -32,13 +32,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Check admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: admin, error: adminError } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (profile?.role !== 'admin') {
+    if (adminError || !admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

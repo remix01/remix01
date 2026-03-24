@@ -53,7 +53,7 @@ export async function getActiveCategories(): Promise<Category[]> {
     return []
   }
 
-  return data
+  return data as Category[]
 }
 
 /**
@@ -61,7 +61,7 @@ export async function getActiveCategories(): Promise<Category[]> {
  */
 export async function getCategory(categoryId: string): Promise<Category | null> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('categories')
     .select('*')
@@ -73,7 +73,7 @@ export async function getCategory(categoryId: string): Promise<Category | null> 
     return null
   }
 
-  return data
+  return data as Category | null
 }
 
 /**
@@ -81,7 +81,7 @@ export async function getCategory(categoryId: string): Promise<Category | null> 
  */
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('categories')
     .select('*')
@@ -93,7 +93,7 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
     return null
   }
 
-  return data
+  return data as Category | null
 }
 
 /**

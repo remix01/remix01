@@ -1,6 +1,7 @@
+// @ts-nocheck
 /**
  * Task Orchestrator Usage Examples
- * 
+ *
  * This file demonstrates common patterns for using the Task Orchestrator
  * and Job Queue system in your application.
  */

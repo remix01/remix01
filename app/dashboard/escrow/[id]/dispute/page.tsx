@@ -28,18 +28,9 @@ export default async function OpenDisputePage({ params }: PageProps) {
   // Fetch escrow transaction
   const { data: escrow, error: escrowError } = await supabase
     .from('escrow_transactions')
-    .select(
-      `
-      id,
-      status,
-      amount_cents,
-      created_by,
-      customer_name,
-      partner_name
-    `
-    )
+    .select('*')
     .eq('id', id)
-    .maybeSingle()
+    .maybeSingle() as { data: any; error: any }
 
   if (escrowError || !escrow) {
     redirect('/dashboard')

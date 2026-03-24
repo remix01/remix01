@@ -45,7 +45,7 @@ export default async function PartnerNotificationsPage() {
               {notifications.map(n => {
                 const type = typeLabels[n.type] || { label: n.type, icon: '📬', color: 'gray' }
                 return (
-                  <div key={n.id} className={`bg-white rounded-xl border p-4 flex gap-3 ${!n.read ? 'border-teal-200 bg-teal-50' : ''}`}>
+                  <div key={n.id} className={`bg-white rounded-xl border p-4 flex gap-3 ${!n.is_read ? 'border-teal-200 bg-teal-50' : ''}`}>
                     <span className="text-2xl">{type.icon}</span>
                     <div className="flex-1">
                       <p className="font-medium text-sm">{type.label}</p>
@@ -54,7 +54,7 @@ export default async function PartnerNotificationsPage() {
                         {new Date(n.created_at).toLocaleString('sl-SI')}
                       </p>
                     </div>
-                    {!n.read && <div className="w-2 h-2 rounded-full bg-teal-500 mt-1 flex-shrink-0" />}
+                    {!n.is_read && <div className="w-2 h-2 rounded-full bg-teal-500 mt-1 flex-shrink-0" />}
                   </div>
                 )
               })}

@@ -48,7 +48,7 @@ export function JobStatusTimeline({
       label: 'Delo v teku',
       timestamp: null,
       status: status === 'v_teku' ? ('active' as const) : status === 'zakljuceno' ? ('done' as const) : ('waiting' as const),
-      sublabel: status === 'v_tiku' ? 'Obrtnik dela' : status === 'zakljuceno' ? 'Opravljeno' : 'Čakamo na obrtnika',
+      sublabel: status === 'v_teku' ? 'Obrtnik dela' : status === 'zakljuceno' ? 'Opravljeno' : 'Čakamo na obrtnika',
     },
     {
       id: 5,

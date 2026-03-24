@@ -99,9 +99,9 @@ export function useNotifications() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          (payload) => {
+          (payload: any) => {
             if (!mounted) return
-            
+
             // Add new notification to the beginning of the list
             setNotifications(prev => [payload.new as Notification, ...prev].slice(0, 10))
             setUnreadCount(prev => prev + 1)
@@ -115,9 +115,9 @@ export function useNotifications() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          (payload) => {
+          (payload: any) => {
             if (!mounted) return
-            
+
             // Update notification in the list
             setNotifications(prev =>
               prev.map(n =>

@@ -8,7 +8,7 @@ describe('Role Escalation', () => {
   })
 
   it('regular user cannot call admin-only tools directly', async () => {
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'admin',
       action: 'resolveDispute',
@@ -24,7 +24,7 @@ describe('Role Escalation', () => {
   })
 
   it('regular user cannot call system-level tools', async () => {
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'system',
       action: 'clearAllData',
@@ -44,7 +44,7 @@ describe('Role Escalation', () => {
       status: 'captured',
     })
 
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'escrow',
       action: 'refundEscrow',
@@ -59,7 +59,7 @@ describe('Role Escalation', () => {
   })
 
   it('passing elevated role in request body has no effect', async () => {
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'escrow',
       action: 'refundEscrow',
@@ -83,7 +83,7 @@ describe('Role Escalation', () => {
       user_id: 'user-b',
     })
 
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'inquiry',
       action: 'createInquiry',
@@ -109,7 +109,7 @@ describe('Role Escalation', () => {
       expires_at: new Date(oneDayAgo + 60 * 60 * 1000).toISOString(),
     })
 
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'inquiry',
       action: 'createInquiry',
@@ -125,7 +125,7 @@ describe('Role Escalation', () => {
   })
 
   it('missing session is rejected with 401 not 403', async () => {
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'inquiry',
       action: 'createInquiry',
@@ -142,7 +142,7 @@ describe('Role Escalation', () => {
   })
 
   it('admin audit log is not accessible to regular users', async () => {
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'admin',
       action: 'getAuditLog',
@@ -168,7 +168,7 @@ describe('Role Escalation', () => {
   })
 
   it('system roles cannot be assigned via API', async () => {
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'admin',
       action: 'updateUserRole',
@@ -187,7 +187,7 @@ describe('Role Escalation', () => {
     const tamperedJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.invalid_signature'
 
     try {
-      const response = await MessageBus.send({
+      const response = await (MessageBus as any).send({
         from: 'orchestrator',
         to: 'inquiry',
         action: 'createInquiry',
@@ -219,7 +219,7 @@ describe('Role Escalation', () => {
     })
 
     // Try to access as User A
-    const response = await MessageBus.send({
+    const response = await (MessageBus as any).send({
       from: 'orchestrator',
       to: 'inquiry',
       action: 'getInquiry',

@@ -14,13 +14,14 @@ async function getAnalyticsData() {
       return { error: 'Unauthorized', status: 401 }
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: admin, error: adminError } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (profile?.role !== 'admin') {
+    if (adminError || !admin) {
       return { error: 'Forbidden', status: 403 }
     }
 
@@ -135,9 +136,10 @@ async function getAnalyticsData() {
       .gte('created_at', prevMonthStart.toISOString())
       .lte('created_at', prevMonthEnd.toISOString())
 
+    const prevCount = prevJobsCount ?? 0
     const completedJobsChange =
-      prevJobsCount > 0
-        ? Math.round(((completedJobs - prevJobsCount) / prevJobsCount) * 100)
+      prevCount > 0
+        ? Math.round(((completedJobs - prevCount) / prevCount) * 100)
         : completedJobs > 0
         ? 100
         : 0

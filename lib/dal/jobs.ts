@@ -4,6 +4,7 @@ import type {
   Povprasevanje,
   Ponudba
 } from '@/types/marketplace'
+import type { TimelineEvent } from '@/components/jobs/JobTimeline'
 
 /**
  * Get povprasevanje by ID with full relations (for public job detail page)
@@ -71,7 +72,7 @@ export async function getJobOffers(povprasevanjeId: string): Promise<Ponudba[]> 
 /**
  * Get timeline events for a job
  */
-export async function getJobTimeline(povprasevanjeId: string) {
+export async function getJobTimeline(povprasevanjeId: string): Promise<TimelineEvent[] | null> {
   const supabase = await createClient()
   
   const { data, error } = await supabase
@@ -90,7 +91,7 @@ export async function getJobTimeline(povprasevanjeId: string) {
   }
 
   // Build timeline from status and timestamps
-  const timeline = [
+  const timeline: TimelineEvent[] = [
     {
       step: 'Zahtevek ustvarjen',
       status: 'completed',
@@ -99,19 +100,18 @@ export async function getJobTimeline(povprasevanjeId: string) {
     },
   ]
 
-  // Add status-based events with proper type mapping
-  const statusMap: Record<string, { step: string; icon: string; timelineStatus: 'completed' | 'in_progress' | 'pending' }> = {
-    'odprto': { step: 'Zahtevek objavljen', icon: 'Clock', timelineStatus: 'pending' },
-    'v_teku': { step: 'Prejeti ponudbe', icon: 'Mail', timelineStatus: 'in_progress' },
-    'zakljuceno': { step: 'Delo zaključeno', icon: 'CheckCircle2', timelineStatus: 'completed' },
-    'preklicano': { step: 'Zahtevek preklican', icon: 'X', timelineStatus: 'completed' },
+  // Add status-based events
+  const statusMap: Record<string, { step: string; icon: string; status: TimelineEvent['status'] }> = {
+    'v_teku': { step: 'Prejeti ponudbe', icon: 'Mail', status: 'in_progress' },
+    'zakljuceno': { step: 'Delo zakljuÄeno', icon: 'CheckCircle2', status: 'completed' },
+    'preklicano': { step: 'Zahtevek preklican', icon: 'X', status: 'completed' },
   }
 
   const statusMapping = statusMap[data.status] || statusMap['odprto']
   if (statusMapping) {
     timeline.push({
-      step: statusMapping.step,
-      status: statusMapping.timelineStatus,
+      step: statusMap[data.status].step,
+      status: statusMap[data.status].status,
       date: data.updated_at,
       icon: statusMapping.icon,
     })

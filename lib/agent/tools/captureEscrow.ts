@@ -25,7 +25,7 @@ export async function captureEscrow(
     const supabase = await createClient()
 
     // Get escrow
-    const { data: escrow, error: escrowError } = await supabase
+    const { data: escrow, error: escrowError } = await (supabase as any)
       .from('escrow_transactions')
       .select('id, status')
       .eq('id', escrowId)
@@ -48,7 +48,7 @@ export async function captureEscrow(
     }
 
     // Update to captured
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('escrow_transactions')
       .update({
         status: 'captured',
@@ -68,7 +68,7 @@ export async function captureEscrow(
       escrowId,
       status: 'captured',
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     throw {
       success: false,
       error: error?.error || error?.message || 'Failed to capture escrow',

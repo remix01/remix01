@@ -8,7 +8,7 @@ import { VerificationActions } from '@/components/admin/VerificationActions'
 async function getPendingVerifications() {
   const supabase = await createClient()
 
-  const { data: verifications, error } = await supabase
+  const { data: verifications, error } = await (supabase as any)
     .from('verifications')
     .select(`
       id,

@@ -14,7 +14,7 @@ jest.mock('@/lib/supabase-admin', () => ({
 }))
 
 describe('OwnershipCheck', () => {
-  const mockSupabase = supabaseAdmin as jest.Mocked<typeof supabaseAdmin>
+  const mockSupabase = supabaseAdmin as any
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -34,7 +34,7 @@ describe('OwnershipCheck', () => {
         }),
       } as any)
 
-      mockSupabase.auth.admin.getUserById.mockResolvedValue({
+      (mockSupabase.auth.admin.getUserById as any).mockResolvedValue({
         data: {
           user: {
             id: userId,
@@ -62,7 +62,7 @@ describe('OwnershipCheck', () => {
         }),
       } as any)
 
-      mockSupabase.auth.admin.getUserById.mockResolvedValue({
+      (mockSupabase.auth.admin.getUserById as any).mockResolvedValue({
         data: {
           user: {
             id: userId,
@@ -89,7 +89,7 @@ describe('OwnershipCheck', () => {
         }),
       } as any)
 
-      mockSupabase.auth.admin.getUserById.mockResolvedValue({
+      (mockSupabase.auth.admin.getUserById as any).mockResolvedValue({
         data: {
           user: {
             id: 'user-id',
@@ -191,7 +191,7 @@ describe('OwnershipCheck', () => {
         }),
       } as any)
 
-      mockSupabase.auth.admin.getUserById.mockResolvedValue({
+      (mockSupabase.auth.admin.getUserById as any).mockResolvedValue({
         data: {
           user: {
             id: userId,

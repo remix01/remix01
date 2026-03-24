@@ -22,6 +22,11 @@ export interface ObrtnikiPublic {
   subscription_tier: 'start' | 'pro'
   hourly_rate: number | null
   years_experience: number | null
+  number_of_ratings: number | null
+  website_url: string | null
+  facebook_url: string | null
+  instagram_url: string | null
+  service_radius_km: number | null
   created_at: string
   profiles: {
     id: string
@@ -127,7 +132,7 @@ export async function listVerifiedObrtniki(
     )
   }
 
-  return results
+  return results as unknown as ObrtnikiPublic[]
 }
 
 /**
@@ -160,7 +165,7 @@ export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null
     categories: (raw.obrtnik_categories || [])
       .map((oc) => oc.categories)
       .filter((c): c is { name: string; slug: string; icon_name: string | null } => c !== null),
-  }
+  } as unknown as ObrtnikiPublic
 }
 
 /**

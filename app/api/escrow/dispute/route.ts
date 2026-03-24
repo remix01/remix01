@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limit check
-    const { allowed, retryAfter } = checkRateLimit(
+    const { allowed, retryAfter } = await checkRateLimit(
       `dispute:${user.id}`,
       3,       // max 3 disputes
       60_000   // per minute

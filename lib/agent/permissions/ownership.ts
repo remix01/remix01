@@ -42,8 +42,8 @@ export async function assertOwnership(
         }
 
         // Get user email from auth
-        const { data: user } = await supabaseAdmin.auth.admin.getUserById(userId)
-        if (!user || user.email !== data.email) {
+        const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(userId)
+        if (!authUser || (authUser as any).email !== data.email) {
           throw new OwnershipError('Forbidden')
         }
         break
@@ -85,8 +85,8 @@ export async function assertOwnership(
         }
 
         // Check if user is the customer (match email)
-        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId)
-        if (authUser && authUser.email === data.customer_email) {
+        const { data: { user: authUser2 } } = await supabaseAdmin.auth.admin.getUserById(userId)
+        if (authUser2 && (authUser2 as any).email === data.customer_email) {
           return
         }
 

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limit check
-    const { allowed, retryAfter } = checkRateLimit(
+    const { allowed, retryAfter } = await checkRateLimit(
       `ponudbe:${user.id}`,
       10,      // max 10 ponudb
       60_000   // per minute
@@ -57,8 +57,7 @@ export async function POST(request: NextRequest) {
       price_estimate,
       price_type,
       available_date,
-      status: 'poslana'
-    })
+    } as any)
 
     return apiSuccess(ponudba)
   } catch (error) {
