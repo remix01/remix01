@@ -270,7 +270,7 @@ async function exampleNotifications(recipientId: string, userId: string, notific
   await broadcastNotification(
     ['user-1', 'user-2', 'user-3'],
     {
-      type: 'system_alert',
+      type: 'warning',
       title: 'Maintenance alert',
       message: 'Server maintenance in 1 hour'
     }
