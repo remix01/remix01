@@ -260,8 +260,9 @@ async function exampleNotifications(recipientId: string, userId: string, notific
   const unreadCount = await getUnreadNotificationCount(userId)
   
   // Mark as read
-  await markNotificationAsRead(notificationId)
-  
+  await markNotificationAsRead(userId, notificationId)
+
+
   // Mark all as read
   await markAllNotificationsAsRead(userId)
   
