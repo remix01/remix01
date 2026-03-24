@@ -16,11 +16,14 @@ export function SentryErrorBoundary({
   
   return (
     <SentryErrorBoundary 
-      fallback={({ error, resetError }) => (
-        <>
-          {fallback ? (
-            fallback(error, resetError)
-          ) : (
+      fallback={({ error, resetError }) => {
+        // Type guard: convert unknown error to Error instance
+        const typedError = error instanceof Error ? error : new Error(String(error ?? 'Unknown error'))
+        return (
+          <>
+            {fallback ? (
+              fallback(typedError, resetError)
+            ) : (
             <div className="flex flex-col items-center justify-center min-h-screen p-4">
               <h1 className="text-3xl font-bold text-destructive mb-4">
                 Napaka pri učitavanju strani
@@ -37,7 +40,8 @@ export function SentryErrorBoundary({
             </div>
           )}
         </>
-      )}
+        )
+      }}
       showDialog
     >
       {children}
