@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       .from('povprasevanja')
       .select('id, title, category_id, location_city, urgency')
       .eq('status', 'odprto')
-      .is('notified_at', null)
       .limit(50)
 
     if (fetchError) {
@@ -37,7 +36,6 @@ export async function GET(request: NextRequest) {
     for (const p of pending) {
       try {
         if (!p.category_id) {
-          await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
           skipped++
           continue
         }
@@ -49,7 +47,6 @@ export async function GET(request: NextRequest) {
           .eq('category_id', p.category_id)
 
         if (!matchedCategories?.length) {
-          await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
           skipped++
           continue
         }
@@ -64,7 +61,6 @@ export async function GET(request: NextRequest) {
           .eq('is_available', true)
 
         if (!obrtniki?.length) {
-          await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
           skipped++
           continue
         }
@@ -92,11 +88,8 @@ export async function GET(request: NextRequest) {
             povprasevanjeId: p.id,
             error: notifError.message,
           }))
-          // Still mark notified_at to avoid infinite retry
         }
 
-        // 5. Mark povprasevanje as notified
-        await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
         notified++
 
         console.log(JSON.stringify({
