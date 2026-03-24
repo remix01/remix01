@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch subscriptions with user details
+    // Fetch subscriptions with user details - use only existing columns
     const { data: subscriptions, error: subError } = await supabase
       .from('profiles')
       .select(`
@@ -22,9 +22,7 @@ export async function GET(request: NextRequest) {
         email,
         full_name,
         subscription_tier,
-        stripe_customer_id,
-        created_at,
-        stripe_subscription_id
+        created_at
       `)
       .order('created_at', { ascending: false })
 
@@ -108,9 +106,7 @@ export async function GET(request: NextRequest) {
         email: s.email,
         name: s.full_name || 'N/A',
         tier: s.subscription_tier || 'start',
-        stripeCustomerId: s.stripe_customer_id,
         createdAt: s.created_at,
-        nextBillingDate: s.stripe_subscription_id ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null,
       })),
       commissions: (commissions || []).map((c: any) => ({
         id: c.id,
