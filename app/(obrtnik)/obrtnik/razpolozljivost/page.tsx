@@ -8,7 +8,7 @@ import { ServiceAreasSection } from '@/components/obrtnik/service-areas-section'
 interface ServiceAreasData {
   id: string
   city: string | null
-  region: string
+  region: string | null
   radius_km?: number | null
 }
 
@@ -47,7 +47,7 @@ export default async function RazpolozljivostPage() {
   // Fetch service areas
   const { data: serviceAreas } = await supabase
     .from('service_areas')
-    .select('*')
+    .select('id, city, region, radius_km')
     .eq('obrtnik_id', obrtnikProfile.id)
     .eq('is_active', true)
     .order('created_at')
