@@ -4,13 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { AvailabilityToggleSection } from '@/components/obrtnik/availability-toggle-section'
 import { WeeklyScheduleSection } from '@/components/obrtnik/weekly-schedule-section'
 import { ServiceAreasSection } from '@/components/obrtnik/service-areas-section'
-
-interface ServiceAreasData {
-  id: string
-  city: string | null
-  region: string
-  radius_km?: number | null
-}
+import type { ServiceAreasData } from '@/types/service-areas'
 
 export const metadata = {
   title: 'Razpoložljivost in pokrita območja | LiftGO',
@@ -52,12 +46,17 @@ export default async function RazpolozljivostPage() {
     .eq('is_active', true)
     .order('created_at')
 
-  // Enrich service areas with radius_km fallback
+  // Enrich service areas with full data
   const enrichedServiceAreas: ServiceAreasData[] = (serviceAreas || []).map((area) => ({
     id: area.id,
+    obrtnik_id: area.obrtnik_id,
     city: area.city,
-    region: area.region,
-    radius_km: (area as any).radius_km ?? 30,
+    region: area.region || null,
+    radius_km: area.radius_km ?? 30,
+    lat: area.lat || null,
+    lng: area.lng || null,
+    is_active: area.is_active ?? true,
+    created_at: area.created_at || null,
   }))
 
   return (
