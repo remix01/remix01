@@ -7,34 +7,38 @@ export type ModelSelection = {
   complexityScore: number
 }
 
-// Helper function to safely test patterns on truncated string to avoid ReDoS
-function safePatternTest(pattern: RegExp, text: string): boolean {
-  // Limit length to first 200 characters to prevent catastrophic backtracking
-  const truncated = text.slice(0, 200)
-  return pattern.test(truncated)
-}
-
 // Patterns that indicate a complex query needing Sonnet
-// Improved patterns: avoid nested quantifiers where possible
+// All regexes are safe: they avoid nested quantifiers and use limited repetition.
 const COMPLEX_PATTERNS = [
-  /primerjaj|primerjava/i,                    // comparison (simple alternation, safe)
-  /izračunaj|kalkulacija|cena/i,              // calculation/pricing (safe)
-  /analiz|strategij/i,                        // analysis (safe)
-  /razloži|pojasni|kako deluje/i,             // detailed explanation (safe)
-  /korak.*po.*korak|navodil/i,                // step-by-step (potential issue)
-  /pravno|zakonodaj|davek/i,                  // legal/tax (safe)
-  /projekt\s*\d+€|vrednost\s*\d+/i,           // project with money amount (safe)
-  /pros.*in.*cons|prednosti.*slabosti/i,      // pros/cons (potential issue)
+  /primerjaj|primerjava/i,                     // comparison
+  /izračunaj|kalkulacija|cena/i,               // calculation/pricing
+  /analiz|strategij/i,                         // analysis
+  /razloži|pojasni|kako deluje/i,              // detailed explanation
+  /pravno|zakonodaj|davek/i,                   // legal/tax
 ]
 
-export function selectModel(message: string): ModelSelection {
-  // Trim and limit length early to prevent ReDoS on very long inputs
-  const trimmed = message.trim()
-  // If the message is extremely long, take only first 1000 chars for scoring
-  const safeMessage = trimmed.length > 1000 ? trimmed.slice(0, 1000) : trimmed
+// Additional complex indicators that are easier to test with includes
+const COMPLEX_KEYWORDS = [
+  'pros and cons',
+  'prednosti in slabosti',
+  'korak po korak',
+  'navodila',
+  'projekt',
+  'vrednost',
+]
 
-  const wordCount = safeMessage.split(/\s+/).length
-  const charCount = safeMessage.length
+// Maximum length to avoid ReDoS attacks
+const MAX_ANALYSIS_LENGTH = 500
+
+export function selectModel(message: string): ModelSelection {
+  const trimmed = message.trim()
+  // Limit length to prevent ReDoS
+  const safeInput = trimmed.length > MAX_ANALYSIS_LENGTH 
+    ? trimmed.slice(0, MAX_ANALYSIS_LENGTH) 
+    : trimmed
+
+  const wordCount = safeInput.split(/\s+/).length
+  const charCount = safeInput.length
 
   let complexityScore = 0
 
@@ -46,32 +50,31 @@ export function selectModel(message: string): ModelSelection {
   if (charCount > 200) complexityScore += 2
   else if (charCount > 100) complexityScore += 1
 
-  // Pattern-based scoring using safe function
+  // Pattern-based scoring using safe regexes
   for (const pattern of COMPLEX_PATTERNS) {
-    if (safePatternTest(pattern, safeMessage)) {
+    if (pattern.test(safeInput)) {
       complexityScore += 2
       break
     }
   }
 
-  // Additional explicit checks for step-by-step and pros/cons to avoid complex regex
-  const lowerMessage = safeMessage.toLowerCase()
-  if (
-    lowerMessage.includes('korak po korak') ||
-    lowerMessage.includes('step by step') ||
-    lowerMessage.includes('navodila')
-  ) {
-    complexityScore += 2
+  // Keyword-based scoring (safe string search)
+  const lowerInput = safeInput.toLowerCase()
+  for (const kw of COMPLEX_KEYWORDS) {
+    if (lowerInput.includes(kw.toLowerCase())) {
+      complexityScore += 2
+      break
+    }
   }
-  if (
-    (lowerMessage.includes('pros') && lowerMessage.includes('cons')) ||
-    (lowerMessage.includes('prednosti') && lowerMessage.includes('slabosti'))
-  ) {
+
+  // Special case: project with money amount (use limited regex)
+  const moneyPattern = /projekt.{0,50}\d+\s*€/i
+  if (moneyPattern.test(safeInput)) {
     complexityScore += 2
   }
 
   // Question marks and multiple sentences
-  const sentenceCount = (safeMessage.match(/[.!?]/g) ?? []).length
+  const sentenceCount = (safeInput.match(/[.!?]/g) ?? []).length
   if (sentenceCount > 2) complexityScore += 1
 
   if (complexityScore >= 4) {
