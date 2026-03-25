@@ -30,6 +30,7 @@ import {
   Camera,
   X,
 } from 'lucide-react'
+import { isEmail } from 'validator'
 
 const STORITVE = [
   'Vodovodna dela',
@@ -157,7 +158,7 @@ export function VideoDiagnozaModal({ open, onOpenChange }: VideoDiagnozaModalPro
       return
     }
     
-    // Osnovna validacija
+    // Osnovna validacija dovoljenih domen
     if (!videoLink.includes('youtube.com') && 
         !videoLink.includes('youtu.be') && 
         !videoLink.includes('drive.google.com')) {
@@ -175,7 +176,8 @@ export function VideoDiagnozaModal({ open, onOpenChange }: VideoDiagnozaModalPro
     if (!formData.storitev) errors.push('storitev')
     if (!formData.ime.trim()) errors.push('ime')
     if (!formData.email.trim()) errors.push('email')
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    // Uporaba validatorja za email
+    if (!isEmail(formData.email)) {
       setError('Nepravilen e-poštni naslov')
       return false
     }
@@ -216,6 +218,29 @@ export function VideoDiagnozaModal({ open, onOpenChange }: VideoDiagnozaModalPro
     }
     return null
   }
+
+  // Funkcija za varno pridobitev URL-ja videa – prepreči XSS preko javascript: ipd.
+  const getSafeVideoUrl = (): string | null => {
+    const src = getVideoSource()
+    if (!src) return null
+
+    // Dovolimo blob URL-je (za lokalno predvajanje)
+    if (src.startsWith('blob:')) return src
+
+    try {
+      const url = new URL(src)
+      // Dovolimo samo http in https protokol
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        return src
+      }
+      return null
+    } catch {
+      // Če URL ni veljaven (npr. besedilo), ga ne uporabimo
+      return null
+    }
+  }
+
+  const safeVideoSrc = getSafeVideoUrl()
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -369,10 +394,10 @@ export function VideoDiagnozaModal({ open, onOpenChange }: VideoDiagnozaModalPro
 
             <div className="mt-4 space-y-4">
               {/* Video Preview */}
-              {uploadMethod !== 'link' && getVideoSource() && (
+              {uploadMethod !== 'link' && safeVideoSrc && (
                 <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
                   <video
-                    src={getVideoSource()!}
+                    src={safeVideoSrc}
                     controls
                     className="h-full w-full object-contain"
                   />
