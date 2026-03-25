@@ -1,0 +1,84 @@
+{
+  "claude_desktop_config": {
+    "mcpServers": {
+      "supabase": {
+        "command": "npx",
+        "args": ["-y", "@supabase/mcp-server"],
+        "env": {
+          "SUPABASE_URL": "https://whabaeatixtymbccwigu.supabase.co",
+          "SUPABASE_ANON_KEY": "YOUR_SUPABASE_ANON_KEY",
+          "SUPABASE_SERVICE_ROLE_KEY": "YOUR_SUPABASE_SERVICE_ROLE_KEY"
+        }
+      },
+      "postgres": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-postgres"],
+        "env": {
+          "POSTGRES_CONNECTION_STRING": "postgresql://postgres:YOUR_PASSWORD@db.whabaeatixtymbccwigu.supabase.co:5432/postgres"
+        }
+      },
+      "upstash": {
+        "command": "npx",
+        "args": ["-y", "@upstash/mcp-server"],
+        "env": {
+          "UPSTASH_REDIS_REST_URL": "YOUR_UPSTASH_REDIS_REST_URL",
+          "UPSTASH_REDIS_REST_TOKEN": "YOUR_UPSTASH_REDIS_REST_TOKEN",
+          "QSTASH_TOKEN": "YOUR_QSTASH_TOKEN"
+        }
+      },
+      "stripe": {
+        "command": "npx",
+        "args": ["-y", "@stripe/mcp"],
+        "env": {
+          "STRIPE_SECRET_KEY": "YOUR_STRIPE_SECRET_KEY"
+        }
+      },
+      "sentry": {
+        "command": "npx",
+        "args": ["-y", "@sentry/mcp-server"],
+        "env": {
+          "SENTRY_AUTH_TOKEN": "YOUR_SENTRY_AUTH_TOKEN",
+          "SENTRY_ORG": "liftgo",
+          "SENTRY_PROJECT": "liftgo-nextjs"
+        }
+      },
+      "github": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "env": {
+          "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_GITHUB_PAT"
+        }
+      },
+      "vercel": {
+        "command": "npx",
+        "args": ["-y", "vercel-mcp-server"],
+        "env": {
+          "VERCEL_TOKEN": "YOUR_VERCEL_TOKEN"
+        }
+      },
+      "sequential-thinking": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+      },
+      "memory": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"]
+      },
+      "brave-search": {
+        "command": "npx",
+        "args": ["-y", "@anthropic/mcp-server-brave-search"],
+        "env": {
+          "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY"
+        }
+      },
+      "filesystem": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/liftgo-project"]
+      },
+      "puppeteer": {
+        "command": "npx",
+        "args": ["-y", "@anthropic/mcp-server-puppeteer"]
+      }
+    }
+  }
+}
