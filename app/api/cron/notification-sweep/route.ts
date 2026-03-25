@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       .from('povprasevanja')
       .select('id, title, category_id, location_city, urgency')
       .eq('status', 'odprto')
-      .is('notified_at', null)
       .limit(50)
 
     if (fetchError) {
@@ -37,7 +36,6 @@ export async function GET(request: NextRequest) {
     for (const p of pending) {
       try {
         if (!p.category_id) {
-          await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
           skipped++
           continue
         }
@@ -49,7 +47,6 @@ export async function GET(request: NextRequest) {
           .eq('category_id', p.category_id)
 
         if (!matchedCategories?.length) {
-          await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
           skipped++
           continue
         }
@@ -58,28 +55,28 @@ export async function GET(request: NextRequest) {
         const obrtnikIds = matchedCategories.map((c) => c.obrtnik_id)
         const { data: obrtniki } = await supabase
           .from('obrtnik_profiles')
-          .select('id, user_id')
+          .select('id')
           .in('id', obrtnikIds)
           .eq('is_verified', true)
           .eq('is_available', true)
 
         if (!obrtniki?.length) {
-          await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
           skipped++
           continue
         }
 
         // 4. Insert in-app notification for each matched obrtnik
         const notifications = obrtniki.map((o) => ({
-          user_id: o.user_id,
+          user_id: o.id,
           type: 'novo_povprasevanje',
           title: 'Novo povpraševanje v vaši kategoriji',
+          body: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
           message: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
           link: '/obrtnik/povprasevanja',
           read: false,
           metadata: {
             povprasevanje_id: p.id,
-            urgency: p.urgency || 'normal',
+            urgency: p.urgency || 'normalno',
           },
         }))
 
@@ -92,11 +89,8 @@ export async function GET(request: NextRequest) {
             povprasevanjeId: p.id,
             error: notifError.message,
           }))
-          // Still mark notified_at to avoid infinite retry
         }
 
-        // 5. Mark povprasevanje as notified
-        await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id)
         notified++
 
         console.log(JSON.stringify({
