@@ -152,8 +152,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Delegate to existing calendar appointment API
-    const origin = req.nextUrl.origin
-    const calRes = await fetch(`${origin}/api/calendar/appointment`, {
+    const calRes = await fetch('/api/calendar/appointment', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
