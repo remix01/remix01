@@ -37,8 +37,8 @@ CREATE POLICY "Admins can read analytics events"
   TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM "User"
-      WHERE "User".id::text = auth.uid()::text
-      AND "User".role = 'ADMIN'
+      SELECT 1 FROM public.user
+      WHERE public.user.id::text = auth.uid()::text
+      AND public.user.role = 'ADMIN'
     )
   );
