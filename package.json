@@ -109,7 +109,7 @@
     "overrides": {
       "@types/react": "19.2.7",
       "@types/react-dom": "19.2.3",
-      "picomatch": "2.3.2"
+      "picomatch": "4.0.4"
     },
     "ignoredBuiltDependencies": [
       "core-js",
