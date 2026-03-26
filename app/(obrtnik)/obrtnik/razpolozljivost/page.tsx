@@ -8,7 +8,7 @@ import { ServiceAreasSection } from '@/components/obrtnik/service-areas-section'
 interface ServiceAreasData {
   id: string
   city: string | null
-  region: string
+  region: string | null
   radius_km?: number | null
 }
 
