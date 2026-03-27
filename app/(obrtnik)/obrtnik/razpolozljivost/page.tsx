@@ -4,13 +4,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { AvailabilityToggleSection } from '@/components/obrtnik/availability-toggle-section'
 import { WeeklyScheduleSection } from '@/components/obrtnik/weekly-schedule-section'
 import { ServiceAreasSection } from '@/components/obrtnik/service-areas-section'
-
-interface ServiceAreasData {
-  id: string
-  city: string | null
-  region: string
-  radius_km?: number | null
-}
+import type { ServiceAreaRow, ServiceAreaDisplay } from '@/lib/types'
+import { toServiceAreaDisplayList } from '@/lib/types'
 
 export const metadata = {
   title: 'Razpoložljivost in pokrita območja | LiftGO',
@@ -45,20 +40,15 @@ export default async function RazpolozljivostPage() {
     .order('day_of_week')
 
   // Fetch service areas
-  const { data: serviceAreas } = await supabase
+  const { data: serviceAreasRaw } = await supabase
     .from('service_areas')
-    .select('*')
+    .select('id, obrtnik_id, city, region, radius_km, lat, lng, is_active, created_at')
     .eq('obrtnik_id', obrtnikProfile.id)
     .eq('is_active', true)
     .order('created_at')
+    .returns<ServiceAreaRow[]>()
 
-  // Enrich service areas with radius_km fallback
-  const enrichedServiceAreas: ServiceAreasData[] = (serviceAreas || []).map((area) => ({
-    id: area.id,
-    city: area.city,
-    region: area.region,
-    radius_km: (area as any).radius_km ?? 30,
-  }))
+  const serviceAreas: ServiceAreaDisplay[] = toServiceAreaDisplayList(serviceAreasRaw)
 
   return (
     <main className="flex-1 p-4 md:p-6 space-y-6">
@@ -84,7 +74,7 @@ export default async function RazpolozljivostPage() {
       {/* Section 3: Service Areas */}
       <ServiceAreasSection
         obrtnikId={obrtnikProfile.id}
-        initialServiceAreas={enrichedServiceAreas}
+        initialServiceAreas={serviceAreas}
       />
     </main>
   )
