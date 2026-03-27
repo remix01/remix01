@@ -4,19 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { X, Upload, ArrowUp, ArrowDown, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface PortfolioItem {
-  id: string
-  title: string
-  description: string | null
-  category: string | null
-  completed_at: string | null
-  duration_days?: number | null
-  price_approx?: number | null
-  location_city?: string | null
-  image_urls: string[] | null
-  is_featured: boolean | null
-}
+import type { PortfolioItem } from '@/lib/types'
 
 interface PortfolioItemFormProps {
   item?: PortfolioItem
