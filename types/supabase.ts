@@ -3041,6 +3041,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           first_name: string | null
+          flagged: boolean
           full_name: string | null
           id: string
           is_suspended: boolean
@@ -3061,6 +3062,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           first_name?: string | null
+          flagged?: boolean
           full_name?: string | null
           id: string
           is_suspended?: boolean
@@ -3081,6 +3083,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           first_name?: string | null
+          flagged?: boolean
           full_name?: string | null
           id?: string
           is_suspended?: boolean
