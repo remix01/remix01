@@ -15,7 +15,7 @@ interface PortfolioItem {
   price_approx?: number | null
   location_city?: string | null
   image_urls: string[] | null
-  is_featured: boolean
+  is_featured: boolean | null
   sort_order: number
 }
 
