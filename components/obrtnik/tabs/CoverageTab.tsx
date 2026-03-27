@@ -2,23 +2,24 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import type { ServiceAreaDisplay } from '@/lib/types'
 
 interface CoverageTabProps {
-  serviceAreas: any[]
+  serviceAreas: ServiceAreaDisplay[]
   availability: any[]
 }
 
-const DAYS_OF_WEEK_SI = [
-  'Ponedeljek',
-  'Torek',
-  'Sreda',
-  'Četrtek',
-  'Petek',
-  'Sobota',
-  'Nedelja',
-]
-
 export function CoverageTab({ serviceAreas, availability }: CoverageTabProps) {
+  const DAYS_OF_WEEK_SI = [
+    'Ponedeljek',
+    'Torek',
+    'Sreda',
+    'Četrtek',
+    'Petek',
+    'Sobota',
+    'Nedelja',
+  ]
+
   return (
     <div className="space-y-8 max-w-3xl">
       {/* Service Areas */}
