@@ -1035,6 +1035,50 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_logs: {
+        Row: {
+          commission_cents: number
+          created_at: string | null
+          gross_amount_cents: number
+          id: string
+          inquiry_id: string | null
+          partner_id: string
+          partner_payout_cents: number
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          commission_cents?: number
+          created_at?: string | null
+          gross_amount_cents?: number
+          id?: string
+          inquiry_id?: string | null
+          partner_id: string
+          partner_payout_cents?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          commission_cents?: number
+          created_at?: string | null
+          gross_amount_cents?: number
+          id?: string
+          inquiry_id?: string | null
+          partner_id?: string
+          partner_payout_cents?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_logs_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation: {
         Row: {
           closed_at: string | null
