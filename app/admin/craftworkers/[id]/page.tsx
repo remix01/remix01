@@ -74,8 +74,8 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
           }}
           profile={{
             packageType: craftworker.subscription_tier || 'start',
-            stripeAccountId: craftworker.stripe_account_id || null,
-            stripeOnboardingComplete: !!craftworker.stripe_account_id,
+            stripeAccountId: craftworker.stripe_customer_id || null,
+            stripeOnboardingComplete: !!craftworker.stripe_customer_id,
             totalJobsCompleted: craftworker.assignedJobs?.length || 0,
             avgRating: craftworker.avg_rating,
             loyaltyPoints: 0,
