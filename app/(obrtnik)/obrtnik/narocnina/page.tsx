@@ -84,21 +84,16 @@ export default function NarocinaPage() {
   const handleManageSubscription = async () => {
     setProcessingPortal(true)
     try {
-      if (!stripeCustomerId) {
-        setErrorMessage('Stripe ID ni dostopen')
-        return
-      }
-
-      const response = await fetch('/api/stripe/connect/status', {
-        method: 'GET',
+      const response = await fetch('/api/stripe/portal', {
+        method: 'POST',
       })
 
       const data = await response.json()
 
-      if (data.portalUrl) {
-        window.location.href = data.portalUrl
+      if (data.url) {
+        window.location.href = data.url
       } else {
-        setErrorMessage('Napaka pri dostopanju do portala')
+        setErrorMessage(data.error || 'Napaka pri dostopanju do portala')
       }
     } catch (error) {
       console.error('[v0] Portal error:', error)
