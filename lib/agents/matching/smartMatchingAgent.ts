@@ -309,7 +309,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
     // 7. Log results with enhanced details
     const executionTime = Date.now() - startTime
     const { data: logData, error: logError } = await supabase
-      .from('matching_logs' as never)
+      .from('matching_logs')
       .insert({
         request_id: input.requestId,
         top_partner_id: topMatches[0].partnerId,
