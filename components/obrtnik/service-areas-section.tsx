@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { CheckCircle2, AlertCircle, X } from 'lucide-react'
-import type { ServiceAreaRow, ServiceAreaDisplay } from '@/lib/types'
+import type { ServiceAreaDisplay } from '@/lib/types'
 import { SERVICE_AREA_DEFAULTS } from '@/lib/types'
 
 interface ServiceAreasSectionProps {
@@ -143,6 +143,8 @@ export function ServiceAreasSection({
             />
           </div>
 
+            {/* Radius Input */}
+          <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-slate-700">
                 Radij delovanja
