@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createPovprasevanje } from '@/lib/dal/povprasevanja'
-import { getActiveCategories } from '@/lib/dal/categories'
+import { createPovprasevanjeAction } from '@/app/actions/povprasevanja'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { uploadFile, generateFilePath } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FileUploadZone } from '@/components/file-upload-zone'
-import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/marketplace'
+import type { Category, UrgencyLevel } from '@/types/marketplace'
 import * as LucideIcons from 'lucide-react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { TaskDescriptionAssistant } from '@/components/agent/TaskDescriptionAssistant'
@@ -80,8 +80,8 @@ export default function NovoPoVprasevanjePage() {
         setLocationCity(profile.location_city)
       }
 
-      // Fetch categories
-      const cats = await getActiveCategories()
+      // Fetch categories (public client — no server cookies needed)
+      const cats = await getActiveCategoriesPublic()
       setCategories(cats)
     }
 
@@ -142,7 +142,7 @@ export default function NovoPoVprasevanjePage() {
     setError(null)
 
     try {
-      const povprasevanje: PovprasevanjeInsert = {
+      const result = await createPovprasevanjeAction({
         narocnik_id: user.id,
         category_id: selectedCategory.id,
         title,
@@ -155,12 +155,10 @@ export default function NovoPoVprasevanjePage() {
         budget_min: !budgetUndetermined && budgetMin ? Number(budgetMin) : undefined,
         budget_max: !budgetUndetermined && budgetMax ? Number(budgetMax) : undefined,
         attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
-      }
+      })
 
-      const result = await createPovprasevanje(povprasevanje)
-
-      if (!result) {
-        setError('Napaka pri oddaji. Poskusite znova.')
+      if ('error' in result) {
+        setError(result.error)
         setLoading(false)
         return
       }

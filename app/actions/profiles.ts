@@ -23,9 +23,9 @@ export async function updateProfileAction(
       return { success: false, error: 'Napaka pri posodabljanju profila' }
     }
 
-    // Revalidate paths
-    revalidatePath('/narocnik/profil')
-    revalidatePath('/narocnik/dashboard')
+    // Revalidate paths (route group (narocnik) is transparent in URLs)
+    revalidatePath('/profil')
+    revalidatePath('/dashboard')
 
     return { success: true }
   } catch (error) {

@@ -30,9 +30,9 @@ export default function PartnerDashboard() {
 
   const handleOfferCreated = async (partnerId: string) => {
     const { data: offersData } = await supabase
-      .from('ponudbe')
+      .from('offers')
       .select('*')
-      .eq('obrtnik_id', partnerId)
+      .eq('partner_id', partnerId)
       .order('created_at', { ascending: false })
     if (offersData) setOffers(offersData)
   }
@@ -64,11 +64,11 @@ export default function PartnerDashboard() {
           setCompletionStatus(status)
         }
 
-        // Fetch offers
+        // Fetch service catalog offers (separate from ponudbe bids)
         const { data: offersData } = await sb
-          .from('ponudbe')
+          .from('offers')
           .select('*')
-          .eq('obrtnik_id', partnerData.id)
+          .eq('partner_id', partnerData.id)
           .order('created_at', { ascending: false })
 
         if (offersData) {
