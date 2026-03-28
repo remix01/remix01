@@ -119,7 +119,7 @@ async function chatWithAnthropic(
   })
 
   const content = response.content
-    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+    .filter((block): block is { type: 'text'; text: string; citations?: unknown } => block.type === 'text')
     .map((block) => block.text)
     .join('\n')
 
@@ -360,7 +360,7 @@ async function analyzeWithAnthropic(
   })
 
   const analysis = response.content
-    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+    .filter((block): block is { type: 'text'; text: string; citations?: unknown } => block.type === 'text')
     .map((block) => block.text)
     .join('\n')
 
