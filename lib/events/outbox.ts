@@ -69,6 +69,11 @@ export const outbox = {
       return { processed: 0, failed: 0 }
     }
 
+    if (!Array.isArray(events)) {
+      console.error('[Outbox] Unexpected non-array result from event_outbox query')
+      return { processed: 0, failed: 0 }
+    }
+
     let processed = 0
     let failed = 0
 

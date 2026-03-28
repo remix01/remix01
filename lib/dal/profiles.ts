@@ -180,13 +180,15 @@ export async function listObrtniki(filters?: {
   }
 
   if (filters?.category_id) {
-    // Filter by category through join
-    query = query.in('id',
-      supabase
-        .from('obrtnik_categories')
-        .select('obrtnik_id')
-        .eq('category_id', filters.category_id) as any
-    )
+    // Fetch IDs first — passing a query builder to .in() is not iterable
+    // and causes: TypeError: object is not iterable (at new Set)
+    const { data: catRows } = await supabase
+      .from('obrtnik_categories')
+      .select('obrtnik_id')
+      .eq('category_id', filters.category_id)
+    const categoryObrtnikiIds = (catRows ?? []).map((r) => r.obrtnik_id).filter(Boolean)
+    if (categoryObrtnikiIds.length === 0) return []
+    query = query.in('id', categoryObrtnikiIds)
   }
 
   query = query.order('avg_rating', { ascending: false })
