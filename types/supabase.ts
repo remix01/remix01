@@ -772,23 +772,21 @@ export interface Database {
       payouts: {
         Row: {
           id: string
-          ponudba_id: string | null
-          obrtnik_id: string | null
-          amount_eur: number
-          commission_eur: number
-          stripe_transfer_id: string | null
-          status: 'pending' | 'completed' | 'failed'
-          created_at: string
+          craftsman_id: string
+          offer_id: string | null
+          amount: number
+          stripe_transfer_id: string
+          created_at: string | null
+          updated_at: string | null
         }
         Insert: {
           id?: string
-          ponudba_id?: string | null
-          obrtnik_id?: string | null
-          amount_eur: number
-          commission_eur: number
-          stripe_transfer_id?: string | null
-          status?: 'pending' | 'completed' | 'failed'
-          created_at?: string
+          craftsman_id: string
+          offer_id?: string | null
+          amount: number
+          stripe_transfer_id?: string
+          created_at?: string | null
+          updated_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['payouts']['Insert']>
         Relationships: []
