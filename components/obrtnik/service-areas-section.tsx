@@ -19,7 +19,7 @@ export function ServiceAreasSection({
   const supabase = createClient()
   const [serviceAreas, setServiceAreas] = useState<ServiceAreaDisplay[]>(initialServiceAreas)
   const [newCity, setNewCity] = useState('')
-  const [newRadius, setNewRadius] = useState(SERVICE_AREA_DEFAULTS.radius_km)
+  const [newRadius, setNewRadius] = useState<number>(SERVICE_AREA_DEFAULTS.radius_km)
   const [isAdding, setIsAdding] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -156,7 +156,7 @@ export function ServiceAreasSection({
             min="10"
             max="150"
             value={newRadius}
-            onChange={(e) => setNewRadius(parseInt(e.target.value))}
+            onChange={(e) => setNewRadius(Number(e.target.value) || 25)}
             disabled={isAdding}
             className="w-full h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
           />
