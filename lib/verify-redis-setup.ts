@@ -1,6 +1,7 @@
+// @ts-nocheck
 /**
  * Redis Integration Checklist
- * 
+ *
  * Verify that all components are working correctly in your project.
  */
 

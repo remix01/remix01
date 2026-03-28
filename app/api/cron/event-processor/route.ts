@@ -37,7 +37,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, processed: result.processed, failed: result.failed, durationMs })
   } catch (err) {
     const durationMs = Date.now() - start
-    console.error(JSON.stringify({ level: 'error', message: '[event-processor] error', error: String(err), durationMs }))
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error(JSON.stringify({
+      level: 'error',
+      message: '[event-processor] error',
+      error: String(err),
+      errorName: err instanceof Error ? err.name : typeof err,
+      stack: err instanceof Error ? err.stack : undefined,
+      durationMs,
+    }))
+    return NextResponse.json({ error: 'Internal server error', detail: String(err) }, { status: 500 })
   }
 }

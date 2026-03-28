@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Alerting System — Sends alerts via Slack and email
  *

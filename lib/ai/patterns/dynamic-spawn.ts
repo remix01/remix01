@@ -231,8 +231,8 @@ Odgovori IZKLJUČNO v JSON formatu:
   })
 
   const textContent = response.content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-    .map((b) => b.text)
+    .filter((b) => b.type === 'text')
+    .map((b) => (b as any).text as string)
     .join('')
 
   try {
@@ -318,7 +318,7 @@ Ohrani vse pomembne informacije. Izogni se ponavljanju. Piši v slovenščini.`,
   })
 
   return response.content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-    .map((b) => b.text)
+    .filter((b) => b.type === 'text')
+    .map((b) => (b as any).text as string)
     .join('')
 }

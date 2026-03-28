@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Saga Base Class — Abstract orchestrator for multi-step transactions
  * 

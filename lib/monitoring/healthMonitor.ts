@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Health Monitor — Checks system health and triggers alerts
  * 

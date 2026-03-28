@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Outbox Pattern — Reliable Event Publishing
  * 

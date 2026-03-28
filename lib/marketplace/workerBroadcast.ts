@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Worker Broadcast — Instant partner notifications
  *

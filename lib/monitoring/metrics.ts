@@ -23,31 +23,31 @@ export const metrics = {
       eventsLast24h,
     ] = await Promise.all([
       supabase
-        .from('event_outbox')
+        .from('event_outbox' as any)
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending'),
       supabase
-        .from('event_dlq')
+        .from('event_dlq' as any)
         .select('*', { count: 'exact', head: true })
         .eq('resolved', false),
       supabase
-        .from('saga_instances')
+        .from('saga_instances' as any)
         .select('*', { count: 'exact', head: true })
         .eq('status', 'running'),
       supabase
-        .from('saga_instances')
+        .from('saga_instances' as any)
         .select('*', { count: 'exact', head: true })
         .eq('status', 'failed'),
       supabase
-        .from('alert_log')
+        .from('alert_log' as any)
         .select('*', { count: 'exact', head: true })
         .eq('resolved', false),
       supabase
-        .from('event_log')
+        .from('event_log' as any)
         .select('*', { count: 'exact', head: true })
         .gte('emitted_at', h1ago),
       supabase
-        .from('event_log')
+        .from('event_log' as any)
         .select('*', { count: 'exact', head: true })
         .gte('emitted_at', h24ago),
     ])
@@ -56,7 +56,7 @@ export const metrics = {
     const funnelCounts: Record<string, number> = {}
     for (const ev of ['task_created', 'task_matched', 'task_accepted', 'task_completed']) {
       const { count } = await supabase
-        .from('analytics_events')
+        .from('analytics_events' as any)
         .select('*', { count: 'exact', head: true })
         .eq('event', ev)
         .gte('occurred_at', h24ago)

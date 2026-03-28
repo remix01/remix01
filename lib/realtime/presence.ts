@@ -126,7 +126,7 @@ export async function addUserToRoom(roomId: string, userId: string): Promise<voi
   const users = await getOnlineUsersInRoom(roomId)
   const cacheKey = CACHE_KEYS.onlineUsers(roomId)
 
-  const presence = await getUserPresence(userId)
+  let presence = await getUserPresence(userId)
   if (!presence) {
     presence = {
       userId,
@@ -138,9 +138,9 @@ export async function addUserToRoom(roomId: string, userId: string): Promise<voi
 
   const index = users.findIndex((u) => u.userId === userId)
   if (index >= 0) {
-    users[index] = presence
+    users[index] = presence!
   } else {
-    users.push(presence)
+    users.push(presence!)
   }
 
   await executeRedisOperation(

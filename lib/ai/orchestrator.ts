@@ -234,8 +234,8 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     if (toolUseBlocks.length === 0 || response.stop_reason === 'end_turn') {
       // No tool calls or final response - extract text
       finalResponse = response.content
-        .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-        .map((block) => block.text)
+        .filter((block) => block.type === 'text')
+        .map((block) => (block as any).text as string)
         .join('\n')
       break
     }
@@ -356,7 +356,7 @@ async function logAgentUsage(params: {
     rag_context_used: params.ragContextUsed ?? false,
     rag_sources_count: params.ragSourcesCount ?? 0,
     created_at: new Date().toISOString(),
-  }).catch((error) => {
+  }).then(undefined, (error) => {
     console.error('Failed to log AI usage:', error)
   })
 }
@@ -431,8 +431,8 @@ Odgovori v slovenščini.`,
   })
 
   const textContent = response.content
-    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-    .map((block) => block.text)
+    .filter((block) => block.type === 'text')
+    .map((block) => (block as any).text as string)
     .join('\n')
 
   return {

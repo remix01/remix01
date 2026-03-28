@@ -175,7 +175,7 @@ export async function mgetFromCache<T>(keys: string[]): Promise<(T | null)[]> {
 
   return executeRedisOperation(
     async (redis) => {
-      const values = await redis.mget<T | null>(...keys)
+      const values = await redis.mget(...keys) as (T | null)[]
       return values.map((v) => v ?? null)
     },
     keys.map(() => null),
@@ -251,7 +251,7 @@ export async function addToSet(key: string, ...members: string[]): Promise<numbe
 
   return executeRedisOperation(
     async (redis) => {
-      const result = await redis.sadd(key, ...members)
+      const result = await redis.sadd(key, ...(members as [string, ...string[]]))
       return result ?? 0
     },
     0,
@@ -288,7 +288,7 @@ export async function getCacheStats(): Promise<{
   }
 
   try {
-    const info = await redis.info()
+    const info = await (redis as any).info()
     return {
       isAvailable: true,
       keys: info?.keys || 'unknown',

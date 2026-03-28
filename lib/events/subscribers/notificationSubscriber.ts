@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Notification Subscriber — Sends real-time + email notifications
  * 

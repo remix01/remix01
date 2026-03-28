@@ -119,8 +119,8 @@ async function chatWithAnthropic(
   })
 
   const content = response.content
-    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-    .map((block) => block.text)
+    .filter((block) => block.type === 'text')
+    .map((block) => (block as any).text as string)
     .join('\n')
 
   return {
@@ -360,8 +360,8 @@ async function analyzeWithAnthropic(
   })
 
   const analysis = response.content
-    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-    .map((block) => block.text)
+    .filter((block) => block.type === 'text')
+    .map((block) => (block as any).text as string)
     .join('\n')
 
   return { analysis, provider: 'anthropic', model }
