@@ -143,28 +143,26 @@ export function ServiceAreasSection({
             />
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-slate-700">
-                Radij delovanja
-              </label>
-              <span className="text-sm font-medium text-blue-600">
-                {newRadius} km od centra
-              </span>
-            </div>
-            <input
-              type="range"
-              min="10"
-              max="150"
-              value={newRadius}
-              onChange={(e) => setNewRadius(parseInt(e.target.value))}
-              disabled={isAdding}
-              className="w-full h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
-            />
-            <div className="flex justify-between text-xs text-slate-600 mt-1">
-              <span>10 km</span>
-              <span>150 km</span>
-            </div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-medium text-slate-700">
+              Radij delovanja
+            </label>
+            <span className="text-sm font-medium text-blue-600">
+              {newRadius} km od centra
+            </span>
+          </div>
+          <input
+            type="range"
+            min="10"
+            max="150"
+            value={newRadius}
+            onChange={(e) => setNewRadius(parseInt(e.target.value))}
+            disabled={isAdding}
+            className="w-full h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+          />
+          <div className="flex justify-between text-xs text-slate-600 mt-1">
+            <span>10 km</span>
+            <span>150 km</span>
           </div>
 
           {/* Add Button */}
