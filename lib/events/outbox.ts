@@ -61,7 +61,7 @@ export const outbox = {
       .limit(batchSize)
 
     if (error) {
-      console.error('[Outbox] Failed to fetch pending events:', error)
+      console.error(JSON.stringify({ level: 'error', message: '[Outbox] Failed to fetch pending events', code: error.code, details: error.message, hint: error.hint }))
       return { processed: 0, failed: 0 }
     }
 
