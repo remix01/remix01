@@ -1,11 +1,11 @@
 /**
  * Outbox Pattern — Reliable Event Publishing
- * 
+ *
  * Ensures exactly-once event delivery by:
  * 1. Persisting event to database FIRST
  * 2. Async worker processes pending events
  * 3. Transactional guarantee: DB change + event are atomic
- * 
+ *
  * Prevents: "event sent but DB commit failed" scenarios
  */
 
@@ -43,60 +43,94 @@ export const outbox = {
   },
 
   /**
-   * Cron worker processes batch of pending events
-   * Called every 2 minutes by /api/cron/event-processor
+   * Cron worker processes batch of pending events.
+   * Called every 5 minutes by /api/cron/event-processor.
+   *
+   * Logs each step explicitly so Vercel logs show exactly where
+   * a hang or failure occurs.
    */
   async processPendingBatch(batchSize = 50): Promise<{ processed: number; failed: number }> {
+    // ── Step 1: create admin client ──────────────────────────────────────
+    console.log(JSON.stringify({ level: 'info', message: '[Outbox] step 1: createAdminClient' }))
     const supabase = createAdminClient()
+
+    // ── Step 2: import eventBus ──────────────────────────────────────────
+    console.log(JSON.stringify({ level: 'info', message: '[Outbox] step 2: import eventBus' }))
     const { eventBus } = await import('./eventBus')
 
-    // Fetch pending + eligible for retry
-    const { data: events, error } = await supabase
-      .from('event_outbox')
-      .select('*')
-      .in('status', ['pending', 'failed'])
-      .lte('next_attempt_at', new Date().toISOString())
-      .lt('attempt_count', 3)
-      .order('created_at', { ascending: true })
-      .limit(batchSize)
+    // ── Step 3: query event_outbox ───────────────────────────────────────
+    console.log(JSON.stringify({ level: 'info', message: '[Outbox] step 3: query event_outbox' }))
 
-    if (error) {
-      console.error('[Outbox] Failed to fetch pending events:', error)
+    const controller = new AbortController()
+    const queryTimeout = setTimeout(() => controller.abort(), 5000)
+
+    let data: any[] | null = null
+    let queryError: any = null
+    try {
+      const result = await supabase
+        .from('event_outbox')
+        .select('*')
+        .in('status', ['pending', 'failed'])
+        .lte('next_attempt_at', new Date().toISOString())
+        .lt('attempt_count', 3)
+        .order('created_at', { ascending: true })
+        .limit(batchSize)
+        .abortSignal(controller.signal)
+      data = result.data
+      queryError = result.error
+    } finally {
+      clearTimeout(queryTimeout)
+    }
+
+    if (queryError) {
+      const msg = `[Outbox] Failed to fetch from event_outbox: ${queryError.message} (code: ${queryError.code})`
+      console.error(JSON.stringify({ level: 'error', message: msg }))
+      // Throw so the caller's catch block logs the 500 with details
+      throw new Error(msg)
+    }
+
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[Outbox] step 3: query complete',
+      count: data?.length ?? 0,
+    }))
+
+    if (!data?.length) {
       return { processed: 0, failed: 0 }
     }
 
-    if (!events?.length) {
-      return { processed: 0, failed: 0 }
-    }
+    // ── Step 4: process each event ───────────────────────────────────────
+    console.log(JSON.stringify({ level: 'info', message: '[Outbox] step 4: processing batch', count: data.length }))
 
     let processed = 0
     let failed = 0
 
     await Promise.allSettled(
-      events.map(async (row: any) => {
+      data.map(async (row: any) => {
         try {
-          // Mark as processing (optimistic lock)
-          const { error: updateErr } = await supabase
+          // Optimistic lock: mark as processing
+          const { error: lockErr } = await supabase
             .from('event_outbox')
             .update({ status: 'processing' })
             .eq('id', row.id)
             .eq('status', row.status)
 
-          if (updateErr) {
-            console.warn('[Outbox] Race condition on event:', row.id)
+          if (lockErr) {
+            console.warn(JSON.stringify({
+              level: 'warn',
+              message: '[Outbox] Race condition on event, skipping',
+              eventId: row.id,
+            }))
             return
           }
 
-          // Dispatch to event bus handlers (synchronous)
+          // Dispatch to registered handlers
           await eventBus.dispatchHandlers(row.event_name as EventName, row.payload)
 
-          // Mark as done
+          // Mark done
           await supabase
             .from('event_outbox')
-            .update({
-              status: 'done',
-              processed_at: new Date().toISOString(),
-            })
+            .update({ status: 'done', processed_at: new Date().toISOString() })
             .eq('id', row.id)
 
           processed++
@@ -104,15 +138,22 @@ export const outbox = {
           const nextAttempt = (row.attempt_count ?? 0) + 1
           const backoffMs = Math.pow(2, nextAttempt) * 60_000 // 2m, 4m, 8m
 
+          console.error(JSON.stringify({
+            level: 'error',
+            message: '[Outbox] Event dispatch failed',
+            eventId: row.id,
+            eventName: row.event_name,
+            attempt: nextAttempt,
+            error: String(err),
+          }))
+
           if (nextAttempt >= 3) {
-            // Move to DLQ
             await deadLetterQueue.send(row, String(err))
             await supabase
               .from('event_outbox')
               .update({ status: 'failed' })
               .eq('id', row.id)
           } else {
-            // Retry with exponential backoff
             await supabase
               .from('event_outbox')
               .update({
@@ -129,7 +170,13 @@ export const outbox = {
       })
     )
 
-    console.log('[Outbox] Batch processed:', { processed, failed, batchSize })
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[Outbox] batch complete',
+      processed,
+      failed,
+      batchSize,
+    }))
     return { processed, failed }
   },
 }
