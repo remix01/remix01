@@ -38,6 +38,6 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     const durationMs = Date.now() - start
     console.error(JSON.stringify({ level: 'error', message: '[event-processor] error', error: String(err), durationMs }))
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', details: String(err) }, { status: 500 })
   }
 }
