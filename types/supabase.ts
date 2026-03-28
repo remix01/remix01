@@ -821,6 +821,32 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['admin_users']['Insert']>
         Relationships: []
       }
+      matching_logs: {
+        Row: {
+          id: string
+          request_id: string
+          top_partner_id: string | null
+          top_score: number
+          top_partner_tier: string | null
+          all_matches: unknown
+          algorithm_version: string
+          execution_time_ms: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          request_id: string
+          top_partner_id?: string | null
+          top_score: number
+          top_partner_tier?: string | null
+          all_matches: unknown
+          algorithm_version?: string
+          execution_time_ms?: number | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['matching_logs']['Insert']>
+        Relationships: []
+      }
       commission_logs: {
         Row: {
           id: string
