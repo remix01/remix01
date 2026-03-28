@@ -4,20 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Edit, Trash2, Star } from 'lucide-react'
 import { PortfolioItemForm } from './portfolio-item-form'
-
-interface PortfolioItem {
-  id: string
-  title: string
-  description: string | null
-  category: string | null
-  completed_at: string | null
-  duration_days?: number | null
-  price_approx?: number | null
-  location_city?: string | null
-  image_urls: string[] | null
-  is_featured: boolean
-  sort_order: number
-}
+import type { PortfolioItem } from '@/lib/types'
 
 interface PortfolioSortableGridProps {
   items: PortfolioItem[]

@@ -296,7 +296,7 @@ import {
 } from '@/lib/analytics'
 
 // Example: Record metrics throughout your app
-async function exampleAnalytics(userId: string) {
+async function exampleAnalytics(userId: string, key: string) {
   // Record API metrics
   const startTime = Date.now()
   const response = await fetch('/api/users')

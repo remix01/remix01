@@ -17,7 +17,7 @@ interface WeeklyScheduleSectionProps {
   initialSchedule: Array<{
     id: string
     day_of_week: number
-    is_available: boolean
+    is_available: boolean | null
     time_from: string | null
     time_to: string | null
   }>

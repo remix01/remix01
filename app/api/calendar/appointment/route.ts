@@ -57,8 +57,8 @@ export async function POST(request: Request) {
       narocnikId: povprasevanje.narocnik_id,
       obrtknikId: ponudba.obrtnik_id,
       title: ponudba.povprasevanje.title,
-      description: ponudba.povprasevanje.description,
-      locationCity: ponudba.povprasevanje.location_city,
+      description: ponudba.povprasevanje.description ?? '',
+      locationCity: ponudba.povprasevanje.location_city ?? '',
       startDateTime,
       endDateTime,
       ponudbaId

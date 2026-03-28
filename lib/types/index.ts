@@ -7,3 +7,5 @@ export {
   toServiceAreaDisplay,
   toServiceAreaDisplayList,
 } from './service-areas'
+
+export type { PortfolioItem, AvailabilityScheduleRow } from './database'

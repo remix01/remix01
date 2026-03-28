@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { CheckCircle2, AlertCircle, X } from 'lucide-react'
-import type { ServiceAreaRow, ServiceAreaDisplay } from '@/lib/types'
+import type { ServiceAreaDisplay } from '@/lib/types'
 import { SERVICE_AREA_DEFAULTS } from '@/lib/types'
 
 interface ServiceAreasSectionProps {
@@ -19,7 +19,7 @@ export function ServiceAreasSection({
   const supabase = createClient()
   const [serviceAreas, setServiceAreas] = useState<ServiceAreaDisplay[]>(initialServiceAreas)
   const [newCity, setNewCity] = useState('')
-  const [newRadius, setNewRadius] = useState(SERVICE_AREA_DEFAULTS.radius_km)
+  const [newRadius, setNewRadius] = useState<number>(SERVICE_AREA_DEFAULTS.radius_km)
   const [isAdding, setIsAdding] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -143,6 +143,8 @@ export function ServiceAreasSection({
             />
           </div>
 
+            {/* Radius Input */}
+          <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-slate-700">
                 Radij delovanja

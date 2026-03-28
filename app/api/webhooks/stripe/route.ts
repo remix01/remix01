@@ -87,7 +87,7 @@ async function updateSubscriptionTier(
     return
   }
 
-  // Update only profiles table (single source of truth)
+  // Update profiles table (source of truth for all users)
   const { error } = await supabaseAdmin
     .from('profiles')
     .update({
@@ -98,9 +98,18 @@ async function updateSubscriptionTier(
     .eq('id', profileId)
 
   if (error) {
-    console.error('[WEBHOOK] Failed to update subscription:', error)
+    console.error('[WEBHOOK] Failed to update profiles subscription:', error)
     return
   }
+
+  // Also sync obrtnik_profiles (UI reads from here)
+  await supabaseAdmin
+    .from('obrtnik_profiles')
+    .update({
+      stripe_customer_id: customerId,
+      subscription_tier: tier,
+    })
+    .eq('id', profileId)
 
   console.log(`[WEBHOOK] Subscription updated: user=${profileId}, tier=${tier}, subscription=${stripeSubscriptionId || 'N/A'}`)
 }

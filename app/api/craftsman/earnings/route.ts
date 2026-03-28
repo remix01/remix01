@@ -15,7 +15,7 @@ export async function GET() {
     // Get partner data
     const { data: partner, error: partnerError } = await supabase
       .from('obrtnik_profiles')
-      .select('id, stripe_account_id, subscription_tier')
+      .select('id, stripe_customer_id, subscription_tier')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -68,7 +68,7 @@ export async function GET() {
       ?.reduce((sum, o) => sum + (Number(o.price_estimate) || 0), 0) || 0
 
     return NextResponse.json({
-      stripeAccountId: partner.stripe_account_id,
+      stripeAccountId: partner.stripe_customer_id ?? null,
       stripeOnboardingComplete: false,
       subscriptionPlan: partner.subscription_tier || 'start',
       statistics: {

@@ -34,6 +34,16 @@ export const stripe = {
   refunds: {
     create: (...args: [params: any, options?: any]) => getStripeClient().refunds.create(...args),
   },
+  billingPortal: {
+    sessions: {
+      create: (...args: [params: any, options?: any]) => getStripeClient().billingPortal.sessions.create(...args),
+    },
+  },
+  accounts: {
+    create: (...args: [params: any, options?: any]) => getStripeClient().accounts.create(...args),
+    retrieve: (...args: [id: any, params?: any, options?: any]) => getStripeClient().accounts.retrieve(...args),
+    createLinks: (...args: [params: any, options?: any]) => getStripeClient().accountLinks.create(...args),
+  },
   webhooks: {
     constructEvent: (payload: string | Buffer, sig: string, secret: string) =>
       getStripeClient().webhooks.constructEvent(payload, sig, secret),
