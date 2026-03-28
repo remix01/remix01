@@ -13,6 +13,7 @@ import type {
   ContentBlock,
   Message,
   MessageParam,
+  TextBlock,
   ToolResultBlockParam,
   ToolUseBlock,
 } from '@anthropic-ai/sdk/resources/messages'
@@ -234,7 +235,7 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     if (toolUseBlocks.length === 0 || response.stop_reason === 'end_turn') {
       // No tool calls or final response - extract text
       finalResponse = response.content
-        .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+        .filter((block): block is TextBlock => block.type === 'text')
         .map((block) => block.text)
         .join('\n')
       break
@@ -345,7 +346,7 @@ async function logAgentUsage(params: {
   ragContextUsed?: boolean
   ragSourcesCount?: number
 }): Promise<void> {
-  await supabaseAdmin.from('ai_usage_logs').insert({
+  const { error } = await supabaseAdmin.from('ai_usage_logs').insert({
     user_id: params.userId,
     agent_type: params.agentType,
     tokens_input: params.inputTokens,
@@ -356,9 +357,10 @@ async function logAgentUsage(params: {
     rag_context_used: params.ragContextUsed ?? false,
     rag_sources_count: params.ragSourcesCount ?? 0,
     created_at: new Date().toISOString(),
-  }).catch((error) => {
-    console.error('Failed to log AI usage:', error)
   })
+  if (error) {
+    console.error('Failed to log AI usage:', error)
+  }
 }
 
 // =============================================================================
@@ -431,7 +433,7 @@ Odgovori v slovenščini.`,
   })
 
   const textContent = response.content
-    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+    .filter((block): block is TextBlock => block.type === 'text')
     .map((block) => block.text)
     .join('\n')
 

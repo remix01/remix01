@@ -14,6 +14,7 @@
 import { executeAgent, type AgentExecutionResult } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 import Anthropic from '@anthropic-ai/sdk'
+import type { TextBlock } from '@anthropic-ai/sdk/resources/messages'
 
 // =============================================================================
 // Anthropic Client
@@ -231,7 +232,7 @@ Odgovori IZKLJUČNO v JSON formatu:
   })
 
   const textContent = response.content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .filter((b): b is TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('')
 
@@ -318,7 +319,7 @@ Ohrani vse pomembne informacije. Izogni se ponavljanju. Piši v slovenščini.`,
   })
 
   return response.content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .filter((b): b is TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('')
 }
