@@ -304,6 +304,7 @@ async function exampleAnalytics(userId: string) {
   await recordAPIMetric('/api/users', duration, response.status, userId)
   
   // Record cache metrics
+  const key = `user:${userId}:profile`
   const cached = await getFromCache(key)
   await recordCacheMetric(cached !== null, key)
   
