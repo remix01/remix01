@@ -476,34 +476,100 @@ export interface Database {
           }
         ]
       }
-      escrow_transactions: {
+      escrow_holds: {
         Row: {
           id: string
-          inquiry_id: string | null
-          partner_id: string | null
-          obrtnik_id: string | null
-          customer_email: string
-          amount_cents: number
-          platform_fee_cents: number
-          status: string
-          stripe_payment_intent_id: string | null
+          task_id: string | null
+          amount: number
+          status: 'held' | 'released' | 'refunded' | 'cancelled'
+          payment_intent_id: string | null
+          held_at: string | null
+          released_at: string | null
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
-          inquiry_id?: string | null
-          partner_id?: string | null
-          obrtnik_id?: string | null
-          customer_email: string
-          amount_cents: number
-          platform_fee_cents?: number
-          status?: string
-          stripe_payment_intent_id?: string | null
+          task_id?: string | null
+          amount: number
+          status?: 'held' | 'released' | 'refunded' | 'cancelled'
+          payment_intent_id?: string | null
+          held_at?: string | null
+          released_at?: string | null
           created_at?: string
-          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['escrow_holds']['Insert']>
+        Relationships: []
+      }
+      escrow_transactions: {
+        Row: {
+          id: string
+          hold_id: string | null
+          task_id: string | null
+          user_id: string | null
+          amount: number
+          currency: string
+          type: 'hold' | 'release' | 'refund' | 'dispute' | 'commission'
+          status: 'pending' | 'processing' | 'completed' | 'failed' | 'reversed'
+          stripe_payment_intent_id: string | null
+          stripe_transfer_id: string | null
+          reference: string | null
+          metadata: Json | null
+          created_at: string
+          processed_at: string | null
+        }
+        Insert: {
+          id?: string
+          hold_id?: string | null
+          task_id?: string | null
+          user_id?: string | null
+          amount: number
+          currency?: string
+          type: 'hold' | 'release' | 'refund' | 'dispute' | 'commission'
+          status?: 'pending' | 'processing' | 'completed' | 'failed' | 'reversed'
+          stripe_payment_intent_id?: string | null
+          stripe_transfer_id?: string | null
+          reference?: string | null
+          metadata?: Json | null
+          created_at?: string
+          processed_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['escrow_transactions']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: "escrow_transactions_hold_id_fkey"
+            columns: ["hold_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_holds"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      escrow_audit_log: {
+        Row: {
+          id: string
+          transaction_id: string | null
+          hold_id: string | null
+          action: string
+          old_state: Json | null
+          new_state: Json | null
+          performed_by: string | null
+          ip_address: string | null
+          user_agent: string | null
+          performed_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_id?: string | null
+          hold_id?: string | null
+          action: string
+          old_state?: Json | null
+          new_state?: Json | null
+          performed_by?: string | null
+          ip_address?: string | null
+          user_agent?: string | null
+          performed_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['escrow_audit_log']['Insert']>
         Relationships: []
       }
       obrtnik_categories: {
@@ -1000,15 +1066,38 @@ export interface Database {
       tasks: {
         Row: {
           id: string
-          status: string | null
+          title: string
+          description: string | null
+          status: 'created' | 'published' | 'assigned' | 'accepted' | 'active' | 'completed' | 'cancelled' | 'expired'
+          created_by: string | null
+          assigned_to: string | null
+          customer_id: string | null
+          category_id: string | null
+          priority: string | null
+          embedding: unknown | null
+          embedding_updated_at: string | null
           created_at: string
-          updated_at: string | null
+          published_at: string | null
+          accepted_at: string | null
+          started_at: string | null
+          completed_at: string | null
+          cancelled_at: string | null
+          expires_at: string | null
+          expired_at: string | null
+          sla_expires_at: string | null
         }
         Insert: {
           id?: string
-          status?: string | null
+          title: string
+          description?: string | null
+          status?: 'created' | 'published' | 'assigned' | 'accepted' | 'active' | 'completed' | 'cancelled' | 'expired'
+          created_by?: string | null
+          assigned_to?: string | null
+          customer_id?: string | null
+          category_id?: string | null
+          priority?: string | null
           created_at?: string
-          updated_at?: string | null
+          expires_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>
         Relationships: []
@@ -1061,6 +1150,92 @@ export interface Database {
       user_id: {
         Args: Record<string, never>
         Returns: string
+      }
+      is_admin: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      is_narocnik: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      is_obrtnik: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      is_super_admin: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      get_subscription_tier: {
+        Args: Record<string, never>
+        Returns: string
+      }
+      check_ai_quota: {
+        Args: { p_agent_type: string }
+        Returns: boolean
+      }
+      accept_task: {
+        Args: { p_task_id: string; p_worker_id: string }
+        Returns: boolean
+      }
+      claim_task: {
+        Args: { p_task_id: string; p_worker_id: string }
+        Returns: boolean
+      }
+      complete_task: {
+        Args: { p_task_id: string; p_worker_id: string }
+        Returns: boolean
+      }
+      start_task: {
+        Args: { p_task_id: string; p_worker_id: string }
+        Returns: boolean
+      }
+      publish_task: {
+        Args: { p_task_id: string; p_actor_id: string }
+        Returns: undefined
+      }
+      hybrid_search_tasks: {
+        Args: {
+          query_text: string
+          query_embedding: unknown
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: {
+          id: string
+          title: string
+          description: string
+          status: string
+          similarity: number
+        }[]
+      }
+      match_obrtniki: {
+        Args: {
+          query_embedding: unknown
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: {
+          id: string
+          business_name: string
+          similarity: number
+        }[]
+      }
+      escrow_auto_release: {
+        Args: Record<string, never>
+        Returns: number
+      }
+      log_escrow_action: {
+        Args: {
+          p_transaction_id: string | null
+          p_hold_id: string | null
+          p_action: string
+          p_old_state?: Json | null
+          p_new_state?: Json | null
+          p_performed_by?: string | null
+        }
+        Returns: undefined
       }
     }
     Enums: {}
