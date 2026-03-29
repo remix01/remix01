@@ -53,6 +53,10 @@ export type ReviewDisplay = {
   replied_at: string | null
   is_public: boolean
   created_at: string
+  profiles?: {
+    first_name: string | null
+    last_name: string | null
+  } | null
 }
 
 // Obrtnik profile display type

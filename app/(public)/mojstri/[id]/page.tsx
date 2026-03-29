@@ -6,7 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Star, MapPin, Phone, Globe, Facebook, Instagram, Calendar, Clock, Badge, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { ServiceAreaDisplay, ServiceAreaRow } from '@/lib/types'
+import type { ServiceAreaDisplay, ServiceAreaRow, ReviewDisplay } from '@/lib/types'
 import { toServiceAreaDisplayList } from '@/lib/types'
 
 interface PageProps {
@@ -55,6 +55,14 @@ export default function MojsterDetailPage({ params }: PageProps) {
         const serviceAreasRaw = (data.service_areas as ServiceAreaRow[]) || []
         const transformedServiceAreas: ServiceAreaDisplay[] = toServiceAreaDisplayList(serviceAreasRaw)
         data.service_areas = transformedServiceAreas
+
+        // Transform reviews: rename 'narocnik' to 'profiles' for consistency
+        const reviews = (data.ocene as Array<any>) || []
+        const transformedReviews: ReviewDisplay[] = reviews.map((review: any) => ({
+          ...review,
+          profiles: review.narocnik ? { first_name: review.narocnik.first_name, last_name: review.narocnik.last_name } : null,
+        }))
+        data.ocene = transformedReviews
 
         setObrtnik(data)
       } catch (err) {
@@ -280,12 +288,12 @@ export default function MojsterDetailPage({ params }: PageProps) {
             <div>
               {reviews.length > 0 ? (
                 <div className="space-y-4">
-                  {reviews.map((review: any) => (
+                  {reviews.map((review: ReviewDisplay) => (
                     <div key={review.id} className="bg-background p-6 rounded-lg border border-border">
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-semibold text-foreground">
-                            {review.narocnik?.first_name} {review.narocnik?.last_name}
+                            {review.profiles?.first_name} {review.profiles?.last_name}
                           </p>
                           <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                             <span className="flex items-center gap-1">
