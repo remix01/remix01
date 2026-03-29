@@ -43,36 +43,40 @@ FOR SELECT USING (
 );
 
 -- ============================================================================
--- OFFERS TABLE - Merge 2 SELECT policies into 1
+-- OFFERS TABLE - Merge 2 SELECT policies into 1 (skipped if table absent)
 -- ============================================================================
--- Replaces: "offers_select_own" and "offers_view_all"
--- Note: Keeping original logic for user-owned or public offers
-
-DROP POLICY IF EXISTS "offers_select_own" ON offers;
-DROP POLICY IF EXISTS "offers_view_all" ON offers;
-
-CREATE POLICY "offers_select_combined" ON offers
-FOR SELECT USING (
-  (SELECT auth.uid()) = user_id 
-  OR 
-  is_public = true
-);
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'offers') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "offers_select_own" ON offers$$;
+  EXECUTE $$DROP POLICY IF EXISTS "offers_view_all" ON offers$$;
+  EXECUTE $$
+    CREATE POLICY "offers_select_combined" ON offers
+    FOR SELECT USING (
+      (SELECT auth.uid()) = user_id OR is_public = true
+    )
+  $$;
+END $guard$;
 
 -- ============================================================================
--- PARTNERS TABLE - Merge 2 SELECT policies into 1
+-- PARTNERS TABLE - Merge 2 SELECT policies into 1 (skipped if table absent)
 -- ============================================================================
--- Replaces: "partners_select_own" and "partners_select_all"
--- Note: Keeping original logic for user-owned or active partners
-
-DROP POLICY IF EXISTS "partners_select_own" ON partners;
-DROP POLICY IF EXISTS "partners_select_all" ON partners;
-
-CREATE POLICY "partners_select_combined" ON partners
-FOR SELECT USING (
-  (SELECT auth.uid()) = user_id 
-  OR 
-  status = 'active'
-);
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'partners') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "partners_select_own" ON partners$$;
+  EXECUTE $$DROP POLICY IF EXISTS "partners_select_all" ON partners$$;
+  EXECUTE $$
+    CREATE POLICY "partners_select_combined" ON partners
+    FOR SELECT USING (
+      (SELECT auth.uid()) = user_id OR status = 'active'
+    )
+  $$;
+END $guard$;
 
 -- ============================================================================
 -- CATEGORIES TABLE - Merge 2 SELECT policies into 1

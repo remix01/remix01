@@ -59,20 +59,26 @@ CREATE POLICY "Users see own or admin see all inquiries"
     );
 
 -- Offers: Partners see own, customers see own inquiry's offers, admins see all
-DROP POLICY IF EXISTS "Partners see own offers" ON public.offers;
-
-CREATE POLICY "Users see own or admin see all offers"
+-- (skipped if public.offers table does not exist)
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'offers') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "Partners see own offers" ON public.offers$$;
+  EXECUTE $$
+    CREATE POLICY "Users see own or admin see all offers"
     ON public.offers FOR SELECT
     USING (
-        auth.uid() = partner_id OR
-        auth.jwt() ->> 'role' = 'admin' OR
-        -- Customer sees offers for their own inquiries
-        EXISTS (
-            SELECT 1 FROM public.inquiries
-            WHERE id = offers.inquiry_id
-            AND email = auth.jwt() ->> 'email'
-        )
-    );
+      auth.uid() = partner_id OR
+      auth.jwt() ->> 'role' = 'admin' OR
+      EXISTS (
+        SELECT 1 FROM public.inquiries
+        WHERE id = offers.inquiry_id AND email = auth.jwt() ->> 'email'
+      )
+    )
+  $$;
+END $guard$;
 
 -- Escrow disputes: Parties and admin see own
 DROP POLICY IF EXISTS "Parties see own disputes" ON public.escrow_disputes;
