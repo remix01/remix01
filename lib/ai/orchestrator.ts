@@ -13,6 +13,7 @@ import type {
   ContentBlock,
   Message,
   MessageParam,
+  TextBlock,
   ToolResultBlockParam,
   ToolUseBlock,
 } from '@anthropic-ai/sdk/resources/messages'
@@ -66,6 +67,14 @@ export interface AgentExecutionResult {
   }
   costUsd: number
   durationMs: number
+}
+
+// =============================================================================
+// Helper: Type guard for TextBlock
+// =============================================================================
+
+function isTextBlock(block: ContentBlock): block is TextBlock {
+  return block.type === 'text'
 }
 
 // =============================================================================
@@ -234,7 +243,7 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     if (toolUseBlocks.length === 0 || response.stop_reason === 'end_turn') {
       // No tool calls or final response - extract text
       finalResponse = response.content
-        .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+        .filter(isTextBlock)
         .map((block) => block.text)
         .join('\n')
       break
@@ -431,7 +440,7 @@ Odgovori v slovenščini.`,
   })
 
   const textContent = response.content
-    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+    .filter(isTextBlock)
     .map((block) => block.text)
     .join('\n')
 
