@@ -87,6 +87,9 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payouts') THEN
     RETURN;
   END IF;
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'offers') THEN
+    RETURN;
+  END IF;
   EXECUTE $$DROP POLICY IF EXISTS "payouts_select_own" ON payouts$$;
   EXECUTE $$
     CREATE POLICY "payouts_select_own" ON payouts
