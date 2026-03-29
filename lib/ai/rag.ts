@@ -202,7 +202,7 @@ export async function backfillEmbeddings(
         processed++
       }
     } catch (err) {
-      console.error(`Failed to embed ${table}/${record.id}:`, err)
+      console.error(`Failed to embed ${table}/${(record as unknown as { id: string }).id}:`, err)
       errors++
     }
 
