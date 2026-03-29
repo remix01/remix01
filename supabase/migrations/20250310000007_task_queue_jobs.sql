@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS task_queue_jobs (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ,
   
-  CONSTRAINT fk_task_id FOREIGN KEY (task_id) 
-    REFERENCES service_requests(id) ON DELETE CASCADE
+  -- task_id references the relevant task; FK omitted as tasks table is managed separately
+  CONSTRAINT chk_task_id_not_null CHECK (task_id IS NOT NULL)
 );
 
 -- Row Level Security — only service role can access
@@ -38,11 +38,14 @@ CREATE INDEX idx_tqj_job_type ON task_queue_jobs(job_type)
 -- pending → matching → matched → offer_sent → accepted → in_progress → completed
 -- Any state can transition to: expired, cancelled
 
--- Add task_queue_jobs reference to service_requests if not exists
-ALTER TABLE service_requests
-ADD COLUMN IF NOT EXISTS guarantee_activated BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS guarantee_activated_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS offer_amount DECIMAL(10, 2),
-ADD COLUMN IF NOT EXISTS customer_email TEXT,
-ADD COLUMN IF NOT EXISTS title TEXT;
+-- Extra columns for tasks table added conditionally
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tasks') THEN
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS guarantee_activated BOOLEAN DEFAULT FALSE;
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS guarantee_activated_at TIMESTAMPTZ;
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS offer_amount DECIMAL(10, 2);
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS customer_email TEXT;
+  END IF;
+END $$;
