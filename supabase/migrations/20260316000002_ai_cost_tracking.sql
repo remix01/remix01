@@ -26,12 +26,14 @@ CREATE TABLE IF NOT EXISTS public.ai_usage_logs (
   cache_key TEXT,
   message_preview TEXT,
   complexity_score INTEGER,
+  agent_type TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_user_id ON public.ai_usage_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_created_at ON public.ai_usage_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_model ON public.ai_usage_logs(model_used);
+CREATE INDEX IF NOT EXISTS idx_ai_logs_agent ON public.ai_usage_logs(agent_type);
 
 -- RLS
 ALTER TABLE public.ai_usage_logs ENABLE ROW LEVEL SECURITY;

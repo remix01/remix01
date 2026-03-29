@@ -47,10 +47,6 @@ CREATE POLICY "Users update own ai agent conversations"
 CREATE POLICY "Service role manages ai agent conversations"
   ON ai_agent_conversations FOR ALL TO service_role USING (true);
 
--- Add agent_type tracking to usage logs
-ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS agent_type TEXT;
-CREATE INDEX IF NOT EXISTS idx_ai_logs_agent ON ai_usage_logs(agent_type);
-
 -- Seed initial agent definitions
 INSERT INTO agent_definitions (agent_type, display_name, description, system_prompt, model_preference, required_tier)
 VALUES
