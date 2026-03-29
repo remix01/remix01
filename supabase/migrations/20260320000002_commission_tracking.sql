@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.commission_logs (
     escrow_id           UUID REFERENCES public.escrow_transactions(id) ON DELETE RESTRICT,
     
     -- Partner info (denormalized for analytics)
-    partner_id          UUID REFERENCES public.partners(id) ON DELETE SET NULL,
+    partner_id          UUID, -- FK to partners omitted; partners table managed separately
     
     -- Inquiry/job reference
     inquiry_id          UUID REFERENCES public.inquiries(id) ON DELETE SET NULL,
