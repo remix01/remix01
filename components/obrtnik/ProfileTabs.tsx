@@ -5,14 +5,14 @@ import { PortfolioTab } from './tabs/PortfolioTab'
 import { ReviewsTab } from './tabs/ReviewsTab'
 import { AboutTab } from './tabs/AboutTab'
 import { CoverageTab } from './tabs/CoverageTab'
-import type { ServiceAreaDisplay } from '@/lib/types'
+import type { ServiceAreaDisplay, AvailabilityRow, PortfolioItemDisplay, ReviewDisplay, ObrtnikProfileDisplay } from '@/lib/types'
 
 interface ProfileTabsProps {
-  obrtnik: any
-  portfolioItems: any[]
-  reviews: any[]
+  obrtnik: ObrtnikProfileDisplay
+  portfolioItems: PortfolioItemDisplay[]
+  reviews: ReviewDisplay[]
   serviceAreas: ServiceAreaDisplay[]
-  availability: any[]
+  availability: AvailabilityRow[]
 }
 
 export function ProfileTabs({

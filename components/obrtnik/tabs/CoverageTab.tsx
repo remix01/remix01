@@ -2,11 +2,11 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import type { ServiceAreaDisplay } from '@/lib/types'
+import type { ServiceAreaDisplay, AvailabilityRow } from '@/lib/types'
 
 interface CoverageTabProps {
   serviceAreas: ServiceAreaDisplay[]
-  availability: any[]
+  availability: AvailabilityRow[]
 }
 
 export function CoverageTab({ serviceAreas, availability }: CoverageTabProps) {

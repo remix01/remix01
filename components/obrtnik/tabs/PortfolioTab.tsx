@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { PortfolioModal } from '../PortfolioModal'
+import type { PortfolioItemDisplay } from '@/lib/types'
 
 interface PortfolioTabProps {
-  items: any[]
+  items: PortfolioItemDisplay[]
 }
 
 export function PortfolioTab({ items }: PortfolioTabProps) {
-  const [selectedProject, setSelectedProject] = useState<any | null>(null)
+  const [selectedProject, setSelectedProject] = useState<PortfolioItemDisplay | null>(null)
 
   if (!items || items.length === 0) {
     return (

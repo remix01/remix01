@@ -3,10 +3,11 @@
 import { Star, MessageCircle, Calendar } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import type { ReviewDisplay, ObrtnikProfileDisplay } from '@/lib/types'
 
 interface ReviewsTabProps {
-  obrtnik: any
-  reviews: any[]
+  obrtnik: ObrtnikProfileDisplay
+  reviews: ReviewDisplay[]
 }
 
 export function ReviewsTab({ obrtnik, reviews }: ReviewsTabProps) {
