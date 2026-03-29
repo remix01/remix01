@@ -80,4 +80,11 @@ export type ObrtnikProfileDisplay = {
   instagram_url: string | null
   certificate_urls: string[] | null
   service_radius_km: number | null
+  obrtnik_categories?: Array<{
+    categories: {
+      name: string
+      slug?: string
+      icon_name?: string | null
+    } | null
+  }>
 }
