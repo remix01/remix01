@@ -77,17 +77,6 @@ BEGIN
 END $guard$;
 
 -- ============================================================================
--- PAYOUTS TABLE - skipped if table does not exist
--- ============================================================================
-DO $guard$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payouts') THEN
-    RETURN;
-  END IF;
-  EXECUTE 'CREATE INDEX IF NOT EXISTS idx_payouts_offer_id ON payouts(offer_id)';
-END $guard$;
-
--- ============================================================================
 -- DATA_RECORDS TABLE - skipped if table does not exist
 -- ============================================================================
 DO $guard$
