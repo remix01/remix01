@@ -33,338 +33,244 @@ GRANT EXECUTE ON FUNCTION public.user_role() TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.user_id()   TO authenticated, anon;
 
 -- ══════════════════════════════════════════════════════════════
--- USERS TABLE
--- Each user can only see their own record | Admin can see all
+-- NOTE: The table-level RLS policies below (for "User",
+-- "CraftworkerProfile", "Job", etc.) reference a legacy Prisma
+-- schema that is no longer used. This project uses the tables
+-- profiles, obrtnik_profiles, tasks, ponudbe, sporocila, etc.
+-- Those tables have RLS configured in later migrations.
+-- The legacy blocks are skipped safely here.
 -- ══════════════════════════════════════════════════════════════
+DO $$
+BEGIN
+  -- Skip all legacy Prisma-schema RLS statements if the tables don't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'User'
+  ) THEN
+    RETURN;
+  END IF;
 
-ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+  -- ══════════════════════════════════════════════════════════════
+  -- USERS TABLE
+  -- Each user can only see their own record | Admin can see all
+  -- ══════════════════════════════════════════════════════════════
 
--- Users can read their own profile
-CREATE POLICY "users_select_own"
-ON "User"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-  OR id = public.user_id()
-);
+  EXECUTE 'ALTER TABLE "User" ENABLE ROW LEVEL SECURITY';
 
--- Users can update their own profile
-CREATE POLICY "users_update_own"
-ON "User"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-  OR id = public.user_id()
-)
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-  OR id = public.user_id()
-);
+  EXECUTE $policy$
+    CREATE POLICY "users_select_own" ON "User" FOR SELECT
+    USING (public.user_role() = ''ADMIN'' OR id = public.user_id())
+  $policy$;
 
--- Only admins can insert users
-CREATE POLICY "users_insert_admin"
-ON "User"
-FOR INSERT
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "users_update_own" ON "User" FOR UPDATE
+    USING (public.user_role() = ''ADMIN'' OR id = public.user_id())
+    WITH CHECK (public.user_role() = ''ADMIN'' OR id = public.user_id())
+  $policy$;
 
--- Only admins can delete users
-CREATE POLICY "users_delete_admin"
-ON "User"
-FOR DELETE
-USING (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "users_insert_admin" ON "User" FOR INSERT
+    WITH CHECK (public.user_role() = ''ADMIN'')
+  $policy$;
 
--- ══════════════════════════════════════════════════════════════
--- CRAFTWORKER PROFILE TABLE
--- Craftworker can see their own profile | Admin can see all
--- ══════════════════════════════════════════════════════════════
+  EXECUTE $policy$
+    CREATE POLICY "users_delete_admin" ON "User" FOR DELETE
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
 
-ALTER TABLE "CraftworkerProfile" ENABLE ROW LEVEL SECURITY;
+  -- ══════════════════════════════════════════════════════════════
+  -- CRAFTWORKER PROFILE TABLE
+  -- ══════════════════════════════════════════════════════════════
 
--- Craftworkers and admins can read profiles
-CREATE POLICY "craftworker_profiles_select"
-ON "CraftworkerProfile"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-  OR "userId" = public.user_id()
-);
+  EXECUTE 'ALTER TABLE "CraftworkerProfile" ENABLE ROW LEVEL SECURITY';
 
--- Craftworkers can update their own profile (but not commission rate or suspension status)
-CREATE POLICY "craftworker_profiles_update_own"
-ON "CraftworkerProfile"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-  OR "userId" = public.user_id()
-);
+  EXECUTE $policy$
+    CREATE POLICY "craftworker_profiles_select" ON "CraftworkerProfile" FOR SELECT
+    USING (public.user_role() = ''ADMIN'' OR "userId" = public.user_id())
+  $policy$;
 
--- Only admins can insert craftworker profiles
-CREATE POLICY "craftworker_profiles_insert_admin"
-ON "CraftworkerProfile"
-FOR INSERT
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "craftworker_profiles_update_own" ON "CraftworkerProfile" FOR UPDATE
+    USING (public.user_role() = ''ADMIN'' OR "userId" = public.user_id())
+  $policy$;
 
--- ══════════════════════════════════════════════════════════════
--- JOBS TABLE
--- Customer sees their own jobs | Craftworker sees assigned jobs | Admin sees all
--- ══════════════════════════════════════════════════════════════
+  EXECUTE $policy$
+    CREATE POLICY "craftworker_profiles_insert_admin" ON "CraftworkerProfile" FOR INSERT
+    WITH CHECK (public.user_role() = ''ADMIN'')
+  $policy$;
 
-ALTER TABLE "Job" ENABLE ROW LEVEL SECURITY;
+  -- ══════════════════════════════════════════════════════════════
+  -- JOBS TABLE
+  -- ══════════════════════════════════════════════════════════════
 
--- Users can see jobs they're involved in
-CREATE POLICY "jobs_select_involved"
-ON "Job"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-  OR "customerId" = public.user_id()
-  OR "craftworkerId" = public.user_id()
-);
+  EXECUTE 'ALTER TABLE "Job" ENABLE ROW LEVEL SECURITY';
 
--- Customers can create jobs
-CREATE POLICY "jobs_insert_customer"
-ON "Job"
-FOR INSERT
-WITH CHECK (
-  "customerId" = public.user_id()
-  OR public.user_role() = 'ADMIN'
-);
-
--- Involved users can update jobs (but admins have full control)
-CREATE POLICY "jobs_update_involved"
-ON "Job"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-  OR "customerId" = public.user_id()
-  OR "craftworkerId" = public.user_id()
-)
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-  OR "customerId" = public.user_id()
-  OR "craftworkerId" = public.user_id()
-);
-
--- Only customers or admins can delete their jobs
-CREATE POLICY "jobs_delete_customer_or_admin"
-ON "Job"
-FOR DELETE
-USING (
-  public.user_role() = 'ADMIN'
-  OR "customerId" = public.user_id()
-);
-
--- ══════════════════════════════════════════════════════════════
--- PAYMENTS TABLE
--- Customer sees their payment | Craftworker sees their payout | Admin sees all
--- ══════════════════════════════════════════════════════════════
-
-ALTER TABLE "Payment" ENABLE ROW LEVEL SECURITY;
-
--- Users can see payments for their jobs
-CREATE POLICY "payments_select_job_participant"
-ON "Payment"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-  OR EXISTS (
-    SELECT 1 FROM "Job"
-    WHERE "Job".id = "Payment"."jobId"
-    AND (
-      "Job"."customerId" = public.user_id()
-      OR "Job"."craftworkerId" = public.user_id()
+  EXECUTE $policy$
+    CREATE POLICY "jobs_select_involved" ON "Job" FOR SELECT
+    USING (
+      public.user_role() = ''ADMIN''
+      OR "customerId" = public.user_id()
+      OR "craftworkerId" = public.user_id()
     )
-  )
-);
+  $policy$;
 
--- Only admins can modify payments
-CREATE POLICY "payments_insert_admin"
-ON "Payment"
-FOR INSERT
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "jobs_insert_customer" ON "Job" FOR INSERT
+    WITH CHECK ("customerId" = public.user_id() OR public.user_role() = ''ADMIN'')
+  $policy$;
 
-CREATE POLICY "payments_update_admin"
-ON "Payment"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-);
-
--- ══════════════════════════════════════════════════════════════
--- CONVERSATIONS TABLE
--- Participants can see their conversations | Admin sees all
--- ══════════════════════════════════════════════════════════════
-
-ALTER TABLE "Conversation" ENABLE ROW LEVEL SECURITY;
-
--- Users can see conversations for their jobs
-CREATE POLICY "conversations_select_participant"
-ON "Conversation"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-  OR EXISTS (
-    SELECT 1 FROM "Job"
-    WHERE "Job".id = "Conversation"."jobId"
-    AND (
-      "Job"."customerId" = public.user_id()
-      OR "Job"."craftworkerId" = public.user_id()
+  EXECUTE $policy$
+    CREATE POLICY "jobs_update_involved" ON "Job" FOR UPDATE
+    USING (
+      public.user_role() = ''ADMIN''
+      OR "customerId" = public.user_id()
+      OR "craftworkerId" = public.user_id()
     )
-  )
-);
-
--- System can create conversations
-CREATE POLICY "conversations_insert_system"
-ON "Conversation"
-FOR INSERT
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-);
-
--- Admins can update conversations
-CREATE POLICY "conversations_update_admin"
-ON "Conversation"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-);
-
--- ══════════════════════════════════════════════════════════════
--- MESSAGES TABLE
--- Participants can see messages from their conversations | Admin sees all
--- ══════════════════════════════════════════════════════════════
-
-ALTER TABLE "Message" ENABLE ROW LEVEL SECURITY;
-
--- Users can see messages from conversations they're part of
-CREATE POLICY "messages_select_conversation_participant"
-ON "Message"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-  OR EXISTS (
-    SELECT 1 FROM "Conversation"
-    INNER JOIN "Job" ON "Job".id = "Conversation"."jobId"
-    WHERE "Conversation".id = "Message"."conversationId"
-    AND (
-      "Job"."customerId" = public.user_id()
-      OR "Job"."craftworkerId" = public.user_id()
+    WITH CHECK (
+      public.user_role() = ''ADMIN''
+      OR "customerId" = public.user_id()
+      OR "craftworkerId" = public.user_id()
     )
-  )
-);
+  $policy$;
 
--- Users can insert messages to their conversations
-CREATE POLICY "messages_insert_participant"
-ON "Message"
-FOR INSERT
-WITH CHECK (
-  "senderUserId" = public.user_id()
-  AND EXISTS (
-    SELECT 1 FROM "Conversation"
-    INNER JOIN "Job" ON "Job".id = "Conversation"."jobId"
-    WHERE "Conversation".id = "Message"."conversationId"
-    AND (
-      "Job"."customerId" = public.user_id()
-      OR "Job"."craftworkerId" = public.user_id()
+  EXECUTE $policy$
+    CREATE POLICY "jobs_delete_customer_or_admin" ON "Job" FOR DELETE
+    USING (public.user_role() = ''ADMIN'' OR "customerId" = public.user_id())
+  $policy$;
+
+  -- ══════════════════════════════════════════════════════════════
+  -- PAYMENTS TABLE
+  -- ══════════════════════════════════════════════════════════════
+
+  EXECUTE 'ALTER TABLE "Payment" ENABLE ROW LEVEL SECURITY';
+
+  EXECUTE $policy$
+    CREATE POLICY "payments_select_job_participant" ON "Payment" FOR SELECT
+    USING (
+      public.user_role() = ''ADMIN''
+      OR EXISTS (
+        SELECT 1 FROM "Job"
+        WHERE "Job".id = "Payment"."jobId"
+        AND ("Job"."customerId" = public.user_id() OR "Job"."craftworkerId" = public.user_id())
+      )
     )
-  )
-);
+  $policy$;
 
--- Only admins can update messages (for blocking)
-CREATE POLICY "messages_update_admin"
-ON "Message"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "payments_insert_admin" ON "Payment" FOR INSERT
+    WITH CHECK (public.user_role() = ''ADMIN'')
+  $policy$;
 
--- ══════════════════════════════════════════════════════════════
--- VIOLATIONS TABLE
--- ONLY ADMINS can see violations - completely hidden from regular users
--- This prevents gaming the system by seeing what gets flagged
--- ══════════════════════════════════════════════════════════════
+  EXECUTE $policy$
+    CREATE POLICY "payments_update_admin" ON "Payment" FOR UPDATE
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
 
-ALTER TABLE "Violation" ENABLE ROW LEVEL SECURITY;
+  -- ══════════════════════════════════════════════════════════════
+  -- CONVERSATIONS TABLE
+  -- ══════════════════════════════════════════════════════════════
 
--- Only admins can see violations
-CREATE POLICY "violations_admin_only_select"
-ON "Violation"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE 'ALTER TABLE "Conversation" ENABLE ROW LEVEL SECURITY';
 
--- Only system/admin can create violations
-CREATE POLICY "violations_admin_only_insert"
-ON "Violation"
-FOR INSERT
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "conversations_select_participant" ON "Conversation" FOR SELECT
+    USING (
+      public.user_role() = ''ADMIN''
+      OR EXISTS (
+        SELECT 1 FROM "Job"
+        WHERE "Job".id = "Conversation"."jobId"
+        AND ("Job"."customerId" = public.user_id() OR "Job"."craftworkerId" = public.user_id())
+      )
+    )
+  $policy$;
 
--- Only admins can update violations (for review)
-CREATE POLICY "violations_admin_only_update"
-ON "Violation"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "conversations_insert_system" ON "Conversation" FOR INSERT
+    WITH CHECK (public.user_role() = ''ADMIN'')
+  $policy$;
 
--- ══════════════════════════════════════════════════════════════
--- RISK SCORE TABLE
--- ONLY ADMINS can see risk scores - completely hidden from users
--- Critical for preventing bypass attempts
--- ══════════════════════════════════════════════════════════════
+  EXECUTE $policy$
+    CREATE POLICY "conversations_update_admin" ON "Conversation" FOR UPDATE
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
 
-ALTER TABLE "RiskScore" ENABLE ROW LEVEL SECURITY;
+  -- ══════════════════════════════════════════════════════════════
+  -- MESSAGES TABLE
+  -- ══════════════════════════════════════════════════════════════
 
--- Only admins can see risk scores
-CREATE POLICY "risk_scores_admin_only_select"
-ON "RiskScore"
-FOR SELECT
-USING (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE 'ALTER TABLE "Message" ENABLE ROW LEVEL SECURITY';
 
--- Only system/admin can create risk scores
-CREATE POLICY "risk_scores_admin_only_insert"
-ON "RiskScore"
-FOR INSERT
-WITH CHECK (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "messages_select_conversation_participant" ON "Message" FOR SELECT
+    USING (
+      public.user_role() = ''ADMIN''
+      OR EXISTS (
+        SELECT 1 FROM "Conversation"
+        INNER JOIN "Job" ON "Job".id = "Conversation"."jobId"
+        WHERE "Conversation".id = "Message"."conversationId"
+        AND ("Job"."customerId" = public.user_id() OR "Job"."craftworkerId" = public.user_id())
+      )
+    )
+  $policy$;
 
--- Only admins can update risk scores
-CREATE POLICY "risk_scores_admin_only_update"
-ON "RiskScore"
-FOR UPDATE
-USING (
-  public.user_role() = 'ADMIN'
-);
+  EXECUTE $policy$
+    CREATE POLICY "messages_insert_participant" ON "Message" FOR INSERT
+    WITH CHECK (
+      "senderUserId" = public.user_id()
+      AND EXISTS (
+        SELECT 1 FROM "Conversation"
+        INNER JOIN "Job" ON "Job".id = "Conversation"."jobId"
+        WHERE "Conversation".id = "Message"."conversationId"
+        AND ("Job"."customerId" = public.user_id() OR "Job"."craftworkerId" = public.user_id())
+      )
+    )
+  $policy$;
 
--- ══════════════════════════════════════════════════════════════
--- SECURITY NOTES
--- ══════════════════════════════════════════════════════════════
+  EXECUTE $policy$
+    CREATE POLICY "messages_update_admin" ON "Message" FOR UPDATE
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
 
--- 1. Violation and RiskScore tables are admin-only to prevent users from
---    reverse-engineering the detection system.
---
--- 2. Service role key bypasses RLS - use only in trusted server-side code.
---
--- 3. JWT claims must include 'role' in app_metadata for proper access control.
---
--- 4. Regular users (anon key) cannot see:
---    - Other users' data
---    - System violation logs
---    - Risk assessment scores
---    - Payment details of other jobs
---
--- 5. Consider adding audit logging for sensitive admin operations.
+  -- ══════════════════════════════════════════════════════════════
+  -- VIOLATIONS TABLE
+  -- ══════════════════════════════════════════════════════════════
+
+  EXECUTE 'ALTER TABLE "Violation" ENABLE ROW LEVEL SECURITY';
+
+  EXECUTE $policy$
+    CREATE POLICY "violations_admin_only_select" ON "Violation" FOR SELECT
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
+
+  EXECUTE $policy$
+    CREATE POLICY "violations_admin_only_insert" ON "Violation" FOR INSERT
+    WITH CHECK (public.user_role() = ''ADMIN'')
+  $policy$;
+
+  EXECUTE $policy$
+    CREATE POLICY "violations_admin_only_update" ON "Violation" FOR UPDATE
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
+
+  -- ══════════════════════════════════════════════════════════════
+  -- RISK SCORE TABLE
+  -- ══════════════════════════════════════════════════════════════
+
+  EXECUTE 'ALTER TABLE "RiskScore" ENABLE ROW LEVEL SECURITY';
+
+  EXECUTE $policy$
+    CREATE POLICY "risk_scores_admin_only_select" ON "RiskScore" FOR SELECT
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
+
+  EXECUTE $policy$
+    CREATE POLICY "risk_scores_admin_only_insert" ON "RiskScore" FOR INSERT
+    WITH CHECK (public.user_role() = ''ADMIN'')
+  $policy$;
+
+  EXECUTE $policy$
+    CREATE POLICY "risk_scores_admin_only_update" ON "RiskScore" FOR UPDATE
+    USING (public.user_role() = ''ADMIN'')
+  $policy$;
+
+END $$;
