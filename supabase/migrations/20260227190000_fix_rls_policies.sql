@@ -105,13 +105,13 @@ END $guard$;
 
 DROP POLICY IF EXISTS "Users can read own inquiries" ON inquiries;
 CREATE POLICY "Users can read own inquiries" ON inquiries
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING (auth.email() = email);
 
 DROP POLICY IF EXISTS "Admins can read all inquiries" ON inquiries;
 CREATE POLICY "Admins can read all inquiries" ON inquiries
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   )
 );
 
@@ -123,7 +123,7 @@ DROP POLICY IF EXISTS "Super admins can view all admin users" ON admin_users;
 CREATE POLICY "Super admins can view all admin users" ON admin_users
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
@@ -131,7 +131,7 @@ DROP POLICY IF EXISTS "Super admins can insert admin users" ON admin_users;
 CREATE POLICY "Super admins can insert admin users" ON admin_users
 FOR INSERT WITH CHECK (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
@@ -139,7 +139,7 @@ DROP POLICY IF EXISTS "Super admins can update admin users" ON admin_users;
 CREATE POLICY "Super admins can update admin users" ON admin_users
 FOR UPDATE USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
@@ -147,13 +147,13 @@ DROP POLICY IF EXISTS "Super admins can delete admin users" ON admin_users;
 CREATE POLICY "Super admins can delete admin users" ON admin_users
 FOR DELETE USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
 DROP POLICY IF EXISTS "Admins can view own record" ON admin_users;
 CREATE POLICY "Admins can view own record" ON admin_users
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = auth_user_id);
 
 -- ============================================================================
 -- OBRTNIK_PROFILES TABLE - Fix 2 policies (column is 'id', not 'user_id')
@@ -175,7 +175,7 @@ DROP POLICY IF EXISTS "Admin can manage categories" ON categories;
 CREATE POLICY "Admin can manage categories" ON categories
 FOR ALL USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   )
 );
 
@@ -247,7 +247,7 @@ DROP POLICY IF EXISTS "Admins see all logs" ON agent_logs;
 CREATE POLICY "Admins see all logs" ON agent_logs
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   )
 );
 

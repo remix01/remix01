@@ -17,10 +17,10 @@ DROP POLICY IF EXISTS "Super admins can view all admin users" ON admin_users;
 CREATE POLICY "admin_users_select_combined" ON admin_users
 FOR SELECT USING (
   -- Super admin vidi vse
-  (SELECT user_id FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin') IS NOT NULL
+  (SELECT auth_user_id FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN') IS NOT NULL
   OR
   -- Admin vidi svoj zapis
-  (SELECT auth.uid()) = user_id
+  (SELECT auth.uid()) = auth_user_id
 );
 
 -- ============================================================================
@@ -34,11 +34,11 @@ DROP POLICY IF EXISTS "Admins can read all inquiries" ON inquiries;
 CREATE POLICY "inquiries_select_combined" ON inquiries
 FOR SELECT USING (
   -- User vidi svoje inquiries
-  (SELECT auth.uid()) = user_id
+  auth.email() = email
   OR
   -- Admin vidi vse
   (SELECT EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   ))
 );
 
@@ -91,7 +91,7 @@ FOR SELECT USING (
   is_active = true
   OR
   (SELECT EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   ))
 );
 
