@@ -365,7 +365,7 @@ async function logAgentUsage(params: {
     rag_context_used: params.ragContextUsed ?? false,
     rag_sources_count: params.ragSourcesCount ?? 0,
     created_at: new Date().toISOString(),
-  }).catch((error) => {
+  }).catch((error: any) => {
     console.error('Failed to log AI usage:', error)
   })
 }
