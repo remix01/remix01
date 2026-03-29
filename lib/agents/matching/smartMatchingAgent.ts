@@ -334,7 +334,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
 
     return {
       matches: topMatches,
-      matchingId: logData?.id || null,
+      matchingId: (logData as any)?.id || null,
       executionTimeMs: executionTime,
     }
   } catch (error) {
