@@ -49,7 +49,7 @@ export function CoverageTab({ serviceAreas, availability }: CoverageTabProps) {
           <div className="space-y-2">
             {DAYS_OF_WEEK_SI.map((day, dayIndex) => {
               const dayAvailability = availability.find(
-                (a) => parseInt(a.day_of_week) === dayIndex
+                (a) => a.day_of_week === dayIndex
               )
               const isAvailable = dayAvailability?.is_available ?? false
 
