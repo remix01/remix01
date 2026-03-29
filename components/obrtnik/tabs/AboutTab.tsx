@@ -2,9 +2,10 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import type { ObrtnikProfileDisplay } from '@/lib/types'
 
 interface AboutTabProps {
-  obrtnik: any
+  obrtnik: ObrtnikProfileDisplay
 }
 
 export function AboutTab({ obrtnik }: AboutTabProps) {
