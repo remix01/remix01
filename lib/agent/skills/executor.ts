@@ -39,17 +39,38 @@ function list(): string[] {
   return registeredSkills.map(s => s.name)
 }
 
-/** Find a skill whose triggers match the given message */
+/**
+ * Find a skill whose triggers match the given message.
+ *
+ * Trigger algorithm (same as interception flow doc):
+ *   1. keyword match  — any keyword is a substring of the lower-cased message
+ *   2. intentPattern  — any regex pattern matches the original message (case-insensitive)
+ *   3. contextCheck   — if defined, must return true
+ *
+ * A skill is selected when (keyword OR intentPattern) AND contextCheck.
+ */
 function findByTrigger(
   message: string,
-  _context: AgentContext
+  context: AgentContext
 ): SkillDefinition | null {
   const lower = message.toLowerCase()
+
   for (const skill of registeredSkills) {
-    if (skill.triggers.pattern && skill.triggers.pattern.test(lower)) {
-      return skill
-    }
-    if (skill.triggers.keywords.some(kw => lower.includes(kw))) {
+    const { triggers } = skill
+
+    const keywordMatch = triggers.keywords.some(kw => lower.includes(kw.toLowerCase()))
+
+    const intentMatch = (triggers.intentPatterns ?? []).some(pattern => {
+      try {
+        return new RegExp(pattern, 'i').test(message)
+      } catch {
+        return false
+      }
+    })
+
+    const contextMatch = triggers.contextCheck ? triggers.contextCheck(context) : true
+
+    if ((keywordMatch || intentMatch) && contextMatch) {
       return skill
     }
   }

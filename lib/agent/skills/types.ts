@@ -29,9 +29,15 @@ export interface SkillDefinition {
   description: string
   /** How to detect that this skill should handle a message */
   triggers: {
+    /** Substring keywords (case-insensitive) */
     keywords: string[]
-    /** Optional regex applied to lower-cased message before keyword check */
-    pattern?: RegExp
+    /** Regex patterns tested against the full message (case-insensitive) */
+    intentPatterns?: string[]
+    /**
+     * Optional context guard — return false to prevent skill activation
+     * even when keywords/patterns match (e.g., require an active inquiry).
+     */
+    contextCheck?: (context: AgentContext) => boolean
   }
   /** Ordered list of clarifying questions before execution */
   questions: ClarificationQuestion[]

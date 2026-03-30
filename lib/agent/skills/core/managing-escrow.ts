@@ -1,36 +1,80 @@
 /**
  * Skill: managing-escrow
  *
- * Guides the user through escrow payment actions:
- *   - Release payment (work confirmed complete)
- *   - Check status
+ * Guides the customer through escrow payment actions:
+ *   - Release payment (confirms work is complete)
+ *   - Check current status from `escrow_transactions`
  *
- * Returns a toolCall for releaseEscrow which the orchestrator then routes
- * through the tool-router with full guardrails and permission checks.
+ * A release returns a toolCall so the tool-router handles auth,
+ * ownership verification, and state guards (via releaseEscrow.ts).
  *
- * Triggers on: "plačilo", "sprosti plačilo", "potrdi delo", etc.
+ * Triggers on: "plačilo", "sprosti plačilo", "potrdi delo", intent patterns.
+ * Context: only when an active escrow exists (context.activeResourceIds.escrowId).
  */
 
+import { createClient } from '@/lib/supabase/server'
 import type { SkillDefinition, SkillResult } from '../types'
 import type { AgentContext } from '../../context'
 import { skillRegistry } from '../executor'
 
+// ---------------------------------------------------------------------------
+// Escrow status fetch
+// ---------------------------------------------------------------------------
+async function fetchEscrowStatus(
+  escrowId: string
+): Promise<{ status: string; amountTotal: number } | null> {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await (supabase as any)
+      .from('escrow_transactions')
+      .select('status, amount_total_cents')
+      .eq('id', escrowId)
+      .single()
+
+    if (error || !data) return null
+    return {
+      status: data.status,
+      amountTotal: Math.round(data.amount_total_cents / 100),
+    }
+  } catch {
+    return null
+  }
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending:   '⏳ Čaka na plačilo',
+  captured:  '🔒 Zavarovan (čaka na sprostitev)',
+  paid:      '🔒 Plačan (čaka na sprostitev)',
+  released:  '✅ Sproščen — izplačan mojstru',
+  refunded:  '↩️ Vrnjen naročniku',
+  disputed:  '⚠️ V sporu',
+}
+
+// ---------------------------------------------------------------------------
+// Skill definition
+// ---------------------------------------------------------------------------
 const managingEscrowSkill: SkillDefinition = {
   name: 'managing-escrow',
-  description: 'Pomaga pri upravljanju escrow plačil — sprostitev ali preverjanje statusa',
+  description: 'Pomaga pri sprostitvi ali preverjanju escrow plačil',
 
   triggers: {
     keywords: [
       'plačilo', 'escrow', 'sprosti plačilo', 'potrdi delo', 'potrdi zaključek',
       'vrni denar', 'refund', 'izplačilo mojstru', 'plačaj mojstru',
     ],
+    intentPatterns: [
+      'želim .+ plačil',
+      'sprosti .+ denar',
+      'potrdi .+ zaključen',
+    ],
+    contextCheck: (context) => !!context.activeResourceIds?.escrowId,
   },
 
   questions: [
     {
       field: 'escrowId',
       question:
-        'Vnesite ID escrow transakcije (najdete ga v detajlih povpraševanja):',
+        'Vnesite ID escrow transakcije\n(najdete ga v zavihku Plačila vašega profila):',
       required: true,
       validator: (a) => a.trim().length > 0 || 'ID transakcije je obvezen.',
     },
@@ -44,7 +88,7 @@ const managingEscrowSkill: SkillDefinition = {
       required: true,
       validator: (a) => {
         const lower = a.toLowerCase()
-        return ['1', '2', 'sprosti', 'prever'].some(v => lower.includes(v))
+        return ['1', '2', 'sprosti', 'prever', 'status'].some(v => lower.includes(v))
           ? true
           : 'Prosim odgovorite z 1 (sprostitev) ali 2 (status).'
       },
@@ -62,7 +106,8 @@ const managingEscrowSkill: SkillDefinition = {
         success: true,
         message:
           `💸 Sproščam plačilo za escrow \`${data.escrowId}\`...\n\n` +
-          'Sistem bo preveril stanje in izvedel prenos. Mojster bo obveščen.',
+          'Sistem bo preveril status in izvedel prenos na mojstrovi račun. ' +
+          'Mojster bo samodejno obveščen.',
         toolCall: {
           tool: 'releaseEscrow',
           params: { escrowId: data.escrowId },
@@ -70,13 +115,37 @@ const managingEscrowSkill: SkillDefinition = {
       }
     }
 
-    // Status check — no tool call needed, just inform
+    // Status check — fetch from DB
+    const escrow = await fetchEscrowStatus(data.escrowId)
+
+    if (!escrow) {
+      return {
+        success: false,
+        message:
+          `❌ Escrow transakcija \`${data.escrowId}\` ni bila najdena.\n\n` +
+          'Preverite ID v zavihku Plačila.',
+      }
+    }
+
+    const label = STATUS_LABELS[escrow.status] ?? `Status: ${escrow.status}`
+
     return {
       success: true,
-      message:
-        `🔍 Preverite status escrow \`${data.escrowId}\` v zavihku **Plačila** vašega profila.\n\n` +
-        'Statusi: `pending` → `captured` → `released` ali `refunded`.',
-      data: { escrowId: data.escrowId, requestedAction: 'status' },
+      message: [
+        `🔍 Status escrow \`${data.escrowId}\`:`,
+        '',
+        `${label}`,
+        `💰 Znesek: ${escrow.amountTotal} EUR`,
+        '',
+        escrow.status === 'captured' || escrow.status === 'paid'
+          ? '✅ Ko boste zadovoljni z delom, sprostitie plačilo z ukazom "sprosti plačilo".'
+          : escrow.status === 'released'
+          ? 'Plačilo je bilo že sproščeno.'
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      data: { escrowId: data.escrowId, status: escrow.status, amount: escrow.amountTotal },
     }
   },
 }
