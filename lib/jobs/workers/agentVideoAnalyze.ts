@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { estimateCost } from '@/lib/model-router'
 import type { Job, AgentVideoAnalyzePayload } from '../queue'
 
-const MODEL = 'claude-opus-4-1-20250805'
+const MODEL = 'claude-opus-4-6'
 
 export async function handleAgentVideoAnalyze(job: Job<AgentVideoAnalyzePayload>): Promise<void> {
   const { job_id, user_id, file_url, file_type, description } = job.data

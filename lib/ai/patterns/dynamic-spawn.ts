@@ -219,7 +219,7 @@ Odgovori IZKLJUČNO v JSON formatu:
 }`
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 512,
     system: systemPrompt,
     messages: [
@@ -305,7 +305,7 @@ async function mergeAgentOutputs(results: SpawnResult[]): Promise<string> {
     .join('\n\n')
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     system: `Si LiftGO AI koordinator. Združi odgovore več AI agentov v eno koherentno sporočilo za uporabnika.
 Ohrani vse pomembne informacije. Izogni se ponavljanju. Piši v slovenščini.`,
