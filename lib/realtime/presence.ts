@@ -126,7 +126,7 @@ export async function addUserToRoom(roomId: string, userId: string): Promise<voi
   const users = await getOnlineUsersInRoom(roomId)
   const cacheKey = CACHE_KEYS.onlineUsers(roomId)
 
-  const presence = await getUserPresence(userId)
+  let presence = await getUserPresence(userId)
   if (!presence) {
     presence = {
       userId,

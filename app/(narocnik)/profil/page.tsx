@@ -34,7 +34,7 @@ export default async function ProfilPage() {
         <h1 className="mb-8 text-3xl font-bold text-gray-900">Moj profil</h1>
         
         <ProfilForm 
-          profile={profile}
+          profile={profile!}
           userEmail={user.email || ''}
         />
 

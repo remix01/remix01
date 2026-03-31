@@ -123,7 +123,7 @@ async function verifyRedisSetup() {
     })
     await createNotification({
       userId,
-      type: 'test',
+      type: 'info',
       title: 'Test',
       message: 'Test notification',
     })

@@ -142,6 +142,8 @@ function filterEligiblePartners<T extends {
     total_reviews: number
     categories: string[]
     subscription_tier?: string | null
+    response_time_hours?: number | null
+    profile?: unknown
   }>(
   partners: T[],
   categoryId: string
