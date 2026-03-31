@@ -62,7 +62,7 @@ export async function deleteManyFromCache(keys: string[]): Promise<void> {
 
   await executeRedisOperation(
     async (redis) => {
-      await redis.del(...keys)
+      await redis.del(...(keys as [string, ...string[]]))
     },
     undefined,
     `cache:delete-many:${keys.length}`
@@ -156,7 +156,7 @@ export async function invalidatePattern(pattern: string): Promise<number> {
 
         if (keys.length > 0) {
           deletedCount += keys.length
-          await redis.del(...keys)
+          await redis.del(...(keys as [string, ...string[]]))
         }
       } while (cursor !== '0')
 
@@ -175,7 +175,7 @@ export async function mgetFromCache<T>(keys: string[]): Promise<(T | null)[]> {
 
   return executeRedisOperation(
     async (redis) => {
-      const values = (await redis.mget(...keys)) as (T | null)[]
+      const values = (await redis.mget(...(keys as [string, ...string[]]))) as (T | null)[]
       return values.map((v) => v ?? null)
     },
     keys.map(() => null),
@@ -251,7 +251,7 @@ export async function addToSet(key: string, ...members: string[]): Promise<numbe
 
   return executeRedisOperation(
     async (redis) => {
-      const result = await redis.sadd(key, ...members)
+      const result = await redis.sadd(key, ...(members as [string, ...string[]]))
       return result ?? 0
     },
     0,
