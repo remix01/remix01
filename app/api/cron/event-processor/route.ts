@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { outbox } from '@/lib/events/outbox'
+import { initEventSubscribers } from '@/lib/events'
 
 export async function GET(req: NextRequest) {
   // Verify CRON_SECRET
@@ -22,6 +23,10 @@ export async function GET(req: NextRequest) {
       { status: 401 }
     )
   }
+
+  // Register event handlers — must run in every serverless invocation
+  // (layout.tsx only runs in browser/SSR contexts, not in cron invocations)
+  initEventSubscribers()
 
   const start = Date.now()
   console.log(JSON.stringify({ level: 'info', message: '[event-processor] start', ranAt: new Date().toISOString() }))
@@ -37,7 +42,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, processed: result.processed, failed: result.failed, durationMs })
   } catch (err) {
     const durationMs = Date.now() - start
-    console.error(JSON.stringify({ level: 'error', message: '[event-processor] error', error: String(err), durationMs }))
+    const stack = err instanceof Error ? err.stack : undefined
+    console.error(JSON.stringify({ level: 'error', message: '[event-processor] error', error: String(err), stack, durationMs }))
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -11,7 +11,6 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import type { EventName, EventPayload } from './eventTypes'
-import { deadLetterQueue } from './deadLetterQueue'
 
 export const outbox = {
   /**
@@ -49,6 +48,7 @@ export const outbox = {
   async processPendingBatch(batchSize = 50): Promise<{ processed: number; failed: number }> {
     const supabase = createAdminClient()
     const { eventBus } = await import('./eventBus')
+    const { deadLetterQueue } = await import('./deadLetterQueue')
 
     // Fetch pending + eligible for retry
     const { data: events, error } = await supabase
