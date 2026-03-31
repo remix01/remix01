@@ -180,13 +180,14 @@ export async function listObrtniki(filters?: {
   }
 
   if (filters?.category_id) {
-    // Filter by category through join
-    query = query.in('id',
-      supabase
-        .from('obrtnik_categories')
-        .select('obrtnik_id')
-        .eq('category_id', filters.category_id) as any
-    )
+    // Materialize subquery first — supabase-js .in() requires an array, not a query builder
+    const { data: catRows } = await supabase
+      .from('obrtnik_categories')
+      .select('obrtnik_id')
+      .eq('category_id', filters.category_id)
+    const obrtnikIds = (catRows ?? []).map((r: any) => r.obrtnik_id)
+    if (obrtnikIds.length === 0) return []
+    query = query.in('id', obrtnikIds)
   }
 
   query = query.order('avg_rating', { ascending: false })
