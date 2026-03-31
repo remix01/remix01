@@ -194,9 +194,9 @@ export async function backfillEmbeddings(
     throw new Error(`Failed to fetch records: ${error?.message}`)
   }
 
-  for (const record of records) {
+  for (const record of records as any[]) {
     try {
-      const text = record[textColumn as keyof typeof record] as string
+      const text = record[textColumn] as string
       if (text) {
         await storeEmbedding(table, record.id, text)
         processed++
