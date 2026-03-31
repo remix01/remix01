@@ -175,7 +175,7 @@ export async function mgetFromCache<T>(keys: string[]): Promise<(T | null)[]> {
 
   return executeRedisOperation(
     async (redis) => {
-      const values = await redis.mget<T | null>(...keys)
+      const values = await redis.mget<(T | null)[]>(...keys)
       return values.map((v) => v ?? null)
     },
     keys.map(() => null),
