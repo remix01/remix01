@@ -147,8 +147,14 @@ const understandingRequestSkill: SkillDefinition = {
           city: data.location.toLowerCase().trim(),
           estimated_value: estimatedValue ?? null,
           customer_id: context.userId,
-          status: 'PENDING',
+          status: 'PENDING' as const,
           risk_score: 0,
+          // nullable FK fields required by generated types
+          craftworker_id: null,
+          payment_id: null,
+          conversation_id: null,
+          twilio_conversation_sid: null,
+          completed_at: null,
         })
         .select('id')
         .single()
