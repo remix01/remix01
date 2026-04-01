@@ -42,6 +42,7 @@ export default function NovoPoVprasevanjePage() {
 
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [customCategoryName, setCustomCategoryName] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [urgency, setUrgency] = useState<UrgencyLevel>('normalno')
@@ -111,7 +112,7 @@ export default function NovoPoVprasevanjePage() {
   }, [selectedCategory, urgency, step])
 
   // Validation functions
-  const isStep1Valid = selectedCategory !== null
+  const isStep1Valid = selectedCategory !== null || customCategoryName.trim().length >= 2
   const isStep2Valid = title.trim().length > 0 && description.length >= 20
   const isStep3Valid = locationCity.trim().length > 0
 
@@ -136,7 +137,7 @@ export default function NovoPoVprasevanjePage() {
 
   // Handle submit
   const handleSubmit = async () => {
-    if (!user || !selectedCategory) return
+    if (!user) return
 
     setLoading(true)
     setError(null)
@@ -144,7 +145,7 @@ export default function NovoPoVprasevanjePage() {
     try {
       const povprasevanje: PovprasevanjeInsert = {
         narocnik_id: user.id,
-        category_id: selectedCategory.id,
+        category_id: selectedCategory?.id,
         title,
         description,
         urgency,
@@ -157,7 +158,12 @@ export default function NovoPoVprasevanjePage() {
         attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
       }
 
-      const result = await createPovprasevanje(povprasevanje)
+      // Call createPovprasevanje with optional categoryName for auto-creation
+      const result = await createPovprasevanje(povprasevanje, {
+        categoryName: customCategoryName || undefined,
+        userId: user.id,
+        ipAddress: undefined, // Would be set server-side in production
+      })
 
       if (!result) {
         setError('Napaka pri oddaji. Poskusite znova.')
@@ -167,9 +173,9 @@ export default function NovoPoVprasevanjePage() {
 
       // Success - redirect to povprasevanja page
       router.push(`/povprasevanja/${result.id}`)
-    } catch (err) {
+    } catch (err: any) {
       console.error('[v0] Error submitting povprasevanje:', err)
-      setError('Napaka pri oddaji. Poskusite znova.')
+      setError(err.message || 'Napaka pri oddaji. Poskusite znova.')
       setLoading(false)
     }
   }
@@ -245,7 +251,10 @@ export default function NovoPoVprasevanjePage() {
                   return (
                     <button
                       key={cat.id}
-                      onClick={() => setSelectedCategory(cat)}
+                      onClick={() => {
+                        setSelectedCategory(cat)
+                        setCustomCategoryName('')
+                      }}
                       className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
                         isSelected
                           ? 'border-teal-600 bg-teal-50'
@@ -264,6 +273,36 @@ export default function NovoPoVprasevanjePage() {
                     </button>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Custom Category Option */}
+            <div className="border-t pt-6">
+              <Label className="text-sm font-semibold mb-3 block">
+                Ali druge kategorije niste našli?
+              </Label>
+              <div className="p-4 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
+                <p className="text-xs text-slate-600 mb-3">
+                  Vnesite lastno kategorijo in jo bomo avtomatično ustvarili
+                </p>
+                <Input
+                  value={customCategoryName}
+                  onChange={(e) => {
+                    setCustomCategoryName(e.target.value)
+                    setSelectedCategory(null)
+                  }}
+                  placeholder="npr. Preurejanje stanovanja"
+                  className="text-base"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  {customCategoryName.length > 0 && customCategoryName.length < 2
+                    ? '❌ Najmanj 2 znaka'
+                    : customCategoryName.length > 100
+                      ? '❌ Največ 100 znakov'
+                      : customCategoryName.length > 0
+                        ? `✓ ${customCategoryName.length} znakov`
+                        : 'Neobvezno'}
+                </p>
               </div>
             </div>
 
