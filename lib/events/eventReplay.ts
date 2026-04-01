@@ -1,6 +1,6 @@
 /**
  * Event Replay — Debug tool for replaying events from event_log
- * 
+ *
  * Useful for debugging production issues:
  * 1. Replay all events for a task to see exact flow
  * 2. Replay from specific date to test recent changes
@@ -9,7 +9,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { eventBus } from './eventBus'
-import type { EventName } from './eventTypes'
+import type { EventName, EventPayload } from './eventTypes'
 
 export const eventReplay = {
   /**
@@ -24,7 +24,7 @@ export const eventReplay = {
       dryRun?: boolean
     }
   ) {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient()
 
     let query = supabase
       .from('event_log')
@@ -55,7 +55,7 @@ export const eventReplay = {
       return {
         replayed: 0,
         dryRun: true,
-        events: events.map((e: any) => ({
+        events: events.map((e) => ({
           name: e.event_name,
           at: e.emitted_at,
           payload: e.payload,
@@ -69,7 +69,8 @@ export const eventReplay = {
       try {
         await eventBus.dispatchHandlers(
           ev.event_name as EventName,
-          ev.payload as any
+          // payload is stored as Json in event_log; cast via unknown to the typed union
+          ev.payload as unknown as EventPayload<EventName>
         )
         replayed++
         // Small pause to avoid overwhelming subscribers
@@ -82,7 +83,7 @@ export const eventReplay = {
 
     return {
       replayed,
-      events: events.map((e: any) => e.event_name),
+      events: events.map((e) => e.event_name),
     }
   },
 
@@ -90,7 +91,7 @@ export const eventReplay = {
    * Replay a single event by its ID from event_log
    */
   async replayById(eventLogId: string): Promise<void> {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('event_log')
       .select('*')
@@ -103,7 +104,7 @@ export const eventReplay = {
 
     await eventBus.dispatchHandlers(
       data.event_name as EventName,
-      data.payload as any
+      data.payload as unknown as EventPayload<EventName>
     )
   },
 
@@ -112,7 +113,7 @@ export const eventReplay = {
    * Returns events in chronological order
    */
   async getTaskTimeline(taskId: string) {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('event_log')
       .select('id, event_name, emitted_at, payload')

@@ -375,6 +375,9 @@ export interface Database {
           instagram_url: string | null
           certificate_urls: string[] | null
           service_radius_km: number | null
+          plan_type: 'START' | 'PRO' | null
+          enable_instant_offers: boolean
+          instant_offer_templates: Json
         }
         Insert: {
           id: string
@@ -400,6 +403,9 @@ export interface Database {
           instagram_url?: string | null
           certificate_urls?: string[] | null
           service_radius_km?: number | null
+          plan_type?: 'START' | 'PRO' | null
+          enable_instant_offers?: boolean
+          instant_offer_templates?: Json
         }
         Update: Partial<Database['public']['Tables']['obrtnik_profiles']['Insert']>
         Relationships: [
@@ -549,6 +555,7 @@ export interface Database {
           budget_min: number | null
           budget_max: number | null
           status: 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+          notified_at: string | null
           created_at: string
           updated_at: string
         }
@@ -567,6 +574,7 @@ export interface Database {
           budget_min?: number | null
           budget_max?: number | null
           status?: 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+          notified_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -597,8 +605,14 @@ export interface Database {
           price_estimate: number | null
           price_type: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date: string | null
-          status: 'poslana' | 'sprejeta' | 'zavrnjena'
+          status: 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
           created_at: string
+          title: string | null
+          description: string | null
+          estimated_duration: number | null
+          notes: string | null
+          auto_generated: boolean
+          template_id: string | null
         }
         Insert: {
           id?: string
@@ -608,8 +622,14 @@ export interface Database {
           price_estimate?: number | null
           price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date?: string | null
-          status?: 'poslana' | 'sprejeta' | 'zavrnjena'
+          status?: 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
           created_at?: string
+          title?: string | null
+          description?: string | null
+          estimated_duration?: number | null
+          notes?: string | null
+          auto_generated?: boolean
+          template_id?: string | null
         }
         Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
         Relationships: [
@@ -1049,6 +1069,227 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
+        Relationships: []
+      }
+      event_log: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          emitted_at: string
+        }
+        Insert: {
+          id?: string
+          event_name: string
+          payload: Json
+          emitted_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['event_log']['Insert']>
+        Relationships: []
+      }
+      marketplace_events: {
+        Row: {
+          id: string
+          event_type: 'request_created' | 'matched' | 'broadcast_sent_matched' | 'broadcast_sent_deadline_warning' | 'broadcast_sent_offer_accepted' | 'instant_offer' | 'offer_accepted' | 'expired' | 'guarantee_activated'
+          request_id: string
+          partner_id: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_type: 'request_created' | 'matched' | 'broadcast_sent_matched' | 'broadcast_sent_deadline_warning' | 'broadcast_sent_offer_accepted' | 'instant_offer' | 'offer_accepted' | 'expired' | 'guarantee_activated'
+          request_id: string
+          partner_id?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['marketplace_events']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "povprasevanja"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_events_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      analytics_events: {
+        Row: {
+          id: string
+          event: string
+          task_id: string | null
+          partner_id: string | null
+          category_id: string | null
+          region_lat: number | null
+          region_lng: number | null
+          top_score: number | null
+          price: number | null
+          final_price: number | null
+          gross: number | null
+          commission: number | null
+          net: number | null
+          occurred_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event: string
+          task_id?: string | null
+          partner_id?: string | null
+          category_id?: string | null
+          region_lat?: number | null
+          region_lng?: number | null
+          top_score?: number | null
+          price?: number | null
+          final_price?: number | null
+          gross?: number | null
+          commission?: number | null
+          net?: number | null
+          occurred_at: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['analytics_events']['Insert']>
+        Relationships: []
+      }
+      alert_log: {
+        Row: {
+          id: string
+          alert_type: string
+          severity: 'warn' | 'critical'
+          message: string
+          metadata: Json
+          channels_notified: string[]
+          resolved: boolean
+          resolved_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          alert_type: string
+          severity: 'warn' | 'critical'
+          message: string
+          metadata?: Json
+          channels_notified?: string[]
+          resolved?: boolean
+          resolved_at?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['alert_log']['Insert']>
+        Relationships: []
+      }
+      event_dlq: {
+        Row: {
+          id: string
+          original_outbox_id: string | null
+          event_name: string
+          payload: Json
+          failure_reason: string | null
+          attempt_count: number | null
+          failed_at: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          id?: string
+          original_outbox_id?: string | null
+          event_name: string
+          payload: Json
+          failure_reason?: string | null
+          attempt_count?: number | null
+          failed_at?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['event_dlq']['Insert']>
+        Relationships: []
+      }
+      event_outbox: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          idempotency_key: string
+          status: 'pending' | 'processing' | 'done' | 'failed'
+          attempt_count: number
+          next_attempt_at: string
+          last_error: string | null
+          created_at: string
+          processed_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_name: string
+          payload: Json
+          idempotency_key: string
+          status?: 'pending' | 'processing' | 'done' | 'failed'
+          attempt_count?: number
+          next_attempt_at?: string
+          last_error?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['event_outbox']['Insert']>
+        Relationships: []
+      }
+      saga_instances: {
+        Row: {
+          id: string
+          saga_type: string
+          task_id: string
+          current_step: number
+          status: 'running' | 'completed' | 'compensating' | 'failed'
+          completed_steps: Json
+          compensation_log: Json
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          saga_type: string
+          task_id: string
+          current_step?: number
+          status?: 'running' | 'completed' | 'compensating' | 'failed'
+          completed_steps?: Json
+          compensation_log?: Json
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['saga_instances']['Insert']>
+        Relationships: []
+      }
+      escrow_holds: {
+        Row: {
+          id: string
+          task_id: string | null
+          amount: number
+          status: 'held' | 'released' | 'refunded'
+          stripe_payment_intent_id: string | null
+          created_at: string
+          released_at: string | null
+        }
+        Insert: {
+          id?: string
+          task_id?: string | null
+          amount: number
+          status?: 'held' | 'released' | 'refunded'
+          stripe_payment_intent_id?: string | null
+          created_at?: string
+          released_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['escrow_holds']['Insert']>
         Relationships: []
       }
     }
