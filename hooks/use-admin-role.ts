@@ -74,7 +74,7 @@ export function useAdminRole(): UseAdminRoleReturn {
         OPERATER: 1,
       };
 
-      const userLevel = roleHierarchy[vloga];
+      const userLevel = roleHierarchy[vloga as Vloga];
       const minRequiredLevel = Math.min(
         ...requiredRoles.map((r) => roleHierarchy[r])
       );

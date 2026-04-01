@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import { Check, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,7 @@ import { useState } from 'react'
 import type { Partner } from '@/types/admin'
 
 interface PendingPartnerCardProps {
+  key?: React.Key
   partner: Partner
 }
 

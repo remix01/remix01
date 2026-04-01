@@ -24,8 +24,8 @@ import {
   getSession,
   validateSession,
   touchSession,
-  destroySession,
-  clearUserSessions,
+  deleteSession,
+  deleteUserSessions,
   
   // Job Queue
   trackJobStatus,
@@ -100,7 +100,7 @@ async function verifyRedisSetup() {
     })
     const session = await getSession(sessionId)
     checks.sessions = session !== null || session === null // Either works
-    if (session) await destroySession(sessionId)
+    if (session) await deleteSession(sessionId)
     console.log(`   ✅ Sessions: ${checks.sessions ? 'OK' : 'FAILED'}`)
     
     // 4. Test Job Queue
@@ -115,11 +115,12 @@ async function verifyRedisSetup() {
     console.log('5️⃣  Testing Real-time Features...')
     const userId = 'test-user-' + Date.now()
     await setUserOnline(userId)
-    await logActivity('test-entity', {
-      type: 'test',
+    await logActivity({
+      type: 'custom',
+      entityType: 'test',
+      entityId: 'test-entity',
       userId,
-      description: 'Test activity',
-      timestamp: Date.now(),
+      message: 'Test activity',
     })
     await createNotification({
       userId,

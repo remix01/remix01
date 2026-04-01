@@ -6,6 +6,7 @@ import { Copy, Check, RotateCcw } from 'lucide-react'
 import { ChatMessage } from './useAgentChat'
 
 type AgentMessageProps = {
+  key?: React.Key
   message: ChatMessage
   onRetry?: () => void
 }
