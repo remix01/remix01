@@ -31,7 +31,7 @@ export const idempotency = {
     consumer: string,
     entityId: string
   ): Promise<boolean> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
     const key = `${eventName}:${consumer}:${entityId}`
 
     const { error } = await supabase.from('event_processing_log').insert({

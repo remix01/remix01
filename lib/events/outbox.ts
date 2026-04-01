@@ -23,7 +23,7 @@ export const outbox = {
     payload: EventPayload<T>,
     options?: { idempotencyKey?: string }
   ): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
     const key = options?.idempotencyKey
       ?? `${event}:${(payload as any).taskId ?? 'global'}:${Date.now()}`
 
@@ -47,7 +47,7 @@ export const outbox = {
    * Called every 2 minutes by /api/cron/event-processor
    */
   async processPendingBatch(batchSize = 50): Promise<{ processed: number; failed: number }> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
     const { eventBus } = await import('./eventBus')
 
     // Fetch pending + eligible for retry

@@ -87,7 +87,7 @@ class EventBus {
    */
   private async logEvent(event: EventName, payload: unknown): Promise<void> {
     try {
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any as any
       await supabase.from('event_log').insert({
         event_name: event,
         payload: payload as Record<string, unknown>,

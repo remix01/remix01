@@ -33,7 +33,7 @@ export function registerCommissionSubscriber() {
       console.log(`[CommissionSubscriber] Processing payment.released for task ${payload.taskId}`)
 
       // Find the escrow transaction and partner info
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       
       // Fetch escrow transaction with partner details
       const { data: escrow, error: escrowError } = await supabaseAdmin
