@@ -21,7 +21,7 @@ export function registerNotificationSubscriber() {
       if (skip) return
 
       // Fetch matched partners from DB
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       const { data: partners } = await supabase
         .from('obrtnik_profiles')
         .select('id, ime, email, telefon')
@@ -60,7 +60,7 @@ export function registerNotificationSubscriber() {
       if (skip) return
 
       // Fetch customer + partner details
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       const [{ data: customerData }, { data: partner }] = await Promise.all([
         supabase.from('profiles').select('email, ime').eq('id', payload.customerId).single(),
         supabase.from('obrtnik_profiles').select('email, ime').eq('id', payload.partnerId).single(),
@@ -156,7 +156,7 @@ export function registerNotificationSubscriber() {
       const skip = await idempotency.checkAndMark('review.submitted', 'notify', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       const { data: partner } = await supabase
         .from('obrtnik_profiles')
         .select('email, ime')

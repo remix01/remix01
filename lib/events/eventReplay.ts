@@ -24,7 +24,7 @@ export const eventReplay = {
       dryRun?: boolean
     }
   ) {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
 
     let query = supabase
       .from('event_log')
@@ -90,7 +90,7 @@ export const eventReplay = {
    * Replay a single event by its ID from event_log
    */
   async replayById(eventLogId: string): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
     const { data, error } = await supabase
       .from('event_log')
       .select('*')
@@ -112,7 +112,7 @@ export const eventReplay = {
    * Returns events in chronological order
    */
   async getTaskTimeline(taskId: string) {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
     const { data, error } = await supabase
       .from('event_log')
       .select('id, event_name, emitted_at, payload')

@@ -288,10 +288,11 @@ export async function getCacheStats(): Promise<{
   }
 
   try {
-    const info = await (redis as any).call<string>('info')
+    // Use the info() method directly instead of call()
+    const info = await (redis as any).info?.()
     
     // Parse the INFO response which is a raw string
-    const infoStr = typeof info === 'string' ? info : String(info)
+    const infoStr = typeof info === 'string' ? info : String(info || '')
     const keyspaceMatch = infoStr.match(/db0:keys=(\d+)/)
     const memoryMatch = infoStr.match(/used_memory_human:(.+?)\r/)
     
