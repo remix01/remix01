@@ -288,11 +288,17 @@ export async function getCacheStats(): Promise<{
   }
 
   try {
-    const info = await redis.call<Record<string, any>>('info')
+    const info = await redis.call<string>('info')
+    
+    // Parse the INFO response which is a raw string
+    const infoStr = typeof info === 'string' ? info : String(info)
+    const keyspaceMatch = infoStr.match(/db0:keys=(\d+)/)
+    const memoryMatch = infoStr.match(/used_memory_human:(.+?)\r/)
+    
     return {
       isAvailable: true,
-      keys: info?.keyspace?.db0?.keys?.toString() || 'unknown',
-      memory: info?.memory?.used_memory_human?.toString() || 'unknown',
+      keys: keyspaceMatch?.[1] || 'unknown',
+      memory: memoryMatch?.[1] || 'unknown',
     }
   } catch (err) {
     console.warn('[Cache] Failed to get stats:', err)
