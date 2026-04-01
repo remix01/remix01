@@ -288,7 +288,7 @@ export async function getCacheStats(): Promise<{
   }
 
   try {
-    const info = await redis.call<string>('info')
+    const info = await (redis as any).call<string>('info')
     
     // Parse the INFO response which is a raw string
     const infoStr = typeof info === 'string' ? info : String(info)
