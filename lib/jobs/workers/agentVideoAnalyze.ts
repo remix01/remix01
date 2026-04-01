@@ -64,7 +64,7 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
       }],
     })
 
-    const raw = apiResponse.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
+    const raw = apiResponse.content.filter((b: any) => b.type === 'text').map((b: any) => (b as any).text).join('')
     let result: Record<string, unknown>
     
     try {

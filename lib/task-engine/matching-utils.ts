@@ -101,7 +101,7 @@ export function filterWorkersByRating(
   workers: WorkerStats[],
   minRating: number = SCORING_THRESHOLDS.MIN_RATING
 ): WorkerStats[] {
-  return workers.filter(worker => worker.avg_rating >= minRating)
+  return workers.filter((worker: any) => worker.avg_rating >= minRating)
 }
 
 /**
@@ -111,7 +111,7 @@ export function filterWorkersByExperience(
   workers: WorkerStats[],
   minJobs: number = SCORING_THRESHOLDS.MIN_JOBS_FOR_RANKING
 ): WorkerStats[] {
-  return workers.filter(worker => worker.total_completed >= minJobs)
+  return workers.filter((worker: any) => worker.total_completed >= minJobs)
 }
 
 /**
@@ -121,7 +121,7 @@ export function filterWorkersByResponseTime(
   workers: WorkerStats[],
   maxMinutes: number = SCORING_THRESHOLDS.MAX_RESPONSE_TIME_MINUTES
 ): WorkerStats[] {
-  return workers.filter(worker => worker.response_time_minutes <= maxMinutes)
+  return workers.filter((worker: any) => worker.response_time_minutes <= maxMinutes)
 }
 
 /**
@@ -131,7 +131,7 @@ export function filterWorkersByOnTimeRate(
   workers: WorkerStats[],
   minRate: number = SCORING_THRESHOLDS.MIN_ON_TIME_RATE
 ): WorkerStats[] {
-  return workers.filter(worker => worker.on_time_rate >= minRate)
+  return workers.filter((worker: any) => worker.on_time_rate >= minRate)
 }
 
 /**
@@ -141,7 +141,7 @@ export function filterWorkersByCancellationRate(
   workers: WorkerStats[],
   maxRate: number = 0.2 // 20% max cancellations
 ): WorkerStats[] {
-  return workers.filter(worker => worker.cancellation_rate <= maxRate)
+  return workers.filter((worker: any) => worker.cancellation_rate <= maxRate)
 }
 
 /**
@@ -278,7 +278,7 @@ export function rankWorkersForTask(
   let ranked = scores
 
   if (options?.minScore !== undefined) {
-    ranked = ranked.filter(score => score.score >= options.minScore!)
+    ranked = ranked.filter((score: any) => score.score >= options.minScore!)
   }
 
   if (options?.limit) {
@@ -292,7 +292,7 @@ export function rankWorkersForTask(
  * Get match statistics
  */
 export function getMatchStatistics(scores: MatchScore[]) {
-  const validScores = scores.filter(s => s.score > 0)
+  const validScores = scores.filter((s: any) => s.score > 0)
 
   if (validScores.length === 0) {
     return {
@@ -303,11 +303,11 @@ export function getMatchStatistics(scores: MatchScore[]) {
     }
   }
 
-  const scoreValues = validScores.map(s => s.score)
+  const scoreValues = validScores.map((s: any) => s.score)
 
   return {
     totalMatches: validScores.length,
-    averageScore: Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length),
+    averageScore: Math.round(scoreValues.reduce((a: any, b: any) => a + b, 0) / scoreValues.length),
     topScore: Math.max(...scoreValues),
     minScore: Math.min(...scoreValues),
   }

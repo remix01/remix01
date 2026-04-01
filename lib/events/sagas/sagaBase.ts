@@ -86,7 +86,7 @@ export abstract class SagaBase<TContext extends { taskId: string }> {
           .from('saga_instances')
           .update({
             current_step: i + 1,
-            completed_steps: completedSteps.map(stepIdx => ({
+            completed_steps: completedSteps.map((stepIdx: any) => ({
               step_index: stepIdx,
               step_name: this.steps[stepIdx].name,
               completedAt: new Date().toISOString(),

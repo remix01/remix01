@@ -41,7 +41,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
     return []
   }
 
-  const files = fs.readdirSync(blogDir).filter(file => file.endsWith('.mdx'))
+  const files = fs.readdirSync(blogDir).filter((file: any) => file.endsWith('.mdx'))
 
   const posts = await Promise.all(
     files.map(async file => {
@@ -95,12 +95,12 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
 
 export async function getPostsByCategory(category: string): Promise<BlogPost[]> {
   const posts = await getAllPosts()
-  return posts.filter(post => post.category === category)
+  return posts.filter((post: any) => post.category === category)
 }
 
 export async function getRelatedPosts(category: string, currentSlug: string, limit = 3): Promise<BlogPost[]> {
   const posts = await getPostsByCategory(category)
   return posts
-    .filter(post => post.slug !== currentSlug)
+    .filter((post: any) => post.slug !== currentSlug)
     .slice(0, limit)
 }

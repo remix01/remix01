@@ -71,7 +71,7 @@ export function generateFAQSchema(faqs: {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    'mainEntity': faqs.map(faq => ({
+    'mainEntity': faqs.map((faq: any) => ({
       '@type': 'Question',
       'name': faq.question,
       'acceptedAnswer': {

@@ -195,7 +195,7 @@ export class NotificationService {
  *   if (tokens.length > 0) {
  *     const pushService = getPushService()
  *     await pushService.send(
- *       tokens.map(t => t.token),
+ *       tokens.map((t: any) => t.token),
  *       { title, body, data }
  *     )
  *   }

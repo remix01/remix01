@@ -114,7 +114,7 @@ export class OrchestratorAgent extends BaseAgent {
           resourceId: (intent.extractedParams.id ?? intent.extractedParams.resourceId) as string | undefined,
           timestamp: Date.now(),
           success: true,
-        }).catch(err => {
+        }).catch((err: any) => {
           console.error('[OrchestratorAgent] Error appending activity:', err)
         })
       }
@@ -209,7 +209,7 @@ Be concise but informative.`
         ],
       })
 
-      const textContent = response.content.find(b => b.type === 'text')
+      const textContent = response.content.find((b: any) => b.type === 'text')
       if (textContent && textContent.type === 'text') {
         return textContent.text
       }
