@@ -375,9 +375,8 @@ export interface Database {
           instagram_url: string | null
           certificate_urls: string[] | null
           service_radius_km: number | null
-          plan_type: 'START' | 'PRO' | null
-          enable_instant_offers: boolean
-          instant_offer_templates: Json
+          enable_instant_offers: boolean | null
+          instant_offer_templates: Json | null
         }
         Insert: {
           id: string
@@ -403,9 +402,8 @@ export interface Database {
           instagram_url?: string | null
           certificate_urls?: string[] | null
           service_radius_km?: number | null
-          plan_type?: 'START' | 'PRO' | null
-          enable_instant_offers?: boolean
-          instant_offer_templates?: Json
+          enable_instant_offers?: boolean | null
+          instant_offer_templates?: Json | null
         }
         Update: Partial<Database['public']['Tables']['obrtnik_profiles']['Insert']>
         Relationships: [
@@ -607,6 +605,9 @@ export interface Database {
           available_date: string | null
           status: 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
           created_at: string
+          validity_days: number | null
+          attachments: Json | null
+          accepted_at: string | null
           title: string | null
           description: string | null
           estimated_duration: number | null
@@ -624,6 +625,9 @@ export interface Database {
           available_date?: string | null
           status?: 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
           created_at?: string
+          validity_days?: number | null
+          attachments?: Json | null
+          accepted_at?: string | null
           title?: string | null
           description?: string | null
           estimated_duration?: number | null
@@ -1276,18 +1280,20 @@ export interface Database {
           task_id: string | null
           amount: number
           status: 'held' | 'released' | 'refunded'
-          stripe_payment_intent_id: string | null
-          created_at: string
+          payment_intent_id: string | null
+          held_at: string | null
           released_at: string | null
+          created_at: string
         }
         Insert: {
           id?: string
           task_id?: string | null
           amount: number
           status?: 'held' | 'released' | 'refunded'
-          stripe_payment_intent_id?: string | null
-          created_at?: string
+          payment_intent_id?: string | null
+          held_at?: string | null
           released_at?: string | null
+          created_at?: string
         }
         Update: Partial<Database['public']['Tables']['escrow_holds']['Insert']>
         Relationships: []

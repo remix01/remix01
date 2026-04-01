@@ -94,7 +94,7 @@ export const liquidityEngine = {
       // Check if partner has instant offer template enabled
       const { data: partner } = await supabaseAdmin
         .from('obrtnik_profiles')
-        .select('enable_instant_offers, instant_offer_templates, plan_type')
+        .select('enable_instant_offers, instant_offer_templates, subscription_tier')
         .eq('id', partnerId)
         .single()
 
@@ -104,7 +104,7 @@ export const liquidityEngine = {
       }
 
       // Only PRO plan partners can use instant offers
-      if (partner.plan_type !== 'PRO') {
+      if (partner.subscription_tier !== 'pro') {
         console.log('[LiquidityEngine] Partner not on PRO plan, skipping instant offer')
         return
       }
