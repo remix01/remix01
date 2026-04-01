@@ -156,7 +156,7 @@ async function verifyRedisSetup() {
   console.log(`Real-time:      ${checks.realtime ? '✅' : '❌'}`)
   console.log(`Analytics:      ${checks.analytics ? '✅' : '❌'}`)
   
-  const allPassed = Object.values(checks).every(v => v)
+  const allPassed = Object.values(checks).every((v: any) => v)
   console.log(`\n${allPassed ? '✨ All systems operational!' : '⚠️  Some checks failed'}`)
   
   return allPassed

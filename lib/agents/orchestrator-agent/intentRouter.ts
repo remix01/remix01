@@ -94,7 +94,7 @@ Rules:
       ],
     })
 
-    const textContent = response.content.find(b => b.type === 'text')
+    const textContent = response.content.find((b: any) => b.type === 'text')
     if (!textContent || textContent.type !== 'text') {
       return {
         action: 'clarify',

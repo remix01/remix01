@@ -259,12 +259,12 @@ export function filterTasksByApproachingSLA(
   tasks: Task[],
   thresholdHours: number = NOTIFICATION_CONFIG.SEND_EXPIRY_WARNING_HOURS
 ): Task[] {
-  return tasks.filter(task => isSLAWarning(task.sla_deadline, thresholdHours))
+  return tasks.filter((task: any) => isSLAWarning(task.sla_deadline, thresholdHours))
 }
 
 /**
  * Get tasks that have expired SLA
  */
 export function filterExpiredTasks(tasks: Task[]): Task[] {
-  return tasks.filter(task => isSLAExpired(task.sla_deadline))
+  return tasks.filter((task: any) => isSLAExpired(task.sla_deadline))
 }

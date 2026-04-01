@@ -99,7 +99,7 @@ export async function listPovprasevanja(filters?: PovprasevanjeFilters & {
   }
 
   // Add ponudbe counts
-  const results = data.map(item => ({
+  const results = data.map((item: any) => ({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -134,7 +134,7 @@ export async function getNarocnikPovprasevanja(narocnikId: string, limit?: numbe
     return []
   }
 
-  const results = data.map(item => ({
+  const results = data.map((item: any) => ({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -180,12 +180,12 @@ export async function getOpenPovprasevanjaForObrtnik(
   }
 
   // Filter out povprasevanja where obrtnik already submitted a ponudba
-  const filtered = data.filter(item => {
+  const filtered = data.filter((item: any) => {
     const hasSubmitted = item.ponudbe?.some((p: any) => p.obrtnik_id === obrtnikId)
     return !hasSubmitted
   })
 
-  const results = filtered.map(item => ({
+  const results = filtered.map((item: any) => ({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))

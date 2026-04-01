@@ -108,7 +108,7 @@ export function getConversationForLLM(context: AgentContext): Array<{
   role: 'user' | 'assistant'
   content: string
 }> {
-  return (context.messages || []).map(msg => ({
+  return (context.messages || []).map((msg: any) => ({
     role: msg.role,
     content: msg.content,
   }))

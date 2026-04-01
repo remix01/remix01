@@ -139,7 +139,7 @@ export class MessageBus {
 
     } finally {
       span.endTime = Date.now()
-      tracer.export(span).catch(err => {
+      tracer.export(span).catch((err: any) => {
         console.error('[MessageBus] Trace export failed:', err)
       })
     }
@@ -189,7 +189,7 @@ export class MessageBus {
     })
 
     // Fire and forget — don't await
-    this.send(message).catch(error => {
+    this.send(message).catch((error: any) => {
       console.error(`[MessageBus] Broadcast failed: ${error.message}`)
     })
   }

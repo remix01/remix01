@@ -29,13 +29,13 @@ export const instantOffer = {
       console.log('[InstantOffer] Generating for partner:', { requestId, partnerId })
 
       // 1. Fetch partner's instant offer templates
-      const { data: partner } = await supabaseAdmin
+      const { data: partner } = await (supabaseAdmin as any)
         .from('obrtnik_profiles')
-        .select('instant_offer_templates, plan_type, enable_instant_offers')
+        .select('plan_type')
         .eq('id', partnerId)
         .single()
 
-      if (!partner?.enable_instant_offers || partner.plan_type !== 'PRO') {
+      if (!partner?.plan_type || partner.plan_type !== 'PRO') {
         console.log('[InstantOffer] Partner not eligible for instant offers')
         return
       }

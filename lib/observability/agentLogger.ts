@@ -62,7 +62,7 @@ const SENSITIVE_KEYS = new Set([
 
 function isSensitiveKey(key: string): boolean {
   const lower = key.toLowerCase()
-  return [...SENSITIVE_KEYS].some(k => lower.includes(k))
+  return [...SENSITIVE_KEYS].some((k: any) => lower.includes(k))
 }
 
 function sanitize(obj: unknown): unknown {
@@ -92,7 +92,7 @@ class AgentLogger {
     // Only start the interval in non-edge runtimes (Node.js)
     if (typeof setInterval !== 'undefined') {
       this.flushTimer = setInterval(() => {
-        this.flush().catch(err =>
+        this.flush().catch((err: any) =>
           console.error('[AGENT LOGGER] Auto-flush error:', err)
         )
       }, FLUSH_INTERVAL_MS)
@@ -122,7 +122,7 @@ class AgentLogger {
     this.buffer.push(full)
 
     if (this.buffer.length >= FLUSH_BUFFER_SIZE) {
-      this.flush().catch(err =>
+      this.flush().catch((err: any) =>
         console.error('[AGENT LOGGER] Buffer-full flush error:', err)
       )
     }
@@ -265,7 +265,7 @@ class AgentLogger {
     const batch = this.buffer.splice(0, this.buffer.length)
 
     try {
-      const rows = batch.map(e => ({
+      const rows = batch.map((e: any) => ({
         id:          e.id,
         session_id:  e.sessionId,
         user_id:     e.userId || null,

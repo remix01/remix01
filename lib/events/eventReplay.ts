@@ -55,7 +55,7 @@ export const eventReplay = {
       return {
         replayed: 0,
         dryRun: true,
-        events: events.map(e => ({
+        events: events.map((e: any) => ({
           name: e.event_name,
           at: e.emitted_at,
           payload: e.payload,
@@ -82,7 +82,7 @@ export const eventReplay = {
 
     return {
       replayed,
-      events: events.map(e => e.event_name),
+      events: events.map((e: any) => e.event_name),
     }
   },
 

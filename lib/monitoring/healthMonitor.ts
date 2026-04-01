@@ -220,7 +220,7 @@ export const healthMonitor = {
       .lte('created_at', since48h)
 
     if (frozen?.length) {
-      const totalAmount = frozen.reduce((sum, e) => sum + (e.amount ?? 0), 0)
+      const totalAmount = frozen.reduce((sum: any, e: any) => sum + (e.amount ?? 0), 0)
 
       await alerting.send({
         type: 'payment_frozen',

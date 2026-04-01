@@ -196,8 +196,8 @@ export async function orchestrate(
     // append the current turn after we get the response.
     const historyForLLM = memState.messages
       .slice(0, -1) // exclude the user message we just pushed — will be last
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      .filter((m: any) => m.role === 'user' || m.role === 'assistant')
+      .map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
     const messages = [
       ...historyForLLM,
@@ -242,7 +242,7 @@ export async function orchestrate(
     })
 
     // Extract text response
-    const textContent = response.content.find(b => b.type === 'text')
+    const textContent = response.content.find((b: any) => b.type === 'text')
     if (!textContent || textContent.type !== 'text') {
       return {
         success: false,
@@ -297,7 +297,7 @@ export async function orchestrate(
         ),
         timestamp: Date.now(),
         success: true,
-      }).catch(err => {
+      }).catch((err: any) => {
         console.error('[Orchestrator] Memory write failed:', err)
         // Don't throw - memory failure should not break the response
       })

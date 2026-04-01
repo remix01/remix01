@@ -46,7 +46,7 @@ export function adminAlertEmail(
       <div class="flag-list">
         <h3>Zaznane težave:</h3>
         <ul>
-          ${flags.map(flag => `<li>${flag}</li>`).join('')}
+          ${flags.map((flag: any) => `<li>${flag}</li>`).join('')}
         </ul>
       </div>
 
