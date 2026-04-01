@@ -354,20 +354,22 @@ async function logAgentUsage(params: {
   ragContextUsed?: boolean
   ragSourcesCount?: number
 }): Promise<void> {
-  await supabaseAdmin.from('ai_usage_logs').insert({
-    user_id: params.userId,
-    agent_type: params.agentType,
-    tokens_input: params.inputTokens,
-    tokens_output: params.outputTokens,
-    cost_usd: params.costUsd,
-    model_used: params.modelId,
-    tool_calls_count: params.toolCallsCount,
-    rag_context_used: params.ragContextUsed ?? false,
-    rag_sources_count: params.ragSourcesCount ?? 0,
-    created_at: new Date().toISOString(),
-  }).catch((error: any) => {
+  try {
+    await supabaseAdmin.from('ai_usage_logs').insert({
+      user_id: params.userId,
+      agent_type: params.agentType,
+      tokens_input: params.inputTokens,
+      tokens_output: params.outputTokens,
+      cost_usd: params.costUsd,
+      model_used: params.modelId,
+      tool_calls_count: params.toolCallsCount,
+      rag_context_used: params.ragContextUsed ?? false,
+      rag_sources_count: params.ragSourcesCount ?? 0,
+      created_at: new Date().toISOString(),
+    })
+  } catch (error: any) {
     console.error('Failed to log AI usage:', error)
-  })
+  }
 }
 
 // =============================================================================

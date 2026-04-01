@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import type { ObrtnikProfile } from '@/types/marketplace'
 import { Card } from '@/components/ui/card'
 import { Star, MapPin } from 'lucide-react'
@@ -7,6 +8,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 interface ObrtnikCardProps {
+  key?: React.Key
   obrtnik: ObrtnikProfile
 }
 

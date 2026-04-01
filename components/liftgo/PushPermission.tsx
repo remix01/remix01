@@ -50,7 +50,7 @@ export function PushPermission({ userId }: PushPermissionProps) {
         // Subscribe to push notifications
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!)
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!) as unknown as BufferSource
         })
 
         // Send subscription to server

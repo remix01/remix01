@@ -231,7 +231,7 @@ Odgovori IZKLJUČNO v JSON formatu:
   })
 
   const textContent = response.content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('')
 
@@ -318,7 +318,7 @@ Ohrani vse pomembne informacije. Izogni se ponavljanju. Piši v slovenščini.`,
   })
 
   return response.content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('')
 }

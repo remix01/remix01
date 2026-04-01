@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +31,7 @@ function getRiskLabel(score: number) {
   return 'MODERATE'
 }
 
-export function RiskAlertCard({ job }: { job: Job }) {
+export function RiskAlertCard({ job }: { key?: React.Key; job: Job }) {
   const score = job.riskScore?.score || 0
   const flags = (job.riskScore?.flags as string[]) || []
 

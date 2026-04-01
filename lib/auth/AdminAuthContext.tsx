@@ -172,7 +172,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const canAccess = (requiredRole: AdminRole): boolean => {
     if (!adminUser) return false
-    return roleHierarchy[adminUser.vloga] >= roleHierarchy[requiredRole]
+    return roleHierarchy[adminUser.vloga as AdminRole] >= roleHierarchy[requiredRole]
   }
 
   return (

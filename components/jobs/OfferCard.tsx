@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import type { Ponudba } from '@/types/marketplace'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +9,7 @@ import { CheckCircle, Star, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
 interface OfferCardProps {
+  key?: React.Key
   offer: Ponudba
 }
 

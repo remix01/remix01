@@ -130,6 +130,7 @@ function MessageBubble({
   message,
   agentIcon,
 }: {
+  key?: React.Key
   message: ChatMessage
   agentIcon: React.ReactNode
 }) {

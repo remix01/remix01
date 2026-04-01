@@ -23,6 +23,7 @@ export type UserRole = 'narocnik' | 'obrtnik'
 export type SubscriptionTier = 'start' | 'pro'
 
 export interface AgentCardProps {
+  key?: React.Key
   agentType: AgentType
   title: string
   description: string

@@ -9,6 +9,7 @@
 
 'use client'
 
+import type React from 'react'
 import { useState } from 'react'
 import { useMatchedTasks, useAssignTask } from '@/lib/hooks/tasks'
 import type { MatchedWorker } from '@/lib/task-engine/types'
@@ -146,11 +147,12 @@ function WorkerCard({
   isAssigning,
   onAssign,
 }: {
+  key?: React.Key
   worker: MatchedWorker
   rank: number
   isSelected: boolean
   isAssigning: boolean
-  onAssign: () => void
+  onAssign: () => void | Promise<void>
 }) {
   return (
     <div
