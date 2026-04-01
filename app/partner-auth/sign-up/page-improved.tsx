@@ -324,7 +324,7 @@ export default function PartnerSignUp() {
                   </div>
                   {password && (
                     <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className={`h-full w-1/3 ${strengthColor[passwordStrength]} transition-all`} />
+                      <div className={`h-full w-1/3 ${strengthColor[passwordStrength as keyof typeof strengthColor]} transition-all`} />
                     </div>
                   )}
                 </div>

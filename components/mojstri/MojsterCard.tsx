@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { ObrtnikiPublic } from '@/lib/dal/obrtniki'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -5,6 +6,7 @@ import { Star, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
 interface MojsterCardProps {
+  key?: React.Key
   obrtnik: ObrtnikiPublic
   categories?: Array<{ name: string; slug: string; icon_name?: string | null }>
   isAvailable?: boolean

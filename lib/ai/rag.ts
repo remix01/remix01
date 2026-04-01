@@ -184,11 +184,12 @@ export async function backfillEmbeddings(
   let errors = 0
 
   // Get records without embeddings
-  const { data: records, error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from(table)
     .select(`id, ${textColumn}`)
     .is('embedding', null)
     .limit(batchSize)
+  const records = data as Array<{ id: string } & Record<string, unknown>> | null
 
   if (error || !records) {
     throw new Error(`Failed to fetch records: ${error?.message}`)

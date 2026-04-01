@@ -1,6 +1,6 @@
 'use client'
 
-import { Component, ReactNode } from 'react'
+import React, { Component, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 
 interface ErrorBoundaryProps {
@@ -17,6 +17,11 @@ export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
+  state: ErrorBoundaryState = { hasError: false }
+  props!: ErrorBoundaryProps
+
+  declare setState: (state: Partial<ErrorBoundaryState>) => void
+
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
