@@ -288,11 +288,11 @@ export async function getCacheStats(): Promise<{
   }
 
   try {
-    const info = await redis.info()
+    const info = await redis.call<Record<string, any>>('info')
     return {
       isAvailable: true,
-      keys: info?.keys || 'unknown',
-      memory: info?.used_memory_human || 'unknown',
+      keys: info?.keyspace?.db0?.keys?.toString() || 'unknown',
+      memory: info?.memory?.used_memory_human?.toString() || 'unknown',
     }
   } catch (err) {
     console.warn('[Cache] Failed to get stats:', err)
