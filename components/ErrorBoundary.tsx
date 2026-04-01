@@ -20,8 +20,6 @@ export class ErrorBoundary extends Component<
   state: ErrorBoundaryState = { hasError: false }
   props!: ErrorBoundaryProps
 
-  declare setState: (state: Partial<ErrorBoundaryState>) => void
-
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
