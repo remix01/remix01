@@ -9,6 +9,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { Json } from '@/types/supabase'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -44,7 +45,7 @@ export const workerBroadcast = {
           .single(),
         supabase
           .from('obrtnik_profiles')
-          .select('id, user_id')
+          .select('id')
           .in('id', partnerIds),
       ])
 
@@ -55,14 +56,15 @@ export const workerBroadcast = {
       const link = `/obrtnik/povprasevanja`
 
       // 1. Insert in-app notifications (batch)
+      // obrtnik_profiles.id == profiles.id == auth user id
       const notifications = obrtniki.map((o) => ({
-        user_id: o.user_id,
+        user_id: o.id,
         type: 'novo_povprasevanje',
         title: 'Novo povpraševanje v vaši kategoriji',
-        message: `${title}${city}`,
+        body: `${title}${city}`,
         link,
-        read: false,
-        metadata: { povprasevanje_id: requestId },
+        is_read: false,
+        metadata: { povprasevanje_id: requestId } as Json,
       }))
 
       const { error: notifError } = await supabase.from('notifications').insert(notifications)
@@ -72,7 +74,7 @@ export const workerBroadcast = {
 
       // 2. Send emails (skip quiet hours)
       if (!isQuietHours) {
-        const userIds = obrtniki.map((o) => o.user_id)
+        const userIds = obrtniki.map((o) => o.id)
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, email, full_name')
@@ -122,24 +124,24 @@ export const workerBroadcast = {
 
       const { data: obrtniki } = await supabase
         .from('obrtnik_profiles')
-        .select('id, user_id')
+        .select('id')
         .in('id', partnerIds)
 
       if (!obrtniki?.length) return
 
       const notifications = obrtniki.map((o) => ({
-        user_id: o.user_id,
+        user_id: o.id,
         type: 'rok_izteka',
         title: `Rok se izteka — še ${minutesLeft} minut!`,
-        message: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
+        body: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
         link: '/obrtnik/povprasevanja',
-        read: false,
-        metadata: { povprasevanje_id: requestId, minutes_left: minutesLeft },
+        is_read: false,
+        metadata: { povprasevanje_id: requestId, minutes_left: minutesLeft } as Json,
       }))
 
       await supabase.from('notifications').insert(notifications)
 
-      const userIds = obrtniki.map((o) => o.user_id)
+      const userIds = obrtniki.map((o) => o.id)
       const { data: profilesData2 } = await supabase
         .from('profiles')
         .select('id, email, full_name')

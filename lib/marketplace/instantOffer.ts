@@ -1,12 +1,13 @@
 /**
  * Instant Offer Generator
- * 
+ *
  * Auto-generates offer drafts for PRO plan partners with instant offers enabled.
  * Only used for PRO partners (not sent automatically, requires partner confirmation).
  * Pulls from partner's saved offer templates and request details to create draft.
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { Database, Json } from '@/types/supabase'
 
 export interface OfferTemplate {
   id: string
@@ -17,6 +18,11 @@ export interface OfferTemplate {
   estimatedDurationHours: number
   notes?: string
 }
+
+type RequestContext = Pick<
+  Database['public']['Tables']['povprasevanja']['Row'],
+  'id' | 'category_id' | 'description' | 'title' | 'location_city' | 'budget_min' | 'budget_max'
+>
 
 export const instantOffer = {
   /**
@@ -29,13 +35,13 @@ export const instantOffer = {
       console.log('[InstantOffer] Generating for partner:', { requestId, partnerId })
 
       // 1. Fetch partner's instant offer templates
-      const { data: partner } = await (supabaseAdmin as any)
+      const { data: partner } = await supabaseAdmin
         .from('obrtnik_profiles')
-        .select('plan_type')
+        .select('subscription_tier, instant_offer_templates')
         .eq('id', partnerId)
         .single()
 
-      if (!partner?.plan_type || partner.plan_type !== 'PRO') {
+      if (!partner?.subscription_tier || partner.subscription_tier !== 'pro') {
         console.log('[InstantOffer] Partner not eligible for instant offers')
         return
       }
@@ -43,7 +49,7 @@ export const instantOffer = {
       // 2. Fetch request details
       const { data: request } = await supabaseAdmin
         .from('povprasevanja')
-        .select('id, category_id, description, title, city, budget_min, budget_max')
+        .select('id, category_id, description, title, location_city, budget_min, budget_max')
         .eq('id', requestId)
         .single()
 
@@ -53,7 +59,7 @@ export const instantOffer = {
       }
 
       // 3. Find matching template for this category
-      const templates: OfferTemplate[] = partner.instant_offer_templates || []
+      const templates: OfferTemplate[] = (partner.instant_offer_templates as unknown as OfferTemplate[]) || []
       const templateForCategory = templates.find(
         (t) => t.categoryId === request.category_id
       )
@@ -76,11 +82,11 @@ export const instantOffer = {
           templateForCategory.basePrice,
           request
         ),
-        price_type: 'fixed',
-        message: `Temelji se na naši standardni ponudbi za ${request.city}. Lahko se jo prilagodim na podlagi detajlov.`,
-        status: 'draft', // Draft — partner must review and confirm before sending
+        price_type: 'fiksna' as const,
+        message: `Temelji se na naši standardni ponudbi za ${request.location_city}. Lahko se jo prilagodim na podlagi detajlov.`,
+        status: 'draft' as const,
         estimated_duration: templateForCategory.estimatedDurationHours,
-        notes: templateForCategory.notes,
+        notes: templateForCategory.notes ?? null,
         auto_generated: true,
         template_id: templateForCategory.id,
       }
@@ -117,12 +123,12 @@ export const instantOffer = {
    * Personalize template description with request context
    * E.g., replace {city} with actual city, {service} with service name
    */
-  personalizeDescription(template: string, request: any): string {
+  personalizeDescription(template: string, request: RequestContext): string {
     let description = template
-    
-    description = description.replace('{city}', request.city || 'Vaše lokacije')
+
+    description = description.replace('{city}', request.location_city || 'Vaše lokacije')
     description = description.replace('{service}', request.title || 'storitve')
-    
+
     if (request.budget_max) {
       description = description.replace(
         '{budget}',
@@ -137,10 +143,10 @@ export const instantOffer = {
    * Calculate price based on template base + request complexity
    * Simple: use base price, Medium: +10%, Complex: +20%
    */
-  calculatePrice(basePrice: number, request: any): number {
+  calculatePrice(basePrice: number, request: Pick<RequestContext, 'description'>): number {
     // Estimate complexity from description length
-    const descriptionLength = request.description?.length || 0
-    
+    const descriptionLength = request.description?.length ?? 0
+
     if (descriptionLength > 500) {
       // Complex project
       return Math.round(basePrice * 1.2 * 100) / 100
@@ -148,7 +154,7 @@ export const instantOffer = {
       // Medium complexity
       return Math.round(basePrice * 1.1 * 100) / 100
     }
-    
+
     // Simple
     return basePrice
   },
@@ -164,7 +170,7 @@ export const instantOffer = {
       .eq('id', partnerId)
       .single()
 
-    return partner?.instant_offer_templates || []
+    return (partner?.instant_offer_templates as unknown as OfferTemplate[]) || []
   },
 
   /**
@@ -178,7 +184,7 @@ export const instantOffer = {
     const { error } = await supabaseAdmin
       .from('obrtnik_profiles')
       .update({
-        instant_offer_templates: templates,
+        instant_offer_templates: templates as unknown as Json,
       })
       .eq('id', partnerId)
 
