@@ -41,9 +41,9 @@ export const instantOffer = {
       }
 
       // 2. Fetch request details
-      const { data: request } = await supabaseAdmin
+      const { data: request } = await (supabaseAdmin as any)
         .from('povprasevanja')
-        .select('id, category_id, description, title, city, budget_min, budget_max')
+        .select('id, category_id, description, title, budget_min, budget_max')
         .eq('id', requestId)
         .single()
 
@@ -77,7 +77,7 @@ export const instantOffer = {
           request
         ),
         price_type: 'fixed',
-        message: `Temelji se na naši standardni ponudbi za ${request.city}. Lahko se jo prilagodim na podlagi detajlov.`,
+        message: `Temelji se na naši standardni ponudbi. Lahko se jo prilagodim na podlagi detajlov.`,
         status: 'draft', // Draft — partner must review and confirm before sending
         estimated_duration: templateForCategory.estimatedDurationHours,
         notes: templateForCategory.notes,
@@ -120,7 +120,7 @@ export const instantOffer = {
   personalizeDescription(template: string, request: any): string {
     let description = template
     
-    description = description.replace('{city}', request.city || 'Vaše lokacije')
+    description = description.replace('{city}', 'Vaše lokacije')
     description = description.replace('{service}', request.title || 'storitve')
     
     if (request.budget_max) {
