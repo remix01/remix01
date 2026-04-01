@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.commission_logs (
     escrow_id           UUID REFERENCES public.escrow_transactions(id) ON DELETE RESTRICT,
     
     -- Partner info (denormalized for analytics)
-    partner_id          UUID REFERENCES public.partners(id) ON DELETE SET NULL,
+    partner_id          UUID, -- FK to partners omitted; partners table managed separately
     
     -- Inquiry/job reference
     inquiry_id          UUID REFERENCES public.inquiries(id) ON DELETE SET NULL,
@@ -56,12 +56,12 @@ CREATE TABLE IF NOT EXISTS public.commission_logs (
 ALTER TABLE public.commission_logs ENABLE ROW LEVEL SECURITY;
 
 -- Partners can see own commission logs
-CREATE POLICY IF NOT EXISTS "Partners view own commissions"
+CREATE POLICY "Partners view own commissions"
     ON public.commission_logs FOR SELECT
     USING (auth.uid() = partner_id);
 
 -- Service role full access
-CREATE POLICY IF NOT EXISTS "Service role commission full access"
+CREATE POLICY "Service role commission full access"
     ON public.commission_logs FOR ALL
     USING (auth.role() = 'service_role');
 

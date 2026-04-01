@@ -36,12 +36,12 @@ CREATE POLICY "portfolio_items_own_write"
   ON portfolio_items FOR ALL
   USING (
     obrtnik_id IN (
-      SELECT id FROM obrtnik_profiles WHERE user_id = auth.uid()
+      SELECT id FROM obrtnik_profiles WHERE id = auth.uid()
     )
   )
   WITH CHECK (
     obrtnik_id IN (
-      SELECT id FROM obrtnik_profiles WHERE user_id = auth.uid()
+      SELECT id FROM obrtnik_profiles WHERE id = auth.uid()
     )
   );
 

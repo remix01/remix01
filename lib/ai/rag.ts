@@ -199,11 +199,11 @@ export async function backfillEmbeddings(
     try {
       const text = record[textColumn as keyof typeof record] as string
       if (text) {
-        await storeEmbedding(table, record.id, text)
+        await storeEmbedding(table, (record as unknown as { id: string }).id, text)
         processed++
       }
     } catch (err) {
-      console.error(`Failed to embed ${table}/${record.id}:`, err)
+      console.error(`Failed to embed ${table}/${(record as unknown as { id: string }).id}:`, err)
       errors++
     }
 

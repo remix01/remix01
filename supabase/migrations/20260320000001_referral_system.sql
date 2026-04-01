@@ -30,7 +30,7 @@ CREATE POLICY "Users can view their own referrals"
   ON referrals FOR SELECT
   USING (
     auth.uid() = referrer_id OR auth.uid() = referred_id OR
-    EXISTS (SELECT 1 FROM admin_users WHERE user_id = auth.uid())
+    EXISTS (SELECT 1 FROM admin_users WHERE auth_user_id = auth.uid())
   );
 
 CREATE POLICY "System can create referrals"
@@ -40,7 +40,7 @@ CREATE POLICY "System can create referrals"
 CREATE POLICY "System can update referrals"
   ON referrals FOR UPDATE
   USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE user_id = auth.uid())
+    EXISTS (SELECT 1 FROM admin_users WHERE auth_user_id = auth.uid())
   );
 
 -- Add referral_code to profiles RLS (allow users to view their own)
