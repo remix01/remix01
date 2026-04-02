@@ -39,22 +39,43 @@ export default function AdminDashboardPage() {
 
   const fetchData = async () => {
     try {
+      setLoading(true)
+      setError(null)
+
       const response = await fetch('/api/admin/analytics/summary')
-      
+
+      console.log('[v0] Analytics API response status:', response.status)
+
       if (response.status === 401 || response.status === 403) {
+        console.log('[v0] Admin auth failed, redirecting to login')
         router.push('/prijava')
         return
       }
 
       if (!response.ok) {
-        throw new Error('Napaka pri pridobivanju podatkov')
+        throw new Error(`HTTP ${response.status}: Napaka pri pridobivanju podatkov`)
       }
 
       const result = await response.json()
-      setData(result)
+      console.log('[v0] Analytics API response:', result)
+
+      // Validate response using Zod schema
+      const { parseAnalyticsSummary } = await import('@/lib/validators/analytics')
+      const validatedData = parseAnalyticsSummary(result)
+
+      if (!validatedData) {
+        console.error('[v0] Analytics response validation failed:', result)
+        setError('Podatki so v napačnem formatu')
+        setLoading(false)
+        return
+      }
+
+      setData(validatedData)
       setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Neznana napaka')
+    } catch (err: any) {
+      console.error('[v0] Error fetching analytics:', err)
+      setError(err.message || 'Napaka pri nalaganju podatkov')
+      setLoading(false)
     } finally {
       setLoading(false)
     }
@@ -77,41 +98,60 @@ export default function AdminDashboardPage() {
     )
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-foreground">Nadzorna plošča</h1>
-        <div className="text-destructive">{error || 'Napaka pri nalaganju'}</div>
+        <div className="border border-destructive/50 bg-destructive/10 text-destructive rounded-lg p-4">
+          <p className="font-semibold">Napaka pri nalaganju</p>
+          <p className="text-sm mt-1">{error}</p>
+          <button
+            onClick={fetchData}
+            className="mt-3 px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90"
+          >
+            Poskusi znova
+          </button>
+        </div>
       </div>
     )
   }
 
-  // Calculate funnel drop-off percentages
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold text-foreground">Nadzorna plošča</h1>
+        <div className="text-destructive">Napaka pri nalaganju podatkov</div>
+      </div>
+    )
+  }
+
+  // Safe defaults in case of missing nested data
+  const todayStats = data?.today || { events: 0, activeUsers: 0, inquiries: 0, conversions: 0 }
   const funnelData = [
-    { stage: 'Povpraševanja', value: data.funnel.inquiries, percent: 100 },
+    { stage: 'Povpraševanja', value: data?.funnel?.inquiries || 0, percent: 100 },
     {
       stage: 'Ponudbe',
-      value: data.funnel.offers,
-      percent: data.funnel.inquiries > 0 ? Math.round((data.funnel.offers / data.funnel.inquiries) * 100) : 0,
+      value: data?.funnel?.offers || 0,
+      percent: (data?.funnel?.inquiries || 0) > 0 ? Math.round(((data?.funnel?.offers || 0) / (data?.funnel?.inquiries || 0)) * 100) : 0,
     },
     {
       stage: 'Sprejeto',
-      value: data.funnel.accepted,
-      percent: data.funnel.inquiries > 0 ? Math.round((data.funnel.accepted / data.funnel.inquiries) * 100) : 0,
+      value: data?.funnel?.accepted || 0,
+      percent: (data?.funnel?.inquiries || 0) > 0 ? Math.round(((data?.funnel?.accepted || 0) / (data?.funnel?.inquiries || 0)) * 100) : 0,
     },
     {
       stage: 'Plačano',
-      value: data.funnel.paid,
-      percent: data.funnel.inquiries > 0 ? Math.round((data.funnel.paid / data.funnel.inquiries) * 100) : 0,
+      value: data?.funnel?.paid || 0,
+      percent: (data?.funnel?.inquiries || 0) > 0 ? Math.round(((data?.funnel?.paid || 0) / (data?.funnel?.inquiries || 0)) * 100) : 0,
     },
   ]
 
-  // Format chart data
-  const chartData = data.last7Days.map((day) => ({
+  // Format chart data with safe access
+  const chartData = (data?.last7Days || []).map((day: any) => ({
     datum: new Date(day.date).toLocaleDateString('sl-SI', { month: 'short', day: 'numeric' }),
-    dogodki: day.events,
-    povpraševanja: day.inquiries,
-    konverzije: day.conversions,
+    eventi: day.events || 0,
+    povpraševanja: day.inquiries || 0,
+    konverzije: day.conversions || 0,
   }))
 
   return (
@@ -128,7 +168,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="text-sm font-medium">Povpraševanja danes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.today.inquiries}</div>
+            <div className="text-2xl font-bold">{todayStats.inquiries || 0}</div>
           </CardContent>
         </Card>
 
@@ -137,7 +177,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="text-sm font-medium">Sprejete ponudbe</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.today.conversions}</div>
+            <div className="text-2xl font-bold">{todayStats.conversions || 0}</div>
           </CardContent>
         </Card>
 
@@ -146,7 +186,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="text-sm font-medium">Aktivni uporabniki</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.today.activeUsers}</div>
+            <div className="text-2xl font-bold">{todayStats.activeUsers || 0}</div>
           </CardContent>
         </Card>
 
@@ -155,7 +195,7 @@ export default function AdminDashboardPage() {
             <CardTitle className="text-sm font-medium">Dogodki danes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.today.events}</div>
+            <div className="text-2xl font-bold">{todayStats.events || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -193,7 +233,7 @@ export default function AdminDashboardPage() {
             <CardTitle>Najpogostejše kategorije</CardTitle>
           </CardHeader>
           <CardContent>
-            {data.topCategories.length > 0 ? (
+            {(data?.topCategories || []).length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={data.topCategories}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
