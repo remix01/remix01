@@ -6,7 +6,7 @@ export type UrgencyLevel = 'normalno' | 'kmalu' | 'nujno'
 
 export type PovprasevanjeStatus = 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
 
-export type PonudbaStatus = 'poslana' | 'sprejeta' | 'zavrnjena'
+export type PonudbaStatus = 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena'
 
 export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 

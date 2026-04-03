@@ -149,7 +149,7 @@ export async function updatePonudba(id: string, updates: PonudbaUpdate): Promise
   
   const { data, error } = await supabase
     .from('ponudbe')
-    .update(updates)
+    .update(updates as any)
     .eq('id', id)
     .select(`
       *,

@@ -236,28 +236,26 @@ export async function createPovprasevanje(
   }
   
   // Gradimo insertData z obveznimi polji
-  const insertData: Record<string, any> = {
+  const insertData = {
     narocnik_id: narocnikId,
     title: povprasevanje.title,
     description: povprasevanje.description,
     location_city: povprasevanje.location_city,
+    category_id: categoryId || null,
+    location_region: povprasevanje.location_region || null,
+    location_notes: povprasevanje.location_notes || null,
+    urgency: povprasevanje.urgency || null,
+    preferred_date_from: povprasevanje.preferred_date_from || null,
+    preferred_date_to: povprasevanje.preferred_date_to || null,
+    budget_min: povprasevanje.budget_min || null,
+    budget_max: povprasevanje.budget_max || null,
+    attachment_urls: povprasevanje.attachment_urls || null,
     status: 'odprto',      // ⭐ prisilimo status
   }
-  
-  // Dodamo opcijska polja, če obstajajo
-  if (categoryId) insertData.category_id = categoryId
-  if (povprasevanje.location_region) insertData.location_region = povprasevanje.location_region
-  if (povprasevanje.location_notes) insertData.location_notes = povprasevanje.location_notes
-  if (povprasevanje.urgency) insertData.urgency = povprasevanje.urgency
-  if (povprasevanje.preferred_date_from) insertData.preferred_date_from = povprasevanje.preferred_date_from
-  if (povprasevanje.preferred_date_to) insertData.preferred_date_to = povprasevanje.preferred_date_to
-  if (povprasevanje.budget_min) insertData.budget_min = povprasevanje.budget_min
-  if (povprasevanje.budget_max) insertData.budget_max = povprasevanje.budget_max
-  if (povprasevanje.attachment_urls) insertData.attachment_urls = povprasevanje.attachment_urls
 
   const { data, error } = await supabase
     .from('povprasevanja')
-    .insert(insertData)
+    .insert(insertData as any)
     .select(`
       *,
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),

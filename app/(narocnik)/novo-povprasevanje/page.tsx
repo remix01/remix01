@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createPovprasevanje } from '@/lib/dal/povprasevanja'
-import { getActiveCategories } from '@/lib/dal/categories'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { uploadFile, generateFilePath } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -81,8 +80,8 @@ export default function NovoPoVprasevanjePage() {
         setLocationCity(profile.location_city)
       }
 
-      // Fetch categories
-      const cats = await getActiveCategories()
+      // Fetch categories (using public client since this is public data)
+      const cats = await getActiveCategoriesPublic()
       setCategories(cats)
     }
 
@@ -143,8 +142,7 @@ export default function NovoPoVprasevanjePage() {
     setError(null)
 
     try {
-      const povprasevanje: PovprasevanjeInsert = {
-        narocnik_id: user.id,
+      const payload = {
         category_id: selectedCategory?.id,
         title,
         description,
@@ -156,17 +154,23 @@ export default function NovoPoVprasevanjePage() {
         budget_min: !budgetUndetermined && budgetMin ? Number(budgetMin) : undefined,
         budget_max: !budgetUndetermined && budgetMax ? Number(budgetMax) : undefined,
         attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
+        // Include custom category name if provided
+        ...(customCategoryName && { categoryName: customCategoryName }),
       }
 
-      // Call createPovprasevanje with optional categoryName for auto-creation
-      const result = await createPovprasevanje(povprasevanje, {
-        categoryName: customCategoryName || undefined,
-        userId: user.id,
-        ipAddress: undefined, // Would be set server-side in production
+      // Call API endpoint
+      const response = await fetch('/api/povprasevanje', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       })
 
-      if (!result) {
-        setError('Napaka pri oddaji. Poskusite znova.')
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Napaka pri oddaji. Poskusite znova.')
         setLoading(false)
         return
       }

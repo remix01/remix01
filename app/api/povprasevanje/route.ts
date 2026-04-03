@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getOrCreateCategory } from '@/lib/dal/categories'
+import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import { enqueue } from '@/lib/jobs/queue'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -7,7 +10,7 @@ export async function POST(req: Request) {
     // ── SECURITY: Verify user is authenticated ─────────────────────────────
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -19,7 +22,7 @@ export async function POST(req: Request) {
     const title = body.title || body.storitev
     const locationCity = body.location_city || body.lokacija
     const description = body.description || body.opis
-    
+
     // Extract other fields
     const {
       stranka_ime,
@@ -29,10 +32,14 @@ export async function POST(req: Request) {
       termin_datum,
       termin_ura,
       category_id,
+      categoryName,
       urgency,
       budget_min,
       budget_max,
-      location_notes
+      location_notes,
+      preferred_date_from,
+      preferred_date_to,
+      attachment_urls
     } = body
 
     // Validate required fields
@@ -43,24 +50,38 @@ export async function POST(req: Request) {
       )
     }
 
+    // Handle category auto-creation if categoryName provided
+    let finalCategoryId = category_id
+    if (categoryName && !finalCategoryId) {
+      try {
+        finalCategoryId = await getOrCreateCategory(categoryName, user.id)
+      } catch (catError) {
+        console.error('[v0] Error creating category:', catError)
+        // Continue without category if creation fails
+      }
+    }
+
     // CRITICAL FIX: Always set narocnik_id from authenticated user
     // Never trust narocnik_id from request body
     const insertData = {
       narocnik_id: user.id,
       title,
       location_city: locationCity,
-      description,
+      description: description || null,
       stranka_ime: stranka_ime || null,
       stranka_email: stranka_email || null,
       stranka_telefon: stranka_telefon || null,
       obrtnik_id: obrtnik_id || null,
       termin_datum: termin_datum || null,
       termin_ura: termin_ura || null,
-      category_id: category_id || null,
+      category_id: finalCategoryId || null,
       urgency: urgency || 'normalno',
       budget_min: budget_min || null,
       budget_max: budget_max || null,
       location_notes: location_notes || null,
+      preferred_date_from: preferred_date_from || null,
+      preferred_date_to: preferred_date_to || null,
+      attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,
       // CRITICAL FIX: Ensure status is 'odprto' so craftsmen can see it
       status: obrtnik_id ? 'dodeljeno' : 'odprto',
       created_at: new Date().toISOString()
@@ -83,6 +104,34 @@ export async function POST(req: Request) {
       status: data.status,
       title: data.title
     })
+
+    // Send async notifications (fire and forget)
+    try {
+      // Send push notifications to craftsmen in this category
+      if (finalCategoryId && title && locationCity) {
+        sendPushToObrtnikiByCategory({
+          categoryId: finalCategoryId,
+          title: 'Novo povpraševanje v vaši kategoriji',
+          message: `${title} — ${locationCity}`,
+          link: '/obrtnik/povprasevanja'
+        }).catch(err => console.error('[v0] Error sending push:', err))
+      }
+
+      // Enqueue confirmation email
+      enqueue('sendEmail', {
+        jobType: 'povprasevanje_confirmation',
+        povprasevanjeId: data.id,
+        narocnikId: data.narocnik_id,
+        title: data.title,
+        category: finalCategoryId ? categoryName : null,
+        location: data.location_city,
+        urgency: data.urgency,
+        budget: data.budget_max,
+      }).catch(err => console.error('[v0] Error enqueueing email:', err))
+    } catch (notifyErr) {
+      // Log but don't fail the response
+      console.error('[v0] Error with notifications:', notifyErr)
+    }
 
     return NextResponse.json({ id: data.id, status: data.status }, { status: 201 })
   } catch (err) {
