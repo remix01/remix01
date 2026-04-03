@@ -67,28 +67,22 @@ export const instantOffer = {
       const draftOffer = {
         povprasevanje_id: requestId,
         obrtnik_id: partnerId,
-        title: templateForCategory.title,
-        description: this.personalizeDescription(
-          templateForCategory.description,
-          request
-        ),
         price_estimate: this.calculatePrice(
           templateForCategory.basePrice,
           request
         ),
-        price_type: 'fixed',
-        message: `Temelji se na naši standardni ponudbi. Lahko se jo prilagodim na podlagi detajlov.`,
-        status: 'draft', // Draft — partner must review and confirm before sending
-        estimated_duration: templateForCategory.estimatedDurationHours,
-        notes: templateForCategory.notes,
-        auto_generated: true,
-        template_id: templateForCategory.id,
+        price_type: 'fiksna' as const, // Use literal type 'fiksna'
+        status: 'draft' as const, // Draft status - partner must review and confirm before sending
+        message: `${templateForCategory.title}\n\n${this.personalizeDescription(
+          templateForCategory.description,
+          request
+        )}\n\nTemelji se na naši standardni ponudbi. Lahko se jo prilagodim na podlagi detajlov.`,
       }
 
       // 5. Save draft offer
       const { error: insertError } = await supabaseAdmin
         .from('ponudbe')
-        .insert(draftOffer)
+        .insert(draftOffer as any)
 
       if (insertError) {
         console.error('[InstantOffer] Failed to create draft:', insertError)
