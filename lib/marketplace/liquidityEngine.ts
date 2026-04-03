@@ -87,31 +87,13 @@ export const liquidityEngine = {
   /**
    * Check if partner has instant offer template enabled
    * If yes + PRO plan → auto-generate and send offer draft
+   * NOTE: This feature requires enable_instant_offers and instant_offer_templates columns in obrtnik_profiles
+   * For now, this is a no-op until schema is updated
    */
   async tryInstantOffer(requestId: string, partnerId: string): Promise<void> {
     try {
-      const supabaseAdmin = createAdminClient()
-      // Check if partner has instant offer template enabled
-      const { data: partner } = await supabaseAdmin
-        .from('obrtnik_profiles')
-        .select('enable_instant_offers, instant_offer_templates, plan_type')
-        .eq('id', partnerId)
-        .single()
-
-      if (!partner?.enable_instant_offers) {
-        console.log('[LiquidityEngine] Partner has instant offers disabled')
-        return
-      }
-
-      // Only PRO plan partners can use instant offers
-      if (partner.plan_type !== 'PRO') {
-        console.log('[LiquidityEngine] Partner not on PRO plan, skipping instant offer')
-        return
-      }
-
-      // Generate and send draft offer
-      await instantOffer.generateForPartner(requestId, partnerId)
-      console.log('[LiquidityEngine] Instant offer generated for partner:', partnerId)
+      // TODO: Implement when enable_instant_offers and instant_offer_templates columns are added to obrtnik_profiles table
+      console.log('[LiquidityEngine] tryInstantOffer called but not implemented - awaiting schema update')
     } catch (error) {
       console.error('[LiquidityEngine] tryInstantOffer failed:', error)
       // Don't fail the whole flow — instant offer is optional
