@@ -44,7 +44,7 @@ export const workerBroadcast = {
           .single(),
         supabase
           .from('obrtnik_profiles')
-          .select('id, user_id')
+          .select('id')  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
           .in('id', partnerIds),
       ])
 
@@ -56,7 +56,7 @@ export const workerBroadcast = {
 
       // 1. Insert in-app notifications (batch)
       const notifications = obrtniki.map((o) => ({
-        user_id: o.user_id,
+        user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
         type: 'novo_povprasevanje',
         title: 'Novo povpraševanje v vaši kategoriji',
         message: `${title}${city}`,
@@ -72,7 +72,7 @@ export const workerBroadcast = {
 
       // 2. Send emails (skip quiet hours)
       if (!isQuietHours) {
-        const userIds = obrtniki.map((o) => o.user_id)
+        const userIds = obrtniki.map((o) => o.id)  // obrtnik_profiles.id IS the user_id
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, email, full_name')
@@ -122,13 +122,13 @@ export const workerBroadcast = {
 
       const { data: obrtniki } = await supabase
         .from('obrtnik_profiles')
-        .select('id, user_id')
+        .select('id')
         .in('id', partnerIds)
 
       if (!obrtniki?.length) return
 
       const notifications = obrtniki.map((o) => ({
-        user_id: o.user_id,
+        user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
         type: 'rok_izteka',
         title: `Rok se izteka — še ${minutesLeft} minut!`,
         message: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
@@ -139,7 +139,7 @@ export const workerBroadcast = {
 
       await supabase.from('notifications').insert(notifications)
 
-      const userIds = obrtniki.map((o) => o.user_id)
+      const userIds = obrtniki.map((o) => o.id)  // obrtnik_profiles.id IS the user_id
       const { data: profilesData2 } = await supabase
         .from('profiles')
         .select('id, email, full_name')
