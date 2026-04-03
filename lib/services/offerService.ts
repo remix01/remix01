@@ -114,16 +114,16 @@ export const offerService = {
     const { data: offer, error } = await supabase
       .from('offers')
       .insert({
-        partner_id: data.partner_id,
-        request_id: data.request_id,
-        title: data.title,
-        description: data.description,
-        price: parseFloat(data.price.toString()),
-        estimated_duration: data.estimated_duration,
-        notes: data.notes,
-        status: 'pending',
-        payment_status: 'pending'
-      })
+        partner_id: data.partner_id || '',
+        request_id: data.request_id || '',
+        title: data.title || '',
+        description: data.description || null,
+        price: parseFloat(data.price?.toString() || '0'),
+        estimated_duration: data.estimated_duration || null,
+        notes: data.notes || null,
+        status: 'pending' as const,
+        payment_status: 'pending' as const
+      } as any)
       .select()
       .maybeSingle()
 

@@ -72,12 +72,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function CategoryPage(props: Props) {
   const params = await props.params
-  
+
   // Exclude static files and reserved paths
   if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.')) {
     notFound()
   }
-  
+
   const category = await getCategoryBySlug(params.category)
 
   if (!category) {
@@ -85,11 +85,18 @@ export default async function CategoryPage(props: Props) {
   }
 
   // Fetch verified obrtniki for this category
-  const obrtniki = await listObrtniki({
-    category_id: category.id,
-    is_available: true,
-    limit: 12
-  })
+  let obrtniki: any[] = []
+  try {
+    const result = await listObrtniki({
+      category_id: category.id,
+      is_available: true,
+      limit: 12
+    })
+    obrtniki = Array.isArray(result) ? result : []
+  } catch (err) {
+    console.error(`[v0] Error fetching obrtniki for category ${params.category}:`, err)
+    obrtniki = []
+  }
 
   // Get pricing for schema
   const pricing = getPricingForCategory(params.category)

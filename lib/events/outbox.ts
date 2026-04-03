@@ -48,17 +48,35 @@ export const outbox = {
    */
   async processPendingBatch(batchSize = 50): Promise<{ processed: number; failed: number }> {
     const supabase = createAdminClient() as any as any
-    const { eventBus } = await import('./eventBus')
+
+    let eventBus: any
+    try {
+      const eventBusModule = await import('./eventBus')
+      eventBus = eventBusModule.eventBus
+    } catch (importErr) {
+      console.error('[Outbox] Failed to import eventBus:', importErr)
+      return { processed: 0, failed: 0 }
+    }
 
     // Fetch pending + eligible for retry
-    const { data: events, error } = await supabase
-      .from('event_outbox')
-      .select('*')
-      .in('status', ['pending', 'failed'])
-      .lte('next_attempt_at', new Date().toISOString())
-      .lt('attempt_count', 3)
-      .order('created_at', { ascending: true })
-      .limit(batchSize)
+    let events: any[]
+    let error: any
+    try {
+      const result = await supabase
+        .from('event_outbox')
+        .select('*')
+        .in('status', ['pending', 'failed'])
+        .lte('next_attempt_at', new Date().toISOString())
+        .lt('attempt_count', 3)
+        .order('created_at', { ascending: true })
+        .limit(batchSize)
+
+      events = result.data
+      error = result.error
+    } catch (queryErr) {
+      console.error('[Outbox] Failed to query event_outbox:', queryErr)
+      return { processed: 0, failed: 0 }
+    }
 
     if (error) {
       console.error('[Outbox] Failed to fetch pending events:', error)
@@ -88,7 +106,12 @@ export const outbox = {
           }
 
           // Dispatch to event bus handlers (synchronous)
-          await eventBus.dispatchHandlers(row.event_name as EventName, row.payload)
+          try {
+            await eventBus.dispatchHandlers(row.event_name as EventName, row.payload)
+          } catch (dispatchErr) {
+            console.error('[Outbox] Error dispatching handlers:', dispatchErr)
+            throw dispatchErr // Re-throw to trigger retry logic
+          }
 
           // Mark as done
           await supabase

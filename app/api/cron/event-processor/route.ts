@@ -102,13 +102,30 @@ export async function GET(req: NextRequest) {
     }
 
     // STEP 3: Process pending events
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] processing batch', 
-      batchSize: 50 
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] processing batch',
+      batchSize: 50
     }))
-    
-    const result = await outbox.processPendingBatch(50)
+
+    let result: { processed: number; failed: number }
+    try {
+      result = await outbox.processPendingBatch(50)
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] processPendingBatch returned',
+        processed: result?.processed,
+        failed: result?.failed
+      }))
+    } catch (processingErr) {
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] processPendingBatch threw error',
+        error: String(processingErr),
+        stack: processingErr instanceof Error ? processingErr.stack : undefined
+      }))
+      throw processingErr
+    }
 
     // Heartbeat is implicit in the HTTP response – health-sweep cron handles
     // dead-man alerting via checkEventLag() if outbox backlog accumulates.
