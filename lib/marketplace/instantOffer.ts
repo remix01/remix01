@@ -91,17 +91,8 @@ export const instantOffer = {
 
       console.log('[InstantOffer] Draft created successfully:', draftOffer)
 
-      // 6. Log marketplace event
-      await supabaseAdmin.from('marketplace_events').insert({
-        event_type: 'instant_offer',
-        request_id: requestId,
-        partner_id: partnerId,
-        metadata: {
-          basePrice: templateForCategory.basePrice,
-          finalPrice: draftOffer.price_estimate,
-          template: templateForCategory.id,
-        },
-      })
+      // 6. Note: Marketplace event logging requires schema regeneration
+      // TODO: Re-enable when Supabase types are updated to include marketplace_events table
     } catch (error) {
       console.error('[InstantOffer] generateForPartner failed:', error)
     }
