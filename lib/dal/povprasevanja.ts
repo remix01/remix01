@@ -221,22 +221,30 @@ export async function createPovprasevanje(
       )
     } catch (error) {
       console.error('[v0] Error creating/finding category:', error)
-      throw error // Re-throw so caller can handle it
+      throw error
     }
   }
 
   const supabase = await createClient()
   
-  // Use the resolved category ID (either provided or auto-created)
-  // Build insertData, excluding undefined fields that Supabase requires as non-null
+  // ⭐ KRITIČNO: pridobi narocnik_id iz seje, če ni posredovan
+  let narocnikId = povprasevanje.narocnik_id
+  if (!narocnikId) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+    narocnikId = user.id
+  }
+  
+  // Gradimo insertData z obveznimi polji
   const insertData: Record<string, any> = {
-    narocnik_id: povprasevanje.narocnik_id,
+    narocnik_id: narocnikId,
     title: povprasevanje.title,
     description: povprasevanje.description,
     location_city: povprasevanje.location_city,
+    status: 'odprto',      // ⭐ prisilimo status
   }
   
-  // Only include optional fields if they have a value
+  // Dodamo opcijska polja, če obstajajo
   if (categoryId) insertData.category_id = categoryId
   if (povprasevanje.location_region) insertData.location_region = povprasevanje.location_region
   if (povprasevanje.location_notes) insertData.location_notes = povprasevanje.location_notes
@@ -264,7 +272,7 @@ export async function createPovprasevanje(
 
   const result = data as unknown as Povprasevanje
 
-  // Send push notification to obrtniki in the category
+  // Pošlji push obvestila (obstoječa koda)
   if (result.category_id && result.title && result.location_city) {
     try {
       await sendPushToObrtnikiByCategory({
@@ -274,12 +282,11 @@ export async function createPovprasevanje(
         link: '/obrtnik/povprasevanja'
       })
     } catch (pushError) {
-      // Don't fail the main operation if push fails
       console.error('[v0] Error sending push to obrtniki:', pushError)
     }
   }
 
-  // Enqueue confirmation email to naročnik
+  // Pošlji email potrditev (obstoječa koda)
   if (result.narocnik_id) {
     try {
       await enqueue('sendEmail', {
@@ -293,7 +300,6 @@ export async function createPovprasevanje(
         budget: result.budget_max,
       })
     } catch (emailError) {
-      // Don't fail the main operation if email enqueue fails
       console.error('[v0] Error enqueueing confirmation email:', emailError)
     }
   }
