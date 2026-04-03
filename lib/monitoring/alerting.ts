@@ -34,7 +34,9 @@ export const alerting = {
     const channels: string[] = []
 
     try {
-      await supabase.from('alert_log').insert({
+      // TODO: Regenerate database types after all migrations are applied
+      // The alert_log table exists but types are not synced
+      await (supabase as any).from('alert_log').insert({
         alert_type: alert.type,
         severity: alert.severity,
         message: alert.message,
@@ -88,7 +90,9 @@ export const alerting = {
   async isDuplicate(type: AlertType, withinMinutes = 15): Promise<boolean> {
     const supabase = createAdminClient()
     const since = new Date(Date.now() - withinMinutes * 60_000).toISOString()
-    const { count } = await supabase
+    // TODO: Regenerate database types after all migrations are applied
+    // The alert_log table exists but types are not synced
+    const { count } = await (supabase as any)
       .from('alert_log')
       .select('*', { count: 'exact', head: true })
       .eq('alert_type', type)
