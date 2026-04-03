@@ -127,7 +127,7 @@ export interface ObrtnikProfileInsert {
 
 export interface PovprasevanjeInsert {
   narocnik_id: string
-  category_id: string
+  category_id?: string
   title: string
   description: string
   location_city: string
