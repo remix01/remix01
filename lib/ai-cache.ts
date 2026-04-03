@@ -7,26 +7,14 @@ let redis: Redis | null = null
 
 function getRedis(): Redis | null {
   if (redis) return redis
-  
-  // Use the correct environment variable names from Upstash integration
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN
-  
-  if (!url || !token) {
-    console.warn('[ai-cache] Redis credentials missing. Expected KV_REST_API_URL and KV_REST_API_TOKEN')
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     return null
   }
-  
-  try {
-    redis = new Redis({
-      url,
-      token,
-    })
-    return redis
-  } catch (err) {
-    console.error('[ai-cache] Failed to initialize Redis client:', err)
-    return null
-  }
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  })
+  return redis
 }
 
 export function buildCacheKey(message: string): string {
@@ -42,7 +30,6 @@ export async function getCachedResponse(cacheKey: string): Promise<string | null
     return cached ?? null
   } catch (err) {
     console.warn('[ai-cache] Redis get error:', err)
-    // Gracefully degrade - continue without cache on error
     return null
   }
 }
@@ -54,6 +41,5 @@ export async function setCachedResponse(cacheKey: string, response: string): Pro
     await client.set(cacheKey, response, { ex: CACHE_TTL_SECONDS })
   } catch (err) {
     console.warn('[ai-cache] Redis set error:', err)
-    // Gracefully degrade - don't fail if cache write fails
   }
 }

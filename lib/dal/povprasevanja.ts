@@ -228,10 +228,24 @@ export async function createPovprasevanje(
   const supabase = await createClient()
   
   // Use the resolved category ID (either provided or auto-created)
-  const insertData = {
-    ...povprasevanje,
-    category_id: categoryId,
+  // Build insertData, excluding undefined fields that Supabase requires as non-null
+  const insertData: Record<string, any> = {
+    narocnik_id: povprasevanje.narocnik_id,
+    title: povprasevanje.title,
+    description: povprasevanje.description,
+    location_city: povprasevanje.location_city,
   }
+  
+  // Only include optional fields if they have a value
+  if (categoryId) insertData.category_id = categoryId
+  if (povprasevanje.location_region) insertData.location_region = povprasevanje.location_region
+  if (povprasevanje.location_notes) insertData.location_notes = povprasevanje.location_notes
+  if (povprasevanje.urgency) insertData.urgency = povprasevanje.urgency
+  if (povprasevanje.preferred_date_from) insertData.preferred_date_from = povprasevanje.preferred_date_from
+  if (povprasevanje.preferred_date_to) insertData.preferred_date_to = povprasevanje.preferred_date_to
+  if (povprasevanje.budget_min) insertData.budget_min = povprasevanje.budget_min
+  if (povprasevanje.budget_max) insertData.budget_max = povprasevanje.budget_max
+  if (povprasevanje.attachment_urls) insertData.attachment_urls = povprasevanje.attachment_urls
 
   const { data, error } = await supabase
     .from('povprasevanja')
