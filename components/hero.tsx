@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ArrowRight, CheckCircle, Star, Clock, Shield } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { 
   Select,
@@ -57,12 +57,56 @@ const LOKACIJE = [
   "Izola",
 ]
 
+// Fallback stats if API fails
+const FALLBACK_STATS = {
+  successfulConnections: 347,
+  activeArtisans: 225,
+  rating: 4.9,
+  reviews: 1200,
+}
+
 export function Hero() {
   const [showForm, setShowForm] = useState(false)
   const [lokacijaInput, setLokacijaInput] = useState("")
   const [filteredLokacije, setFilteredLokacije] = useState<string[]>([])
   const [showLokacijaSuggestions, setShowLokacijaSuggestions] = useState(false)
   const [selectedService, setSelectedService] = useState("")
+  const [stats, setStats] = useState(FALLBACK_STATS)
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  // Fetch real stats from public API
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats/public')
+        
+        if (!response.ok) {
+          console.error('[v0] Stats API error:', response.status)
+          setStatsLoading(false)
+          return
+        }
+
+        const data = await response.json()
+        
+        if (data.successfulConnections) {
+          setStats({
+            successfulConnections: data.successfulConnections || FALLBACK_STATS.successfulConnections,
+            activeArtisans: data.activeArtisans || FALLBACK_STATS.activeArtisans,
+            rating: data.rating || FALLBACK_STATS.rating,
+            reviews: data.reviews || FALLBACK_STATS.reviews,
+          })
+          console.log('[v0] Hero stats loaded:', data)
+        }
+      } catch (error) {
+        console.error('[v0] Error fetching hero stats:', error)
+        // Use fallback stats
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [])
 
   const handleLokacijaChange = (value: string) => {
     setLokacijaInput(value)
@@ -99,7 +143,7 @@ export function Hero() {
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
                 </span>
                 <span className="text-xs font-medium text-muted-foreground">
-                  225+ aktivnih mojstrov po vsej Sloveniji
+                  {stats.activeArtisans}+ aktivnih mojstrov po vsej Sloveniji
                 </span>
               </div>
 
@@ -195,8 +239,8 @@ export function Hero() {
                       <Star key={i} className="h-4 w-4 fill-accent text-accent" />
                     ))}
                   </div>
-                  <span className="text-sm font-semibold text-foreground">4.9</span>
-                  <span className="text-xs text-muted-foreground">iz 1.200+ ocen</span>
+                  <span className="text-sm font-semibold text-foreground">{stats.rating}</span>
+                  <span className="text-xs text-muted-foreground">iz {stats.reviews.toLocaleString()}+ ocen</span>
                 </div>
                 <div className="h-4 w-px bg-border" />
                 <p className="text-xs text-muted-foreground">
@@ -248,7 +292,7 @@ export function Hero() {
                   Ta mesec
                 </p>
                 <p className="font-display text-xl sm:text-2xl font-bold text-primary">
-                  347
+                  {statsLoading ? '-' : stats.successfulConnections}
                 </p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground">
                   uspešno povezav

@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
+import { getOrCreateCategory } from '@/lib/dal/categories'
 import type { 
   Povprasevanje, 
   PovprasevanjeInsert, 
@@ -194,14 +195,47 @@ export async function getOpenPovprasevanjaForObrtnik(
 }
 
 /**
- * Create povprasevanje
+ * Create povprasevanje with optional auto-creation of category
+ * 
+ * Supports two flows:
+ * 1. Pass category_id directly (existing flow)
+ * 2. Pass categoryName to auto-create category if it doesn't exist
  */
-export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): Promise<Povprasevanje | null> {
+export async function createPovprasevanje(
+  povprasevanje: PovprasevanjeInsert,
+  options?: {
+    categoryName?: string
+    userId?: string
+    ipAddress?: string
+  }
+): Promise<Povprasevanje | null> {
+  let categoryId = povprasevanje.category_id
+
+  // Auto-create category if categoryName provided and no category_id
+  if (options?.categoryName && !categoryId) {
+    try {
+      categoryId = await getOrCreateCategory(
+        options.categoryName,
+        options.userId,
+        options.ipAddress
+      )
+    } catch (error) {
+      console.error('[v0] Error creating/finding category:', error)
+      throw error // Re-throw so caller can handle it
+    }
+  }
+
   const supabase = await createClient()
   
+  // Use the resolved category ID (either provided or auto-created)
+  const insertData = {
+    ...povprasevanje,
+    category_id: categoryId,
+  }
+
   const { data, error } = await supabase
     .from('povprasevanja')
-    .insert(povprasevanje)
+    .insert(insertData)
     .select(`
       *,
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),
