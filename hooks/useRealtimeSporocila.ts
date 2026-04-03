@@ -37,7 +37,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
         // Mark as read
         await supabaseRef.current
           .from('sporocila')
-          .update({ is_read: true, read_at: new Date().toISOString() })
+          .update({ read: true, read_at: new Date().toISOString() })
           .eq('povprasevanje_id', povprasevanjeId)
           .eq('receiver_id', currentUserId)
           .eq('is_read', false)
@@ -71,7 +71,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           if (newMessage.receiver_id === currentUserId) {
             supabaseRef.current
               .from('sporocila')
-              .update({ is_read: true, read_at: new Date().toISOString() })
+              .update({ read: true, read_at: new Date().toISOString() })
               .eq('id', newMessage.id)
               .then()
           }

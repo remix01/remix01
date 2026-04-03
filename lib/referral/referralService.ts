@@ -44,8 +44,8 @@ export async function ensureReferralCode(userId: string): Promise<string> {
   
   // Save referral code
   const { error } = await supabase
-    .from('profiles')
-    .update({ referral_code: code })
+    .from('obrtnik_profiles')
+    .update({ referral_code: code } as any)
     .eq('id', userId)
   
   if (error) {
@@ -79,26 +79,26 @@ export async function processReferralCode(
   }
 
   // Check if referral already exists
-  const { data: existing } = await supabase
+  const { data: existing } = await ((supabase as any)
     .from('referrals')
     .select('id')
     .eq('referrer_id', referrer.id)
     .eq('referred_id', referredUserId)
-    .maybeSingle()
-  
+    .maybeSingle() as any)
+
   if (existing) {
     console.warn(`[v0] Referral already exists`)
     return false
   }
-  
+
   // Create referral record
-  const { error } = await supabase
+  const { error } = await ((supabase as any)
     .from('referrals')
     .insert({
       referrer_id: referrer.id,
       referred_id: referredUserId,
       reward_granted: false,
-    })
+    }) as any)
   
   if (error) {
     console.error('[v0] Failed to create referral:', error)
@@ -116,28 +116,28 @@ export async function awardReferralBonus(referredUserId: string): Promise<boolea
   const supabase = createAdminClient()
   
   // Find the referral record
-  const { data: referral } = await supabase
+  const { data: referral } = await ((supabase as any)
     .from('referrals')
     .select('*')
     .eq('referred_id', referredUserId)
     .eq('reward_granted', false)
-    .maybeSingle()
-  
+    .maybeSingle() as any)
+
   if (!referral) {
     return false // No unrewarded referral found
   }
-  
+
   // Award to both referrer and referred user
   const BONUS_AMOUNT = 5 // €5
-  
+
   // Update referral record
-  const { error: refError } = await supabase
+  const { error: refError } = await ((supabase as any)
     .from('referrals')
     .update({
       reward_granted: true,
       completed_at: new Date().toISOString(),
     })
-    .eq('id', referral.id)
+    .eq('id', referral.id) as any)
   
   if (refError) {
     console.error('[v0] Failed to update referral:', refError)
@@ -145,30 +145,30 @@ export async function awardReferralBonus(referredUserId: string): Promise<boolea
   }
   
   // Add credit to referrer (fetch current, add bonus, update)
-  const { data: referrerData } = await supabase
+  const { data: referrerData } = await ((supabase as any)
     .from('profiles')
     .select('credit_balance')
     .eq('id', referral.referrer_id)
-    .single()
+    .single() as any)
 
-  const referrerNewBalance = (referrerData?.credit_balance ?? 0) + BONUS_AMOUNT
-  const { error: referrerError } = await supabase
+  const referrerNewBalance = ((referrerData as any)?.credit_balance ?? 0) + BONUS_AMOUNT
+  const { error: referrerError } = await ((supabase as any)
     .from('profiles')
-    .update({ credit_balance: referrerNewBalance })
-    .eq('id', referral.referrer_id)
+    .update({ credit_balance: referrerNewBalance } as any)
+    .eq('id', referral.referrer_id) as any)
 
   // Add credit to referred user
-  const { data: referredData } = await supabase
+  const { data: referredData } = await ((supabase as any)
     .from('profiles')
     .select('credit_balance')
     .eq('id', referral.referred_id)
-    .single()
+    .single() as any)
 
-  const referredNewBalance = (referredData?.credit_balance ?? 0) + BONUS_AMOUNT
-  const { error: referredError } = await supabase
+  const referredNewBalance = ((referredData as any)?.credit_balance ?? 0) + BONUS_AMOUNT
+  const { error: referredError } = await ((supabase as any)
     .from('profiles')
-    .update({ credit_balance: referredNewBalance })
-    .eq('id', referral.referred_id)
+    .update({ credit_balance: referredNewBalance } as any)
+    .eq('id', referral.referred_id) as any)
   
   if (referrerError || referredError) {
     console.error('[v0] Failed to award credits:', { referrerError, referredError })
@@ -186,26 +186,26 @@ export async function getReferralStats(userId: string) {
   const supabase = createAdminClient()
   
   // Get referral code
-  const { data: profileData2 } = await supabase
+  const { data: profileData2 } = await ((supabase as any)
     .from('profiles')
     .select('referral_code, credit_balance')
     .eq('id', userId)
-    .maybeSingle()
+    .maybeSingle() as any)
   const profile = profileData2 as { referral_code: string | null; credit_balance: number } | null
 
   // Count successful referrals
-  const { count: successCount } = await supabase
+  const { count: successCount } = await ((supabase as any)
     .from('referrals')
     .select('id', { count: 'exact', head: true })
     .eq('referrer_id', userId)
-    .eq('reward_granted', true)
-  
+    .eq('reward_granted', true) as any)
+
   // Count pending referrals
-  const { count: pendingCount } = await supabase
+  const { count: pendingCount } = await ((supabase as any)
     .from('referrals')
     .select('id', { count: 'exact', head: true })
     .eq('referrer_id', userId)
-    .eq('reward_granted', false)
+    .eq('reward_granted', false) as any)
   
   return {
     referralCode: profile?.referral_code || '',

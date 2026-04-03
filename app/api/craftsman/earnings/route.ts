@@ -15,7 +15,7 @@ export async function GET() {
     // Get partner data
     const { data: partner, error: partnerError } = await supabase
       .from('obrtnik_profiles')
-      .select('id, stripe_account_id, subscription_tier')
+      .select('id, subscription_tier')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -37,13 +37,13 @@ export async function GET() {
     }
 
     // Calculate statistics
-    const totalEarnings = payouts?.reduce((sum, p) => sum + (Number(p.amount_eur) || 0), 0) || 0
+    const totalEarnings = payouts?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0
 
     // This month earnings
     const now = new Date()
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const thisMonthPayouts = payouts?.filter(p => new Date(p.created_at) >= firstDayOfMonth) || []
-    const thisMonthEarnings = thisMonthPayouts.reduce((sum, p) => sum + (Number(p.amount_eur) || 0), 0)
+    const thisMonthPayouts = payouts?.filter(p => p.created_at && new Date(p.created_at) >= firstDayOfMonth) || []
+    const thisMonthEarnings = thisMonthPayouts.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
 
     // Count accepted ponudbe as paid orders
     const { count: paidOrdersCount } = await supabase
@@ -60,7 +60,7 @@ export async function GET() {
       .eq('status', 'sprejeta')
 
     const acceptedIds = acceptedPonudbe?.map((o: { id: string }) => o.id) || []
-    const paidOutIds = payouts?.map((p: { ponudba_id: string | null }) => p.ponudba_id).filter(Boolean) as string[] || []
+    const paidOutIds = payouts?.map((p: { offer_id: string | null }) => p.offer_id).filter(Boolean) as string[] || []
     const pendingIds = acceptedIds.filter(id => !paidOutIds.includes(id))
 
     const pendingPayouts = acceptedPonudbe
@@ -68,7 +68,7 @@ export async function GET() {
       ?.reduce((sum, o) => sum + (Number(o.price_estimate) || 0), 0) || 0
 
     return NextResponse.json({
-      stripeAccountId: partner.stripe_account_id,
+      stripeAccountId: null,
       stripeOnboardingComplete: false,
       subscriptionPlan: partner.subscription_tier || 'start',
       statistics: {

@@ -33,11 +33,17 @@ export default async function RazpolozljivostPage() {
   }
 
   // Fetch availability schedule
-  const { data: availabilitySchedule } = await supabase
+  const { data: scheduleData } = await supabase
     .from('obrtnik_availability')
     .select('*')
     .eq('obrtnik_id', obrtnikProfile.id)
     .order('day_of_week')
+
+  // Map schedule to ensure all required fields have defaults
+  const availabilitySchedule = scheduleData?.map(item => ({
+    ...item,
+    is_available: item.is_available ?? false,
+  })) || null
 
   // Fetch service areas
   const { data: serviceAreasRaw } = await supabase

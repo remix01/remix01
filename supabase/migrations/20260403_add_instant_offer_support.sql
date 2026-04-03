@@ -5,7 +5,8 @@
 ALTER TABLE obrtnik_profiles
   ADD COLUMN IF NOT EXISTS enable_instant_offers BOOLEAN DEFAULT false,
   ADD COLUMN IF NOT EXISTS instant_offer_templates JSONB DEFAULT '[]'::jsonb,
-  ADD COLUMN IF NOT EXISTS plan_type TEXT DEFAULT 'START' CHECK (plan_type IN ('START', 'PRO'));
+  ADD COLUMN IF NOT EXISTS plan_type TEXT DEFAULT 'START' CHECK (plan_type IN ('START', 'PRO')),
+  ADD COLUMN IF NOT EXISTS referral_code VARCHAR(20) UNIQUE;
 
 -- 2. Update ponudbe status to include all statuses
 -- First drop the old constraint

@@ -19,12 +19,19 @@ export default async function PortfolioPage() {
 
   if (!profile) redirect('/partner-auth/login')
 
-  const { data: portfolioItems } = await supabase
+  const { data: portfolioData } = await supabase
     .from('portfolio_items')
     .select('*')
     .eq('obrtnik_id', profile.id)
     .order('sort_order', { ascending: true })
     .order('is_featured', { ascending: false })
+
+  // Map items to ensure all required fields have defaults
+  const portfolioItems = portfolioData?.map(item => ({
+    ...item,
+    is_featured: item.is_featured ?? false,
+    sort_order: item.sort_order ?? 0,
+  })) || null
 
   const featuredCount = portfolioItems?.filter(item => item.is_featured).length || 0
 

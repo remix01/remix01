@@ -47,7 +47,7 @@ export function useNotifications() {
       if (response.ok) {
         setNotifications(prev =>
           prev.map(n =>
-            n.id === notificationId ? { ...n, is_read: true } : n
+            n.id === notificationId ? { ...n, read: true } : n
           )
         )
         setUnreadCount(prev => Math.max(0, prev - 1))
@@ -66,7 +66,7 @@ export function useNotifications() {
       
       if (response.ok) {
         setNotifications(prev =>
-          prev.map(n => ({ ...n, is_read: true }))
+          prev.map(n => ({ ...n, read: true }))
         )
         setUnreadCount(0)
       }

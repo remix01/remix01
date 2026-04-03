@@ -155,7 +155,7 @@ export async function matchObrtnikiForPovprasevanje(
     // 4. Calculate pricing estimate
     const pricingEstimate = await getAgentPricingEstimate({
       categorySlug: povprasevanje.category?.slug || 'default',
-      urgency: povprasevanje.urgency,
+      urgency: povprasevanje.urgency || 'normal',
       isWeekend: [0, 6].includes(new Date().getDay()),
     })
 

@@ -142,14 +142,16 @@ export type NotificationType =
 
 export interface Notification {
   id: string
-  user_id: string
-  type: NotificationType
-  title: string
-  message: string
-  link?: string
-  is_read: boolean
-  metadata?: Record<string, unknown>
-  created_at: string
+  user_id: string | null
+  type: string
+  title: string | null
+  body: string | null
+  message: string | null
+  action_url: string | null
+  channel: string | null
+  data: Record<string, unknown>
+  read: boolean | null
+  created_at: string | null
 }
 
 // ── Admin ─────────────────────────────────────

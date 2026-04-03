@@ -68,7 +68,7 @@ export class NotificationService {
     try {
       const { error } = await supabaseAdmin
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('id', notificationId)
         .eq('user_id', userId)
 
@@ -91,7 +91,7 @@ export class NotificationService {
     try {
       const { error } = await supabaseAdmin
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('user_id', userId)
         .eq('is_read', false)
 
@@ -149,7 +149,7 @@ export class NotificationService {
         .eq('is_read', false)
 
       return {
-        notifications: (notifications || []) as Notification[],
+        notifications: (notifications || []) as unknown as Notification[],
         total: total || 0,
         unreadCount: unreadCount || 0,
       }

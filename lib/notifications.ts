@@ -93,7 +93,7 @@ export async function markAsRead(
 
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ read: true })
       .eq('id', notificationId)
 
     if (error) {
@@ -119,7 +119,7 @@ export async function markAllAsRead(
 
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ read: true })
       .eq('user_id', userId)
       .eq('is_read', false)
 
@@ -184,7 +184,7 @@ export async function getRecentNotifications(
       return []
     }
 
-    return (data || []) as Notification[]
+    return (data || []) as unknown as Notification[]
   } catch (error) {
     console.error('[v0] Error in getRecentNotifications:', error)
     return []
@@ -222,7 +222,7 @@ export async function getAllNotifications(
       return { notifications: [], total: 0 }
     }
 
-    return { notifications: (data || []) as Notification[], total: count || 0 }
+    return { notifications: (data || []) as unknown as Notification[], total: count || 0 }
   } catch (error) {
     console.error('[v0] Error in getAllNotifications:', error)
     return { notifications: [], total: 0 }

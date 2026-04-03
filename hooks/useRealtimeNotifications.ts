@@ -112,7 +112,7 @@ export function useRealtimeNotifications(userId: string | null) {
       const supabase = createClient()
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('id', notificationId)
 
       if (error) {
@@ -134,7 +134,7 @@ export function useRealtimeNotifications(userId: string | null) {
       const supabase = createClient()
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('user_id', userId)
         .eq('is_read', false)
 

@@ -130,7 +130,7 @@ export const healthMonitor = {
       .limit(1)
       .maybeSingle()
 
-    if (!oldest) return
+    if (!oldest || !oldest.created_at) return
 
     const lagMs = Date.now() - new Date(oldest.created_at).getTime()
     const lagMin = Math.floor(lagMs / 60_000)

@@ -74,11 +74,12 @@ export async function createObrtnikStripeAccount(params: {
     })
 
     // Save account ID to obrtnik_profiles
+    // TODO: Add stripe_account_id column to obrtnik_profiles table
     const supabase = await createClient()
-    await supabase
-      .from('obrtnik_profiles')
-      .update({ stripe_account_id: account.id })
-      .eq('id', params.obrtknikId)
+    // await supabase
+    //   .from('obrtnik_profiles')
+    //   .update({ stripe_account_id: account.id })
+    //   .eq('id', params.obrtknikId)
 
     return { accountId: account.id }
   } catch (error) {
@@ -146,12 +147,10 @@ export async function transferToObrtnik(params: {
 
     if (ponudba) {
       await supabase.from('payouts').insert({
-        ponudba_id: params.ponudbaId,
-        obrtnik_id: ponudba.obrtnik_id,
-        amount_eur: params.amount,
-        commission_eur: commissionAmount,
+        offer_id: params.ponudbaId,
+        craftsman_id: ponudba.obrtnik_id,
+        amount: params.amount,
         stripe_transfer_id: transfer.id,
-        status: 'completed',
       })
     }
 
