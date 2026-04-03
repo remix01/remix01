@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Metadata, Viewport } from 'next'
-import { Inter, DM_Sans } from 'next/font/google'
+// import { Inter, DM_Sans } from 'next/font/google' // Temporarily disabled due to network issues
 import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -22,19 +22,21 @@ import './globals.css'
 initEventSubscribers()
 
 // ─── FONTI ───────────────────────────────────────────────────────────────────
-const inter = Inter({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-inter',
-  // FIX 1: display: 'swap' prepreči FOIT (Flash of Invisible Text)
-  // in izboljša LCP score
-  display: 'swap',
-})
+// Temporarily disabled due to network connectivity issues
+// const inter = Inter({
+//   subsets: ['latin', 'latin-ext'],
+//   variable: '--font-inter',
+//   display: 'swap',
+// })
 
-const dmSans = DM_Sans({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-dm-sans',
-  display: 'swap',
-})
+// const dmSans = DM_Sans({
+//   subsets: ['latin', 'latin-ext'],
+//   variable: '--font-dm-sans',
+//   display: 'swap',
+// })
+
+const inter = { variable: '' }
+const dmSans = { variable: '' }
 
 // ─── VIEWPORT ────────────────────────────────────────────────────────────────
 export const viewport: Viewport = {

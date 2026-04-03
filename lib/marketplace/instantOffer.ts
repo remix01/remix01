@@ -147,14 +147,14 @@ export const instantOffer = {
       .from('obrtnik_profiles')
       .select('instant_offer_templates')
       .eq('id', partnerId)
-      .single()
+      .single() as any // Type assertion for schema columns added via migration
 
     if (error) {
       console.error('[InstantOffer] Failed to fetch templates:', error)
       return []
     }
 
-    return partner?.instant_offer_templates || []
+    return (partner as any)?.instant_offer_templates || []
   },
 
   /**
@@ -169,7 +169,7 @@ export const instantOffer = {
       .from('obrtnik_profiles')
       .update({
         instant_offer_templates: templates,
-      })
+      } as any) // Type assertion for schema columns added via migration
       .eq('id', partnerId)
 
     if (error) {

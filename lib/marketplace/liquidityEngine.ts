@@ -96,15 +96,15 @@ export const liquidityEngine = {
         .from('obrtnik_profiles')
         .select('enable_instant_offers, instant_offer_templates, plan_type')
         .eq('id', partnerId)
-        .single()
+        .single() as any // Type assertion for schema columns added via migration
 
-      if (!partner?.enable_instant_offers) {
+      if (!(partner as any)?.enable_instant_offers) {
         console.log('[LiquidityEngine] Partner has instant offers disabled')
         return
       }
 
       // Only PRO plan partners can use instant offers
-      if (partner.plan_type !== 'PRO') {
+      if ((partner as any)?.plan_type !== 'PRO') {
         console.log('[LiquidityEngine] Partner not on PRO plan, skipping instant offer')
         return
       }
