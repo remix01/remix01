@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getActiveCategories } from '@/lib/dal/categories'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { uploadFile, generateFilePath } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -80,8 +80,8 @@ export default function NovoPoVprasevanjePage() {
         setLocationCity(profile.location_city)
       }
 
-      // Fetch categories
-      const cats = await getActiveCategories()
+      // Fetch categories (using public client since this is public data)
+      const cats = await getActiveCategoriesPublic()
       setCategories(cats)
     }
 
