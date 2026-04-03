@@ -140,37 +140,24 @@ export const instantOffer = {
 
   /**
    * Fetch partner's instant offer templates
+   * NOTE: This feature requires the instant_offer_templates column in obrtnik_profiles
+   * For now, returns empty array until schema is updated
    */
   async getTemplates(partnerId: string): Promise<OfferTemplate[]> {
-    const supabaseAdmin = createAdminClient()
-    const { data: partner } = await supabaseAdmin
-      .from('obrtnik_profiles')
-      .select('instant_offer_templates')
-      .eq('id', partnerId)
-      .single()
-
-    return partner?.instant_offer_templates || []
+    // TODO: Implement when instant_offer_templates column is added to obrtnik_profiles table
+    return []
   },
 
   /**
    * Save or update partner's instant offer templates
+   * NOTE: This feature requires the instant_offer_templates column in obrtnik_profiles
+   * For now, this is a no-op until schema is updated
    */
   async saveTemplates(
     partnerId: string,
     templates: OfferTemplate[]
   ): Promise<void> {
-    const supabaseAdmin = createAdminClient()
-    const { error } = await supabaseAdmin
-      .from('obrtnik_profiles')
-      .update({
-        instant_offer_templates: templates,
-      })
-      .eq('id', partnerId)
-
-    if (error) {
-      throw new Error(`Failed to save templates: ${error.message}`)
-    }
-
-    console.log('[InstantOffer] Templates saved for partner:', partnerId)
+    // TODO: Implement when instant_offer_templates column is added to obrtnik_profiles table
+    console.log('[InstantOffer] saveTemplates called but not implemented - awaiting schema update')
   },
 }
