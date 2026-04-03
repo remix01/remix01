@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 
 export async function POST(request: NextRequest) {
@@ -11,6 +12,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
     }
 
+    // Resolve category_id by matching storitev text against categories table
+    let category_id: string | null = null
+    const { data: categories } = await supabaseAdmin
+      .from('categories')
+      .select('id, name')
+      .eq('is_active', true)
+
+    if (categories && categories.length > 0) {
+      const lowerStoritev = storitev.toLowerCase()
+      const match = categories.find((c) =>
+        lowerStoritev.includes(c.name.toLowerCase()) ||
+        c.name.toLowerCase().includes(lowerStoritev)
+      )
+      if (match) category_id = match.id
+    }
+
+    // Link to authenticated user if session exists
+    let narocnik_id: string | null = null
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) narocnik_id = user.id
+    } catch {
+      // No session — guest submission
+    }
+
     const { data, error } = await supabaseAdmin
       .from('povprasevanja')
       .insert({
@@ -18,7 +45,8 @@ export async function POST(request: NextRequest) {
         description: opis || '',
         location_city: lokacija,
         status: 'odprto',
-        narocnik_id: null,
+        narocnik_id,
+        category_id,
         stranka_email: stranka_email || null,
         stranka_telefon: stranka_telefon || null,
       })

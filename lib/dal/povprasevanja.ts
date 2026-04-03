@@ -163,7 +163,8 @@ export async function getOpenPovprasevanjaForObrtnik(
     .eq('status', 'odprto')
 
   if (categoryIds && categoryIds.length > 0) {
-    query = query.in('category_id', categoryIds)
+    // Include records matching the obrtnik's categories OR records with no category (guest submissions)
+    query = query.or(`category_id.in.(${categoryIds.join(',')}),category_id.is.null`)
   }
 
   query = query.order('created_at', { ascending: false })
