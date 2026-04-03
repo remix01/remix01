@@ -1,3 +1,6 @@
+// Prevent static generation - admin pages should be dynamic
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { StatsCards } from '@/components/admin/StatsCards'
 import { ViolationsChart } from '@/components/admin/ViolationsChart'

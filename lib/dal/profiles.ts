@@ -180,13 +180,22 @@ export async function listObrtniki(filters?: {
   }
 
   if (filters?.category_id) {
-    // Filter by category through join
-    query = query.in('id',
-      supabase
-        .from('obrtnik_categories')
-        .select('obrtnik_id')
-        .eq('category_id', filters.category_id) as any
-    )
+    // Filter by category through join - MUST execute query first to get IDs
+    const { data: categoryLinks, error: categoryError } = await supabase
+      .from('obrtnik_categories')
+      .select('obrtnik_id')
+      .eq('category_id', filters.category_id)
+
+    if (!categoryError && categoryLinks?.length) {
+      const obrtnikIds = categoryLinks.map(link => link.obrtnik_id)
+      query = query.in('id', obrtnikIds)
+    } else if (categoryError) {
+      console.error('[v0] Error fetching obrtnik categories:', categoryError)
+      return [] // Return empty if category lookup fails
+    } else {
+      // No obrtniki in this category
+      return []
+    }
   }
 
   query = query.order('avg_rating', { ascending: false })
