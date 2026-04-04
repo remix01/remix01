@@ -86,8 +86,8 @@ export async function POST(req: Request) {
       user_id: obrtnik_id,
       type: 'nova_ocena',
       title: 'Prejeli ste novo oceno!',
-      message: `Obrnočnik vam je dal oceno ${rating} ⭐`,
-      action_url: '/partner-dashboard/ocene',
+      body: `Naročnik vam je dal oceno ${rating} ⭐`,
+      link: '/obrtnik/ocene',
       is_read: false,
     })
 

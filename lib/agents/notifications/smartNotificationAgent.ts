@@ -94,7 +94,7 @@ async function createInAppNotification(
       user_id: userId,
       type,
       title,
-      message,
+      body: message,
       link,
       metadata: metadata || {},
     })

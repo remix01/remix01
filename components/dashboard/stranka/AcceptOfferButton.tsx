@@ -72,7 +72,8 @@ export function AcceptOfferButton({
         user_id: offer.obrtnik_id,
         type: 'ponudba_sprejeta',
         title: 'Vaša ponudba je bila sprejeta!',
-        action_url: '/obrtnik-dashboard',
+        body: 'Naročnik je sprejel vašo ponudbo.',
+        link: '/obrtnik-dashboard',
       })
 
       // Refresh page
