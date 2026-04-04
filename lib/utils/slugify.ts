@@ -18,8 +18,6 @@ export function slugify(text: string): string {
   // Slovenian character mappings
   const slovenianMap: Record<string, string> = {
     č: 'c',
-    ć: 'c',
-    č: 'c',
     š: 's',
     ž: 'z',
   }

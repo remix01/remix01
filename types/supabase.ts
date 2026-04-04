@@ -1182,6 +1182,15 @@ export interface Database {
         Args: Record<string, never>
         Returns: string
       }
+      increment_numeric: {
+        Args: {
+          table_name: string
+          column_name: string
+          value: number
+          id: string
+        }
+        Returns: number | null
+      }
     }
     Enums: {}
   }
