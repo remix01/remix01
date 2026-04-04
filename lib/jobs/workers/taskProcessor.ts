@@ -43,7 +43,7 @@ export async function handleMatchRequest(job: Job): Promise<void> {
     )
 
     // Update task to 'matched' status
-    const matchIds = (matches.matches ?? []).map((m: { id: string }) => m.id)
+    const matchIds = (matches.matches ?? []).map((m) => m.partnerId)
     await taskOrchestrator.updateTaskStatus(taskId, 'matched', {
       matchIds,
     })
