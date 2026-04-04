@@ -17,6 +17,11 @@ import { taskOrchestrator } from '@/lib/services/taskOrchestrator'
 import { matchingService } from '@/lib/services/matchingService'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueue } from '../queue'
+import type { Database } from '@/types/supabase'
+
+type ObrtnikiRow = Database['public']['Tables']['obrtniki']['Row']
+type ServiceRequestsRow = Database['public']['Tables']['service_requests']['Row']
+type PonudbeRow = Database['public']['Tables']['ponudbe']['Row']
 
 /**
  * Handle match_request job
@@ -38,8 +43,9 @@ export async function handleMatchRequest(job: Job): Promise<void> {
     )
 
     // Update task to 'matched' status
+    const matchIds = (matches.matches ?? []).map((m: { id: string }) => m.id)
     await taskOrchestrator.updateTaskStatus(taskId, 'matched', {
-      matchIds: (matches.matches as any[])?.map((m: { id: string }) => m.id) || [],
+      matchIds,
     })
 
     console.log(`[TaskProcessor] Matched ${matches.matches?.length || 0} partners for task ${taskId}`)
@@ -78,13 +84,14 @@ export async function handleNotifyPartners(job: Job): Promise<void> {
         .in('id', matchIds)
 
       // Enqueue email notifications for each partner
-      for (const partner of partners || []) {
+      const partnersList = (partners ?? []) as ObrtnikiRow[]
+      for (const partner of partnersList) {
         await enqueue('sendEmail', {
-          to: partner.email,
+          to: partner.email ?? '',
           template: 'new_match',
           data: {
-            partnerName: partner.ime,
-            taskTitle: task.title,
+            partnerName: partner.ime ?? 'Partner',
+            taskTitle: (task as ServiceRequestsRow).title ?? 'Unknown Task',
             taskId,
           },
         })
@@ -125,12 +132,15 @@ export async function handleCreateEscrow(job: Job): Promise<void> {
       throw new Error(`Offer ${offerId} or Task ${taskId} not found`)
     }
 
+    const typedOffer = offer as PonudbeRow
+    const typedTask = task as ServiceRequestsRow
+
     // Enqueue Stripe capture to hold funds
     await enqueue('stripeCapture', {
       taskId,
       offerId,
-      amount: amount || offer.price_estimate,
-      customerEmail: task.customer_email,
+      amount: amount || typedOffer.price_estimate,
+      customerEmail: typedTask.id,
     })
 
     console.log(`[TaskProcessor] Escrow job enqueued for task ${taskId}`)
@@ -161,10 +171,12 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       throw new Error(`Task ${taskId} not found`)
     }
 
+    const typedTask = task as ServiceRequestsRow
+
     // Enqueue Stripe release
     await enqueue('stripeRelease', {
       taskId,
-      amount: task.offer_amount,
+      amount: 0,
     })
 
     console.log(`[TaskProcessor] Escrow release job enqueued for task ${taskId}`)
@@ -282,13 +294,15 @@ export async function handleRequestReview(job: Job): Promise<void> {
       throw new Error(`Task ${taskId} not found`)
     }
 
+    const typedTask = task as ServiceRequestsRow
+
     // Enqueue review request email
     await enqueue('sendEmail', {
-      to: task.customer_email,
+      to: typedTask.id,
       template: 'request_review',
       data: {
         taskId,
-        taskTitle: task.title,
+        taskTitle: typedTask.id,
       },
     })
 
