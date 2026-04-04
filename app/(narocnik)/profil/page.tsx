@@ -3,6 +3,8 @@ import { getProfile } from '@/lib/dal/profiles'
 import { redirect } from 'next/navigation'
 import ProfilForm from '@/components/narocnik/profil-form'
 import { CalendarConnect } from '@/components/liftgo/CalendarConnect'
+
+export const dynamic = 'force-dynamic'
 import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
 import { AIUsageWidget } from '@/components/ai-usage-widget'
 

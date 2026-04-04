@@ -4,6 +4,8 @@ import { Card } from '@/components/ui/card'
 import { getAllNotifications, markAllAsRead } from '@/lib/notifications'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 const notificationColors: Record<string, string> = {
   nova_ponudba: 'bg-blue-100 border-blue-300',
   ponudba_sprejeta: 'bg-green-100 border-green-300',
