@@ -36,10 +36,13 @@ export default async function AdminLayout({
   return (
     <AdminAuthProvider>
       <div className="flex h-screen overflow-hidden bg-background">
-        <AdminSidebar user={adminUser as { ime: string; priimek: string; email: string; vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER' }} />
+        {/* Desktop Sidebar - hidden on mobile, visible on lg+ */}
+        <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
+          <AdminSidebar user={adminUser as { ime: string; priimek: string; email: string; vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER' }} />
+        </div>
         <div className="flex flex-1 flex-col overflow-hidden">
           <AdminHeader user={adminUser as { ime: string; priimek: string; email: string; vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER' }} />
-          <main className="flex-1 overflow-y-auto bg-muted/30 p-6">
+          <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-6">
             {children}
           </main>
         </div>
