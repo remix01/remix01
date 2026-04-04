@@ -59,9 +59,9 @@ export const workerBroadcast = {
         user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
         type: 'novo_povprasevanje',
         title: 'Novo povpraševanje v vaši kategoriji',
-        message: `${title}${city}`,
+        body: `${title}${city}`,
         link,
-        read: false,
+        is_read: false,
         metadata: { povprasevanje_id: requestId },
       }))
 
