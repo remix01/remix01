@@ -19,7 +19,7 @@ export const healthMonitor = {
    * Task without match = 2h guarantee at risk
    */
   async checkSLABreaches(): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any
 
     const warn5min = new Date(Date.now() - 5 * 60_000).toISOString()
     const crit90min = new Date(Date.now() - 90 * 60_000).toISOString()
@@ -74,7 +74,7 @@ export const healthMonitor = {
    * CHECK 2: DLQ spike
    */
   async checkDLQSpike(): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any
     const since10min = new Date(Date.now() - 10 * 60_000).toISOString()
 
     const { count } = await supabase
@@ -120,7 +120,7 @@ export const healthMonitor = {
    * CHECK 3: Event lag (outbox backlog)
    */
   async checkEventLag(): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any
 
     const { data: oldest } = await supabase
       .from('event_outbox')
@@ -156,7 +156,7 @@ export const healthMonitor = {
    * CHECK 4: Stuck sagas
    */
   async checkStuckSagas(): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any
     const since30min = new Date(Date.now() - 30 * 60_000).toISOString()
 
     // Sagas in compensating → immediate alert
@@ -210,7 +210,7 @@ export const healthMonitor = {
    * CHECK 5: Frozen escrow
    */
   async checkFrozenEscrow(): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any
     const since48h = new Date(Date.now() - 48 * 60 * 60_000).toISOString()
 
     const { data: frozen } = await supabase
@@ -239,7 +239,7 @@ export const healthMonitor = {
    * CHECK 6: Conversion funnel
    */
   async checkConversionFunnel(): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any
     const since1h = new Date(Date.now() - 60 * 60_000).toISOString()
 
     // Aggregate from analytics_events (last 1h)

@@ -1051,6 +1051,64 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
         Relationships: []
       }
+      alert_log: {
+        Row: {
+          id: string
+          alert_type: string
+          severity: 'warn' | 'critical'
+          message: string
+          metadata: Json
+          channels_notified: string[]
+          resolved: boolean
+          resolved_at: string | null
+          created_at: string
+        }
+        Insert: {
+          alert_type: string
+          severity: 'warn' | 'critical'
+          message: string
+          metadata?: Json
+          channels_notified?: string[]
+          resolved?: boolean
+          resolved_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['alert_log']['Insert']>
+        Relationships: []
+      }
+      event_outbox: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          idempotency_key: string
+          status: 'pending' | 'processing' | 'done' | 'failed'
+          attempt_count: number
+          next_attempt_at: string
+          last_error: string | null
+          created_at: string
+          processed_at: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['event_outbox']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['event_outbox']['Insert']>
+        Relationships: []
+      }
+      event_dlq: {
+        Row: {
+          id: string
+          original_outbox_id: string | null
+          event_name: string
+          payload: Json
+          failure_reason: string | null
+          attempt_count: number | null
+          failed_at: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['event_dlq']['Row'], 'id' | 'failed_at'>
+        Update: Partial<Database['public']['Tables']['event_dlq']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
