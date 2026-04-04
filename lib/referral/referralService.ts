@@ -145,24 +145,30 @@ export async function awardReferralBonus(referredUserId: string): Promise<boolea
   }
   
   // Add credit to referrer
+  const { data: referrerProfile } = await supabase
+    .from('profiles')
+    .select('credit_balance')
+    .eq('id', referral.referrer_id)
+    .maybeSingle()
+
   const { error: referrerError } = await supabase
     .from('profiles')
     .update({
-      credit_balance: supabase.rpc(
-        'increment_numeric',
-        { table_name: 'profiles', column_name: 'credit_balance', value: BONUS_AMOUNT, id: referral.referrer_id }
-      )
+      credit_balance: (referrerProfile?.credit_balance ?? 0) + BONUS_AMOUNT
     })
     .eq('id', referral.referrer_id)
-  
+
   // Add credit to referred user
+  const { data: referredProfile } = await supabase
+    .from('profiles')
+    .select('credit_balance')
+    .eq('id', referral.referred_id)
+    .maybeSingle()
+
   const { error: referredError } = await supabase
     .from('profiles')
     .update({
-      credit_balance: supabase.rpc(
-        'increment_numeric',
-        { table_name: 'profiles', column_name: 'credit_balance', value: BONUS_AMOUNT, id: referral.referred_id }
-      )
+      credit_balance: (referredProfile?.credit_balance ?? 0) + BONUS_AMOUNT
     })
     .eq('id', referral.referred_id)
   

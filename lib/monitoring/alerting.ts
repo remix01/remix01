@@ -34,7 +34,7 @@ export const alerting = {
     const channels: string[] = []
 
     try {
-      await supabase.from('alert_log').insert({
+      await (supabase as any).from('alert_log').insert({
         alert_type: alert.type,
         severity: alert.severity,
         message: alert.message,
@@ -88,7 +88,7 @@ export const alerting = {
   async isDuplicate(type: AlertType, withinMinutes = 15): Promise<boolean> {
     const supabase = createAdminClient()
     const since = new Date(Date.now() - withinMinutes * 60_000).toISOString()
-    const { count } = await supabase
+    const { count } = await (supabase as any)
       .from('alert_log')
       .select('*', { count: 'exact', head: true })
       .eq('alert_type', type)
