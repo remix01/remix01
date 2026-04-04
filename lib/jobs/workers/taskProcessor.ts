@@ -76,22 +76,22 @@ export async function handleNotifyPartners(job: Job): Promise<void> {
       throw new Error(`Task ${taskId} not found`)
     }
 
-    // Fetch matched partners
+    // Fetch matched partners with email from profiles
     if (matchIds && matchIds.length > 0) {
       const { data: partners } = await supabaseAdmin
-        .from('obrtniki')
-        .select('*')
+        .from('profiles')
+        .select('id, email, ime')
         .in('id', matchIds)
 
       // Enqueue email notifications for each partner
-      const partnersList = (partners ?? []) as ObrtnikiRow[]
+      const partnersList = (partners ?? []) as Array<{ id: string; email: string | null; ime: string | null }>
       for (const partner of partnersList) {
         await enqueue('sendEmail', {
           to: partner.email ?? '',
           template: 'new_match',
           data: {
             partnerName: partner.ime ?? 'Partner',
-            taskTitle: (task as ServiceRequestsRow).title ?? 'Unknown Task',
+            taskTitle: (task as ServiceRequestsRow).id ?? 'Unknown Task',
             taskId,
           },
         })
