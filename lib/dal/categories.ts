@@ -134,8 +134,8 @@ export async function countObrtnikPerCategory(): Promise<Record<string, number>>
     return {}
   }
 
-  const counts: Record<string, number> = {}
-  data.forEach((item) => {
+  const counts = {} as Record<string, number>
+  ;(data ?? []).forEach((item) => {
     const row = item as { category_id: string }
     counts[row.category_id] = (counts[row.category_id] || 0) + 1
   })

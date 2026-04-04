@@ -385,8 +385,8 @@ export async function countNarocnikPovprasevanjaByStatus(narocnikId: string): Pr
     return {}
   }
 
-  const counts: Record<string, number> = {}
-  data.forEach((item: any) => {
+  const counts = {} as Record<string, number>
+  ;(data ?? []).forEach((item: any) => {
     counts[item.status] = (counts[item.status] || 0) + 1
   })
 
