@@ -23,7 +23,7 @@ export function getPublicSupabaseClient() {
  */
 export async function getActiveCategoriesPublic(): Promise<Category[]> {
   const supabase = getPublicSupabaseClient()
-  
+
   const { data, error } = await supabase
     .from('categories')
     .select('*')
@@ -35,7 +35,7 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
     return []
   }
 
-  return data
+  return (data ?? []) as Category[]
 }
 
 /**
@@ -43,7 +43,7 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
  */
 export async function getActiveCategories(): Promise<Category[]> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('categories')
     .select('*')
@@ -55,7 +55,7 @@ export async function getActiveCategories(): Promise<Category[]> {
     return []
   }
 
-  return data as Category[]
+  return (data ?? []) as Category[]
 }
 
 /**
@@ -116,7 +116,7 @@ export async function getObrtnikCategories(obrtnikId: string): Promise<Category[
     return []
   }
 
-  return data.map((item) => (item as { category: Category }).category)
+  return (data ?? []).map((item) => (item as { category: Category }).category)
 }
 
 /**

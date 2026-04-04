@@ -206,7 +206,7 @@ export async function listObrtniki(filters?: {
     return []
   }
 
-  return data as unknown as ObrtnikProfile[]
+  return (data ?? []) as unknown as ObrtnikProfile[]
 }
 
 /**
@@ -304,5 +304,5 @@ export async function getObrtnikCategories(obrtnikId: string): Promise<string[]>
     return []
   }
 
-  return data.map((item) => item.category_id)
+  return (data ?? []).map((item) => item.category_id)
 }
