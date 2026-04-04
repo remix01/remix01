@@ -1109,6 +1109,68 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['event_dlq']['Insert']>
         Relationships: []
       }
+      saga_instances: {
+        Row: {
+          id: string
+          saga_type: string
+          task_id: string
+          current_step: number
+          status: 'running' | 'completed' | 'compensating' | 'failed'
+          completed_steps: Json
+          compensation_log: Json
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          saga_type: string
+          task_id: string
+          current_step?: number
+          status?: 'running' | 'completed' | 'compensating' | 'failed'
+          completed_steps?: Json
+          compensation_log?: Json
+          error_message?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['saga_instances']['Insert']>
+        Relationships: []
+      }
+      event_log: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          emitted_at: string
+        }
+        Insert: {
+          event_name: string
+          payload: Json
+          emitted_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['event_log']['Insert']>
+        Relationships: []
+      }
+      analytics_events: {
+        Row: {
+          id: string
+          user_id: string | null
+          session_id: string
+          event_name: string
+          properties: Json
+          platform: string
+          app_version: string | null
+          created_at: string
+        }
+        Insert: {
+          user_id?: string | null
+          session_id: string
+          event_name: string
+          properties?: Json
+          platform?: string
+          app_version?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['analytics_events']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {

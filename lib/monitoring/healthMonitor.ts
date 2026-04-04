@@ -41,7 +41,7 @@ export const healthMonitor = {
           severity: 'critical',
           message: `${critTasks.length} povprasevanj(e) čaka >90min brez obvestila obrtnikom!`,
           metadata: {
-            taskIds: critTasks.map((t) => t.id),
+            taskIds: critTasks.map((t: any) => t.id),
             oldestCreatedAt: critTasks[0]?.created_at,
           },
         })
@@ -94,7 +94,7 @@ export const healthMonitor = {
           .eq('resolved', false)
           .gte('failed_at', since10min)
 
-        const eventTypes = [...new Set(items?.map((i) => i.event_name) ?? [])]
+        const eventTypes = [...new Set(items?.map((i: any) => i.event_name) ?? [])]
 
         await alerting.send({
           type: 'dlq_spike',
@@ -171,7 +171,7 @@ export const healthMonitor = {
         severity: 'critical',
         message: `${compensating.length} saga(s) in rollback state — potential data loss`,
         metadata: {
-          sagas: compensating.map((s) => ({
+          sagas: compensating.map((s: any) => ({
             id: s.id,
             type: s.saga_type,
             taskId: s.task_id,
@@ -195,7 +195,7 @@ export const healthMonitor = {
           severity: 'warn',
           message: `${stuck.length} saga(s) without progress >30min`,
           metadata: {
-            sagas: stuck.map((s) => ({
+            sagas: stuck.map((s: any) => ({
               id: s.id,
               type: s.saga_type,
               step: s.current_step,
@@ -229,7 +229,7 @@ export const healthMonitor = {
         metadata: {
           count: frozen.length,
           totalAmount,
-          taskIds: frozen.map((e) => e.task_id),
+          taskIds: frozen.map((e: any) => e.task_id),
         },
       })
     }
