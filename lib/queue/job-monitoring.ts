@@ -7,7 +7,7 @@
 
 import { getRedis, executeRedisOperation } from '../cache/redis-client'
 import { CACHE_KEYS, CACHE_TTL } from '../cache/cache-keys'
-import type { JobType } from './queue'
+import type { JobType } from '../jobs/queue'
 
 export interface JobStatus {
   jobId: string
@@ -198,7 +198,7 @@ export async function getQueueStatistics(jobType?: JobType): Promise<QueueStats>
         const completedKey = `queue:stats:${type}:completed:${now}`
         const failedKey = `queue:stats:${type}:failed:${now}`
 
-        const counts = await redis.mget<string>(pendingKey, processingKey, completedKey, failedKey)
+        const counts = (await redis.mget([pendingKey, processingKey, completedKey, failedKey])) as (string | null)[]
 
         pending += parseInt(counts[0] || '0', 10)
         processing += parseInt(counts[1] || '0', 10)
