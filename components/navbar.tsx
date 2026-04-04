@@ -139,7 +139,11 @@ export function Navbar() {
           <div className="hidden gap-3 lg:flex items-center">
             <NotificationBellClient userId={userId} />
             <Button variant="outline" asChild className="min-h-[48px]">
-              <Link href={userId ? dashboardPath : "/prijava"}>
+              <Link href={userId ? (
+                dashboardPath === '/dashboard' ? '/racun' :
+                dashboardPath === '/partner-dashboard' ? '/partner-dashboard/account' :
+                dashboardPath
+              ) : "/prijava"}>
                 {userId ? "Moj račun" : "Prijava"}
               </Link>
             </Button>
@@ -216,7 +220,11 @@ export function Navbar() {
             </Link>
             <div className="flex flex-col gap-2 pt-4 border-t">
               <Button variant="outline" size="lg" asChild className="w-full min-h-[48px]">
-                <Link href={userId ? dashboardPath : "/prijava"} onClick={() => setIsOpen(false)}>
+                <Link href={userId ? (
+                  dashboardPath === '/dashboard' ? '/racun' :
+                  dashboardPath === '/partner-dashboard' ? '/partner-dashboard/account' :
+                  dashboardPath
+                ) : "/prijava"} onClick={() => setIsOpen(false)}>
                   {userId ? "Moj račun" : "Prijava"}
                 </Link>
               </Button>

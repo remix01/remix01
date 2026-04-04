@@ -25,6 +25,7 @@ export function NarocnikSidebar({ fullName }: NarocnikSidebarProps) {
     { href: '/sporocila', icon: '💬', label: 'Sporočila' },
     { href: '/obvestila', icon: '🔔', label: 'Obvestila' },
     { href: '/profil', icon: '👤', label: 'Profil' },
+    { href: '/racun', icon: '⚙️', label: 'Moj račun' },
   ]
 
   const isActive = (href: string) => pathname === href
