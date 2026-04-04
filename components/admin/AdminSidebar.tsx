@@ -79,7 +79,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   }
 
   return (
-    <div className="w-64 border-r bg-card p-6 flex flex-col">
+    <div className="w-64 h-full border-r bg-card p-6 flex flex-col">
       <div className="mb-8">
         <h1 className="font-display text-2xl font-bold text-primary">
           Lift<span className="text-accent">GO</span>
