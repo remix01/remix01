@@ -229,7 +229,7 @@ export const healthMonitor = {
         metadata: {
           count: frozen.length,
           totalAmount,
-          taskIds: frozen.map((e) => e.task_id),
+          taskIds: frozen.map((e) => e.inquiry_id),
         },
       })
     }
