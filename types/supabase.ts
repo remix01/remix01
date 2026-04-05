@@ -1077,6 +1077,62 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['alert_log']['Insert']>
         Relationships: []
       }
+      event_outbox: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          idempotency_key: string
+          status: string
+          attempt_count: number
+          next_attempt_at: string
+          last_error: string | null
+          created_at: string
+          processed_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_name: string
+          payload: Json
+          idempotency_key: string
+          status?: string
+          attempt_count?: number
+          next_attempt_at?: string
+          last_error?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['event_outbox']['Insert']>
+        Relationships: []
+      }
+      event_dlq: {
+        Row: {
+          id: string
+          original_outbox_id: string | null
+          event_name: string
+          payload: Json
+          failure_reason: string | null
+          attempt_count: number | null
+          failed_at: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          id?: string
+          original_outbox_id?: string | null
+          event_name: string
+          payload: Json
+          failure_reason?: string | null
+          attempt_count?: number | null
+          failed_at?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['event_dlq']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
