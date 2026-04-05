@@ -1051,6 +1051,32 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
         Relationships: []
       }
+      alert_log: {
+        Row: {
+          id: string
+          alert_type: string
+          severity: string
+          message: string
+          metadata: Json
+          channels_notified: string[] | null
+          resolved: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          alert_type: string
+          severity: string
+          message: string
+          metadata?: Json
+          channels_notified?: string[] | null
+          resolved?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['alert_log']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
