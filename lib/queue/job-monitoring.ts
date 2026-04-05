@@ -7,7 +7,7 @@
 
 import { getRedis, executeRedisOperation } from '../cache/redis-client'
 import { CACHE_KEYS, CACHE_TTL } from '../cache/cache-keys'
-import type { JobType } from './queue'
+import type { JobType } from '../jobs/queue'
 
 export interface JobStatus {
   jobId: string
