@@ -29,7 +29,7 @@ ON public.obrtnik_profiles
 FOR SELECT
 TO authenticated
 USING (
-  auth.uid() = id
+  (SELECT auth.uid()) = user_id
 );
 
 -- ============================================================================
@@ -42,10 +42,10 @@ ON public.obrtnik_profiles
 FOR UPDATE
 TO authenticated
 USING (
-  auth.uid() = id
+  (SELECT auth.uid()) = user_id
 )
 WITH CHECK (
-  auth.uid() = id
+  (SELECT auth.uid()) = user_id
 );
 
 -- ============================================================================
@@ -58,7 +58,7 @@ ON public.obrtnik_profiles
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  auth.uid() = id
+  (SELECT auth.uid()) = user_id
 );
 
 -- ============================================================================
@@ -101,7 +101,8 @@ TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM public.admin_users
-    WHERE user_id = auth.uid()
+    WHERE auth_user_id = (SELECT auth.uid())
+    AND aktiven = true
   )
 );
 
@@ -109,8 +110,8 @@ USING (
 -- CREATE INDEXES FOR RLS PERFORMANCE OPTIMIZATION
 -- ============================================================================
 -- These indexes improve query performance for RLS policy checks
-CREATE INDEX IF NOT EXISTS idx_obrtnik_profiles_id_auth ON public.obrtnik_profiles(id);
-CREATE INDEX IF NOT EXISTS idx_admin_users_user_id ON public.admin_users(user_id);
+CREATE INDEX IF NOT EXISTS idx_obrtnik_profiles_user_id ON public.obrtnik_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_users_auth_user_id ON public.admin_users(auth_user_id);
 
 -- ============================================================================
 -- COMMENTS FOR DOCUMENTATION
