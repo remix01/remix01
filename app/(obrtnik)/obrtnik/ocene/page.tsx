@@ -73,7 +73,7 @@ export default function OcenePage() {
 
       // Calculate average rating
       if (transformedReviews.length > 0) {
-        const avg = transformedReviews.reduce((sum, r) => sum + r.rating, 0) / transformedReviews.length
+        const avg = transformedReviews.reduce((sum: number, r) => sum + r.rating, 0) / transformedReviews.length
         setAverageRating(Math.round(avg * 10) / 10)
       }
 
