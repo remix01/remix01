@@ -38,7 +38,7 @@ export const alerting = {
         alert_type: alert.type,
         severity: alert.severity,
         message: alert.message,
-        metadata: alert.metadata ?? {},
+        metadata: (alert.metadata ?? {}) as any,
         channels_notified: channels,
       })
     } catch (err) {
