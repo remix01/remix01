@@ -1060,8 +1060,8 @@ export interface Database {
           metadata: Json
           channels_notified: string[] | null
           resolved: boolean
+          resolved_at: string | null
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
@@ -1071,8 +1071,8 @@ export interface Database {
           metadata?: Json
           channels_notified?: string[] | null
           resolved?: boolean
+          resolved_at?: string | null
           created_at?: string
-          updated_at?: string
         }
         Update: Partial<Database['public']['Tables']['alert_log']['Insert']>
         Relationships: []
