@@ -1133,6 +1133,88 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['event_dlq']['Insert']>
         Relationships: []
       }
+      event_log: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          emitted_at: string
+        }
+        Insert: {
+          id?: string
+          event_name: string
+          payload: Json
+          emitted_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['event_log']['Insert']>
+        Relationships: []
+      }
+      analytics_events: {
+        Row: {
+          id: string
+          event: string
+          task_id: string | null
+          partner_id: string | null
+          category_id: string | null
+          region_lat: number | null
+          region_lng: number | null
+          top_score: number | null
+          price: number | null
+          final_price: number | null
+          gross: number | null
+          commission: number | null
+          net: number | null
+          occurred_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event: string
+          task_id?: string | null
+          partner_id?: string | null
+          category_id?: string | null
+          region_lat?: number | null
+          region_lng?: number | null
+          top_score?: number | null
+          price?: number | null
+          final_price?: number | null
+          gross?: number | null
+          commission?: number | null
+          net?: number | null
+          occurred_at: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['analytics_events']['Insert']>
+        Relationships: []
+      }
+      saga_instances: {
+        Row: {
+          id: string
+          saga_type: string
+          task_id: string
+          current_step: number
+          status: string
+          completed_steps: Json
+          compensation_log: Json
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          saga_type: string
+          task_id: string
+          current_step?: number
+          status?: string
+          completed_steps?: Json
+          compensation_log?: Json
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['saga_instances']['Insert']>
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
