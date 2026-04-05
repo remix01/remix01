@@ -215,12 +215,12 @@ export const healthMonitor = {
 
     const { data: frozen } = await supabase
       .from('escrow_transactions')
-      .select('id, inquiry_id, amount_total_cents, created_at')
+      .select('id, inquiry_id, amount_cents, created_at')
       .eq('status', 'paid')
       .lte('created_at', since48h)
 
     if (frozen?.length) {
-      const totalAmount = frozen.reduce((sum: any, e: any) => sum + ((e.amount_total_cents ?? 0) / 100), 0)
+      const totalAmount = frozen.reduce((sum: any, e: any) => sum + ((e.amount_cents ?? 0) / 100), 0)
 
       await alerting.send({
         type: 'payment_frozen',
