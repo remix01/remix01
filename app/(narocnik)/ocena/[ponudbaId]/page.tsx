@@ -305,7 +305,7 @@ export default function OcenaPage({ params }: Props) {
           </Button>
 
           {/* Skip Link */}
-          <Link href="/narocnik/povprasevanja">
+          <Link href="/povprasevanja">
             <p className="text-center text-sm text-gray-600 hover:text-teal-600">
               Preskoči
             </p>

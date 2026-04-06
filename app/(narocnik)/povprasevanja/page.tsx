@@ -107,7 +107,7 @@ export default async function PovprasevanjaPage() {
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">
           Moja povpraševanja
         </h1>
-        <Link href="/narocnik/novo-povprasevanje">
+        <Link href="/novo-povprasevanje">
           <Button className="bg-primary hover:bg-primary/90">
             + Novo povpraševanje
           </Button>
@@ -124,7 +124,7 @@ export default async function PovprasevanjaPage() {
             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
               Oddajte prvo povpraševanje in prejmite ponudbe preverjenih mojstrov.
             </p>
-            <Link href="/narocnik/novo-povprasevanje">
+            <Link href="/novo-povprasevanje">
               <Button className="bg-primary hover:bg-primary/90">
                 Oddaj prvo povpraševanje →
               </Button>
