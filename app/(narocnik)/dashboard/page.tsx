@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   const profile = profileData as { full_name: string | null; role: string | null } | null
 
   if (!profile || profile.role !== 'narocnik') {
-    redirect('/partner-dashboard')
+    redirect(profile?.role === 'obrtnik' ? '/obrtnik/dashboard' : '/prijava')
   }
 
   // Fetch povprasevanja

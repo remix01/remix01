@@ -39,7 +39,7 @@ export default async function NarocnikLayout({
 
   if (profile.role !== 'narocnik') {
     console.log(`[v0] Narocnik layout: User has role ${profile.role}, not narocnik, redirecting`)
-    redirect(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+    redirect(profile.role === 'obrtnik' ? '/obrtnik/dashboard' : '/prijava')
   }
 
   return (

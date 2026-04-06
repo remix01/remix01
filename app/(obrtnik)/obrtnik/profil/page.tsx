@@ -61,7 +61,7 @@ export default function ProfilPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/partner-auth/login')
+        router.push('/prijava')
         return
       }
 
@@ -71,11 +71,13 @@ export default function ProfilPage() {
         .select('*')
         .eq('id', user.id)
         .maybeSingle()
-      const profile = profileData as { first_name: string | null; last_name: string | null; phone: string | null; location_city: string | null; avatar_url: string | null } | null
+      const profile = profileData as { full_name: string | null; phone: string | null; location_city: string | null; avatar_url: string | null } | null
 
       if (profile) {
-        setFirstName(profile.first_name || '')
-        setLastName(profile.last_name || '')
+        // profiles table has full_name, split for display
+        const nameParts = (profile.full_name || '').split(' ')
+        setFirstName(nameParts[0] || '')
+        setLastName(nameParts.slice(1).join(' ') || '')
         setPhone(profile.phone || '')
         setLocationCity(profile.location_city || '')
         setAvatarUrl(profile.avatar_url || '')
@@ -174,8 +176,7 @@ export default function ProfilPage() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          first_name: firstName,
-          last_name: lastName,
+          full_name: [firstName, lastName].filter(Boolean).join(' '),
           phone,
           location_city: locationCity,
           avatar_url: avatarUrl,
@@ -291,8 +292,8 @@ export default function ProfilPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/partner-auth/login')
+      await supabase.auth.signOut()
+      router.push('/prijava')
     } catch (error) {
       console.error('[v0] Logout error:', error)
       setErrorMessage('Napaka pri odjavi')

@@ -90,6 +90,7 @@ export async function proxy(request: NextRequest) {
     '/profil',
     '/obvestila',
     '/ocena',
+    '/sporocila',
   ]
 
   const isNarocnikPath = narocnikPaths.some(p => path.startsWith(p))
@@ -202,23 +203,26 @@ export async function proxy(request: NextRequest) {
       console.error('[v0] Admin check error in prijava redirect:', e instanceof Error ? e.message : String(e))
     }
 
-    // Check for partner
+    // Check role for redirect
     try {
-      const { data: partner } = await supabase
-        .from('partners')
-        .select('id')
-        .eq('user_id', user.id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
         .maybeSingle()
 
-      if (partner) {
-        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(new URL('/obrtnik/dashboard', request.url))
+      }
+      if (profile?.role === 'narocnik') {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch (e) {
-      console.error('[v0] Partner check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+      console.error('[v0] Role check error in prijava redirect:', e instanceof Error ? e.message : String(e))
     }
 
-    // Default fallback to home
-    return NextResponse.redirect(new URL('/', request.url))
+    // Default fallback to dashboard
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return supabaseResponse
@@ -232,6 +236,7 @@ export const config = {
     '/profil/:path*',
     '/obvestila/:path*',
     '/ocena/:path*',
+    '/sporocila/:path*',
     '/obrtnik/:path*',
     '/admin/:path*',
     '/prijava',
