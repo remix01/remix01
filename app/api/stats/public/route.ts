@@ -21,27 +21,26 @@ export async function GET() {
 
     // Get total active craftworkers
     const { count: activeArtisans } = await supabaseAdmin
-      .from('craftworker_profile')
+      .from('obrtnik_profiles')
       .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
+      .eq('is_verified', true)
+      .eq('is_available', true)
 
-    // Get average rating from recent jobs
-    const { data: recentJobs } = await supabaseAdmin
-      .from('job')
-      .select('rating')
-      .gt('rating', 0)
-      .gte('created_at', monthAgo.toISOString())
-      .limit(100)
+    // Get average rating and total reviews from obrtnik_profiles (maintained by trigger)
+    const { data: ratingData } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('avg_rating, total_reviews')
+      .eq('is_verified', true)
+      .gt('avg_rating', 0)
 
-    const avgRating = recentJobs && recentJobs.length > 0
-      ? (recentJobs.reduce((sum, job) => sum + (job.rating || 0), 0) / recentJobs.length).toFixed(1)
+    const avgRating = ratingData && ratingData.length > 0
+      ? (ratingData.reduce((sum, o) => sum + (o.avg_rating || 0), 0) / ratingData.length).toFixed(1)
       : 4.9
 
-    // Count total reviews
-    const { count: totalReviews } = await supabaseAdmin
-      .from('job')
-      .select('*', { count: 'exact', head: true })
-      .gt('rating', 0)
+    // Sum total reviews across all verified obrtniki
+    const totalReviews = ratingData && ratingData.length > 0
+      ? ratingData.reduce((sum, o) => sum + (o.total_reviews || 0), 0)
+      : null
 
     console.log('[v0] Public stats:', {
       successfulConnections: successfulConnections || 0,

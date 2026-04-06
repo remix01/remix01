@@ -88,7 +88,7 @@ export default async function ObrtknikDashboardPage() {
 
       {/* Open povpraševanja banner */}
       {openPovprasevanjaCount && openPovprasevanjaCount > 0 && (
-        <Link href="/povprasevanja">
+        <Link href="/obrtnik/povprasevanja">
           <Card className="p-4 bg-primary/5 border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer">
             <p className="text-sm font-semibold text-primary">
               🔔 {openPovprasevanjaCount} povpraševanj čaka na vašo ponudbo →

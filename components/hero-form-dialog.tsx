@@ -150,6 +150,19 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
         body: JSON.stringify(formData),
       })
 
+      // Unauthenticated users must register first — redirect with pre-filled data
+      if (response.status === 401) {
+        const params = new URLSearchParams({
+          storitev: formData.storitev,
+          lokacija: formData.lokacija,
+          opis: formData.opis,
+          email: formData.email,
+          redirect: '/narocnik/novo-povprasevanje',
+        })
+        window.location.href = `/registracija?${params.toString()}`
+        return
+      }
+
       const data = await response.json()
 
       if (!response.ok) {

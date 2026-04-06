@@ -158,9 +158,9 @@ export async function GET(req: Request) {
     let query = supabaseAdmin
       .from('povprasevanja')
       .select(`
-        *, 
-        narocnik:profiles!povprasevanja_narocnik_id_fkey(id, ime, priimek, email),
-        obrtniki (id, ime, priimek, email, telefon, ocena)
+        *,
+        narocnik:profiles!povprasevanja_narocnik_id_fkey(id, full_name, email),
+        obrtnik:obrtnik_profiles(id, business_name, avg_rating)
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
