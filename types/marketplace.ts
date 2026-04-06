@@ -4,7 +4,7 @@ export type UserRole = 'narocnik' | 'obrtnik'
 
 export type UrgencyLevel = 'normalno' | 'kmalu' | 'nujno'
 
-export type PovprasevanjeStatus = 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+export type PovprasevanjeStatus = 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano' | 'dodeljeno'
 
 export type PonudbaStatus = 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena'
 

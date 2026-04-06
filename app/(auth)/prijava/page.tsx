@@ -80,7 +80,7 @@ function PrijavaContent() {
         return
       }
 
-      router.push(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+      router.push(profile.role === 'obrtnik' ? '/obrtnik/dashboard' : '/dashboard')
     } catch {
       setStrankaError('Napaka pri prijavi. Poskusite znova.')
     } finally {
@@ -121,7 +121,7 @@ function PrijavaContent() {
         return
       }
 
-      router.push('/partner-dashboard')
+      router.push('/obrtnik/dashboard')
     } catch {
       setObrtnikError('Napaka pri prijavi. Poskusite znova.')
     } finally {
