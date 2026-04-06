@@ -4,10 +4,11 @@
 
 export type UserRole = 'narocnik' | 'obrtnik'
 export type UrgencyLevel = 'normalno' | 'kmalu' | 'nujno'
-export type PovprasevanjeStatus = 
-  | 'odprto' 
-  | 'v_teku' 
-  | 'zakljuceno' 
+export type PovprasevanjeStatus =
+  | 'odprto'
+  | 'dodeljeno'
+  | 'v_teku'
+  | 'zakljuceno'
   | 'preklicano'
 export type PonudbaStatus = 'poslana' | 'sprejeta' | 'zavrnjena'
 export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'

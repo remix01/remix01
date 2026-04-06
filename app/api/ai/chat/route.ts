@@ -16,7 +16,7 @@ import { env } from '@/lib/env'
 import { executeAgent, AgentAccessError, QuotaExceededError } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 
-const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co', env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder')
 
 interface ChatRequest {
   message: string

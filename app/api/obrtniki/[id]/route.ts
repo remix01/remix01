@@ -2,7 +2,7 @@ import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || 'placeholder')
 
 export async function PATCH(
   req: Request,

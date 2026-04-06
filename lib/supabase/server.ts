@@ -15,8 +15,8 @@ export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClientSSR<Database>(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key',
     {
       cookies: {
         getAll() {
@@ -52,8 +52,8 @@ export async function createClient() {
  */
 export function createAdminClient() {
   return createSupabaseClient<Database>(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
+    env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key',
     {
       auth: {
         autoRefreshToken: false,

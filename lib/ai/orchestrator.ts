@@ -31,7 +31,7 @@ import {
 } from '../agents/ai-router'
 
 const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
-const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co', env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder')
 
 // =============================================================================
 // Types

@@ -548,7 +548,7 @@ export interface Database {
           preferred_date_to: string | null
           budget_min: number | null
           budget_max: number | null
-          status: 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+          status: 'odprto' | 'dodeljeno' | 'v_teku' | 'zakljuceno' | 'preklicano'
           created_at: string
           updated_at: string
         }
@@ -566,7 +566,7 @@ export interface Database {
           preferred_date_to?: string | null
           budget_min?: number | null
           budget_max?: number | null
-          status?: 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+          status?: 'odprto' | 'dodeljeno' | 'v_teku' | 'zakljuceno' | 'preklicano'
           created_at?: string
           updated_at?: string
         }
@@ -1049,6 +1049,188 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
+        Relationships: []
+      }
+      alert_log: {
+        Row: {
+          id: string
+          alert_type: string
+          severity: string
+          message: string
+          metadata: Json
+          channels_notified: string[]
+          resolved: boolean
+          resolved_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          alert_type: string
+          severity: string
+          message: string
+          metadata?: Json
+          channels_notified?: string[]
+          resolved?: boolean
+          resolved_at?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['alert_log']['Insert']>
+        Relationships: []
+      }
+      event_dlq: {
+        Row: {
+          id: string
+          original_outbox_id: string | null
+          event_name: string
+          payload: Json
+          failure_reason: string | null
+          attempt_count: number
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          failed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          original_outbox_id?: string | null
+          event_name: string
+          payload?: Json
+          failure_reason?: string | null
+          attempt_count?: number
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          failed_at?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['event_dlq']['Insert']>
+        Relationships: []
+      }
+      event_outbox: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          idempotency_key: string | null
+          status: string
+          attempt_count: number
+          next_attempt_at: string | null
+          processed_at: string | null
+          failed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_name: string
+          payload?: Json
+          idempotency_key?: string | null
+          status?: string
+          attempt_count?: number
+          next_attempt_at?: string | null
+          processed_at?: string | null
+          failed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['event_outbox']['Insert']>
+        Relationships: []
+      }
+      event_log: {
+        Row: {
+          id: string
+          event_name: string
+          payload: Json
+          emitted_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_name: string
+          payload?: Json
+          emitted_at?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['event_log']['Insert']>
+        Relationships: []
+      }
+      saga_instances: {
+        Row: {
+          id: string
+          saga_type: string
+          task_id: string | null
+          status: string
+          current_step: string | null
+          error_message: string | null
+          payload: Json
+          steps: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          saga_type: string
+          task_id?: string | null
+          status?: string
+          current_step?: string | null
+          error_message?: string | null
+          payload?: Json
+          steps?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['saga_instances']['Insert']>
+        Relationships: []
+      }
+      escrow_holds: {
+        Row: {
+          id: string
+          task_id: string | null
+          amount: number
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          task_id?: string | null
+          amount: number
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['escrow_holds']['Insert']>
+        Relationships: []
+      }
+      analytics_events: {
+        Row: {
+          id: string
+          event: string
+          task_id: string | null
+          user_id: string | null
+          category_id: string | null
+          region_lat: number | null
+          region_lng: number | null
+          top_score: number | null
+          metadata: Json
+          occurred_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event: string
+          task_id?: string | null
+          user_id?: string | null
+          category_id?: string | null
+          region_lat?: number | null
+          region_lng?: number | null
+          top_score?: number | null
+          metadata?: Json
+          occurred_at?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['analytics_events']['Insert']>
         Relationships: []
       }
     }

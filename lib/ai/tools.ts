@@ -8,7 +8,7 @@ import type { Tool, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/mes
 import { createClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 
-const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co', env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder')
 
 export const AI_TOOLS: Tool[] = [
   {

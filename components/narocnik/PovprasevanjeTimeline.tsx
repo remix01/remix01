@@ -1,7 +1,9 @@
 'use client'
 
+import type { PovprasevanjeStatus } from '@/types/marketplace'
+
 interface Props {
-  status: 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+  status: PovprasevanjeStatus
   createdAt?: string
 }
 
@@ -13,9 +15,10 @@ const STEPS = [
   { key: 'zakljuceno', label: 'Zaključeno' },
 ]
 
-function getActiveStep(status: Props['status']): number {
+function getActiveStep(status: PovprasevanjeStatus): number {
   if (status === 'preklicano') return -1
   if (status === 'odprto')     return 0
+  if (status === 'dodeljeno')  return 1
   if (status === 'v_teku')     return 2
   if (status === 'zakljuceno') return 4
   return 1

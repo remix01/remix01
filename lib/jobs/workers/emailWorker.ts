@@ -177,7 +177,6 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
         type: notificationType,
         title: notificationTitle,
         body: notificationBody,
-        message: notificationBody,
         resource_id: transactionId,
         resource_type: 'escrow',
         metadata: metadata || {},

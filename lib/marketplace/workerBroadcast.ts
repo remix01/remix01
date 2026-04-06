@@ -11,7 +11,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || 'placeholder')
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
 
 export const workerBroadcast = {
@@ -59,9 +59,9 @@ export const workerBroadcast = {
         user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
         type: 'novo_povprasevanje',
         title: 'Novo povpraševanje v vaši kategoriji',
-        message: `${title}${city}`,
+        body: `${title}${city}`,
         link,
-        read: false,
+        is_read: false,
         metadata: { povprasevanje_id: requestId },
       }))
 
@@ -131,9 +131,9 @@ export const workerBroadcast = {
         user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
         type: 'rok_izteka',
         title: `Rok se izteka — še ${minutesLeft} minut!`,
-        message: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
+        body: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
         link: '/obrtnik/povprasevanja',
-        read: false,
+        is_read: false,
         metadata: { povprasevanje_id: requestId, minutes_left: minutesLeft },
       }))
 

@@ -44,4 +44,8 @@ async function handler(req: NextRequest) {
   }
 }
 
-export const POST = verifySignatureAppRouter(handler)
+// Only use QStash signature verification if signing keys are configured
+const hasQStashKeys = !!(
+  process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY
+)
+export const POST = hasQStashKeys ? verifySignatureAppRouter(handler) : handler

@@ -7,6 +7,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { sendAlert as slackSendAlert } from '@/lib/slack'
+import type { Json } from '@/types/supabase'
 
 type AlertType =
   | 'sla_warning'
@@ -38,7 +39,7 @@ export const alerting = {
         alert_type: alert.type,
         severity: alert.severity,
         message: alert.message,
-        metadata: alert.metadata ?? {},
+        metadata: (alert.metadata ?? {}) as Json,
         channels_notified: channels,
       })
     } catch (err) {

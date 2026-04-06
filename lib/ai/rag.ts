@@ -13,7 +13,7 @@ import { createClient } from '@supabase/supabase-js'
 import { env, hasOpenAI, hasGemini, hasVoyageAPI } from '@/lib/env'
 
 // Use service role for embedding operations
-const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co', env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder')
 
 // Embedding configuration - standardized to 1536 dimensions
 const EMBEDDING_DIMENSIONS = 1536

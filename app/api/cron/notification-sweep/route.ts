@@ -71,9 +71,8 @@ export async function GET(request: NextRequest) {
           type: 'novo_povprasevanje',
           title: 'Novo povpraševanje v vaši kategoriji',
           body: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
-          message: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
           link: '/obrtnik/povprasevanja',
-          read: false,
+          is_read: false,
           metadata: {
             povprasevanje_id: p.id,
             urgency: p.urgency || 'normalno',
