@@ -110,16 +110,16 @@ describe('RateGuard', () => {
       await expect(rateGuard('user-b')).resolves.toBeUndefined()
       await expect(rateGuard('user-c')).resolves.toBeUndefined()
 
-      // All three should succeed - different users
-      expect(true).toBe(true)
+      // In fallback mode Redis must not be used
+      expect(mockRedis.incr).not.toHaveBeenCalled()
     })
 
     it('tracks separate limits per user', async () => {
       await expect(rateGuard('user-x')).resolves.toBeUndefined()
       await expect(rateGuard('user-y')).resolves.toBeUndefined()
 
-      // user-x making multiple calls shouldn't affect user-y
-      expect(true).toBe(true)
+      // In fallback mode Redis must not be used; isolation is handled by the in-memory Map
+      expect(mockRedis.incr).not.toHaveBeenCalled()
     })
 
     it('resets counter after time window expires', async () => {
