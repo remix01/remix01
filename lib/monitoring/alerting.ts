@@ -30,7 +30,7 @@ interface AlertPayload {
 
 export const alerting = {
   async send(alert: AlertPayload): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase: any = createAdminClient()
     const channels: string[] = []
 
     try {
@@ -86,7 +86,7 @@ export const alerting = {
   },
 
   async isDuplicate(type: AlertType, withinMinutes = 15): Promise<boolean> {
-    const supabase = createAdminClient()
+    const supabase: any = createAdminClient()
     const since = new Date(Date.now() - withinMinutes * 60_000).toISOString()
     const { count } = await supabase
       .from('alert_log')

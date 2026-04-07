@@ -1,6 +1,14 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next'
 
+// Build-time fallbacks for environments where secrets are not injected
+process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'http://localhost:54321'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= 'development-anon-key'
+process.env.SUPABASE_SERVICE_ROLE_KEY ||= 'development-service-role-key'
+process.env.QSTASH_CURRENT_SIGNING_KEY ||= 'development-current-signing-key'
+process.env.QSTASH_NEXT_SIGNING_KEY ||= 'development-next-signing-key'
+process.env.QSTASH_TOKEN ||= 'development-qstash-token'
+
 // Cache bust: 2026-03-23
 const nextConfig: NextConfig = {
   // ═══════════════════════════════════════════════════════════════════════════
