@@ -2,7 +2,7 @@ import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export async function PATCH(
   req: Request,
@@ -38,7 +38,7 @@ export async function PATCH(
     'obrtniki', id, current, updates)
 
   // Email obrtnik on verification
-  if (body.status === 'verified' && current.email) {
+  if (body.status === 'verified' && current.email && resend) {
     try {
       await resend.emails.send({
         from: 'LiftGO <info@liftgo.net>',
@@ -57,7 +57,7 @@ export async function PATCH(
     }
   }
 
-  if (body.status === 'blocked' && current.email) {
+  if (body.status === 'blocked' && current.email && resend) {
     try {
       await resend.emails.send({
         from: 'LiftGO <info@liftgo.net>',
