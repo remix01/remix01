@@ -10,5 +10,5 @@
 
 DO $$
 BEGIN
-  RAISE NOTICE 'Skipping deprecated migration 001_rls_policies.sql (legacy PascalCase schema not present).';
+  RAISE NOTICE 'Skipping deprecated migration 20260407120000_deprecate_legacy_pascalcase_rls.sql (legacy PascalCase schema not present).';
 END $$;
