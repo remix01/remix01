@@ -107,7 +107,7 @@ export default function PartnerDashboard() {
         .eq('id', partnerId)
         .maybeSingle()
 
-      const { data: offers, error: offersError } = await supabase
+      const { count: offersCount, error: offersError } = await supabase
         .from('ponudbe')
         .select('id', { count: 'exact', head: true })
         .eq('obrtnik_id', partnerId)
@@ -116,7 +116,7 @@ export default function PartnerDashboard() {
         const hasDescription = profile?.description != null
         const hasHourlyRate = profile?.hourly_rate != null
         const hasPhone = userProfile?.phone != null
-        const hasOffers = (offers?.length || 0) > 0
+        const hasOffers = (offersCount || 0) > 0
 
         const completedItems = [hasDescription, hasHourlyRate, hasPhone, hasOffers].filter(Boolean).length
         const completionPercentage = (completedItems / 4) * 100
