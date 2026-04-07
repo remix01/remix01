@@ -111,6 +111,10 @@ export async function completeJob(jobId: string): Promise<void> {
     undefined,
     `job:complete:${jobId}`
   )
+
+  if (status.startedAt) {
+    await recordProcessingTime(status.jobType, Date.now() - status.startedAt)
+  }
 }
 
 /**
@@ -191,24 +195,27 @@ export async function getQueueStatistics(jobType?: JobType): Promise<QueueStats>
       let processing = 0
       let completed = 0
       let failed = 0
+      let totalProcessingTimeMs = 0
 
       for (const type of types) {
         const pendingKey = `queue:stats:${type}:pending:${now}`
         const processingKey = `queue:stats:${type}:processing:${now}`
         const completedKey = `queue:stats:${type}:completed:${now}`
         const failedKey = `queue:stats:${type}:failed:${now}`
+        const processingTimeKey = `queue:stats:${type}:processing_time_ms:${now}`
 
-        const counts = await redis.mget<string>(pendingKey, processingKey, completedKey, failedKey)
+        const counts = await redis.mget<string>(pendingKey, processingKey, completedKey, failedKey, processingTimeKey)
 
         pending += parseInt(counts[0] || '0', 10)
         processing += parseInt(counts[1] || '0', 10)
         completed += parseInt(counts[2] || '0', 10)
         failed += parseInt(counts[3] || '0', 10)
+        totalProcessingTimeMs += parseInt(counts[4] || '0', 10)
       }
 
       const totalJobs = pending + processing + completed + failed
       const failureRate = totalJobs > 0 ? failed / totalJobs : 0
-      const averageProcessingTime = processing > 0 ? 0 : 0 // TODO: Calculate from job metadata
+      const averageProcessingTime = completed > 0 ? totalProcessingTimeMs / completed : 0
 
       return {
         pending,
@@ -276,4 +283,23 @@ export async function getRecentFailedJobs(limit: number = 100): Promise<JobStatu
     console.error('[Queue] Failed to get failed jobs:', err)
     return []
   }
+}
+
+/**
+ * Record processing duration for completed jobs (in milliseconds)
+ */
+export async function recordProcessingTime(jobType: JobType, durationMs: number): Promise<void> {
+  const key = `queue:stats:${jobType}:processing_time_ms:${new Date().toISOString().split('T')[0]}`
+  const safeDuration = Number.isFinite(durationMs) && durationMs > 0 ? Math.round(durationMs) : 0
+
+  if (safeDuration <= 0) return
+
+  await executeRedisOperation(
+    async (redis) => {
+      await redis.incrby(key, safeDuration)
+      await redis.expire(key, CACHE_TTL.VERY_LONG)
+    },
+    undefined,
+    `queue:processing-time:${jobType}`
+  )
 }

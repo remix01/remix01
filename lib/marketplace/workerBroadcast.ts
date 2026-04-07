@@ -59,6 +59,7 @@ export const workerBroadcast = {
         user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
         type: 'novo_povprasevanje',
         title: 'Novo povpraševanje v vaši kategoriji',
+        body: `${title}${city}`,
         message: `${title}${city}`,
         link,
         read: false,
@@ -131,6 +132,7 @@ export const workerBroadcast = {
         user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
         type: 'rok_izteka',
         title: `Rok se izteka — še ${minutesLeft} minut!`,
+        body: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
         message: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
         link: '/obrtnik/povprasevanja',
         read: false,
