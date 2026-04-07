@@ -2,36 +2,51 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+const CONSENT_COOKIE_NAME = "liftgo-cookie-consent"
+const CONSENT_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+
+function getConsentCookie(): string | null {
+  if (typeof document === "undefined") return null
+
+  const cookie = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${CONSENT_COOKIE_NAME}=`))
+
+  return cookie ? decodeURIComponent(cookie.split("=")[1] || "") : null
+}
+
+function setConsentCookie(value: "accepted" | "declined") {
+  if (typeof document === "undefined") return
+
+  document.cookie = `${CONSENT_COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`
+}
+
 export function CookieConsent() {
-  // Initialize as false — will hydrate properly after mount
   const [showBanner, setShowBanner] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    // Only check localStorage after component is mounted on client
     setIsMounted(true)
-    const consent = localStorage.getItem("liftgo-cookie-consent")
+
+    const consent = getConsentCookie()
     if (!consent) {
       setShowBanner(true)
     }
   }, [])
 
   const handleAccept = () => {
-    localStorage.setItem("liftgo-cookie-consent", "accepted")
+    setConsentCookie("accepted")
     setShowBanner(false)
   }
 
   const handleDecline = () => {
-    localStorage.setItem("liftgo-cookie-consent", "declined")
+    setConsentCookie("declined")
     setShowBanner(false)
   }
 
-  // Don't render anything until we've hydrated — prevents mismatch
-  if (!isMounted) return null
-  if (!showBanner) return null
+  if (!isMounted || !showBanner) return null
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-4 shadow-lg sm:p-6">
@@ -39,7 +54,7 @@ export function CookieConsent() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1">
             <p className="text-sm text-foreground">
-              <strong>Piškotki</strong> — Uporabljamo piškotke za izboljšanje vaše izkušnje. 
+              <strong>Piškotki</strong> — Uporabljamo piškotke za izboljšanje vaše izkušnje.
               Nujni piškotki so potrebni za delovanje strani, ostali pa za analitiko in funkcionalnost.{" "}
               <Link href="/privacy" className="text-primary underline hover:no-underline">
                 Preberite več
