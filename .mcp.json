@@ -48,6 +48,16 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
     },
+    "github-mcp": {
+      "url": "https://whabaeatixtymbccwigu.supabase.co/functions/v1/github-mcp"
+    },
+    "openai": {
+      "command": "npx",
+      "args": ["-y", "@openai/mcp-server"],
+      "env": {
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+      }
+    },
     "vercel": {
       "command": "npx",
       "args": ["-y", "vercel-mcp-server"],
