@@ -16,15 +16,29 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
+import type { Database } from '@/types/supabase'
+
+type PartnerProfile = Database['public']['Tables']['obrtnik_profiles']['Row']
+type Offer = Database['public']['Tables']['ponudbe']['Row']
+type PartnerDashboardPartner = Pick<PartnerProfile, 'id' | 'business_name' | 'is_verified'> & {
+  subscription_tier: 'start' | 'pro'
+  avg_rating: number
+}
 
 export default function PartnerDashboard() {
   const router = useRouter()
-  const [partner, setPartner] = useState<any>(null)
+  const [partner, setPartner] = useState<PartnerDashboardPartner | null>(null)
   const [loading, setLoading] = useState(true)
-  const [offers, setOffers] = useState<any[]>([])
+  const [offers, setOffers] = useState<Offer[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState('overview')
-  const [completionStatus, setCompletionStatus] = useState<any>(null)
+  const [completionStatus, setCompletionStatus] = useState<{
+    completionPercentage: number
+    hasDescription: boolean
+    hasHourlyRate: boolean
+    hasPhone: boolean
+    hasOffers: boolean
+  } | null>(null)
 
   const supabase = createClient()
 
@@ -56,7 +70,13 @@ export default function PartnerDashboard() {
         .maybeSingle()
 
       if (partnerData) {
-        setPartner(partnerData)
+        setPartner({
+          id: partnerData.id,
+          business_name: partnerData.business_name,
+          is_verified: partnerData.is_verified,
+          subscription_tier: partnerData.subscription_tier ?? 'start',
+          avg_rating: partnerData.avg_rating ?? 0,
+        })
 
         // Check completion status
         const status = await getCompletionStatus(partnerData.id)
@@ -107,7 +127,7 @@ export default function PartnerDashboard() {
         .eq('id', partnerId)
         .maybeSingle()
 
-      const { data: offers, error: offersError } = await supabase
+      const { count: offersCount, error: offersError } = await supabase
         .from('ponudbe')
         .select('id', { count: 'exact', head: true })
         .eq('obrtnik_id', partnerId)
@@ -116,7 +136,7 @@ export default function PartnerDashboard() {
         const hasDescription = profile?.description != null
         const hasHourlyRate = profile?.hourly_rate != null
         const hasPhone = userProfile?.phone != null
-        const hasOffers = (offers?.length || 0) > 0
+        const hasOffers = (offersCount || 0) > 0
 
         const completedItems = [hasDescription, hasHourlyRate, hasPhone, hasOffers].filter(Boolean).length
         const completionPercentage = (completedItems / 4) * 100

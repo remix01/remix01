@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import type { Database } from '@/types/supabase'
 
 export const metadata = {
   title: 'Nadzorna plošča | LiftGO',
@@ -29,10 +30,15 @@ export default async function DashboardPage() {
   // Fetch stats
   const { data: povprasevanja } = await supabase
     .from('povprasevanja')
-    .select('id, title, category_id, location_city, created_at, status')
+    .select('id, title, location_city, created_at, status, budget_min, budget_max')
     .eq('narocnik_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(50) as { data: any[] | null }
+    .limit(50)
+
+  type InquiryPreview = Pick<
+    Database['public']['Tables']['povprasevanja']['Row'],
+    'id' | 'title' | 'location_city' | 'created_at' | 'status' | 'budget_min' | 'budget_max'
+  >
 
   // Calculate stats
   const stats = {
@@ -42,7 +48,7 @@ export default async function DashboardPage() {
     zakljuceno: povprasevanja?.filter((p) => p.status === 'zakljuceno').length || 0,
   }
 
-  const recentInquiries = povprasevanja?.slice(0, 5) || []
+  const recentInquiries: InquiryPreview[] = (povprasevanja || []).slice(0, 5)
 
   return (
     <div className="p-4 lg:p-8">
@@ -138,19 +144,22 @@ export default async function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold text-slate-900 truncate">
-                        {inquiry.naslov}
+                        {inquiry.title}
                       </h3>
                       <Badge className={statusBadgeColors[inquiry.status as keyof typeof statusBadgeColors]}>
                         {inquiry.status}
                       </Badge>
                     </div>
-                    <p className="text-sm text-slate-600 truncate">{inquiry.kategorija}</p>
-                    <p className="text-sm text-slate-500 mt-1">{inquiry.lokacija}</p>
+                    <p className="text-sm text-slate-500 mt-1">{inquiry.location_city || 'Lokacija ni navedena'}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium text-slate-900">
-                      €{inquiry.budget_od}–€{inquiry.budget_do}
-                    </p>
+                    {inquiry.budget_min != null && inquiry.budget_max != null ? (
+                      <p className="text-sm font-medium text-slate-900">
+                        €{inquiry.budget_min}–€{inquiry.budget_max}
+                      </p>
+                    ) : (
+                      <p className="text-sm font-medium text-slate-500">Brez proračuna</p>
+                    )}
                     <p className="text-xs text-slate-500 mt-1">
                       {new Date(inquiry.created_at).toLocaleDateString('sl-SI')}
                     </p>
