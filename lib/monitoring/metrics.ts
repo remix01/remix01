@@ -8,7 +8,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 
 export const metrics = {
   async getSnapshot() {
-    const supabase = createAdminClient()
+    const supabase: any = createAdminClient()
     const now = new Date()
     const h1ago = new Date(now.getTime() - 60 * 60_000).toISOString()
     const h24ago = new Date(now.getTime() - 24 * 60 * 60_000).toISOString()
