@@ -18,3 +18,7 @@ MCP check:
 Vercel logs check:
 - Attempted to inspect Vercel deployment logs directly, but `vercel` CLI is not installed in this environment.
 - Used `pnpm run build` as a local equivalent verification of the production build path.
+
+Runtime log triage (from shared Vercel JSONL):
+- Fixed likely source of `TypeError: object is not iterable ... at ... supabase-js ... .in(...)` seen on dynamic city/category pages by changing category-filter logic in `listObrtniki` to fetch `obrtnik_id[]` first and pass a real array to `.in('id', ids)`.
+- Simplified `/api/cron/event-processor` to static imports for subscribers/outbox to reduce serverless dynamic-import failure paths that were correlated with periodic `500` responses in cron logs.

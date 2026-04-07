@@ -14,6 +14,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { initEventSubscribers } from '@/lib/events'
+import { outbox } from '@/lib/events/outbox'
 
 export async function GET(req: NextRequest) {
   // Verify CRON_SECRET
@@ -36,72 +38,14 @@ export async function GET(req: NextRequest) {
   }))
 
   try {
-    // STEP 1: Import and initialize event subscribers
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] importing subscribers' 
+    // STEP 1: Initialize subscribers for this serverless execution context
+    initEventSubscribers()
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] subscribers initialized'
     }))
-    
-    let initEventSubscribers: () => void
-    try {
-      const subscribers = await import('@/lib/events')
-      initEventSubscribers = subscribers.initEventSubscribers
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] subscribers imported successfully' 
-      }))
-    } catch (importErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to import subscribers', 
-        error: String(importErr),
-        stack: importErr instanceof Error ? importErr.stack : undefined
-      }))
-      throw new Error(`Failed to import subscribers: ${importErr}`)
-    }
 
-    // Initialize subscribers for this serverless execution context
-    try {
-      initEventSubscribers()
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] subscribers initialized' 
-      }))
-    } catch (initErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to initialize subscribers', 
-        error: String(initErr),
-        stack: initErr instanceof Error ? initErr.stack : undefined
-      }))
-      throw new Error(`Failed to initialize subscribers: ${initErr}`)
-    }
-
-    // STEP 2: Import outbox processor
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] importing outbox' 
-    }))
-    
-    let outbox: any
-    try {
-      const outboxModule = await import('@/lib/events/outbox')
-      outbox = outboxModule.outbox
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] outbox imported successfully' 
-      }))
-    } catch (importErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to import outbox', 
-        error: String(importErr),
-        stack: importErr instanceof Error ? importErr.stack : undefined
-      }))
-      throw new Error(`Failed to import outbox: ${importErr}`)
-    }
-
-    // STEP 3: Process pending events
+    // STEP 2: Process pending events
     console.log(JSON.stringify({ 
       level: 'info', 
       message: '[event-processor] processing batch', 
