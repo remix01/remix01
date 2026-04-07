@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface Povprasevanje {
   id: string
@@ -39,6 +40,21 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState<Partial<Povprasevanje>>({})
 
+  const getAuthHeaders = async (): Promise<HeadersInit> => {
+    const supabase = createClient()
+    const { data: { session }, error } = await supabase.auth.getSession()
+
+    if (error) {
+      throw error
+    }
+
+    if (!session?.access_token) {
+      throw new Error('Manjka prijavna seja. Prosim prijavite se ponovno.')
+    }
+
+    return { Authorization: `Bearer ${session.access_token}` }
+  }
+
   useEffect(() => {
     if (!id || id === 'undefined') {
       setLoading(false)
@@ -47,20 +63,30 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
 
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('sb-token')
+        const authHeaders = await getAuthHeaders()
 
         // Fetch povprasevanje
         const response = await fetch(`/api/povprasevanje/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: authHeaders,
         })
+
+        if (!response.ok) {
+          throw new Error(`Povpraševanja ni mogoče naložiti (${response.status}).`)
+        }
+
         const data = await response.json()
         setPovprasevanje(data)
         setFormData(data)
 
         // Fetch contractors
         const contractorResponse = await fetch('/api/obrtniki?admin=true', {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: authHeaders,
         })
+
+        if (!contractorResponse.ok) {
+          throw new Error(`Seznama obrtnikov ni mogoče naložiti (${contractorResponse.status}).`)
+        }
+
         const contractors = await contractorResponse.json()
         setObrtniki(contractors)
       } catch (error) {
@@ -78,11 +104,11 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
 
     setSaving(true)
     try {
-      const token = localStorage.getItem('sb-token')
+      const authHeaders = await getAuthHeaders()
       const response = await fetch(`/api/povprasevanje/${povprasevanje.id}`, {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...authHeaders,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
