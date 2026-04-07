@@ -94,28 +94,14 @@ CREATE POLICY "povprasevanja_update_owner_or_admin"
     )
   );
 
--- Realtime-friendly policy (explicit FOR ALL)
+-- Realtime-friendly policy (explicit FOR ALL) without widening write access.
+-- Realtime subscriptions rely on SELECT policies; FOR ALL here remains ownership/admin scoped.
 CREATE POLICY "povprasevanja_realtime_all"
   ON public.povprasevanja
   FOR ALL
   TO authenticated
   USING (
     narocnik_id = (SELECT auth.uid())
-    OR (
-      status = 'odprto'
-      AND EXISTS (
-        SELECT 1
-        FROM public.obrtnik_categories oc
-        WHERE oc.obrtnik_id = (SELECT auth.uid())
-          AND oc.category_id = povprasevanja.category_id
-      )
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.ponudbe po
-      WHERE po.povprasevanje_id = povprasevanja.id
-        AND po.obrtnik_id = (SELECT auth.uid())
-    )
     OR EXISTS (
       SELECT 1
       FROM public.admin_users au
@@ -232,12 +218,6 @@ CREATE POLICY "ponudbe_realtime_all"
   TO authenticated
   USING (
     obrtnik_id = (SELECT auth.uid())
-    OR EXISTS (
-      SELECT 1
-      FROM public.povprasevanja pv
-      WHERE pv.id = ponudbe.povprasevanje_id
-        AND pv.narocnik_id = (SELECT auth.uid())
-    )
     OR EXISTS (
       SELECT 1
       FROM public.admin_users au
