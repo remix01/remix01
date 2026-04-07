@@ -181,12 +181,22 @@ export async function listObrtniki(filters?: {
 
   if (filters?.category_id) {
     // Filter by category through join
-    query = query.in('id',
-      supabase
-        .from('obrtnik_categories')
-        .select('obrtnik_id')
-        .eq('category_id', filters.category_id) as any
-    )
+    const { data: categoryRows, error: categoryError } = await supabase
+      .from('obrtnik_categories')
+      .select('obrtnik_id')
+      .eq('category_id', filters.category_id)
+
+    if (categoryError) {
+      console.error('[v0] Error fetching obrtnik categories for filter:', categoryError)
+      return []
+    }
+
+    const obrtnikIds = (categoryRows || []).map((row) => row.obrtnik_id).filter(Boolean)
+    if (obrtnikIds.length === 0) {
+      return []
+    }
+
+    query = query.in('id', obrtnikIds)
   }
 
   query = query.order('avg_rating', { ascending: false })
