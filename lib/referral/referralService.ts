@@ -144,27 +144,29 @@ export async function awardReferralBonus(referredUserId: string): Promise<boolea
     return false
   }
   
-  // Add credit to referrer
-  const { error: referrerError } = await supabase
-    .from('profiles')
-    .update({
-      credit_balance: supabase.rpc(
-        'increment_numeric',
-        { table_name: 'profiles', column_name: 'credit_balance', value: BONUS_AMOUNT, id: referral.referrer_id }
-      )
-    })
-    .eq('id', referral.referrer_id)
-  
-  // Add credit to referred user
-  const { error: referredError } = await supabase
-    .from('profiles')
-    .update({
-      credit_balance: supabase.rpc(
-        'increment_numeric',
-        { table_name: 'profiles', column_name: 'credit_balance', value: BONUS_AMOUNT, id: referral.referred_id }
-      )
-    })
-    .eq('id', referral.referred_id)
+  const addCredit = async (userId: string) => {
+    const { data: profileData, error: fetchError } = await supabase
+      .from('profiles')
+      .select('credit_balance')
+      .eq('id', userId)
+      .single()
+
+    if (fetchError) return fetchError
+
+    const currentBalance = profileData?.credit_balance ?? 0
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ credit_balance: currentBalance + BONUS_AMOUNT })
+      .eq('id', userId)
+
+    return updateError
+  }
+
+  // Add credit to referrer and referred user
+  const [referrerError, referredError] = await Promise.all([
+    addCredit(referral.referrer_id),
+    addCredit(referral.referred_id),
+  ])
   
   if (referrerError || referredError) {
     console.error('[v0] Failed to award credits:', { referrerError, referredError })

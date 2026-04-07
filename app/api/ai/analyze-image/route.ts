@@ -15,7 +15,10 @@ import { env } from '@/lib/env'
 import { analyzeImage } from '@/lib/ai/orchestrator'
 import { isAgentAccessible, getAgentDailyLimit, AGENT_DAILY_LIMITS } from '@/lib/agents/ai-router'
 
-const supabaseAdmin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+const supabaseAdmin = createClient(
+  env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+  env.SUPABASE_SERVICE_ROLE_KEY || 'development-service-role-key'
+)
 
 interface AnalyzeImageRequest {
   imageUrl: string

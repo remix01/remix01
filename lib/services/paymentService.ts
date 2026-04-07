@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createPaymentIntent } from '@/lib/mcp/payments'
 import { ServiceError } from './serviceError'
 import { eventBus } from '@/lib/events'
+import { getCommissionRate } from '@/lib/stripe/helpers'
+import type { PlanType } from '@/lib/stripe/config'
 
 export const paymentService = {
   /**
@@ -107,7 +109,15 @@ export const paymentService = {
    * For now, this is a placeholder for the event emission pattern.
    */
   async releasePayment(taskId: string, partnerId: string, amount: number) {
-    const commissionPercent = 10 // 10% for START plan, 5% for PRO (TODO: fetch from partner profile)
+    const supabase = await createClient()
+    const { data: partnerProfile } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', partnerId)
+      .single()
+
+    const plan: PlanType = partnerProfile?.subscription_tier === 'pro' ? 'PRO' : 'START'
+    const commissionPercent = getCommissionRate(plan)
     const commissionAmount = Math.round(amount * (commissionPercent / 100) * 100) / 100
     const netAmount = amount - commissionAmount
 
