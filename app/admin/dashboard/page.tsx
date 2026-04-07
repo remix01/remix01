@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
   // Format chart data with safe access
   const chartData = (data?.last7Days || []).map((day: any) => ({
     datum: new Date(day.date).toLocaleDateString('sl-SI', { month: 'short', day: 'numeric' }),
-    eventi: day.events || 0,
+    dogodki: day.events || 0,
     povpraševanja: day.inquiries || 0,
     konverzije: day.conversions || 0,
   }))
