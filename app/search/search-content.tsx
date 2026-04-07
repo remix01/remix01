@@ -64,7 +64,7 @@ const categoryOptions = [
   "Zaključna dela",
   "Okna, vrata & sencila",
   "Okolica & zunanja ureditev",
-  "Vzdrzevanje & popravila",
+  "Vzdrževanje & popravila",
   "Poslovne storitve",
 ]
 

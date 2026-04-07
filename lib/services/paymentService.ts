@@ -104,9 +104,13 @@ export const paymentService = {
   /**
    * Process payment release after task completion
    * Emits payment.released event for subscribers (analytics, notifications, etc.)
-   * 
-   * TODO: Integrate with Stripe transfer API
-   * For now, this is a placeholder for the event emission pattern.
+   *
+   * Commission rates are plan-aware (via getCommissionRate):
+   *   START plan → 10%  |  PRO plan → 5%
+   * These match the rates documented in README.md.
+   *
+   * TODO: Integrate with Stripe transfer API to actually disburse netAmount
+   * to the partner's connected Stripe account.
    */
   async releasePayment(taskId: string, partnerId: string, amount: number) {
     const supabase = await createClient()
