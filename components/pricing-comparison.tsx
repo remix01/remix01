@@ -9,10 +9,12 @@ import { STRIPE_PRODUCTS } from '@/lib/stripe/config'
 
 const startPlan = STRIPE_PRODUCTS.START
 const proPlan = STRIPE_PRODUCTS.PRO
+const elitePlan = STRIPE_PRODUCTS.ELITE
 
 const features = [
   { name: "Mesečna naročnina", start: "0 €", pro: "29 €", elite: "79 €" },
-  { name: "Provizija", start: `${startPlan.commission}%`, pro: `${proPlan.commission}%`, elite: "~10%" },
+  { name: "Provizija", start: `${startPlan.commission}%`, pro: `${proPlan.commission}%`, elite: "0%" },
+  { name: "Največja provizija na delo", start: "500 €", pro: "500 €", elite: "Brez" },
   { name: "Dostop do povpraševanj", start: true, pro: true, elite: true },
   { name: "Vidnost profila", start: "Standardna", pro: "Prioritetna", elite: "Top pozicija" },
   { name: "AI sporočila/dan", start: "5", pro: "100", elite: "Neomejeno" },
@@ -344,7 +346,7 @@ export function PricingComparison() {
             </div>
           </div>
 
-          {/* Commission explanation */}
+          {/* Commission explanation - UPDATED */}
           <div className="mt-8 rounded-2xl border bg-card p-6 lg:p-8">
             <div className="flex flex-col items-start gap-3 text-center lg:flex-row lg:text-left lg:items-center">
               <div className="flex-1">
@@ -352,9 +354,21 @@ export function PricingComparison() {
                   Kako deluje provizija?
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Provizija <span className="font-medium text-foreground">~10% samo ob uspešno zaključenem delu</span>. Nič provizije, nič posla.
+                  Za START in PRO: <span className="font-medium text-foreground">provizija samo ob uspešno zaključenem delu</span>. Za ELITE: <span className="font-medium text-green-600">0% provizija - brez provizije!</span> Nič provizije, nič posla.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Enterprise notice - ADDED */}
+          <div className="mt-8 rounded-2xl border border-blue-200 bg-blue-50 p-6 lg:p-8">
+            <div className="flex flex-col items-start gap-3">
+              <h3 className="font-display text-lg font-bold text-blue-900">
+                💡 Za večja dela
+              </h3>
+              <p className="text-sm text-blue-800">
+                Za dela nad 10.000€ je provizija omejena na največ <span className="font-semibold">500€ na delo</span>, ne glede na izbrani paket. To zagotavlja dostopne cene tudi za večje prenove.
+              </p>
             </div>
           </div>
 
