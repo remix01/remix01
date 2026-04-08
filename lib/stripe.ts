@@ -31,6 +31,11 @@ export const stripe = {
       retrieve: (...args: [id: any, params?: any, options?: any]) => getStripeClient().checkout.sessions.retrieve(...args),
     },
   },
+  billingPortal: {
+    sessions: {
+      create: (...args: [params: any, options?: any]) => getStripeClient().billingPortal.sessions.create(...args),
+    },
+  },
   refunds: {
     create: (...args: [params: any, options?: any]) => getStripeClient().refunds.create(...args),
   },

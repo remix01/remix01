@@ -55,6 +55,14 @@ Opazna sta dva vzporedna vzorca konfiguracije:
 
 Priporočilo: poenotiti na env-driven pristop in odstraniti hardcoded DSN iz repozitorija.
 
+### 5) Cenik/Stripe poti (dodatni pregled)
+- Preverjeno, da vsi glavni CTA na ceniku uporabljajo `POST /api/stripe/create-checkout`.
+- Dodana podpora za varne, kontekstne povratne poti (`successPath`, `cancelPath`) v checkout API:
+  - registracija lahko ostane na privzeti poti,
+  - dashboard/naročnina strani pa se po plačilu vrnejo na svoje naravne URL-je.
+- Dodan manjkajoči endpoint `POST /api/stripe/portal` za upravljanje obstoječih naročnin (Stripe Billing Portal), ki je bil prej v UI klican, a ni obstajal.
+- Posodobljeni so bili gumbi na naročnina/cenik straneh, da uporabljajo pravilne Stripe poti in return URL-je.
+
 ## Priporočen prioritetni TODO plan
 1. **P0:** Enotna Sentry konfiguracija prek env + odstranitev hardcoded DSN.
 2. **P0:** Nastaviti Redis env (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) za stabilen runtime.
@@ -71,4 +79,6 @@ Priporočilo: poenotiti na env-driven pristop in odstraniti hardcoded DSN iz rep
 - `app/(narocnik)/povprasevanja/page.tsx`
 - `app/(narocnik)/dashboard/page.tsx`
 - `app/api/povprasevanje/route.ts`
+- `app/api/stripe/create-checkout/route.ts`
+- `app/api/stripe/portal/route.ts`
 - `LIFTGO_AUDIT_2026-04-08.md`

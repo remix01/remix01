@@ -23,7 +23,7 @@ function getBaseUrl(req: Request): string {
 
 export async function POST(req: Request) {
   try {
-    const { plan, email } = await req.json()
+    const { plan, email, successPath, cancelPath } = await req.json()
 
     if (!isValidPlan(plan)) {
       return NextResponse.json(
@@ -55,8 +55,15 @@ export async function POST(req: Request) {
     const baseUrl = getBaseUrl(req)
     console.log('[Stripe] checkout baseUrl:', baseUrl, 'plan:', plan)
 
-    const successUrl = `${baseUrl}/registracija-mojster?plan=${plan.toLowerCase()}&stripe=success&session_id={CHECKOUT_SESSION_ID}`
-    const cancelUrl = `${baseUrl}/cenik?cancelled=true`
+    const safeSuccessPath = (typeof successPath === 'string' && successPath.startsWith('/') && !successPath.startsWith('//'))
+      ? successPath
+      : `/registracija-mojster?plan=${plan.toLowerCase()}&stripe=success&session_id={CHECKOUT_SESSION_ID}`
+    const safeCancelPath = (typeof cancelPath === 'string' && cancelPath.startsWith('/') && !cancelPath.startsWith('//'))
+      ? cancelPath
+      : '/cenik?cancelled=true'
+
+    const successUrl = `${baseUrl}${safeSuccessPath}`
+    const cancelUrl = `${baseUrl}${safeCancelPath}`
 
     try {
       new URL(successUrl)
