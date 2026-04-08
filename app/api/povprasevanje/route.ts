@@ -87,11 +87,26 @@ export async function POST(req: Request) {
       created_at: new Date().toISOString()
     }
 
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from('povprasevanja')
       .insert(insertData)
       .select()
       .single()
+
+    // Backward compatibility: some production DBs may not yet have `attachment_urls`.
+    // In that case retry insert without the column instead of failing with 500.
+    if (error && error.code === 'PGRST204' && error.message?.includes('attachment_urls')) {
+      console.warn('[v0] attachment_urls missing in schema, retrying insert without attachment_urls')
+      const { attachment_urls: _attachmentUrls, ...insertDataWithoutAttachments } = insertData
+      const retryResult = await supabaseAdmin
+        .from('povprasevanja')
+        .insert(insertDataWithoutAttachments)
+        .select()
+        .single()
+
+      data = retryResult.data
+      error = retryResult.error
+    }
 
     if (error) {
       console.error('[v0] Supabase insert error:', error)

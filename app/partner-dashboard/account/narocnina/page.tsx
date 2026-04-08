@@ -112,6 +112,8 @@ export default function NarocninaPage() {
         body: JSON.stringify({
           plan: 'PRO',
           email: user.email,
+          successPath: '/partner-dashboard/account/narocnina?stripe=success',
+          cancelPath: '/partner-dashboard/account/narocnina?cancelled=true',
         }),
       })
 
@@ -148,7 +150,7 @@ export default function NarocninaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: user.email,
+          returnPath: '/partner-dashboard/account/narocnina',
         }),
       })
 

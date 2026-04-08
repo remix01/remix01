@@ -139,7 +139,7 @@ export default async function CategoryPage(props: Props) {
               Najdite preverjenega {category.name.toLowerCase()} mojstra v vaši okolici. 
               {obrtniki.length}+ aktivnih mojstrov.
             </p>
-            <Link href="/narocnik/novo-povprasevanje">
+            <Link href="/novo-povprasevanje">
               <Button size="lg" className="gap-2">
                 Oddaj brezplačno povpraševanje <ArrowRight className="w-4 h-4" />
               </Button>

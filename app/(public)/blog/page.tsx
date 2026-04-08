@@ -115,7 +115,7 @@ export default async function BlogPage() {
             <p className="text-lg text-gray-600 mb-8">
               Na LiftGO lahko hitro najdete preverjene mojstre v vaši kategoriji in lokaciji.
             </p>
-            <Link href="/narocnik/novo-povprasevanje">
+            <Link href="/novo-povprasevanje">
               <Button size="lg" className="gap-2">
                 Oddaj povpraševanje
                 <ArrowRight className="w-4 h-4" />

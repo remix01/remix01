@@ -63,7 +63,12 @@ export default function NarocinaPage() {
       const response = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'PRO', email: user.email }),
+        body: JSON.stringify({
+          plan: 'PRO',
+          email: user.email,
+          successPath: '/obrtnik/narocnina?stripe=success',
+          cancelPath: '/obrtnik/narocnina?cancelled=true',
+        }),
       })
 
       const data = await response.json()
@@ -89,14 +94,16 @@ export default function NarocinaPage() {
         return
       }
 
-      const response = await fetch('/api/stripe/connect/status', {
-        method: 'GET',
+      const response = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnPath: '/obrtnik/narocnina' }),
       })
 
       const data = await response.json()
 
-      if (data.portalUrl) {
-        window.location.href = data.portalUrl
+      if (data.url) {
+        window.location.href = data.url
       } else {
         setErrorMessage('Napaka pri dostopanju do portala')
       }
