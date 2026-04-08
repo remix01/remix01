@@ -447,7 +447,7 @@ export function PricingComparison() {
               </div>
 
               <Button size="lg" className="mt-8 gap-2" asChild>
-                <Link href="/narocnanja">
+                <Link href="/povprasevanja">
                   Začnite
                   <ArrowRight className="h-4 w-4" />
                 </Link>

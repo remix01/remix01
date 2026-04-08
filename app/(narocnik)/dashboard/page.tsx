@@ -146,7 +146,7 @@ export default async function DashboardPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-foreground">Vaša povpraševanja</h2>
-          <Link href="/narocnik/novo-povprasevanje">
+          <Link href="/novo-povprasevanje">
             <Button className="bg-primary hover:bg-primary/90">
               + Novo povpraševanje
             </Button>
@@ -163,7 +163,7 @@ export default async function DashboardPage() {
               <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
                 Oddajte prvo povpraševanje in prejmite ponudbe preverjenih mojstrov.
               </p>
-              <Link href="/narocnik/novo-povprasevanje">
+              <Link href="/novo-povprasevanje">
                 <Button className="bg-primary hover:bg-primary/90">
                   Oddaj prvo povpraševanje →
                 </Button>

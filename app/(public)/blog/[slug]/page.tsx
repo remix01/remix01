@@ -220,7 +220,7 @@ export default async function BlogPostPage(props: Props) {
             <p className="text-lg mb-8 text-blue-100">
               Na LiftGO lahko hitro oddajte povpraševanje in prejemete ponudbe od preverjenih mojstrov.
             </p>
-            <Link href="/narocnik/novo-povprasevanje">
+            <Link href="/novo-povprasevanje">
               <Button size="lg" variant="secondary" className="gap-2">
                 Oddaj povpraševanje
                 <ArrowRight className="w-4 h-4" />
