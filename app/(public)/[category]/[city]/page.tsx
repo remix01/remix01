@@ -163,7 +163,7 @@ export default async function CategoryCityPage(props: Props) {
               Preverjeni {category.name.toLowerCase()} mojstri v {city.name}. 
               Brezplačno povpraševanje, odziv v 2 urah.
             </p>
-            <Link href="/narocnik/novo-povprasevanje">
+            <Link href="/novo-povprasevanje">
               <Button size="lg" className="gap-2">
                 Oddaj brezplačno povpraševanje <ArrowRight className="w-4 h-4" />
               </Button>

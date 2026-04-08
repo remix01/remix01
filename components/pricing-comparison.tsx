@@ -45,7 +45,12 @@ export function PricingComparison() {
       const res = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'PRO', email: user.email }),
+        body: JSON.stringify({
+          plan: 'PRO',
+          email: user.email,
+          successPath: '/partner-dashboard/account/narocnina?stripe=success',
+          cancelPath: '/cenik?cancelled=true',
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Napaka pri plačilu')
@@ -447,7 +452,7 @@ export function PricingComparison() {
               </div>
 
               <Button size="lg" className="mt-8 gap-2" asChild>
-                <Link href="/narocnanja">
+                <Link href="/povprasevanja">
                   Začnite
                   <ArrowRight className="h-4 w-4" />
                 </Link>

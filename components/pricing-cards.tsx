@@ -70,7 +70,11 @@ export function PricingCards() {
       const res = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'PRO' }),
+        body: JSON.stringify({
+          plan: 'PRO',
+          successPath: '/partner-dashboard/account/narocnina?stripe=success',
+          cancelPath: '/cenik?cancelled=true',
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
