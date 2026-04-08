@@ -204,7 +204,7 @@ export async function getQueueStatistics(jobType?: JobType): Promise<QueueStats>
         const failedKey = `queue:stats:${type}:failed:${now}`
         const processingTimeKey = `queue:stats:${type}:processing_time_ms:${now}`
 
-        const counts = await redis.mget<string>(pendingKey, processingKey, completedKey, failedKey, processingTimeKey)
+        const counts = await redis.mget(pendingKey, processingKey, completedKey, failedKey, processingTimeKey) as Array<string | null>
 
         pending += parseInt(counts[0] || '0', 10)
         processing += parseInt(counts[1] || '0', 10)
