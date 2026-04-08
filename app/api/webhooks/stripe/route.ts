@@ -59,8 +59,9 @@ async function syncConnectedAccountStatus(connectedAccountId: string, stripeEven
 }
 
 // Določi subscription tier iz Stripe price ID — zanesljivo, ne iz metadata
-function tierFromPriceId(priceId: string): 'pro' | 'start' {
+function tierFromPriceId(priceId: string): 'pro' | 'start' | 'elite' {
   if (priceId === STRIPE_PRODUCTS.PRO.priceId) return 'pro'
+  if (priceId === STRIPE_PRODUCTS.ELITE.priceId) return 'elite'
   return 'start'
 }
 
@@ -68,7 +69,7 @@ function tierFromPriceId(priceId: string): 'pro' | 'start' {
 async function updateSubscriptionTier(
   userId: string | null,
   customerId: string,
-  tier: 'pro' | 'start',
+  tier: 'pro' | 'start' | 'elite',
   stripeSubscriptionId?: string
 ) {
   let profileId = userId

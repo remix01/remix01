@@ -47,6 +47,7 @@ import { STRIPE_PRODUCTS } from './stripe/config'
 export const PLATFORM_FEE_PERCENT = {
   start: STRIPE_PRODUCTS.START.commission,
   pro: STRIPE_PRODUCTS.PRO.commission,
+  elite: STRIPE_PRODUCTS.ELITE.commission,
 } as const
 
 export const ESCROW_AUTO_RELEASE_DAYS = 7
@@ -54,7 +55,7 @@ export const ESCROW_AUTO_RELEASE_DAYS = 7
 /** Izračuna provizijo in izplačilo glede na paket obrtnika */
 export function calculateEscrow(
   amountCents: number,
-  partnerPaket: 'start' | 'pro'
+  partnerPaket: 'start' | 'pro' | 'elite'
 ): {
   commissionRate: number   // npr. 0.10
   commissionCents: number

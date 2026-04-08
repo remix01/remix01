@@ -10,9 +10,10 @@ export const STRIPE_PRODUCTS = {
     name: 'LiftGo START',
     price: 0,
     commission: 10, // 10% provizija
+    maxCommission: 500, // 500 EUR cap
     features: [
       'Neomejene ponudbe',
-      '10% provizija',
+      '10% provizija (max 500 EUR na posel)',
       'Osnovna podpora',
       'Dostop do povpraševanj'
     ]
@@ -23,14 +24,31 @@ export const STRIPE_PRODUCTS = {
     name: 'LiftGo PRO',
     price: 29,
     commission: 5, // 5% provizija
+    maxCommission: 500, // 500 EUR cap
     features: [
       'Neomejene ponudbe',
-      '5% provizija',
+      '5% provizija (max 500 EUR na posel)',
       'Prednostna podpora',
       'Analitika in statistika',
       'CRM orodje',
       'Generator ponudb',
       'Prioritetna vidnost'
+    ]
+  },
+  ELITE: {
+    // TODO: set real Stripe IDs after creating ELITE product/price in Stripe Dashboard
+    productId: 'prod_ELITE_TODO',
+    priceId: '',
+    name: 'LiftGo ELITE',
+    price: 79,
+    commission: 0,
+    maxCommission: null as number | null,
+    features: [
+      'Vse iz PRO paketa',
+      '0% provizija',
+      'Top pozicija',
+      'Ekskluzivni lead-i',
+      'Priority concierge podpora'
     ]
   }
 } as const
@@ -62,5 +80,5 @@ export function getPlanDetails(plan: PlanType) {
  * Validate if a plan type is valid
  */
 export function isValidPlan(plan: unknown): plan is PlanType {
-  return plan === 'START' || plan === 'PRO'
+  return plan === 'START' || plan === 'PRO' || plan === 'ELITE'
 }

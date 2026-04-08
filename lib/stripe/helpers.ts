@@ -100,5 +100,6 @@ export function formatPrice(euros: number): string {
 export function getPlanFromMetadata(metadata?: Record<string, string> | null): PlanType {
   if (!metadata) return 'START'
   const plan = metadata.plan || metadata.subscription_plan
+  if (plan === 'ELITE') return 'ELITE'
   return (plan === 'PRO' ? 'PRO' : 'START') as PlanType
 }

@@ -106,7 +106,7 @@ export const paymentService = {
    * Emits payment.released event for subscribers (analytics, notifications, etc.)
    *
    * Commission rates are plan-aware (via getCommissionRate):
-   *   START plan → 10%  |  PRO plan → 5%
+   *   START plan → 10%  |  PRO plan → 5%  |  ELITE plan → 0%
    * These match the rates documented in README.md.
    *
    * TODO: Integrate with Stripe transfer API to actually disburse netAmount
@@ -120,7 +120,13 @@ export const paymentService = {
       .eq('id', partnerId)
       .single()
 
-    const plan: PlanType = partnerProfile?.subscription_tier === 'pro' ? 'PRO' : 'START'
+    const tier = String(partnerProfile?.subscription_tier || 'start').toLowerCase()
+    const plan: PlanType =
+      tier === 'elite'
+        ? 'ELITE'
+        : tier === 'pro'
+          ? 'PRO'
+          : 'START'
     const commissionPercent = getCommissionRate(plan)
     const commissionAmount = Math.round(amount * (commissionPercent / 100) * 100) / 100
     const netAmount = amount - commissionAmount

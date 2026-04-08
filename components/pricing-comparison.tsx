@@ -9,10 +9,12 @@ import { STRIPE_PRODUCTS } from '@/lib/stripe/config'
 
 const startPlan = STRIPE_PRODUCTS.START
 const proPlan = STRIPE_PRODUCTS.PRO
+const elitePlan = STRIPE_PRODUCTS.ELITE
 
 const features = [
   { name: "Mesečna naročnina", start: "0 €", pro: "29 €", elite: "79 €" },
-  { name: "Provizija", start: `${startPlan.commission}%`, pro: `${proPlan.commission}%`, elite: "~10%" },
+  { name: "Provizija", start: `${startPlan.commission}%`, pro: `${proPlan.commission}%`, elite: `${elitePlan.commission}%` },
+  { name: "Največja provizija na delo", start: `${startPlan.maxCommission} €`, pro: `${proPlan.maxCommission} €`, elite: 'Brez' },
   { name: "Dostop do povpraševanj", start: true, pro: true, elite: true },
   { name: "Vidnost profila", start: "Standardna", pro: "Prioritetna", elite: "Top pozicija" },
   { name: "AI sporočila/dan", start: "5", pro: "100", elite: "Neomejeno" },
@@ -352,10 +354,15 @@ export function PricingComparison() {
                   Kako deluje provizija?
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Provizija <span className="font-medium text-foreground">~10% samo ob uspešno zaključenem delu</span>. Nič provizije, nič posla.
+                  START/PRO: <span className="font-medium text-foreground">{startPlan.commission}% / {proPlan.commission}%</span> z največ <span className="font-medium text-foreground">500 €</span> provizije na posel. ELITE: <span className="font-medium text-foreground">0%</span> provizije.
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            Pri delih nad <span className="font-semibold">10.000 €</span> je provizija za START/PRO omejena na
+            <span className="font-semibold"> 500 €</span>. ELITE nima provizije in nima zgornje omejitve.
           </div>
 
           {/* Trust strip */}
@@ -447,7 +454,7 @@ export function PricingComparison() {
               </div>
 
               <Button size="lg" className="mt-8 gap-2" asChild>
-                <Link href="/narocnanja">
+                <Link href="/prijava?redirect=/dashboard/stranka">
                   Začnite
                   <ArrowRight className="h-4 w-4" />
                 </Link>
