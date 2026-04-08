@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     if (!isValidPlan(plan)) {
       return NextResponse.json(
-        { error: 'Neveljaven paket. Izberite START ali PRO.' },
+        { error: 'Neveljaven paket. Izberite START, PRO ali ELITE.' },
         { status: 400 }
       )
     }
@@ -44,6 +44,14 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     const priceId = getStripePriceId(plan as PlanType)
+
+    if (plan === 'ELITE' && !priceId) {
+      return NextResponse.json(
+        { error: 'ELITE paket bo kmalu na voljo. Za aktivacijo nas kontaktirajte na info@liftgo.net.' },
+        { status: 400 }
+      )
+    }
+
     if (!priceId) {
       console.error(`[Stripe] Manjka priceId za ${plan}`)
       return NextResponse.json(

@@ -32,8 +32,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine commission rate based on subscription tier
-    // START = 10%, PRO = 5%
-    const commissionRate = partner.subscription_tier === 'pro' ? 0.05 : 0.10
+    // START = 10%, PRO = 5%, ELITE = 0%
+    const tier = String(partner.subscription_tier || 'start').toLowerCase()
+    const commissionRate =
+      tier === 'elite'
+        ? 0
+        : tier === 'pro'
+          ? 0.05
+          : 0.10
     const applicationFeeAmount = Math.round(amount * commissionRate)
 
     // Create PaymentIntent with application fee
