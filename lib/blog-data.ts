@@ -85,12 +85,12 @@ export const blogPosts: BlogPost[] = [
 ]
 
 export function getBlogPostBySlug(slug: string): BlogPost | undefined {
-  return blogPosts.find(post => post.slug === slug)
+  return blogPosts.find((post: any) => post.slug === slug)
 }
 
 export function getBlogPostsByCategory(category?: BlogCategory): BlogPost[] {
   if (!category) return blogPosts
-  return blogPosts.filter(post => post.category === category)
+  return blogPosts.filter((post: any) => post.category === category)
 }
 
 export const blogCategories: BlogCategory[] = ['Vodovod', 'Elektrika', 'Gradnja', 'Zaključna dela', 'Vzdrževanje']

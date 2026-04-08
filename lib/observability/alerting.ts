@@ -62,7 +62,7 @@ class AnomalyDetector {
     details?: string
   ): void {
     // Fire-and-forget: don't await, never block main flow
-    this.recordAsync(alertType, userId, sessionId, details).catch(err =>
+    this.recordAsync(alertType, userId, sessionId, details).catch((err: any) =>
       console.error('[ANOMALY] Error recording event:', err)
     )
   }
@@ -116,11 +116,10 @@ class AnomalyDetector {
     // Log via agentLogger
     agentLogger.log({
       level: 'warn',
-      event: 'anomaly_detected',
-      details: alert.details,
-      sessionId: alert.sessionId,
-      userId: alert.userId,
-    })
+      event: 'anomaly_detected' as any,
+      sessionId: alert.sessionId ?? 'unknown',
+      userId: alert.userId ?? 'unknown',
+    } as any)
 
     // Save to DB
     try {
@@ -147,7 +146,7 @@ class AnomalyDetector {
       (alert.severity === 'high' || alert.severity === 'critical') &&
       this.adminEmail
     ) {
-      this.sendAdminEmail(alert, timestamp).catch(err =>
+      this.sendAdminEmail(alert, timestamp).catch((err: any) =>
         console.error('[ANOMALY] Failed to send alert email:', err)
       )
     }
@@ -221,7 +220,7 @@ class AnomalyDetector {
         return []
       }
 
-      return (data || []).map(row => ({
+      return (data || []).map((row: any) => ({
         id: row.id,
         severity: row.severity,
         type: row.type,

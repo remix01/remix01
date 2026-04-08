@@ -13,7 +13,7 @@ export const deadLetterQueue = {
    * Move failed event to DLQ (called after 3 failed attempts)
    */
   async send(outboxRow: any, reason: string): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
 
     try {
       await supabase.from('event_dlq').insert({
@@ -40,11 +40,10 @@ export const deadLetterQueue = {
    * Re-inserts to outbox with new idempotency key
    */
   async replay(dlqId: string, adminUserId: string): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
 
     try {
-      const { data: dlqItem, error } = await supabase
-        .from('event_dlq')
+      const { data: dlqItem, error } = await supabase.from('event_dlq')
         .select('*')
         .eq('id', dlqId)
         .single()
@@ -59,8 +58,7 @@ export const deadLetterQueue = {
       })
 
       // Mark as resolved
-      await supabase
-        .from('event_dlq')
+      await supabase.from('event_dlq')
         .update({
           resolved: true,
           resolved_at: new Date().toISOString(),
@@ -79,11 +77,10 @@ export const deadLetterQueue = {
    * List unresolved DLQ items (for admin dashboard)
    */
   async listUnresolved() {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
 
     try {
-      const { data, error } = await supabase
-        .from('event_dlq')
+      const { data, error } = await supabase.from('event_dlq')
         .select('*')
         .eq('resolved', false)
         .order('failed_at', { ascending: false })

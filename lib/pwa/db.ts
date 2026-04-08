@@ -42,7 +42,7 @@ export async function saveToOfflineDB(
   const db = await openOfflineDB()
   const tx = db.transaction(storeName, 'readwrite')
   const store = tx.objectStore(storeName)
-  data.forEach(item => store.put(item))
+  data.forEach((item: any) => store.put(item))
 }
 
 export async function getFromOfflineDB(

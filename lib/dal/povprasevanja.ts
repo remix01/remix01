@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
+import { getOrCreateCategory } from '@/lib/dal/categories'
 import type { 
   Povprasevanje, 
   PovprasevanjeInsert, 
@@ -36,8 +37,8 @@ export async function getPovprasevanje(id: string): Promise<Povprasevanje | null
 
   // Add ponudbe count
   const result = {
-    ...data,
-    ponudbe_count: data.ponudbe?.length || 0
+    ...data!,
+    ponudbe_count: (data as any).ponudbe?.length || 0
   }
 
   return result as unknown as Povprasevanje
@@ -99,7 +100,7 @@ export async function listPovprasevanja(filters?: PovprasevanjeFilters & {
   }
 
   // Add ponudbe counts
-  const results = data.map(item => ({
+  const results = data.map((item: any) => ({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -134,7 +135,7 @@ export async function getNarocnikPovprasevanja(narocnikId: string, limit?: numbe
     return []
   }
 
-  const results = data.map(item => ({
+  const results = data.map((item: any) => ({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -180,12 +181,12 @@ export async function getOpenPovprasevanjaForObrtnik(
   }
 
   // Filter out povprasevanja where obrtnik already submitted a ponudba
-  const filtered = data.filter(item => {
+  const filtered = data.filter((item: any) => {
     const hasSubmitted = item.ponudbe?.some((p: any) => p.obrtnik_id === obrtnikId)
     return !hasSubmitted
   })
 
-  const results = filtered.map(item => ({
+  const results = filtered.map((item: any) => ({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -194,14 +195,67 @@ export async function getOpenPovprasevanjaForObrtnik(
 }
 
 /**
- * Create povprasevanje
+ * Create povprasevanje with optional auto-creation of category
+ * 
+ * Supports two flows:
+ * 1. Pass category_id directly (existing flow)
+ * 2. Pass categoryName to auto-create category if it doesn't exist
  */
-export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): Promise<Povprasevanje | null> {
+export async function createPovprasevanje(
+  povprasevanje: PovprasevanjeInsert,
+  options?: {
+    categoryName?: string
+    userId?: string
+    ipAddress?: string
+  }
+): Promise<Povprasevanje | null> {
+  let categoryId = povprasevanje.category_id
+
+  // Auto-create category if categoryName provided and no category_id
+  if (options?.categoryName && !categoryId) {
+    try {
+      categoryId = await getOrCreateCategory(
+        options.categoryName,
+        options.userId,
+        options.ipAddress
+      )
+    } catch (error) {
+      console.error('[v0] Error creating/finding category:', error)
+      throw error
+    }
+  }
+
   const supabase = await createClient()
   
+  // ⭐ KRITIČNO: pridobi narocnik_id iz seje, če ni posredovan
+  let narocnikId = povprasevanje.narocnik_id
+  if (!narocnikId) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+    narocnikId = user.id
+  }
+  
+  // Gradimo insertData z obveznimi polji
+  const insertData = {
+    narocnik_id: narocnikId,
+    title: povprasevanje.title,
+    description: povprasevanje.description,
+    location_city: povprasevanje.location_city,
+    category_id: categoryId || null,
+    location_region: povprasevanje.location_region || null,
+    location_notes: povprasevanje.location_notes || null,
+    urgency: povprasevanje.urgency || null,
+    preferred_date_from: povprasevanje.preferred_date_from || null,
+    preferred_date_to: povprasevanje.preferred_date_to || null,
+    budget_min: povprasevanje.budget_min || null,
+    budget_max: povprasevanje.budget_max || null,
+    attachment_urls: povprasevanje.attachment_urls || null,
+    status: 'odprto',      // ⭐ prisilimo status
+  }
+
   const { data, error } = await supabase
     .from('povprasevanja')
-    .insert(povprasevanje)
+    .insert(insertData as any)
     .select(`
       *,
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),
@@ -216,7 +270,7 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
 
   const result = data as unknown as Povprasevanje
 
-  // Send push notification to obrtniki in the category
+  // Pošlji push obvestila (obstoječa koda)
   if (result.category_id && result.title && result.location_city) {
     try {
       await sendPushToObrtnikiByCategory({
@@ -226,12 +280,11 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
         link: '/obrtnik/povprasevanja'
       })
     } catch (pushError) {
-      // Don't fail the main operation if push fails
       console.error('[v0] Error sending push to obrtniki:', pushError)
     }
   }
 
-  // Enqueue confirmation email to naročnik
+  // Pošlji email potrditev (obstoječa koda)
   if (result.narocnik_id) {
     try {
       await enqueue('sendEmail', {
@@ -245,7 +298,6 @@ export async function createPovprasevanje(povprasevanje: PovprasevanjeInsert): P
         budget: result.budget_max,
       })
     } catch (emailError) {
-      // Don't fail the main operation if email enqueue fails
       console.error('[v0] Error enqueueing confirmation email:', emailError)
     }
   }

@@ -8,21 +8,37 @@ export type ModelSelection = {
 }
 
 // Patterns that indicate a complex query needing Sonnet
+// All regexes are safe: they avoid nested quantifiers and use limited repetition.
 const COMPLEX_PATTERNS = [
-  /primerjaj|primerjava/i,         // comparison
-  /izračunaj|kalkulacija|cena/i,   // calculation/pricing
-  /pros.*in.*cons|prednosti.*slabosti/i,
-  /analiz|strategij/i,             // analysis
-  /razloži|pojasni|kako deluje/i,  // detailed explanation
-  /korak.*po.*korak|navodil/i,     // step-by-step
-  /pravno|zakonodaj|davek/i,       // legal/tax
-  /projekt.*\d+€|vrednost.*\d+/i,  // project with money amount
+  /primerjaj|primerjava/i,                     // comparison
+  /izračunaj|kalkulacija|cena/i,               // calculation/pricing
+  /analiz|strategij/i,                         // analysis
+  /razloži|pojasni|kako deluje/i,              // detailed explanation
+  /pravno|zakonodaj|davek/i,                   // legal/tax
 ]
+
+// Additional complex indicators that are easier to test with includes
+const COMPLEX_KEYWORDS = [
+  'pros and cons',
+  'prednosti in slabosti',
+  'korak po korak',
+  'navodila',
+  'projekt',
+  'vrednost',
+]
+
+// Maximum length to avoid ReDoS attacks
+const MAX_ANALYSIS_LENGTH = 500
 
 export function selectModel(message: string): ModelSelection {
   const trimmed = message.trim()
-  const wordCount = trimmed.split(/\s+/).length
-  const charCount = trimmed.length
+  // Limit length to prevent ReDoS
+  const safeInput = trimmed.length > MAX_ANALYSIS_LENGTH 
+    ? trimmed.slice(0, MAX_ANALYSIS_LENGTH) 
+    : trimmed
+
+  const wordCount = safeInput.split(/\s+/).length
+  const charCount = safeInput.length
 
   let complexityScore = 0
 
@@ -34,16 +50,31 @@ export function selectModel(message: string): ModelSelection {
   if (charCount > 200) complexityScore += 2
   else if (charCount > 100) complexityScore += 1
 
-  // Pattern-based scoring
+  // Pattern-based scoring using safe regexes
   for (const pattern of COMPLEX_PATTERNS) {
-    if (pattern.test(trimmed)) {
+    if (pattern.test(safeInput)) {
       complexityScore += 2
       break
     }
   }
 
+  // Keyword-based scoring (safe string search)
+  const lowerInput = safeInput.toLowerCase()
+  for (const kw of COMPLEX_KEYWORDS) {
+    if (lowerInput.includes(kw.toLowerCase())) {
+      complexityScore += 2
+      break
+    }
+  }
+
+  // Special case: project with money amount (use limited regex)
+  const moneyPattern = /projekt.{0,50}\d+\s*€/i
+  if (moneyPattern.test(safeInput)) {
+    complexityScore += 2
+  }
+
   // Question marks and multiple sentences
-  const sentenceCount = (trimmed.match(/[.!?]/g) ?? []).length
+  const sentenceCount = (safeInput.match(/[.!?]/g) ?? []).length
   if (sentenceCount > 2) complexityScore += 1
 
   if (complexityScore >= 4) {

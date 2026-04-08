@@ -1,46 +1,37 @@
 /**
- * Higher-order function to wrap route handlers with rate limiting
- * 
- * Example usage in existing routes:
- * 
+ * Higher-order function to wrap route handlers with rate limiting.
+ *
+ * Example usage:
+ *
  * import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
  * import { inquiryLimiter } from '@/lib/rate-limit/limiters'
- * 
+ *
  * export const POST = withRateLimit(inquiryLimiter, async (req) => {
  *   // ... existing route handler code ...
- *   // Nothing else needs to change!
  * })
- * 
- * The wrapper will automatically:
- * - Check rate limits before calling your handler
- * - Return 429 if limit exceeded
- * - Add rate limit headers to all responses
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { RateLimiter, getIdentifier } from './rate-limiter'
 
+// Next.js 16 uses Promise<Params> for route segment params.
+// Use `unknown` so the wrapper is compatible with both parameterless routes
+// ({ params: Promise<{}> }) and dynamic routes ({ params: Promise<{id: string}> }).
+type RouteContext = { params: Promise<unknown> }
 type RouteHandler = (
   request: NextRequest,
-  context?: { params?: Record<string, string> }
+  context: RouteContext
 ) => Promise<NextResponse | Response>
 
 /**
- * Wrap a route handler with rate limiting
+ * Wrap a route handler with async Redis-backed rate limiting.
  */
-export function withRateLimit(
-  limiter: RateLimiter,
-  handler: RouteHandler
-): RouteHandler {
-  return async (request: NextRequest, context?: { params?: Record<string, string> }) => {
-    // Extract user ID from request if authenticated
-    // You can customize this based on your auth implementation
+export function withRateLimit(limiter: RateLimiter, handler: RouteHandler): RouteHandler {
+  return async (request: NextRequest, context: RouteContext) => {
     const userId = request.headers.get('x-user-id') || undefined
-    
     const identifier = getIdentifier(request, userId)
-    const result = limiter.check(identifier)
+    const result = await limiter.check(identifier)
 
-    // Add rate limit headers
     const headers = {
       'X-RateLimit-Limit': result.limit.toString(),
       'X-RateLimit-Remaining': result.remaining.toString(),
@@ -66,10 +57,8 @@ export function withRateLimit(
       )
     }
 
-    // Call the original handler
     const response = await handler(request, context)
 
-    // Add rate limit headers to successful responses
     const newResponse = new NextResponse(response.body, {
       status: response.status,
       statusText: response.statusText,

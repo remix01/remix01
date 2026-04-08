@@ -1,4 +1,5 @@
 import { createServerClient as createServerClientSSR } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import { env } from '../env'
 
@@ -12,10 +13,12 @@ import { env } from '../env'
 export async function createClient() {
   const { cookies } = await import('next/headers')
   const cookieStore = await cookies()
+  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
+  const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'development-anon-key'
 
   return createServerClientSSR<Database>(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -50,17 +53,16 @@ export async function createClient() {
  * NEVER expose this client to untrusted code or client-side.
  */
 export function createAdminClient() {
-  return createServerClientSSR<Database>(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
+  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
+  const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY || 'development-service-role-key'
+
+  return createSupabaseClient<Database>(
+    supabaseUrl,
+    serviceRoleKey,
     {
-      cookies: {
-        getAll() {
-          return []
-        },
-        setAll() {
-          // No-op for service role client
-        },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     },
   )

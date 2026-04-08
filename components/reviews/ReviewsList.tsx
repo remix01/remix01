@@ -95,29 +95,29 @@ export function ReviewsList({ obrtnik_id, currentUserId }: ReviewsListProps) {
       // Calculate stats
       if (data && data.length > 0) {
         const avgRating =
-          data.reduce((sum, r) => sum + r.rating, 0) / data.length
+          data.reduce((sum: number, r: any) => sum + r.rating, 0) / data.length
         const distribution = [0, 0, 0, 0, 0]
-        data.forEach((r) => {
+        data.forEach((r: any) => {
           distribution[r.rating - 1]++
         })
 
         const avgQuality =
           data
-            .filter((r) => r.quality_rating)
-            .reduce((sum, r) => sum + (r.quality_rating || 0), 0) /
-            (data.filter((r) => r.quality_rating).length || 1) || 0
+            .filter((r: any) => r.quality_rating)
+            .reduce((sum: number, r: any) => sum + (r.quality_rating || 0), 0) /
+            (data.filter((r: any) => r.quality_rating).length || 1) || 0
 
         const avgPunctuality =
           data
-            .filter((r) => r.punctuality_rating)
-            .reduce((sum, r) => sum + (r.punctuality_rating || 0), 0) /
-            (data.filter((r) => r.punctuality_rating).length || 1) || 0
+            .filter((r: any) => r.punctuality_rating)
+            .reduce((sum: number, r: any) => sum + (r.punctuality_rating || 0), 0) /
+            (data.filter((r: any) => r.punctuality_rating).length || 1) || 0
 
         const avgPrice =
           data
-            .filter((r) => r.price_rating)
-            .reduce((sum, r) => sum + (r.price_rating || 0), 0) /
-            (data.filter((r) => r.price_rating).length || 1) || 0
+            .filter((r: any) => r.price_rating)
+            .reduce((sum: number, r: any) => sum + (r.price_rating || 0), 0) /
+            (data.filter((r: any) => r.price_rating).length || 1) || 0
 
         setStats({
           avg: avgRating,

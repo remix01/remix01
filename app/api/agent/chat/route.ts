@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
 import { selectModel, estimateCost } from '@/lib/model-router'
+import { handleAuthError } from '@/lib/api/auth-errors'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { apiLimiter } from '@/lib/rate-limit/limiters'
+
 
 function anthropicErrorMessage(error: unknown): string {
   if (error instanceof Anthropic.APIError) {
@@ -34,12 +38,19 @@ type StoredMessage = {
   timestamp: number
 }
 
-// GET — load conversation history for the current user
+// GET — load conversation history (empty for unauthenticated visitors)
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    // Handle auth errors
+    if (error) {
+      return handleAuthError(error)
+    }
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
 
     const { data } = await supabaseAdmin
       .from('agent_conversations')
@@ -48,8 +59,9 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
 
     return NextResponse.json({ messages: data?.messages ?? [] })
-  } catch {
-    return NextResponse.json({ messages: [] })
+  } catch (error) {
+    console.error('[agent/chat] GET error:', error)
+    return handleAuthError(error)
   }
 }
 
@@ -57,8 +69,15 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    // Handle auth errors
+    if (error) {
+      return handleAuthError(error)
+    }
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
 
     await supabaseAdmin
       .from('agent_conversations')
@@ -66,23 +85,35 @@ export async function DELETE(req: NextRequest) {
       .eq('user_id', user.id)
 
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Napaka pri brisanju.' }, { status: 500 })
+  } catch (error) {
+    console.error('[agent/chat] DELETE error:', error)
+    return handleAuthError(error)
   }
 }
 
-// POST — send a message, get AI response, persist both
-export async function POST(req: NextRequest) {
+const ANON_MESSAGE_LIMIT = 3
+
+// POST — send a message, get AI response
+// Authenticated users: full history persisted to DB, 20 msg/hour limit
+// Anonymous visitors: in-request context only, 3 msg limit
+async function postHandler(req: NextRequest, _context: { params: Promise<unknown> }) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    // Handle auth errors
+    if (error) {
+      return handleAuthError(error)
+    }
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
     }
 
-    const { message } = await req.json()
+    const { message, anonHistory } = await req.json()
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
     }
@@ -199,13 +230,22 @@ export async function POST(req: NextRequest) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     const systemPrompt = `Si LiftGO asistent za Slovenijo.
-Pomagaš strankam najti prave mojstre za njihova dela.
+Pomagaš strankam najti prave mojstre za njihova dela ter obratno.
 Odgovarjaš kratko in jasno v slovenščini.
 Ko stranka opiše problem, vprašaj:
 1. Kje se nahaja (mesto)?
 2. Kako nujno je?
 3. Ali ima okvirni proračun?
-Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
+
+Pravilne povezave za uporabnike:
+- Za oddajo povpraševanja: /#oddaj-povprasevanje (forma na domači strani)
+- Za pregled mojstrov: /mojstri
+- Za informacije kako deluje: /kako-deluje
+- Za obrtnike ki želijo postati partnerji: /za-obrtnike
+
+NIKOLI ne uporabi teh napačnih poti:
+- /narocnik/... (napačno)
+- /novo-povprasevanje/obrazec (napačno)`
 
     const response = await client.messages.create({
       model: modelSelection.modelId,
@@ -233,12 +273,12 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
       .eq('id', user.id)
 
     // Increment lifetime totals (best-effort, non-blocking)
-    supabaseAdmin
+    Promise.resolve(supabaseAdmin
       .from('profiles')
       .select('ai_total_tokens_used, ai_total_cost_usd')
       .eq('id', user.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (!data) return
         return supabaseAdmin
           .from('profiles')
@@ -247,7 +287,7 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
             ai_total_cost_usd: Number((data.ai_total_cost_usd ?? 0)) + costUsd,
           })
           .eq('id', user.id)
-      })
+      }))
       .catch(() => {})
 
     // Map full model ID to short name for DB CHECK constraint
@@ -290,9 +330,17 @@ Nato jim ponudi da oddajo povpraševanje na /narocnik/novo-povprasevanje`
       usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
     })
   } catch (error) {
-    console.error('[agent/chat] error:', error)
+    console.error('[agent/chat] POST error:', error)
+    
+    // Check if it's an auth error
+    if (error && typeof error === 'object' && ('code' in error || 'message' in error)) {
+      return handleAuthError(error)
+    }
+    
     const msg = anthropicErrorMessage(error)
     const status = error instanceof Anthropic.APIError ? error.status : 500
     return NextResponse.json({ error: msg }, { status })
   }
 }
+
+export const POST = withRateLimit(apiLimiter, postHandler)

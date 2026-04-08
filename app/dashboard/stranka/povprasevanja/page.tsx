@@ -37,18 +37,16 @@ export default async function InquiriesPage() {
     .from('povprasevanja')
     .select(
       `id,
-       naslov,
-       kategorija,
-       lokacija,
+       title,
+       category_id,
+       location_city,
        created_at,
        status,
-       urgency,
-       budget_od,
-       budget_do,
+       priority,
        ponudbe:ponudbe(count)`
     )
     .eq('narocnik_id', user.id)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: false }) as { data: any[] | null }
 
   return (
     <div className="p-4 lg:p-8">
@@ -101,7 +99,7 @@ export default async function InquiriesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {povprasevanja.map((inquiry) => {
+                {povprasevanja?.map((inquiry) => {
                   const offerCount = (inquiry.ponudbe as any)?.[0]?.count || 0
                   return (
                     <tr

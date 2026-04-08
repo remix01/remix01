@@ -200,7 +200,7 @@ export function formatForSystemPrompt(
   const prefKeys = Object.keys(mem.preferences)
   if (prefKeys.length > 0) {
     const prefStr = prefKeys
-      .map(k => `${k}=${JSON.stringify(mem.preferences[k])}`)
+      .map((k: any) => `${k}=${JSON.stringify(mem.preferences[k])}`)
       .join(', ')
     lines.push(`USER PREFERENCES: ${prefStr}`)
   }
@@ -208,7 +208,7 @@ export function formatForSystemPrompt(
   const last3 = mem.recentActivity.slice(0, 3)
   if (last3.length > 0) {
     const actStr = last3
-      .map(a => `${a.tool}${a.resourceId ? `(${a.resourceId})` : ''}`)
+      .map((a: any) => `${a.tool}${a.resourceId ? `(${a.resourceId})` : ''}`)
       .join(' → ')
     lines.push(`RECENT ACTIONS: ${actStr}`)
   }

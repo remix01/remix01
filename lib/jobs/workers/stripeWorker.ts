@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * Stripe Worker — Handle payment operations asynchronously
  * 
@@ -18,8 +19,9 @@ interface StripeJobPayload {
   metadata?: Record<string, any>
 }
 
-export async function handleStripeJob(job: Job<StripeJobPayload>): Promise<void> {
-  const { type, payload } = job
+export async function handleStripeJob(job: Job<StripeJobPayload> & { type?: string }): Promise<void> {
+  const type = (job as any).type
+  const payload = job.data
   const { transactionId, paymentIntentId, amountCents, reason, metadata } = payload
 
   // Fetch transaction to verify state
@@ -69,19 +71,27 @@ export async function handleStripeJob(job: Job<StripeJobPayload>): Promise<void>
       default:
         throw new Error(`Unknown Stripe job type: ${type}`)
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[STRIPE] Job failed for transaction ${transactionId}:`, error)
-    
-    // Stripe errors might be retryable
-    if (error.statusCode && error.statusCode >= 500) {
+
+    // Stripe errors might be retryable — check statusCode property
+    const statusCode =
+      error !== null &&
+      typeof error === 'object' &&
+      'statusCode' in error &&
+      typeof (error as { statusCode: unknown }).statusCode === 'number'
+        ? (error as { statusCode: number }).statusCode
+        : null
+
+    if (statusCode !== null && statusCode >= 500) {
       // Server error — safe to retry
       throw error
-    } else if (error.statusCode === 429) {
+    } else if (statusCode === 429) {
       // Rate limit — safe to retry
       throw error
     } else {
-      // Client error (4xx) — don't retry
-      throw new Error(`[STRIPE] Non-retryable error: ${error.message}`)
+      // Client error (4xx) or unknown — don't retry
+      throw new Error(`[STRIPE] Non-retryable error: ${getErrorMessage(error)}`)
     }
   }
 }

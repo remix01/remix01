@@ -31,7 +31,7 @@ export const offerService = {
         .select('id')
         .eq('email', userId)
 
-      const requestIds = userRequests?.map(r => r.id) || []
+      const requestIds = userRequests?.map((r: any) => r.id) || []
 
       if (requestIds.length === 0) {
         return []

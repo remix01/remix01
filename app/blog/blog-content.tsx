@@ -104,8 +104,8 @@ export default function BlogContent() {
                 >
                   <Link href={`/blog/${post.slug}`}>
                     <div className="aspect-[16/10] overflow-hidden bg-muted">
-                      <BlogIllustration 
-                        category={post.category} 
+                      <BlogIllustration
+                        category={post.category as any}
                         className="h-full w-full transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>

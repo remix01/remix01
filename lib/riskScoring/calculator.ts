@@ -75,8 +75,8 @@ export async function calculateJobRisk(povprasevanjeId: string): Promise<RiskRes
     .limit(50)
 
   if (messages && messages.length > 0) {
-    const suspicious = messages.filter(m =>
-      SUSPICIOUS_WORDS.some(w => m.message?.toLowerCase().includes(w))
+    const suspicious = messages.filter((m: any) =>
+      SUSPICIOUS_WORDS.some((w: any) => m.message?.toLowerCase().includes(w))
     )
     if (suspicious.length > 0) {
       score += 15

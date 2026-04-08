@@ -32,13 +32,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: admin, error: adminError } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (!profile || profile.role !== 'admin') {
+    if (adminError || !admin) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }
@@ -120,13 +121,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Check admin role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: admin, error: adminError } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (!profile || profile.role !== 'admin') {
+    if (adminError || !admin) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

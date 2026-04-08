@@ -17,7 +17,7 @@ export function registerAnalyticsSubscriber() {
       const skip = await idempotency.checkAndMark('task.created', 'analytics', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       await supabase.from('analytics_events').insert({
         event: 'task_created',
         task_id: payload.taskId,
@@ -36,7 +36,7 @@ export function registerAnalyticsSubscriber() {
       const skip = await idempotency.checkAndMark('task.matched', 'analytics', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       await supabase.from('analytics_events').insert({
         event: 'task_matched',
         task_id: payload.taskId,
@@ -53,7 +53,7 @@ export function registerAnalyticsSubscriber() {
       const skip = await idempotency.checkAndMark('task.accepted', 'analytics', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       await supabase.from('analytics_events').insert({
         event: 'task_accepted',
         task_id: payload.taskId,
@@ -71,7 +71,7 @@ export function registerAnalyticsSubscriber() {
       const skip = await idempotency.checkAndMark('task.completed', 'analytics', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       await supabase.from('analytics_events').insert({
         event: 'task_completed',
         task_id: payload.taskId,
@@ -89,7 +89,7 @@ export function registerAnalyticsSubscriber() {
       const skip = await idempotency.checkAndMark('payment.released', 'analytics', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       await supabase.from('analytics_events').insert({
         event: 'payment_released',
         task_id: payload.taskId,
@@ -109,7 +109,7 @@ export function registerAnalyticsSubscriber() {
       const skip = await idempotency.checkAndMark('offer.sent', 'analytics', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       await supabase.from('analytics_events').insert({
         event: 'offer_sent',
         task_id: payload.taskId,
@@ -128,7 +128,7 @@ export function registerAnalyticsSubscriber() {
       const skip = await idempotency.checkAndMark('review.submitted', 'analytics', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       await supabase.from('analytics_events').insert({
         event: 'review_submitted',
         task_id: payload.taskId,

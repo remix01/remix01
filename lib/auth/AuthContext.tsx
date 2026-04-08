@@ -29,13 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
       setUser(session?.user ?? null)
       setIsLoading(false)
 
       // Check if admin
       if (session?.user) {
-        fetch('/api/admin/me')
+        fetch('/api/admin/me', { credentials: 'include' })
           .then(res => setIsAdmin(res.ok))
           .catch(() => setIsAdmin(false))
       }
@@ -44,13 +44,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       console.log('[v0] Auth state changed:', _event)
       setUser(session?.user ?? null)
 
       // Check if new user is admin
       if (session?.user) {
-        fetch('/api/admin/me')
+        fetch('/api/admin/me', { credentials: 'include' })
           .then(res => setIsAdmin(res.ok))
           .catch(() => setIsAdmin(false))
       } else {

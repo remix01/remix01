@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (resetError) throw resetError
 
     // Log the action
-    await supabase
+    const { error: auditError } = await supabase
       .from('admin_audit_log')
       .insert({
         action: 'reset_ai_usage',
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         new_value: { ai_messages_used_today: 0 },
         created_at: new Date().toISOString(),
       })
-      .catch(err => console.error('Audit log error:', err))
+    if (auditError) console.error('Audit log error:', auditError)
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Edit, Trash2, Star } from 'lucide-react'
@@ -8,13 +9,13 @@ import { PortfolioItemForm } from './portfolio-item-form'
 interface PortfolioItem {
   id: string
   title: string
-  description: string
-  category: string
-  completed_at: string
-  duration_days?: number
-  price_approx?: number
-  location_city?: string
-  image_urls: string[]
+  description: string | null
+  category: string | null
+  completed_at: string | null
+  duration_days?: number | null
+  price_approx?: number | null
+  location_city?: string | null
+  image_urls: string[] | null
   is_featured: boolean
   sort_order: number
 }
@@ -122,13 +123,14 @@ function PortfolioItemCard({
   onMoveDown,
   onToggleFeatured,
 }: {
+  key?: React.Key
   item: PortfolioItem
   idx: number
   total: number
   onEdit: (item: PortfolioItem) => void
-  onMoveUp: () => void
-  onMoveDown: () => void
-  onToggleFeatured: () => void
+  onMoveUp: () => void | Promise<void>
+  onMoveDown: () => void | Promise<void>
+  onToggleFeatured: () => void | Promise<void>
 }) {
   const coverImage = item.image_urls?.[0]
 

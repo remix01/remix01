@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * Stripe Release Worker
  * Handles payment intent cancellation/refund with idempotency
@@ -67,8 +68,8 @@ export async function handleStripeRelease(job: Job): Promise<void> {
     }
 
     console.log(`[STRIPE RELEASE WORKER] Updated escrow ${escrowId} status to ${releaseAction}`)
-  } catch (error: any) {
-    console.error(`[STRIPE RELEASE WORKER] Release failed for ${escrowId}:`, error.message)
+  } catch (error: unknown) {
+    console.error(`[STRIPE RELEASE WORKER] Release failed for ${escrowId}:`, getErrorMessage(error))
     throw error
   }
 }

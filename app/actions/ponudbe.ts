@@ -33,7 +33,7 @@ export async function acceptPonudbaAction(
     // Fetch ponudba details (with obrtnik_id for notifications)
     const { data: ponudbaData } = await supabase
       .from('ponudbe')
-      .select('*, obrtnik:obrtnik_profiles(id)')
+      .select('*')
       .eq('id', ponudbaId)
       .maybeSingle()
 
@@ -98,9 +98,10 @@ export async function acceptPonudbaAction(
           user_id: ponudbaData.obrtnik_id,
           type: 'ponudba_sprejeta',
           title: 'Vaša ponudba je bila sprejeta! 🎉',
+          body: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
           message: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
           link: '/obrtnik/ponudbe',
-          read: false,
+          is_read: false,
         })
         .then(({ error }) => {
           if (error) console.error('[v0] Error sending notification:', error)
@@ -110,7 +111,7 @@ export async function acceptPonudbaAction(
     // ════════════════════════════════════════════════════════════════════
     // STEP 5: Calendar appointment (if available_date exists)
     // ════════════════════════════════════════════════════════════════════
-    if (ponudbaData?.available_date && ponudbaData?.obrtnik?.id) {
+    if (ponudbaData?.available_date && ponudbaData?.obrtnik_id) {
       const startDateTime = new Date(ponudbaData.available_date)
       startDateTime.setHours(9, 0, 0)
       const endDateTime = new Date(ponudbaData.available_date)
@@ -118,7 +119,7 @@ export async function acceptPonudbaAction(
 
       await createAppointmentEvent({
         narocnikId: user.id,
-        obrtknikId: ponudbaData.obrtnik.id,
+        obrtknikId: ponudbaData.obrtnik_id,
         title: povprasevanje.title,
         description: povprasevanje.description,
         locationCity: povprasevanje.location_city,

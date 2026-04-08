@@ -28,7 +28,7 @@ export async function saveCalendarTokens(
     const { tokens } = await oauth2Client.getToken(code)
     const supabase = await createClient()
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('calendar_connections')
       .upsert({
         user_id: userId,
@@ -75,13 +75,13 @@ export async function createAppointmentEvent(params: {
     let obrtknikEventId: string | null = null
 
     // Fetch calendar connections for both users
-    const { data: connections } = await supabase
+    const { data: connections } = await (supabase as any)
       .from('calendar_connections')
       .select('*')
       .in('user_id', [params.narocnikId, params.obrtknikId])
 
-    const connectionMap = new Map(
-      connections?.map(c => [c.user_id, c]) || []
+    const connectionMap = new Map<string, any>(
+      connections?.map((c: any) => [c.user_id, c]) || []
     )
 
     // Event details
@@ -117,7 +117,7 @@ export async function createAppointmentEvent(params: {
         })
 
         const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
-        const { data } = await calendar.events.create({
+        const { data } = await (calendar.events as any).create({
           calendarId: 'primary',
           requestBody: eventBody
         })
@@ -139,7 +139,7 @@ export async function createAppointmentEvent(params: {
         })
 
         const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
-        const { data } = await calendar.events.create({
+        const { data } = await (calendar.events as any).create({
           calendarId: 'primary',
           requestBody: eventBody
         })
@@ -152,7 +152,7 @@ export async function createAppointmentEvent(params: {
 
     // Save appointment record
     if (narocnikEventId || obrtknikEventId) {
-      await supabase
+      const { error: insertErr } = await (supabase as any)
         .from('appointments')
         .insert({
           ponudba_id: params.ponudbaId,
@@ -164,7 +164,7 @@ export async function createAppointmentEvent(params: {
           obrtnik_calendar_event_id: obrtknikEventId,
           status: 'scheduled'
         })
-        .catch(err => console.error('[v0] Appointment record insert error:', err))
+      if (insertErr) console.error('[v0] Appointment record insert error:', insertErr)
     }
 
     return { narocnikEventId, obrtknikEventId }
@@ -187,7 +187,7 @@ export async function cancelAppointmentEvent(params: {
     const supabase = await createClient()
 
     // Fetch appointment
-    const { data: appointment } = await supabase
+    const { data: appointment } = await (supabase as any)
       .from('appointments')
       .select('*')
       .eq('ponudba_id', params.ponudbaId)
@@ -198,13 +198,13 @@ export async function cancelAppointmentEvent(params: {
     }
 
     // Fetch calendar connections
-    const { data: connections } = await supabase
+    const { data: connections } = await (supabase as any)
       .from('calendar_connections')
       .select('*')
       .in('user_id', [params.narocnikId, params.obrtknikId])
 
-    const connectionMap = new Map(
-      connections?.map(c => [c.user_id, c]) || []
+    const connectionMap = new Map<string, any>(
+      connections?.map((c: any) => [c.user_id, c]) || []
     )
 
     // Delete narocnik event
@@ -252,7 +252,7 @@ export async function cancelAppointmentEvent(params: {
     }
 
     // Update appointment status
-    await supabase
+    await (supabase as any)
       .from('appointments')
       .update({ status: 'cancelled' })
       .eq('ponudba_id', params.ponudbaId)

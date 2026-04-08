@@ -55,7 +55,7 @@ export default function SearchPage() {
     try {
       let query = supabase
         .from('obrtnik_profiles')
-        .select('*, obrtnik_categories(category_id)', { count: 'exact' })
+        .select('*', { count: 'exact' })
         .eq('is_verified', true)
 
       if (filters.verified) {
@@ -78,7 +78,7 @@ export default function SearchPage() {
           .eq('category_id', filters.category)
 
         if (obrtnikIds && obrtnikIds.length > 0) {
-          const ids = obrtnikIds.map(o => o.obrtnik_id)
+          const ids = obrtnikIds.map((o: { obrtnik_id: string }) => o.obrtnik_id)
           query = query.in('id', ids)
         } else {
           setResults([])

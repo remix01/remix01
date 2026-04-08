@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * Stripe Capture Worker
  * Handles payment intent capture with idempotency
@@ -51,8 +52,8 @@ export async function handleStripeCapture(job: Job): Promise<void> {
     }
 
     console.log(`[STRIPE CAPTURE WORKER] Updated escrow ${escrowId} status to captured`)
-  } catch (error: any) {
-    console.error(`[STRIPE CAPTURE WORKER] Capture failed for ${escrowId}:`, error.message)
+  } catch (error: unknown) {
+    console.error(`[STRIPE CAPTURE WORKER] Capture failed for ${escrowId}:`, getErrorMessage(error))
     throw error
   }
 }

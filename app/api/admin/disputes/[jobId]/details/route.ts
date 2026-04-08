@@ -15,13 +15,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role')
-      .eq('email', user.email!)
-      .single()
+    const { data: admin, error: adminError } = await supabaseAdmin
+      .from('admin_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (userError || dbUser?.role !== 'ADMIN') {
+    if (adminError || !admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -33,9 +34,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
         *,
         conversation:conversation_id(
           *,
-          message(id, body, is_blocked, created_at, sender:user_id(name), order_by: { created_at: asc })
+          message(id, body, is_blocked, created_at, sender:user_id(name))
         ),
-        violation(id, type, severity, detected_content, created_at, order_by: { created_at: desc }),
+        violation(id, type, severity, detected_content, created_at),
         payment:payment_id(*)
       `)
       .eq('id', jobId)

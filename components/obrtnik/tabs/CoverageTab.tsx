@@ -2,23 +2,24 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import type { ServiceAreaDisplay, AvailabilityRow } from '@/lib/types'
 
 interface CoverageTabProps {
-  serviceAreas: any[]
-  availability: any[]
+  serviceAreas: ServiceAreaDisplay[]
+  availability: AvailabilityRow[]
 }
 
-const DAYS_OF_WEEK_SI = [
-  'Ponedeljek',
-  'Torek',
-  'Sreda',
-  'Četrtek',
-  'Petek',
-  'Sobota',
-  'Nedelja',
-]
-
 export function CoverageTab({ serviceAreas, availability }: CoverageTabProps) {
+  const DAYS_OF_WEEK_SI = [
+    'Ponedeljek',
+    'Torek',
+    'Sreda',
+    'Četrtek',
+    'Petek',
+    'Sobota',
+    'Nedelja',
+  ]
+
   return (
     <div className="space-y-8 max-w-3xl">
       {/* Service Areas */}
@@ -48,7 +49,7 @@ export function CoverageTab({ serviceAreas, availability }: CoverageTabProps) {
           <div className="space-y-2">
             {DAYS_OF_WEEK_SI.map((day, dayIndex) => {
               const dayAvailability = availability.find(
-                (a) => parseInt(a.day_of_week) === dayIndex
+                (a) => a.day_of_week === dayIndex
               )
               const isAvailable = dayAvailability?.is_available ?? false
 

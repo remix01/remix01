@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -9,35 +9,126 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  console.log('[notification-sweep] Starting notification sweep...')
+  const start = Date.now()
+  console.log(JSON.stringify({ level: 'info', message: '[notification-sweep] start', ranAt: new Date().toISOString() }))
 
   try {
-    const { data: povprasevanja, error } = await supabaseAdmin
+    const supabase = createAdminClient()
+
+    // 1. Find open povprasevanja not yet broadcast to obrtniki
+    const { data: povprasevanja, error: fetchError } = await supabase
       .from('povprasevanja')
-      .select('id, title, stranka_email, created_at')
+      .select('id, title, category_id, location_city, urgency')
       .eq('status', 'odprto')
-      .is('notified_at', null)
       .limit(50)
 
-    if (error) {
-      console.error('[notification-sweep] Query error:', error.message)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (fetchError) {
+      console.error(JSON.stringify({ level: 'error', message: '[notification-sweep] fetch error', error: fetchError.message }))
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
 
-    let processed = 0
-    for (const p of povprasevanja || []) {
-      const { error: updateError } = await supabaseAdmin
-        .from('povprasevanja')
-        .update({ notified_at: new Date().toISOString() })
-        .eq('id', p.id)
-      if (!updateError) processed++
+    const pending = povprasevanja || []
+    console.log(JSON.stringify({ level: 'info', message: '[notification-sweep] pending', count: pending.length }))
+
+    let notified = 0
+    let skipped = 0
+
+    for (const p of pending) {
+      try {
+        if (!p.category_id) {
+          skipped++
+          continue
+        }
+
+        // 2. Find obrtniki registered for this category
+        const { data: matchedCategories } = await supabase
+          .from('obrtnik_categories')
+          .select('obrtnik_id')
+          .eq('category_id', p.category_id)
+
+        if (!matchedCategories?.length) {
+          skipped++
+          continue
+        }
+
+        // 3. Only verified + available obrtniki
+        const obrtnikIds = matchedCategories.map((c) => c.obrtnik_id)
+        const { data: obrtniki } = await supabase
+          .from('obrtnik_profiles')
+          .select('id')
+          .in('id', obrtnikIds)
+          .eq('is_verified', true)
+          .eq('is_available', true)
+
+        if (!obrtniki?.length) {
+          skipped++
+          continue
+        }
+
+        // 4. Insert in-app notification for each matched obrtnik
+        const notifications = obrtniki.map((o) => ({
+          user_id: o.id,
+          type: 'novo_povprasevanje',
+          title: 'Novo povpraševanje v vaši kategoriji',
+          body: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
+          message: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
+          link: '/obrtnik/povprasevanja',
+          read: false,
+          metadata: {
+            povprasevanje_id: p.id,
+            urgency: p.urgency || 'normalno',
+          },
+        }))
+
+        const { error: notifError } = await supabase.from('notifications').insert(notifications)
+
+        if (notifError) {
+          console.error(JSON.stringify({
+            level: 'error',
+            message: '[notification-sweep] notification insert error',
+            povprasevanjeId: p.id,
+            error: notifError.message,
+          }))
+        }
+
+        notified++
+
+        console.log(JSON.stringify({
+          level: 'info',
+          message: '[notification-sweep] notified',
+          povprasevanjeId: p.id,
+          obrtnikiCount: obrtniki.length,
+        }))
+      } catch (itemErr) {
+        console.error(JSON.stringify({
+          level: 'error',
+          message: '[notification-sweep] item error',
+          povprasevanjeId: p.id,
+          error: String(itemErr),
+        }))
+        skipped++
+      }
     }
 
-    console.log(`[notification-sweep] Completed: processed=${processed}`)
-    return NextResponse.json({ success: true, processed })
+    const durationMs = Date.now() - start
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[notification-sweep] completed',
+      total: pending.length,
+      notified,
+      skipped,
+      durationMs,
+    }))
 
+    return NextResponse.json({ success: true, total: pending.length, notified, skipped, durationMs })
   } catch (error) {
-    console.error('[notification-sweep] Fatal:', error instanceof Error ? error.message : error)
+    const durationMs = Date.now() - start
+    console.error(JSON.stringify({
+      level: 'error',
+      message: '[notification-sweep] fatal',
+      error: error instanceof Error ? error.message : String(error),
+      durationMs,
+    }))
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }

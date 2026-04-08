@@ -87,7 +87,7 @@ export async function schemaGuard(toolName: string, params: unknown): Promise<vo
 
   try {
     await schema.parseAsync(params)
-  } catch (error: any) {
+  } catch (error: unknown) {
     const zodError = error as z.ZodError
     const message = zodError.errors
       .map((e) => `${e.path.join('.')}: ${e.message}`)

@@ -4,6 +4,7 @@ import type {
   Povprasevanje,
   Ponudba
 } from '@/types/marketplace'
+import type { TimelineEvent } from '@/components/jobs/JobTimeline'
 
 /**
  * Get povprasevanje by ID with full relations (for public job detail page)
@@ -71,7 +72,7 @@ export async function getJobOffers(povprasevanjeId: string): Promise<Ponudba[]> 
 /**
  * Get timeline events for a job
  */
-export async function getJobTimeline(povprasevanjeId: string) {
+export async function getJobTimeline(povprasevanjeId: string): Promise<TimelineEvent[] | null> {
   const supabase = await createClient()
   
   const { data, error } = await supabase
@@ -90,7 +91,7 @@ export async function getJobTimeline(povprasevanjeId: string) {
   }
 
   // Build timeline from status and timestamps
-  const timeline = [
+  const timeline: TimelineEvent[] = [
     {
       step: 'Zahtevek ustvarjen',
       status: 'completed',
@@ -100,18 +101,19 @@ export async function getJobTimeline(povprasevanjeId: string) {
   ]
 
   // Add status-based events
-  const statusMap: Record<string, { step: string; icon: string }> = {
-    'v_teku': { step: 'Prejeti ponudbe', icon: 'Mail' },
-    'zakljuceno': { step: 'Delo zaključeno', icon: 'CheckCircle2' },
-    'preklicano': { step: 'Zahtevek preklican', icon: 'X' },
+  const statusMap: Record<string, { step: string; icon: string; status: TimelineEvent['status'] }> = {
+    'v_teku': { step: 'Prejeti ponudbe', icon: 'Mail', status: 'in_progress' },
+    'zakljuceno': { step: 'Delo zakljuÄeno', icon: 'CheckCircle2', status: 'completed' },
+    'preklicano': { step: 'Zahtevek preklican', icon: 'X', status: 'completed' },
   }
 
-  if (data.status in statusMap) {
+  const statusMapping = statusMap[data.status] || statusMap['odprto']
+  if (statusMapping) {
     timeline.push({
       step: statusMap[data.status].step,
-      status: data.status === 'zakljuceno' ? 'completed' : 'in_progress',
+      status: statusMap[data.status].status,
       date: data.updated_at,
-      icon: statusMap[data.status].icon,
+      icon: statusMapping.icon,
     })
   }
 

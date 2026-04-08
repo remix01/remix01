@@ -48,7 +48,7 @@ export async function runGuardrails(
   const userId = session.user.id
 
   // 1. Check PERMISSIONS first (role-based + ownership)
-  const permissionResult = await checkPermission(toolName, params, session)
+  const permissionResult = await checkPermission(toolName, params as Record<string, any>, session)
   if (!permissionResult.allowed) {
     agentLogger.logGuardrailRejection(sessionId, userId, toolName, 'permission')
     throw {
@@ -105,9 +105,15 @@ export function withGuardrails(
 
       // If all guardrails pass, proceed to handler
       return await handler(toolName, params, session)
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Re-throw guard errors as-is
-      if (error.code && error.success === false) {
+      const isGuardError =
+        error !== null &&
+        typeof error === 'object' &&
+        'code' in error &&
+        'success' in error &&
+        (error as { success: unknown }).success === false
+      if (isGuardError) {
         throw error
       }
 

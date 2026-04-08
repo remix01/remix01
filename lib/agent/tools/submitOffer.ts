@@ -39,7 +39,7 @@ export async function submitOffer(
       }
     }
 
-    if (inquiry.status !== 'open') {
+    if (inquiry.status !== 'odprto') {
       throw {
         success: false,
         error: `Cannot submit offer to ${inquiry.status} inquiry`,
@@ -63,7 +63,7 @@ export async function submitOffer(
     }
 
     // Create offer
-    const { data: offer, error: createError } = await supabase
+    const { data: offer, error: createError } = await (supabase as any)
       .from('offers')
       .insert({
         povprasevanje_id: inquiryId,

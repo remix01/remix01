@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message },
+        { error: getErrorMessage(error) },
         { status: 500 }
       )
     }

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -44,13 +45,13 @@ export async function GET(request: Request) {
       totalOffers: offers?.length || 0,
       acceptedOffers: offers?.filter(o => o.status === 'accepted').length || 0,
       pendingOffers: offers?.filter(o => o.status === 'pending').length || 0,
-      totalEarnings: payouts?.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) || 0,
+      totalEarnings: payouts?.reduce((sum, p) => sum + (p.amount_eur || 0), 0) || 0,
       pendingPayouts: payouts?.filter(p => p.status === 'pending').length || 0,
     }
 
     return NextResponse.json({ success: true, data: stats })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] Error fetching partner stats:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 })
   }
 }

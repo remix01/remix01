@@ -49,30 +49,29 @@ export async function GET(request: NextRequest) {
 
         // Send congratulations email
         try {
-          await sendEmail({
-            to: craftworker.user.email,
+          await sendEmail(craftworker.user.email, {
             subject: '🎉 Prešli ste na nižjo provizijsko stopnjo!',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #10b981;">🎉 Čestitamo!</h2>
                 <p>Pozdravljeni ${craftworker.user.name},</p>
                 <p>Vesele novice! Zaradi vaših uspešno opravljenih del ste dosegli nov tier in <strong>znižali svojo provizijo</strong>.</p>
-                
+
                 <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; margin: 24px 0;">
                   <p style="margin: 0;"><strong>Stara provizija:</strong> ${currentRate}%</p>
                   <p style="margin: 8px 0 0 0;"><strong>Nova provizija:</strong> ${currentCommission.rate}% ✨</p>
                   <p style="margin: 8px 0 0 0;"><strong>Tier:</strong> ${currentCommission.tierName}</p>
                 </div>
-                
+
                 <p><strong>Opravljenih del:</strong> ${craftworker.total_jobs_completed}</p>
-                
-                ${currentCommission.nextTierAt 
-                  ? `<p>Do naslednjega tiera še <strong>${currentCommission.nextTierAt} del</strong>!</p>` 
+
+                ${currentCommission.nextTierAt
+                  ? `<p>Do naslednjega tiera še <strong>${currentCommission.nextTierAt} del</strong>!</p>`
                   : '<p>Dosegli ste najvišji tier! 🏆</p>'
                 }
-                
+
                 <p>Prihranek na vsakem delu se avtomatično upošteva pri naslednjem plačilu.</p>
-                
+
                 <p>Hvala, da ste del LiftGO skupnosti!</p>
                 <p>Ekipa LiftGO</p>
               </div>

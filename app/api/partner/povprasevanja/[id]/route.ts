@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 /**
  * PATCH — partner accepts/rejects/completes inquiry
@@ -60,7 +60,7 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Email stranka on accept
-  if (status === 'sprejeto' && inquiry.stranka_email) {
+  if (status === 'sprejeto' && inquiry.stranka_email && resend) {
     try {
       await resend.emails.send({
         from: 'LiftGO <info@liftgo.net>',
@@ -80,7 +80,7 @@ export async function PATCH(
   }
 
   // Email stranka on reject
-  if (status === 'zavrnjeno' && inquiry.stranka_email) {
+  if (status === 'zavrnjeno' && inquiry.stranka_email && resend) {
     try {
       await resend.emails.send({
         from: 'LiftGO <info@liftgo.net>',
@@ -102,12 +102,13 @@ export async function PATCH(
 
   // Notify admin on rejection
   if (status === 'zavrnjeno') {
-    await supabaseAdmin.from('admin_log').insert({
+    const { error: logError } = await supabaseAdmin.from('admin_log').insert({
       akcija: 'PARTNER_REJECTED',
       tabela: 'povprasevanja',
-      zapis_id: params.id,
+      zapis_id: id,
       novo_stanje: { partner_id: partner.id, opomba },
-    }).catch(() => null)
+    })
+    if (logError) console.error('[admin_log]', logError)
   }
 
   return NextResponse.json(data)

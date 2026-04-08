@@ -180,7 +180,7 @@ export function OcenaForm({
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
-                  onClick={() => setState(setState === state ? 0 : star)}
+                  onClick={() => setState(star === state ? 0 : star)}
                   type="button"
                   className="transition"
                 >

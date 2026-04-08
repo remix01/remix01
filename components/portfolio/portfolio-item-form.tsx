@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils'
 interface PortfolioItem {
   id: string
   title: string
-  description: string
-  category: string
-  completed_at: string
-  duration_days?: number
-  price_approx?: number
-  location_city?: string
-  image_urls: string[]
+  description: string | null
+  category: string | null
+  completed_at: string | null
+  duration_days?: number | null
+  price_approx?: number | null
+  location_city?: string | null
+  image_urls: string[] | null
   is_featured: boolean
 }
 

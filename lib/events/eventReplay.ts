@@ -24,7 +24,7 @@ export const eventReplay = {
       dryRun?: boolean
     }
   ) {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
 
     let query = supabase
       .from('event_log')
@@ -55,7 +55,7 @@ export const eventReplay = {
       return {
         replayed: 0,
         dryRun: true,
-        events: events.map(e => ({
+        events: events.map((e: any) => ({
           name: e.event_name,
           at: e.emitted_at,
           payload: e.payload,
@@ -69,7 +69,7 @@ export const eventReplay = {
       try {
         await eventBus.dispatchHandlers(
           ev.event_name as EventName,
-          ev.payload as Record<string, unknown>
+          ev.payload as any
         )
         replayed++
         // Small pause to avoid overwhelming subscribers
@@ -82,7 +82,7 @@ export const eventReplay = {
 
     return {
       replayed,
-      events: events.map(e => e.event_name),
+      events: events.map((e: any) => e.event_name),
     }
   },
 
@@ -90,7 +90,7 @@ export const eventReplay = {
    * Replay a single event by its ID from event_log
    */
   async replayById(eventLogId: string): Promise<void> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
     const { data, error } = await supabase
       .from('event_log')
       .select('*')
@@ -103,7 +103,7 @@ export const eventReplay = {
 
     await eventBus.dispatchHandlers(
       data.event_name as EventName,
-      data.payload as Record<string, unknown>
+      data.payload as any
     )
   },
 
@@ -112,7 +112,7 @@ export const eventReplay = {
    * Returns events in chronological order
    */
   async getTaskTimeline(taskId: string) {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any as any
     const { data, error } = await supabase
       .from('event_log')
       .select('id, event_name, emitted_at, payload')

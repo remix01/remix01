@@ -259,12 +259,12 @@ export const commissionService = {
     // Calculate summary stats
     const summary = {
       total_jobs: data?.length || 0,
-      total_gross_eur: (data?.reduce((sum, log) => sum + log.gross_amount_cents, 0) || 0) / 100,
-      total_commission_eur: (data?.reduce((sum, log) => sum + log.commission_cents, 0) || 0) / 100,
-      total_payout_eur: (data?.reduce((sum, log) => sum + log.partner_payout_cents, 0) || 0) / 100,
-      transferred_count: (data?.filter(log => log.status === 'transferred').length || 0),
-      pending_count: (data?.filter(log => log.status === 'earned').length || 0),
-      failed_count: (data?.filter(log => log.status === 'failed').length || 0),
+      total_gross_eur: (data?.reduce((sum: any, log: any) => sum + log.gross_amount_cents, 0) || 0) / 100,
+      total_commission_eur: (data?.reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
+      total_payout_eur: (data?.reduce((sum: any, log: any) => sum + log.partner_payout_cents, 0) || 0) / 100,
+      transferred_count: (data?.filter((log: any) => log.status === 'transferred').length || 0),
+      pending_count: (data?.filter((log: any) => log.status === 'earned').length || 0),
+      failed_count: (data?.filter((log: any) => log.status === 'failed').length || 0),
       logs: data || [],
     }
 
@@ -289,16 +289,16 @@ export const commissionService = {
     }
 
     const revenue = {
-      total_commission_eur: (data?.reduce((sum, log) => sum + log.commission_cents, 0) || 0) / 100,
+      total_commission_eur: (data?.reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
       earned_commission_eur: (data
-        ?.filter(log => ['earned', 'transferred', 'refunded'].includes(log.status))
-        .reduce((sum, log) => sum + log.commission_cents, 0) || 0) / 100,
+        ?.filter((log: any) => ['earned', 'transferred', 'refunded'].includes(log.status))
+        .reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
       transferred_commission_eur: (data
-        ?.filter(log => log.status === 'transferred')
-        .reduce((sum, log) => sum + log.commission_cents, 0) || 0) / 100,
+        ?.filter((log: any) => log.status === 'transferred')
+        .reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
       pending_commission_eur: (data
-        ?.filter(log => log.status === 'pending')
-        .reduce((sum, log) => sum + log.commission_cents, 0) || 0) / 100,
+        ?.filter((log: any) => log.status === 'pending')
+        .reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
       jobs_completed: data?.length || 0,
     }
 

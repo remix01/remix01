@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * POST /api/tasks/[id]/publish
  * 
@@ -27,14 +28,14 @@ export async function POST(
     }
 
     // 2. Call RPC function - permission and state validation happens in backend
-    const { data, error } = await supabase.rpc('publish_task', {
+    const { data, error } = await supabase.rpc('publish_task' as any, {
       task_id: taskId,
       sla_hours: slaHours,
     })
 
     if (error) {
       console.error('[v0] RPC error:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
     }
 
     return NextResponse.json(data)

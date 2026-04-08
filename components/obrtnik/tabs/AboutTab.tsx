@@ -2,13 +2,14 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import type { ObrtnikProfileDisplay } from '@/lib/types'
 
 interface AboutTabProps {
-  obrtnik: any
+  obrtnik: ObrtnikProfileDisplay
 }
 
 export function AboutTab({ obrtnik }: AboutTabProps) {
-  const categories = (obrtnik.obrtnik_categories as any[])?.map(cat => cat.categories.name) || []
+  const categories = obrtnik.obrtnik_categories?.map(cat => cat.categories?.name).filter((name): name is string => name !== undefined && name !== null) ?? []
   const workingSince = obrtnik.working_since ? new Date(obrtnik.working_since).getFullYear() : null
 
   return (

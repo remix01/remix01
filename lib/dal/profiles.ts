@@ -26,7 +26,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     return null
   }
 
-  return data
+  return data as Profile | null
 }
 
 /**
@@ -34,7 +34,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
  */
 export async function getProfileByEmail(email: string): Promise<Profile | null> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -46,7 +46,7 @@ export async function getProfileByEmail(email: string): Promise<Profile | null> 
     return null
   }
 
-  return data
+  return data as Profile | null
 }
 
 /**
@@ -54,7 +54,7 @@ export async function getProfileByEmail(email: string): Promise<Profile | null> 
  */
 export async function createProfile(profile: ProfileInsert): Promise<Profile | null> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('profiles')
     .insert(profile)
@@ -66,7 +66,7 @@ export async function createProfile(profile: ProfileInsert): Promise<Profile | n
     return null
   }
 
-  return data
+  return data as Profile | null
 }
 
 /**
@@ -74,7 +74,7 @@ export async function createProfile(profile: ProfileInsert): Promise<Profile | n
  */
 export async function updateProfile(userId: string, updates: ProfileUpdate): Promise<Profile | null> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('profiles')
     .update(updates)
@@ -87,7 +87,7 @@ export async function updateProfile(userId: string, updates: ProfileUpdate): Pro
     return null
   }
 
-  return data
+  return data as Profile | null
 }
 
 /**
@@ -139,7 +139,7 @@ export async function getObrtnikWithCategories(obrtnikId: string): Promise<Obrtn
   // Transform the data to extract categories
   const transformed = {
     ...data,
-    categories: data.obrtnik_categories?.map((oc: any) => oc.category) || []
+    categories: (data as any).obrtnik_categories?.map((oc: any) => oc.category) || []
   }
   delete transformed.obrtnik_categories
 
@@ -181,11 +181,11 @@ export async function listObrtniki(filters?: {
 
   if (filters?.category_id) {
     // Filter by category through join
-    query = query.in('id', 
+    query = query.in('id',
       supabase
         .from('obrtnik_categories')
         .select('obrtnik_id')
-        .eq('category_id', filters.category_id)
+        .eq('category_id', filters.category_id) as any
     )
   }
 
@@ -226,7 +226,7 @@ export async function createObrtnikProfile(profile: ObrtnikProfileInsert): Promi
     return null
   }
 
-  return data
+  return data as ObrtnikProfile | null
 }
 
 /**
@@ -234,7 +234,7 @@ export async function createObrtnikProfile(profile: ObrtnikProfileInsert): Promi
  */
 export async function updateObrtnikProfile(obrtnikId: string, updates: ObrtnikProfileUpdate): Promise<ObrtnikProfile | null> {
   const supabase = await createClient()
-  
+
   const { data, error } = await supabase
     .from('obrtnik_profiles')
     .update(updates)
@@ -247,7 +247,7 @@ export async function updateObrtnikProfile(obrtnikId: string, updates: ObrtnikPr
     return null
   }
 
-  return data
+  return data as ObrtnikProfile | null
 }
 
 /**

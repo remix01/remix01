@@ -40,7 +40,7 @@ export default async function InquiryDetailPage({
     .select('*')
     .eq('id', id)
     .eq('narocnik_id', user.id)
-    .single()
+    .single() as { data: any }
 
   if (!povprasevanje) {
     return <div className="p-8 text-center text-slate-600">Povpraševanje ni najdeno.</div>
@@ -57,7 +57,6 @@ export default async function InquiryDetailPage({
        price_type,
        message,
        available_date,
-       estimated_duration,
        obrtnik_profiles:obrtnik_id(
          id,
          business_name,
@@ -71,7 +70,7 @@ export default async function InquiryDetailPage({
     )
     .eq('povprasevanje_id', id)
     .order('status', { ascending: false })
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: true }) as { data: any[] | null }
 
   const acceptedOffer = ponudbe?.find((p) => p.status === 'sprejeta')
   const showReviewSection =
@@ -90,7 +89,7 @@ export default async function InquiryDetailPage({
             <h1 className="text-3xl font-bold text-slate-900">{povprasevanje.naslov}</h1>
             <p className="text-slate-600 mt-2">{povprasevanje.opis}</p>
           </div>
-          <Badge className={statusBadgeColors[povprasevanje.status]}>
+          <Badge className={statusBadgeColors[povprasevanje.status as keyof typeof statusBadgeColors]}>
             {povprasevanje.status}
           </Badge>
         </div>

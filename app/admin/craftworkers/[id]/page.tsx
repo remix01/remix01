@@ -15,7 +15,10 @@ async function getCraftworkerData(userId: string) {
   
   const { data: craftworker } = await supabase
     .from('obrtnik_profiles')
-    .select('*')
+    .select(`
+      *,
+      profiles:id(email, phone, full_name)
+    `)
     .eq('id', userId)
     .maybeSingle()
 
@@ -39,6 +42,8 @@ async function getCraftworkerData(userId: string) {
 
   return {
     ...craftworker,
+    email: craftworker.profiles?.email,
+    phone: craftworker.profiles?.phone,
     assignedJobs: povprasevanja || [],
     violations: [],
     reviews: ocene || [],
@@ -61,8 +66,21 @@ export default async function CraftworkerDetailPage({ params }: PageProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <CraftworkerProfileCard 
-          craftworker={craftworker}
+        <CraftworkerProfileCard
+          craftworker={{
+            name: craftworker.business_name || '',
+            email: '',
+            phone: null,
+          }}
+          profile={{
+            packageType: craftworker.subscription_tier || 'start',
+            stripeAccountId: craftworker.stripe_account_id || null,
+            stripeOnboardingComplete: !!craftworker.stripe_account_id,
+            totalJobsCompleted: craftworker.assignedJobs?.length || 0,
+            avgRating: craftworker.avg_rating,
+            loyaltyPoints: 0,
+            isVerified: craftworker.is_verified || false,
+          }}
         />
         <SuspensionPanel 
           userId={id} 

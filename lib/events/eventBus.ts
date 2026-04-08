@@ -50,7 +50,7 @@ class EventBus {
       })
       .then(() => this.logEvent(event, payload))
       .then(() => this.dispatchHandlers(event, payload))
-      .catch(err => {
+      .catch((err: any) => {
         console.error('[EventBus] Error in event dispatch:', err)
       })
   }
@@ -72,8 +72,8 @@ class EventBus {
     }
 
     await Promise.allSettled(
-      handlers.map(handler =>
-        handler(payload).catch(err => {
+      handlers.map((handler: any) =>
+        handler(payload).catch((err: any) => {
           console.error(`[EventBus] Handler error for ${event}:`, err)
           throw err // Re-throw so outbox can catch and retry
         })
@@ -87,7 +87,7 @@ class EventBus {
    */
   private async logEvent(event: EventName, payload: unknown): Promise<void> {
     try {
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any as any
       await supabase.from('event_log').insert({
         event_name: event,
         payload: payload as Record<string, unknown>,

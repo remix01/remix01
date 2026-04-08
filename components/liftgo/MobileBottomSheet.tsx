@@ -42,7 +42,7 @@ export function MobileBottomSheet({
     }
   }, [isOpen])
 
-  const handleDragStart = (e: React.TouchStart | React.MouseEvent) => {
+  const handleDragStart = (e: React.TouchEvent | React.MouseEvent) => {
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
     dragStartY.current = clientY
     currentY.current = clientY

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 import { BaseAgent } from '../base/BaseAgent'
 import type { AgentType, AgentMessage, AgentResponse } from '../base/types'
 import { runGuardrails } from '@/lib/agent/guardrails'
@@ -34,11 +35,11 @@ export class DisputeAgent extends BaseAgent {
             durationMs: Date.now() - startTime,
           }
       }
-    } catch (error: any) {
-      this.log('error', { error: error.message })
+    } catch (error: unknown) {
+      this.log('error', { error: getErrorMessage(error) })
       return {
         success: false,
-        error: error.message || 'Internal error',
+        error: getErrorMessage(error),
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -57,11 +58,11 @@ export class DisputeAgent extends BaseAgent {
     try {
       const session: Session = { user: { id: userId, role: 'user' as any } }
       await runGuardrails('openDispute', payload, session)
-    } catch (error: any) {
-      this.log('guardrails_failed', { error: error.error })
+    } catch (error: unknown) {
+      this.log('guardrails_failed', { error: (error as any).error })
       return {
         success: false,
-        error: error.error || 'Validation failed',
+        error: (error as any).error || 'Validation failed',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -80,8 +81,8 @@ export class DisputeAgent extends BaseAgent {
           durationMs: Date.now() - startTime,
         }
       }
-    } catch (error: any) {
-      this.log('permission_check_error', { error: error.message })
+    } catch (error: unknown) {
+      this.log('permission_check_error', { error: getErrorMessage(error) })
       return {
         success: false,
         error: 'Permission check failed',
@@ -93,11 +94,11 @@ export class DisputeAgent extends BaseAgent {
     // 3. State machine: escrow must be in 'paid' status to transition to 'disputed'
     try {
       await assertEscrowTransition(escrowId, 'disputed')
-    } catch (error: any) {
-      this.log('state_transition_blocked', { error: error.error, escrowId })
+    } catch (error: unknown) {
+      this.log('state_transition_blocked', { error: (error as any).error, escrowId })
       return {
         success: false,
-        error: error.error || 'Cannot open dispute on this escrow',
+        error: (error as any).error || 'Cannot open dispute on this escrow',
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -129,8 +130,8 @@ export class DisputeAgent extends BaseAgent {
       if (updateError) throw updateError
 
       this.log('dispute_opened', { disputeId, escrowId, userId })
-    } catch (error: any) {
-      this.log('db_error', { error: error.message })
+    } catch (error: unknown) {
+      this.log('db_error', { error: getErrorMessage(error) })
       return {
         success: false,
         error: 'Failed to create dispute',
@@ -142,15 +143,20 @@ export class DisputeAgent extends BaseAgent {
     // 5. Broadcast to NotifyAgent
     try {
       await messageBus.send({
+        id: uuidv4(),
+        from: this.type,
         to: 'notify',
+        type: 'event',
         action: 'dispute_opened',
         payload: { disputeId, escrowId, userId, reason, description },
         userId,
         sessionId,
         correlationId: uuidv4(),
+        timestamp: Date.now(),
+        priority: 'normal',
       })
-    } catch (error: any) {
-      this.log('broadcast_failed', { error: error.message })
+    } catch (error: unknown) {
+      this.log('broadcast_failed', { error: getErrorMessage(error) })
       // Don't fail the response — notification is async
     }
 
@@ -183,7 +189,7 @@ export class DisputeAgent extends BaseAgent {
           durationMs: Date.now() - startTime,
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: 'Permission check failed',
@@ -203,7 +209,7 @@ export class DisputeAgent extends BaseAgent {
 
       if (fetchError || !dispute) throw new Error('Dispute not found')
       escrowId = dispute.escrow_id
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: 'Dispute not found',
@@ -229,8 +235,8 @@ export class DisputeAgent extends BaseAgent {
 
     try {
       await assertEscrowTransition(escrowId, newStatus)
-    } catch (error: any) {
-      this.log('state_transition_blocked', { error: error.error, escrowId })
+    } catch (error: unknown) {
+      this.log('state_transition_blocked', { error: (error as any).error, escrowId })
       return {
         success: false,
         error: 'Cannot apply this resolution',
@@ -261,8 +267,8 @@ export class DisputeAgent extends BaseAgent {
       if (updateEscrowError) throw updateEscrowError
 
       this.log('dispute_resolved', { disputeId, escrowId, resolution, newStatus })
-    } catch (error: any) {
-      this.log('db_error', { error: error.message })
+    } catch (error: unknown) {
+      this.log('db_error', { error: getErrorMessage(error) })
       return {
         success: false,
         error: 'Failed to resolve dispute',
@@ -279,8 +285,8 @@ export class DisputeAgent extends BaseAgent {
           amountCents: refundAmount,
           reason: 'Dispute resolution — refund to customer',
         })
-      } catch (error: any) {
-        this.log('job_enqueue_failed', { error: error.message })
+      } catch (error: unknown) {
+        this.log('job_enqueue_failed', { error: getErrorMessage(error) })
         // Don't fail — admin can retry manually
       }
     } else if (resolution === 'release') {
@@ -289,23 +295,28 @@ export class DisputeAgent extends BaseAgent {
           escrowId,
           reason: 'Dispute resolution — release to partner',
         })
-      } catch (error: any) {
-        this.log('job_enqueue_failed', { error: error.message })
+      } catch (error: unknown) {
+        this.log('job_enqueue_failed', { error: getErrorMessage(error) })
       }
     }
 
     // 6. Broadcast to NotifyAgent
     try {
       await messageBus.send({
+        id: uuidv4(),
+        from: this.type,
         to: 'notify',
+        type: 'event',
         action: 'dispute_resolved',
         payload: { disputeId, escrowId, resolution, newStatus },
         userId,
         sessionId,
         correlationId: uuidv4(),
+        timestamp: Date.now(),
+        priority: 'normal',
       })
-    } catch (error: any) {
-      this.log('broadcast_failed', { error: error.message })
+    } catch (error: unknown) {
+      this.log('broadcast_failed', { error: getErrorMessage(error) })
     }
 
     return {
@@ -346,7 +357,7 @@ export class DisputeAgent extends BaseAgent {
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: 'Failed to fetch dispute',

@@ -1,134 +1,185 @@
-import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
-import { Resend } from 'resend'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getOrCreateCategory } from '@/lib/dal/categories'
+import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import { enqueue } from '@/lib/jobs/queue'
 import { NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(req: Request) {
-  // ── SECURITY: Verify user is authenticated ─────────────────────────────
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  try {
+    // ── SECURITY: Verify user is authenticated ─────────────────────────────
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  const body = await req.json()
-  const { storitev, lokacija, opis, stranka_ime,
-          stranka_email, stranka_telefon,
-          obrtnik_id, termin_datum, termin_ura } = body
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-  if (!storitev || !lokacija || !opis || !stranka_ime) {
-    return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
-  }
+    const body = await req.json()
 
-  // Force narocnik_id to be the authenticated user's ID
-  // Never trust narocnik_id from request body
-  const narocnik_id = user.id
+    // Map legacy field names to database column names
+    // Support both old (storitev, lokacija, opis) and new (title, location_city, description) field names
+    const title = body.title || body.storitev
+    const locationCity = body.location_city || body.lokacija
+    const description = body.description || body.opis
 
-  const { data, error } = await supabaseAdmin
-    .from('povprasevanja')
-    .insert({
-      narocnik_id,
-      storitev, lokacija, opis, stranka_ime,
-      stranka_email, stranka_telefon,
+    // Extract other fields
+    const {
+      stranka_ime,
+      stranka_email,
+      stranka_telefon,
+      obrtnik_id,
+      termin_datum,
+      termin_ura,
+      category_id,
+      categoryName,
+      urgency,
+      budget_min,
+      budget_max,
+      location_notes,
+      preferred_date_from,
+      preferred_date_to,
+      attachment_urls
+    } = body
+
+    // Validate required fields
+    if (!title || !locationCity) {
+      return NextResponse.json(
+        { error: 'Title and location are required' },
+        { status: 400 }
+      )
+    }
+
+    // Handle category auto-creation if categoryName provided
+    let finalCategoryId = category_id
+    if (categoryName && !finalCategoryId) {
+      try {
+        finalCategoryId = await getOrCreateCategory(categoryName, user.id)
+      } catch (catError) {
+        console.error('[v0] Error creating category:', catError)
+        // Continue without category if creation fails
+      }
+    }
+
+    // CRITICAL FIX: Always set narocnik_id from authenticated user
+    // Never trust narocnik_id from request body
+    const insertData = {
+      narocnik_id: user.id,
+      title,
+      location_city: locationCity,
+      description: description || null,
+      stranka_ime: stranka_ime || null,
+      stranka_email: stranka_email || null,
+      stranka_telefon: stranka_telefon || null,
       obrtnik_id: obrtnik_id || null,
       termin_datum: termin_datum || null,
       termin_ura: termin_ura || null,
+      category_id: finalCategoryId || null,
+      urgency: urgency || 'normalno',
+      budget_min: budget_min || null,
+      budget_max: budget_max || null,
+      location_notes: location_notes || null,
+      preferred_date_from: preferred_date_from || null,
+      preferred_date_to: preferred_date_to || null,
+      attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,
+      // CRITICAL FIX: Ensure status is 'odprto' so craftsmen can see it
       status: obrtnik_id ? 'dodeljeno' : 'odprto',
-    })
-    .select()
-    .single()
+      created_at: new Date().toISOString()
+    }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // Send email to obrtnik if assigned
-  if (obrtnik_id && stranka_email) {
-    const { data: obrtnik } = await supabaseAdmin
-      .from('obrtniki')
-      .select('email, ime, priimek')
-      .eq('id', obrtnik_id)
+    const { data, error } = await supabaseAdmin
+      .from('povprasevanja')
+      .insert(insertData)
+      .select()
       .single()
 
-    if (obrtnik?.email) {
-      try {
-        await resend.emails.send({
-          from: 'LiftGO <info@liftgo.net>',
-          to: obrtnik.email,
-          subject: `Novo povpraševanje — ${storitev}`,
-          html: `
-            <h2>Novo povpraševanje</h2>
-            <p><strong>Storitev:</strong> ${storitev}</p>
-            <p><strong>Lokacija:</strong> ${lokacija}</p>
-            <p><strong>Opis:</strong> ${opis}</p>
-            <p><strong>Stranka:</strong> ${stranka_ime}</p>
-            ${termin_datum ? `<p><strong>Termin:</strong> ${termin_datum} ob ${termin_ura}</p>` : ''}
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/povprasevanja/${data.id}">
-              Ogled povpraševanja →
-            </a>
-          `,
-        })
-        await supabaseAdmin
-          .from('povprasevanja')
-          .update({ notifikacija_poslana: true, notifikacija_cas: new Date().toISOString() })
-          .eq('id', data.id)
-      } catch (emailError) {
-        console.log('[v0] Email send skipped')
-      }
+    if (error) {
+      console.error('[v0] Supabase insert error:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
-  }
 
-  // Notify admin
-  if (process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL) {
+    console.log('[v0] Povprasevanje created:', {
+      id: data.id,
+      narocnik_id: data.narocnik_id,
+      status: data.status,
+      title: data.title
+    })
+
+    // Send async notifications (fire and forget)
     try {
-      await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: process.env.ADMIN_EMAIL,
-        subject: `🔔 Novo povpraševanje: ${storitev}`,
-        html: `
-          <h3>Novo povpraševanje prejeto</h3>
-          <p><strong>Storitev:</strong> ${storitev}</p>
-          <p><strong>Lokacija:</strong> ${lokacija}</p>
-          <p><strong>Email:</strong> ${stranka_email || 'N/A'}</p>
-          <p><strong>Telefon:</strong> ${stranka_telefon || 'N/A'}</p>
-          <a href="https://liftgo.net/admin/povprasevanja">Poglej v admin →</a>
-        `
-      })
-    } catch (e) { 
-      console.error('[admin notify]', e)
-    }
-  }
+      // Send push notifications to craftsmen in this category
+      if (finalCategoryId && title && locationCity) {
+        sendPushToObrtnikiByCategory({
+          categoryId: finalCategoryId,
+          title: 'Novo povpraševanje v vaši kategoriji',
+          message: `${title} — ${locationCity}`,
+          link: '/obrtnik/povprasevanja'
+        }).catch(err => console.error('[v0] Error sending push:', err))
+      }
 
-  return NextResponse.json({ id: data.id, status: data.status }, { status: 201 })
+      // Enqueue confirmation email
+      enqueue('sendEmail', {
+        jobType: 'povprasevanje_confirmation',
+        povprasevanjeId: data.id,
+        narocnikId: data.narocnik_id,
+        title: data.title,
+        category: finalCategoryId ? categoryName : null,
+        location: data.location_city,
+        urgency: data.urgency,
+        budget: data.budget_max,
+      }).catch(err => console.error('[v0] Error enqueueing email:', err))
+    } catch (notifyErr) {
+      // Log but don't fail the response
+      console.error('[v0] Error with notifications:', notifyErr)
+    }
+
+    return NextResponse.json({ id: data.id, status: data.status }, { status: 201 })
+  } catch (err) {
+    console.error('[v0] Unhandled error in povprasevanje endpoint:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
 
 export async function GET(req: Request) {
-  const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-  const { searchParams } = new URL(req.url)
-  const status   = searchParams.get('status')
-  const search   = searchParams.get('search')
-  const page     = parseInt(searchParams.get('page') || '1')
-  const limit    = parseInt(searchParams.get('limit') || '20')
-  const offset   = (page - 1) * limit
+    const { searchParams } = new URL(req.url)
+    const search = searchParams.get('search')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const offset = (page - 1) * limit
 
-  let query = supabaseAdmin
-    .from('povprasevanja')
-    .select(`
-      *, 
-      obrtniki (id, ime, priimek, email, telefon, ocena)
-    `, { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+    let query = supabaseAdmin
+      .from('povprasevanja')
+      .select(`
+        *, 
+        narocnik:profiles!povprasevanja_narocnik_id_fkey(id, ime, priimek, email),
+        obrtniki (id, ime, priimek, email, telefon, ocena)
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
-  if (status && status !== 'vse') query = query.eq('status', status)
-  if (search) query = query.or(
-    `stranka_ime.ilike.%${search}%,storitev.ilike.%${search}%,lokacija.ilike.%${search}%`
-  )
+    if (search) {
+      query = query.or(
+        `title.ilike.%${search}%,stranka_ime.ilike.%${search}%,location_city.ilike.%${search}%`
+      )
+    }
 
-  const { data, count, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const { data, count, error } = await query
+    if (error) {
+      console.error('[v0] GET povprasevanja error:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
-  return NextResponse.json({ data, count, page, limit })
+    return NextResponse.json({ data, count, page, limit })
+  } catch (err) {
+    console.error('[v0] Unhandled error in GET povprasevanje:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }

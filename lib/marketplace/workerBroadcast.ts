@@ -1,194 +1,192 @@
 /**
  * Worker Broadcast — Instant partner notifications
- * 
+ *
  * Handles real-time broadcasts to matched partners via:
- * - Supabase Realtime channels (instant UI updates)
- * - Email notifications (with timing rules)
- * - Push notifications (if subscribed)
- * 
+ * - Supabase in-app notifications (notifications table)
+ * - Email notifications via Resend (with quiet hours)
+ *
  * Respects quiet hours (22:00-07:00) except for urgent deadline warnings
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
-import { notificationService } from '@/lib/services'
+import { Resend } from 'resend'
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
 
 export const workerBroadcast = {
   /**
-   * Broadcast new request to top matched partners
-   * Sends Realtime event + email, respects quiet hours
+   * Broadcast new request to top matched partners.
+   * Creates in-app notification + sends email (respects quiet hours).
+   * partnerIds = obrtnik_profile.id values
    */
   async notifyMatched(requestId: string, partnerIds: string[]): Promise<void> {
+    if (!partnerIds.length) return
+
+    const isQuietHours = this.isQuietHours()
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[WorkerBroadcast] notifyMatched start',
+      requestId,
+      count: partnerIds.length,
+      isQuietHours,
+    }))
+
     try {
-      console.log('[WorkerBroadcast] Notifying partners:', { requestId, count: partnerIds.length })
+      const supabase = createAdminClient()
 
-      // Check if it's quiet hours
-      const now = new Date()
-      const hour = now.getHours()
-      const isQuietHours = hour >= 22 || hour < 7
+      // Fetch request details + partner user_ids in parallel
+      const [{ data: request }, { data: obrtniki }] = await Promise.all([
+        supabase
+          .from('povprasevanja')
+          .select('id, title, location_city, urgency')
+          .eq('id', requestId)
+          .single(),
+        supabase
+          .from('obrtnik_profiles')
+          .select('id')  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
+          .in('id', partnerIds),
+      ])
 
-      for (const partnerId of partnerIds) {
-        // 1. Supabase Realtime broadcast (instant)
-        await this.broadcastRealtimeEvent(requestId, partnerId, 'new_request', {
-          urgency: 'normal',
-        })
+      if (!obrtniki?.length) return
 
-        // 2. Send email (respect quiet hours)
-        if (!isQuietHours) {
-          await this.sendNotificationEmail(requestId, partnerId, 'new_request_matched')
-        } else {
-          console.log(`[WorkerBroadcast] Quiet hours active, delaying email for ${partnerId}`)
-        }
+      const title = request?.title || 'Novo povpraševanje'
+      const city = request?.location_city ? ` — ${request.location_city}` : ''
+      const link = `/obrtnik/povprasevanja`
 
-        // 3. Record notification in database
-        await this.recordNotification(requestId, partnerId, 'matched')
+      // 1. Insert in-app notifications (batch)
+      const notifications = obrtniki.map((o) => ({
+        user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
+        type: 'novo_povprasevanje',
+        title: 'Novo povpraševanje v vaši kategoriji',
+        body: `${title}${city}`,
+        message: `${title}${city}`,
+        link,
+        read: false,
+        metadata: { povprasevanje_id: requestId },
+      }))
+
+      const { error: notifError } = await supabase.from('notifications').insert(notifications)
+      if (notifError) {
+        console.error(JSON.stringify({ level: 'error', message: '[WorkerBroadcast] notification insert error', error: notifError.message }))
       }
 
-      console.log('[WorkerBroadcast] Broadcast complete for all partners')
+      // 2. Send emails (skip quiet hours)
+      if (!isQuietHours) {
+        const userIds = obrtniki.map((o) => o.id)  // obrtnik_profiles.id IS the user_id
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', userIds)
+        const profiles = profilesData as Array<{ id: string; email: string | null; full_name: string | null }> | null
+
+        for (const profile of profiles || []) {
+          if (!profile.email) continue
+          await this.sendEmail({
+            to: profile.email,
+            name: profile.full_name || 'Obrtnik',
+            subject: `Novo povpraševanje: ${title}`,
+            html: `
+              <h2>Novo povpraševanje v vaši kategoriji</h2>
+              <p><strong>${title}</strong>${city}</p>
+              <p>Prijavite se in oddajte ponudbo preden jo kdo drug prevzame.</p>
+              <a href="${APP_URL}${link}" style="background:#2563eb;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;margin-top:12px">
+                Ogled povpraševanja →
+              </a>
+            `,
+          }).catch((err) => {
+            console.error(JSON.stringify({ level: 'error', message: '[WorkerBroadcast] email failed', to: profile.email, error: String(err) }))
+          })
+        }
+      }
+
+      console.log(JSON.stringify({ level: 'info', message: '[WorkerBroadcast] notifyMatched done', requestId, count: partnerIds.length }))
     } catch (error) {
-      console.error('[WorkerBroadcast] notifyMatched failed:', error)
-      // Don't throw — broadcast is fire-and-forget
+      console.error(JSON.stringify({ level: 'error', message: '[WorkerBroadcast] notifyMatched error', requestId, error: String(error) }))
     }
   },
 
   /**
-   * Urgent deadline warning broadcast (ignores quiet hours)
-   * Called when guarantee expiration is < 30 minutes
+   * Urgent deadline warning — ignores quiet hours
    */
   async notifyDeadlineWarning(
     requestId: string,
     partnerIds: string[],
     minutesLeft: number
   ): Promise<void> {
+    if (!partnerIds.length) return
+
+    console.log(JSON.stringify({ level: 'info', message: '[WorkerBroadcast] deadline warning', requestId, minutesLeft }))
+
     try {
-      console.log('[WorkerBroadcast] Deadline warning:', { requestId, minutesLeft })
+      const supabase = createAdminClient()
 
-      for (const partnerId of partnerIds) {
-        // Realtime event — priority
-        await this.broadcastRealtimeEvent(requestId, partnerId, 'deadline_warning', {
-          urgency: 'critical',
-          minutesLeft,
-        })
-
-        // Email — ignore quiet hours for urgent notifications
-        await this.sendNotificationEmail(requestId, partnerId, 'deadline_warning', {
-          minutesLeft,
-        })
-
-        // Record as critical notification
-        await this.recordNotification(requestId, partnerId, 'deadline_warning')
-      }
-
-      console.log('[WorkerBroadcast] Deadline warning sent to all partners')
-    } catch (error) {
-      console.error('[WorkerBroadcast] notifyDeadlineWarning failed:', error)
-    }
-  },
-
-  /**
-   * Send Supabase Realtime event to specific partner
-   * Triggers instant UI update for partner (no polling needed)
-   */
-  async broadcastRealtimeEvent(
-    requestId: string,
-    partnerId: string,
-    eventType: 'new_request' | 'deadline_warning' | 'offer_accepted' | 'task_started',
-    payload: Record<string, any>
-  ): Promise<void> {
-    try {
-      // In a real implementation, use Supabase realtime client
-      // For now, log the event
-      console.log(
-        `[WorkerBroadcast] Realtime event: channel:partner-${partnerId}, event:${eventType}`,
-        payload
-      )
-
-      // TODO: Implement actual Supabase Realtime broadcast
-      // const realtimeClient = supabaseAdmin.channel(`partner-${partnerId}`)
-      // await realtimeClient.send('broadcast', {
-      //   event: eventType,
-      //   payload: { requestId, ...payload }
-      // })
-    } catch (error) {
-      console.error('[WorkerBroadcast] Realtime broadcast failed:', error)
-    }
-  },
-
-  /**
-   * Send email notification to partner
-   */
-  async sendNotificationEmail(
-    requestId: string,
-    partnerId: string,
-    templateType: 'new_request_matched' | 'deadline_warning' | 'offer_accepted',
-    context?: Record<string, any>
-  ): Promise<void> {
-    try {
-      const supabaseAdmin = createAdminClient()
-      // Fetch partner email
-      const { data: partner } = await supabaseAdmin
+      const { data: obrtniki } = await supabase
         .from('obrtnik_profiles')
-        .select('user_id')
-        .eq('id', partnerId)
-        .single()
+        .select('id')
+        .in('id', partnerIds)
 
-      if (!partner) {
-        console.warn('[WorkerBroadcast] Partner not found:', partnerId)
-        return
-      }
+      if (!obrtniki?.length) return
 
-      // Fetch user email
-      const { data: user } = await supabaseAdmin
+      const notifications = obrtniki.map((o) => ({
+        user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
+        type: 'rok_izteka',
+        title: `Rok se izteka — še ${minutesLeft} minut!`,
+        body: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
+        message: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
+        link: '/obrtnik/povprasevanja',
+        read: false,
+        metadata: { povprasevanje_id: requestId, minutes_left: minutesLeft },
+      }))
+
+      await supabase.from('notifications').insert(notifications)
+
+      const userIds = obrtniki.map((o) => o.id)  // obrtnik_profiles.id IS the user_id
+      const { data: profilesData2 } = await supabase
         .from('profiles')
-        .select('email')
-        .eq('id', partner.user_id)
-        .single()
+        .select('id, email, full_name')
+        .in('id', userIds)
+      const profiles2 = profilesData2 as Array<{ id: string; email: string | null; full_name: string | null }> | null
 
-      if (!user?.email) {
-        console.warn('[WorkerBroadcast] User email not found for partner:', partnerId)
-        return
+      for (const profile of profiles2 || []) {
+        if (!profile.email) continue
+        await this.sendEmail({
+          to: profile.email,
+          name: profile.full_name || 'Obrtnik',
+          subject: `⏰ Rok se izteka — še ${minutesLeft} minut`,
+          html: `
+            <h2>Rok za oddajo ponudbe se izteka!</h2>
+            <p>Imate še <strong>${minutesLeft} minut</strong> za oddajo ponudbe.</p>
+            <a href="${APP_URL}/obrtnik/povprasevanja" style="background:#dc2626;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;margin-top:12px">
+              Oddaj ponudbo zdaj →
+            </a>
+          `,
+        }).catch(() => {})
       }
-
-      // Queue email job
-      const emailTemplates: Record<string, string> = {
-        new_request_matched: 'partner_new_request',
-        deadline_warning: 'partner_deadline_warning',
-        offer_accepted: 'partner_offer_accepted',
-      }
-
-      console.log(`[WorkerBroadcast] Queuing email for ${user.email} (${templateType})`)
-
-      // TODO: Use notificationService to queue email
-      // await notificationService.sendEmail(user.email, emailTemplates[templateType], { requestId, ...context })
     } catch (error) {
-      console.error('[WorkerBroadcast] sendNotificationEmail failed:', error)
+      console.error(JSON.stringify({ level: 'error', message: '[WorkerBroadcast] deadline warning error', requestId, error: String(error) }))
     }
   },
 
   /**
-   * Record notification in database for audit trail
+   * Send transactional email via Resend
    */
-  async recordNotification(
-    requestId: string,
-    partnerId: string,
-    notificationType: 'matched' | 'deadline_warning' | 'offer_accepted'
-  ): Promise<void> {
-    try {
-      const supabaseAdmin = createAdminClient()
-      await supabaseAdmin.from('marketplace_events').insert({
-        event_type: `broadcast_sent_${notificationType}`,
-        request_id: requestId,
-        partner_id: partnerId,
-        metadata: {
-          timestamp: new Date().toISOString(),
-        },
-      })
-    } catch (error) {
-      console.error('[WorkerBroadcast] recordNotification failed:', error)
+  async sendEmail(params: { to: string; name: string; subject: string; html: string }): Promise<void> {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[WorkerBroadcast] RESEND_API_KEY not set, skipping email')
+      return
     }
+    if (!resend) return
+    await resend.emails.send({
+      from: 'LiftGO <info@liftgo.net>',
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    })
   },
 
   /**
-   * Determine if it's currently quiet hours (22:00 - 07:00)
+   * Quiet hours check (22:00–07:00)
    */
   isQuietHours(): boolean {
     const hour = new Date().getHours()

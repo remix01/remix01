@@ -43,7 +43,7 @@ export default function ObrtnikSporocila() {
 
     // Fetch povprasevanje and receiver name
     const [povData, profData] = await Promise.all([
-      supabase.from('povprasevanja').select('naslov').eq('id', povprasevanjeId).single(),
+      supabase.from('povprasevanja').select('title').eq('id', povprasevanjeId).single(),
       supabase.from('profiles').select('full_name').eq('id', receiverId).single(),
     ])
 
@@ -51,7 +51,8 @@ export default function ObrtnikSporocila() {
       setPovprasevanjeInfo(povData.data)
     }
     if (profData.data) {
-      setReceiverName(profData.data.full_name)
+      const prof = profData.data as { full_name: string | null }
+      setReceiverName(prof.full_name)
     }
   }
 
@@ -90,7 +91,7 @@ export default function ObrtnikSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
             />
           </div>
         ) : (
@@ -121,7 +122,7 @@ export default function ObrtnikSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
             />
           ) : (
             <div className="bg-background rounded-lg border flex items-center justify-center h-full">

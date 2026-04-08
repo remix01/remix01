@@ -1,5 +1,6 @@
 'use server'
 
+import { isStructuredError } from '@/lib/utils/error'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { matchObrtnikiForPovprasevanje } from '@/lib/agent/liftgo-agent'
@@ -29,11 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Get user profile with role
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
+    const profile = profileData as { role: string | null } | null
 
     if (!profile) {
       return NextResponse.json(
@@ -54,10 +56,10 @@ export async function POST(request: NextRequest) {
     // 4. Run guardrails (permissions, schema, injection, amounts, rate limit)
     try {
       await runGuardrails('agent.match', { povprasevanjeId }, session)
-    } catch (error: any) {
+    } catch (error: unknown) {
       return NextResponse.json(
-        { error: error.error || 'Forbidden' },
-        { status: error.code || 403 }
+        { error: isStructuredError(error) ? error.error : 'Forbidden' },
+        { status: isStructuredError(error) ? error.code : 403 }
       )
     }
 
@@ -87,13 +89,13 @@ export async function POST(request: NextRequest) {
 
     // 5. Save results to Supabase
     const { error: insertError } = await supabase
-      .from('agent_matches')
+      .from('agent_matches' as any)
       .insert({
         povprasevanje_id: povprasevanjeId,
         matches: result.topMatches,
         reasoning: result.reasoning,
         created_at: new Date().toISOString(),
-      })
+      } as any)
 
     if (insertError) {
       console.error('[v0] Error saving matches:', insertError)

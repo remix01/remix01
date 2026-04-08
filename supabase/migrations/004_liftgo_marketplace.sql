@@ -5,6 +5,58 @@
 -- ============================================================================
 -- EXTEND PROFILES TABLE
 -- ============================================================================
+-- Ensure base profiles table exists in clean environments
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  full_name TEXT,
+  phone TEXT,
+  location_city TEXT,
+  location_region TEXT,
+  role TEXT CHECK (role IN ('narocnik', 'obrtnik')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'profiles_select_own'
+  ) THEN
+    CREATE POLICY "profiles_select_own"
+      ON public.profiles
+      FOR SELECT
+      TO authenticated
+      USING (id = auth.uid());
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'profiles_insert_own'
+  ) THEN
+    CREATE POLICY "profiles_insert_own"
+      ON public.profiles
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (id = auth.uid());
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'profiles_update_own'
+  ) THEN
+    CREATE POLICY "profiles_update_own"
+      ON public.profiles
+      FOR UPDATE
+      TO authenticated
+      USING (id = auth.uid())
+      WITH CHECK (id = auth.uid());
+  END IF;
+END $$;
+
 -- Add marketplace columns to existing profiles table
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT CHECK (role IN ('narocnik', 'obrtnik'));
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;

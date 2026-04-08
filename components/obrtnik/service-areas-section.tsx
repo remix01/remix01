@@ -4,17 +4,12 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { CheckCircle2, AlertCircle, X } from 'lucide-react'
-
-interface ServiceAreasData {
-  id: string
-  city: string
-  region: string | null
-  radius_km: number
-}
+import type { ServiceAreaDisplay } from '@/lib/types'
+import { SERVICE_AREA_DEFAULTS } from '@/lib/types'
 
 interface ServiceAreasSectionProps {
   obrtnikId: string
-  initialServiceAreas: ServiceAreasData[]
+  initialServiceAreas: ServiceAreaDisplay[]
 }
 
 export function ServiceAreasSection({
@@ -22,9 +17,9 @@ export function ServiceAreasSection({
   initialServiceAreas,
 }: ServiceAreasSectionProps) {
   const supabase = createClient()
-  const [serviceAreas, setServiceAreas] = useState<ServiceAreasData[]>(initialServiceAreas)
+  const [serviceAreas, setServiceAreas] = useState<ServiceAreaDisplay[]>(initialServiceAreas)
   const [newCity, setNewCity] = useState('')
-  const [newRadius, setNewRadius] = useState(30)
+  const [newRadius, setNewRadius] = useState<number>(25)
   const [isAdding, setIsAdding] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -48,18 +43,24 @@ export function ServiceAreasSection({
         .insert({
           obrtnik_id: obrtnikId,
           city: newCity.trim(),
-          region: null,
+          region: SERVICE_AREA_DEFAULTS.region,
           radius_km: newRadius,
-          is_active: true,
+          is_active: SERVICE_AREA_DEFAULTS.is_active,
         })
         .select()
         .single()
 
       if (error) throw error
       if (data) {
-        setServiceAreas((prev) => [...prev, data])
+        const displayArea: ServiceAreaDisplay = {
+          id: data.id,
+          city: data.city,
+          region: data.region,
+          radius_km: data.radius_km ?? SERVICE_AREA_DEFAULTS.radius_km,
+        }
+        setServiceAreas((prev) => [...prev, displayArea])
         setNewCity('')
-        setNewRadius(30)
+        setNewRadius(SERVICE_AREA_DEFAULTS.radius_km)
         setSuccessMessage('Območje uspešno dodano')
         setTimeout(() => setSuccessMessage(''), 3000)
       }
@@ -108,7 +109,7 @@ export function ServiceAreasSection({
                   className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full"
                 >
                   <span className="text-sm text-blue-900">
-                    {area.city} ({area.radius_km}km)
+                    {area.city || area.region} ({area.radius_km}km)
                   </span>
                   <button
                     onClick={() => handleDeleteArea(area.id)}
@@ -142,7 +143,7 @@ export function ServiceAreasSection({
             />
           </div>
 
-          {/* Radius Slider */}
+          {/* Radius Input */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-slate-700">

@@ -24,7 +24,7 @@ export async function migratePartnerToNewSystem(
     const supabase = await createClient()
 
     // Step 1: Fetch partner from old system
-    const { data: partner, error: partnerError } = await supabase
+    const { data: partner, error: partnerError } = await (supabase as any)
       .from('partners')
       .select('*')
       .eq('id', partnerId)
@@ -40,7 +40,7 @@ export async function migratePartnerToNewSystem(
     // Step 2: Check if auth user exists for this partner
     const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers()
     
-    const authUser = authUsers?.find(u => u.email === partner.email)
+    const authUser = authUsers?.find((u: any) => u.email === partner.email)
     
     if (!authUser) {
       return {
@@ -50,16 +50,17 @@ export async function migratePartnerToNewSystem(
     }
 
     // Step 3: Create profiles record if doesn't exist
-    const { data: existingProfile } = await supabase
+    const { data: existingProfileData } = await (supabase as any)
       .from('profiles')
       .select('id')
       .eq('auth_user_id', authUser.id)
       .single()
+    const existingProfile = existingProfileData as { id: string } | null
 
     let profileId = existingProfile?.id
 
     if (!existingProfile) {
-      const { data: newProfile, error: profileError } = await supabase
+      const { data: newProfileData, error: profileError } = await (supabase as any)
         .from('profiles')
         .insert({
           auth_user_id: authUser.id,
@@ -70,6 +71,7 @@ export async function migratePartnerToNewSystem(
         })
         .select('id')
         .single()
+      const newProfile = newProfileData as { id: string } | null
 
       if (profileError || !newProfile) {
         return {
@@ -82,14 +84,14 @@ export async function migratePartnerToNewSystem(
     }
 
     // Step 4: Create obrtnik_profiles record if doesn't exist
-    const { data: existingObrtnik } = await supabase
+    const { data: existingObrtnik } = await (supabase as any)
       .from('obrtnik_profiles')
       .select('id')
       .eq('id', profileId)
       .single()
 
     if (!existingObrtnik) {
-      const { error: obrtnikError } = await supabase
+      const { error: obrtnikError } = await (supabase as any)
         .from('obrtnik_profiles')
         .insert({
           id: profileId,
@@ -108,7 +110,7 @@ export async function migratePartnerToNewSystem(
     }
 
     // Step 5: Link old partner to new profile
-    const { error: linkError } = await supabase
+    const { error: linkError } = await (supabase as any)
       .from('partners')
       .update({
         new_profile_id: profileId,
@@ -148,7 +150,7 @@ export async function migrateAllPartners(batchSize = 50): Promise<{
     const supabase = await createClient()
 
     // Fetch all non-migrated partners
-    const { data: partners, error } = await supabase
+    const { data: partners, error } = await (supabase as any)
       .from('partners')
       .select('id')
       .is('new_profile_id', null)

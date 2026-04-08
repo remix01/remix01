@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * Job Processor API Route
  * 
@@ -33,11 +34,11 @@ async function handler(req: NextRequest) {
 
     return NextResponse.json({ success: true })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[JOBS API]', error)
     // Return 5xx so QStash retries. Return 2xx and job is considered handled.
     return NextResponse.json(
-      { error: error.message ?? 'Failed to process job' },
+      { error: getErrorMessage(error) ?? 'Failed to process job' },
       { status: 500 }
     )
   }

@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/lib/utils/error'
 /**
  * GET /api/tasks/filter
  * 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     // 3. Call RPC function with filter type
-    const { data, error } = await supabase.rpc('filter_tasks', {
+    const { data, error } = await supabase.rpc('filter_tasks' as any, {
       filter_type: filterType,
       user_id: user.id,
       limit_count: limit,
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[v0] RPC error:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
     }
 
     return NextResponse.json({ tasks: data || [] })

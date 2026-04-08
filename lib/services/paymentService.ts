@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createPaymentIntent } from '@/lib/mcp/payments'
 import { ServiceError } from './serviceError'
 import { eventBus } from '@/lib/events'
+import { getCommissionRate } from '@/lib/stripe/helpers'
+import type { PlanType } from '@/lib/stripe/config'
 
 export const paymentService = {
   /**
@@ -23,11 +25,12 @@ export const paymentService = {
     const supabase = await createClient()
 
     // Verify user role
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
       .single()
+    const profile = profileData as { role: string | null } | null
 
     if (!profile || profile.role !== 'narocnik') {
       throw new ServiceError(
@@ -78,7 +81,7 @@ export const paymentService = {
     const amount = Math.round((ponudba.price_estimate || 0) * 100)
     const result = await createPaymentIntent({
       amount,
-      povprasevanjeId: ponudba.povprasevanja_id,
+      povprasevanjeId: ponudba.povprasevanje_id,
       ponudbaId,
       narocnikEmail: userEmail,
     })
@@ -101,12 +104,24 @@ export const paymentService = {
   /**
    * Process payment release after task completion
    * Emits payment.released event for subscribers (analytics, notifications, etc.)
-   * 
-   * TODO: Integrate with Stripe transfer API
-   * For now, this is a placeholder for the event emission pattern.
+   *
+   * Commission rates are plan-aware (via getCommissionRate):
+   *   START plan → 10%  |  PRO plan → 5%
+   * These match the rates documented in README.md.
+   *
+   * TODO: Integrate with Stripe transfer API to actually disburse netAmount
+   * to the partner's connected Stripe account.
    */
   async releasePayment(taskId: string, partnerId: string, amount: number) {
-    const commissionPercent = 10 // 10% for START plan, 5% for PRO (TODO: fetch from partner profile)
+    const supabase = await createClient()
+    const { data: partnerProfile } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', partnerId)
+      .single()
+
+    const plan: PlanType = partnerProfile?.subscription_tier === 'pro' ? 'PRO' : 'START'
+    const commissionPercent = getCommissionRate(plan)
     const commissionAmount = Math.round(amount * (commissionPercent / 100) * 100) / 100
     const netAmount = amount - commissionAmount
 

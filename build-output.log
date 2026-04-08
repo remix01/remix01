@@ -1,0 +1,38 @@
+
+> my-project@0.1.0 build /vercel/share/v0-project
+> next build
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+▲ Next.js 16.1.7 (Turbopack)
+- Experiments (use with caution):
+  · clientTraceMetadata
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 35.9s
+  Running next.config.js provided runAfterProductionCompile ...
+✓ Completed runAfterProductionCompile in 308ms
+  Running TypeScript ...
+
+<--- Last few GCs --->
+
+[2305:0x7987000]    27346 ms: Mark-Compact 2043.9 (2052.0) -> 2039.1 (2051.8) MB, pooled: 0 MB, 653.50 / 0.00 ms  (average mu = 0.153, current mu = 0.017) allocation failure; scavenge might not succeed
+
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0x735eec node::OOMErrorHandler(char const*, v8::OOMDetails const&) [/vercel/runtimes/node24/bin/node]
+ 2: 0xbafbd0  [/vercel/runtimes/node24/bin/node]
+ 3: 0xbafcbf  [/vercel/runtimes/node24/bin/node]
+ 4: 0xe49875  [/vercel/runtimes/node24/bin/node]
+ 5: 0xe498a2  [/vercel/runtimes/node24/bin/node]
+ 6: 0xe49b9a  [/vercel/runtimes/node24/bin/node]
+ 7: 0xe5a89a  [/vercel/runtimes/node24/bin/node]
+ 8: 0xe5ec40  [/vercel/runtimes/node24/bin/node]
+ 9: 0x18f3681  [/vercel/runtimes/node24/bin/node]
+Next.js build worker exited with code: null and signal: SIGABRT
+ ELIFECYCLE  Command failed with exit code 1.

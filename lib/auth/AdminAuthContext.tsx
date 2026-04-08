@@ -74,7 +74,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (_event, session) => {
+          async (_event: any, session: any) => {
             setUser(session?.user ?? null)
             
             if (session?.user) {
@@ -172,7 +172,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const canAccess = (requiredRole: AdminRole): boolean => {
     if (!adminUser) return false
-    return roleHierarchy[adminUser.vloga] >= roleHierarchy[requiredRole]
+    return roleHierarchy[adminUser.vloga as AdminRole] >= roleHierarchy[requiredRole]
   }
 
   return (

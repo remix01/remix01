@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limit check
-    const { allowed, retryAfter } = checkRateLimit(
+    const { allowed, retryAfter } = await checkRateLimit(
       `ponudbe:${user.id}`,
       10,      // max 10 ponudb
       60_000   // per minute
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       validateRequiredString(obrtnik_id, 'obrtnik_id'),
       validateRequiredString(message, 'message'),
       validateAmount(price_estimate, 'price_estimate', 0),
-      price_type ? validateEnum(price_type, 'price_type', ['fixed', 'hourly', 'estimate']) : null
+      price_type ? validateEnum(price_type, 'price_type', ['fiksna', 'ocena', 'po_ogledu']) : null
     )
 
     if (validationErrors.length > 0) {
@@ -57,8 +57,7 @@ export async function POST(request: NextRequest) {
       price_estimate,
       price_type,
       available_date,
-      status: 'poslana'
-    })
+    } as any)
 
     return apiSuccess(ponudba)
   } catch (error) {

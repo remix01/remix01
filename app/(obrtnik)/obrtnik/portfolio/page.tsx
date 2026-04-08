@@ -14,7 +14,7 @@ export default async function PortfolioPage() {
   const { data: profile } = await supabase
     .from('obrtnik_profiles')
     .select('id')
-    .eq('user_id', user.id)
+    .eq('id', user.id)
     .maybeSingle()
 
   if (!profile) redirect('/partner-auth/login')

@@ -41,7 +41,7 @@ export function registerAIInsightSubscriber() {
       const skip = await idempotency.checkAndMark('payment.released', 'ai_insight', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       console.log('[AIInsightSubscriber] Updating quality score for partner:', payload.partnerId)
 
       // TODO: Implement quality score calculation
@@ -57,7 +57,7 @@ export function registerAIInsightSubscriber() {
       const skip = await idempotency.checkAndMark('review.submitted', 'ai_insight', payload.taskId)
       if (skip) return
 
-      const supabase = createAdminClient()
+      const supabase = createAdminClient() as any
       console.log(
         '[AIInsightSubscriber] Analyzing review for partner:',
         payload.partnerId,

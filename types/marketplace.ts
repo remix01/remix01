@@ -6,7 +6,7 @@ export type UrgencyLevel = 'normalno' | 'kmalu' | 'nujno'
 
 export type PovprasevanjeStatus = 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
 
-export type PonudbaStatus = 'poslana' | 'sprejeta' | 'zavrnjena'
+export type PonudbaStatus = 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena'
 
 export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 
@@ -70,6 +70,7 @@ export interface Povprasevanje {
   status: PovprasevanjeStatus
   created_at: string
   updated_at: string
+  attachment_urls?: string[]
   narocnik?: Profile
   category?: Category
   ponudbe?: Ponudba[]
@@ -126,7 +127,7 @@ export interface ObrtnikProfileInsert {
 
 export interface PovprasevanjeInsert {
   narocnik_id: string
-  category_id: string
+  category_id?: string
   title: string
   description: string
   location_city: string
@@ -137,6 +138,7 @@ export interface PovprasevanjeInsert {
   preferred_date_to?: string
   budget_min?: number
   budget_max?: number
+  attachment_urls?: string[]
 }
 
 export interface PonudbaInsert {
@@ -187,6 +189,7 @@ export interface PovprasevanjeUpdate {
   budget_min?: number
   budget_max?: number
   status?: PovprasevanjeStatus
+  attachment_urls?: string[]
 }
 
 export interface PonudbaUpdate {

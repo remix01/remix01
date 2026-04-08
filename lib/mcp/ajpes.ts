@@ -148,7 +148,7 @@ export async function startVerification(params: {
     }
 
     // Manual review needed (name mismatch or API unreachable)
-    const { data: verificationRecord, error: insertError } = await supabase
+    const { data: verificationRecord, error: insertError } = await (supabase as any)
       .from('verifications')
       .insert([
         {
@@ -225,7 +225,7 @@ export async function manuallyVerifyObrtnik(params: {
     }
 
     // Log in verifications table
-    const { error: logError } = await supabase
+    const { error: logError } = await (supabase as any)
       .from('verifications')
       .update({
         status: params.approved ? 'approved' : 'rejected',

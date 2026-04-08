@@ -3,6 +3,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { matchingService, handleServiceError } from '@/lib/services'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { apiLimiter } from '@/lib/rate-limit/limiters'
+import { z } from 'zod'
+
+const matchingBodySchema = z.object({
+  requestId: z.string().uuid('requestId mora biti veljavni UUID'),
+  lat: z.number().min(-90).max(90, 'lat mora biti med -90 in 90'),
+  lng: z.number().min(-180).max(180, 'lng mora biti med -180 in 180'),
+  categoryId: z.string().uuid('categoryId mora biti veljavni UUID'),
+})
 
 /**
  * POST /api/matching
@@ -32,12 +42,12 @@ import { matchingService, handleServiceError } from '@/lib/services'
  * - 403: Not authorized to request matching for this povprasevanje
  * - 500: Server error
  */
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest, _context: { params: Promise<unknown> }) {
   try {
-    // Parse and validate request body
-    let body: any
+    // Parse request body
+    let rawBody: unknown
     try {
-      body = await request.json()
+      rawBody = await request.json()
     } catch {
       return NextResponse.json(
         { error: 'Neveljavno telo zahtevka' },
@@ -45,30 +55,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { requestId, lat, lng, categoryId } = body
-
-    // Validate required fields
-    if (!requestId || lat === undefined || lng === undefined || !categoryId) {
-      return NextResponse.json(
-        { error: 'Manjkajo obvezni parametri: requestId, lat, lng, categoryId' },
-        { status: 400 }
-      )
+    // Validate with Zod
+    const parsed = matchingBodySchema.safeParse(rawBody)
+    if (!parsed.success) {
+      const message = parsed.error.errors.map((e) => e.message).join(', ')
+      return NextResponse.json({ error: message }, { status: 400 })
     }
 
-    // Validate coordinate ranges
-    if (typeof lat !== 'number' || typeof lng !== 'number') {
-      return NextResponse.json(
-        { error: 'lat in lng morata biti številski vrednosti' },
-        { status: 400 }
-      )
-    }
-
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return NextResponse.json(
-        { error: 'Neveljavne koordinate: lat [-90,90], lng [-180,180]' },
-        { status: 400 }
-      )
-    }
+    const { requestId, lat, lng, categoryId } = parsed.data
 
     // Check authentication
     const supabase = await createClient()
@@ -102,3 +96,5 @@ export async function POST(request: NextRequest) {
     return handleServiceError(error)
   }
 }
+
+export const POST = withRateLimit(apiLimiter, postHandler)

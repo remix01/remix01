@@ -66,10 +66,10 @@ export default function CRMPage() {
 
         // Get partner info
         const { data: partnerData } = await supabase
-          .from('partners')
+          .from('obrtnik_profiles')
           .select('*')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (!partnerData) {
           router.push('/partner-auth/login')
@@ -78,20 +78,12 @@ export default function CRMPage() {
 
         setPartner(partnerData)
 
-        // Get partner package
-        const { data: paketData } = await supabase
-          .from('partner_paketi')
-          .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .single()
+        const paketData = { paket: partnerData.subscription_tier || 'start' }
+        setPaket(paketData)
 
-        if (paketData) {
-          setPaket(paketData)
-          
-          // Only load CRM data if PRO
-          if (paketData.paket === 'pro') {
-            await loadCRMData(partnerData.id)
-          }
+        // Only load CRM data if PRO
+        if (paketData.paket === 'pro') {
+          await loadCRMData(partnerData.id)
         }
       } catch (error) {
         console.error('[v0] Error loading CRM:', error)
@@ -105,19 +97,15 @@ export default function CRMPage() {
 
   const loadCRMData = async (partnerId: string) => {
     try {
-      // Load inquiries
-      const { data: inquiries } = await supabase
-        .from('povprasevanja')
+      // Load ponudbe (offers) sent by this obrtnik
+      const { data: offers } = await supabase
+        .from('ponudbe')
         .select('*')
-        .eq('partner_id', partnerId)
+        .eq('obrtnik_id', partnerId)
         .order('created_at', { ascending: false })
 
-      // Load offers
-      const { data: offers } = await supabase
-        .from('offers')
-        .select('*')
-        .eq('partner_id', partnerId)
-        .order('created_at', { ascending: false })
+      // Use ponudbe as inquiries proxy for CRM stats
+      const inquiries = offers
 
       // Load escrow transactions
       const { data: escrows } = await supabase
@@ -131,23 +119,23 @@ export default function CRMPage() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
       const inquiriesThisMonth = (inquiries || []).filter(
-        i => new Date(i.created_at) >= monthStart
+        (i: any) => new Date(i.created_at) >= monthStart
       ).length
 
       const offersSentThisMonth = (offers || []).filter(
-        o => new Date(o.created_at) >= monthStart
+        (o: any) => new Date(o.created_at) >= monthStart
       ).length
 
-      const offersAccepted = (offers || []).filter(o => o.status === 'accepted').length
+      const offersAccepted = (offers || []).filter((o: any) => o.status === 'accepted').length
       const conversionRate = offersSentThisMonth > 0 
         ? Math.round((offersAccepted / offersSentThisMonth) * 100)
         : 0
 
       const escrowsThisMonth = (escrows || []).filter(
-        e => new Date(e.created_at) >= monthStart
+        (e: any) => new Date(e.created_at) >= monthStart
       )
       const revenueThisMonth = escrowsThisMonth.reduce(
-        (sum, e) => sum + (e.amount_cents || 0),
+        (sum: number, e: any) => sum + (e.amount_cents || 0),
         0
       ) / 100
 
@@ -160,7 +148,7 @@ export default function CRMPage() {
       })
 
       // Build leads from inquiries
-      const leadsData: Lead[] = (inquiries || []).map(inq => ({
+      const leadsData: Lead[] = (inquiries || []).map((inq: any) => ({
         id: inq.id,
         customer_name: inq.customer_name || 'Unknown',
         service_type: inq.service_type || '',
@@ -177,7 +165,7 @@ export default function CRMPage() {
       const activityItems: ActivityItem[] = []
 
       // Add inquiry events
-      ;(inquiries || []).slice(0, 10).forEach(inq => {
+      ;(inquiries || []).slice(0, 10).forEach((inq: any) => {
         activityItems.push({
           id: `inquiry-${inq.id}`,
           type: 'inquiry_received',
@@ -189,7 +177,7 @@ export default function CRMPage() {
       })
 
       // Add offer events
-      ;(offers || []).slice(0, 10).forEach(off => {
+      ;(offers || []).slice(0, 10).forEach((off: any) => {
         activityItems.push({
           id: `offer-${off.id}`,
           type: 'offer_sent',
@@ -201,7 +189,7 @@ export default function CRMPage() {
       })
 
       // Add escrow events
-      ;(escrows || []).slice(0, 10).forEach(esc => {
+      ;(escrows || []).slice(0, 10).forEach((esc: any) => {
         activityItems.push({
           id: `escrow-${esc.id}`,
           type: esc.status,

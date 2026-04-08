@@ -6,6 +6,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Star, MapPin, Phone, Globe, Facebook, Instagram, Calendar, Clock, Badge, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import type { ServiceAreaDisplay, ServiceAreaRow, ReviewDisplay } from '@/lib/types'
+import { toServiceAreaDisplayList } from '@/lib/types'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -38,7 +40,7 @@ export default function MojsterDetailPage({ params }: PageProps) {
                   narocnik:profiles!ocene_narocnik_id_fkey(first_name, last_name)),
             obrtnik_categories(categories(name, slug, icon_name)),
             obrtnik_availability(day_of_week, time_from, time_to, is_available),
-            service_areas(city, region, radius_km, is_active)
+            service_areas(id, city, region, radius_km, lat, lng, is_active)
           `)
           .eq('id', id)
           .eq('is_verified', true)
@@ -48,6 +50,19 @@ export default function MojsterDetailPage({ params }: PageProps) {
           notFound()
           return
         }
+
+        // Transform service areas to display type
+        const serviceAreasRaw = (data.service_areas as ServiceAreaRow[]) || []
+        const transformedServiceAreas: ServiceAreaDisplay[] = toServiceAreaDisplayList(serviceAreasRaw)
+        data.service_areas = transformedServiceAreas
+
+        // Transform reviews: rename 'narocnik' to 'profiles' for consistency
+        const reviews = (data.ocene as Array<any>) || []
+        const transformedReviews: ReviewDisplay[] = reviews.map((review: any) => ({
+          ...review,
+          profiles: review.narocnik ? { first_name: review.narocnik.first_name, last_name: review.narocnik.last_name } : null,
+        }))
+        data.ocene = transformedReviews
 
         setObrtnik(data)
       } catch (err) {
@@ -273,12 +288,12 @@ export default function MojsterDetailPage({ params }: PageProps) {
             <div>
               {reviews.length > 0 ? (
                 <div className="space-y-4">
-                  {reviews.map((review: any) => (
+                  {reviews.map((review: ReviewDisplay) => (
                     <div key={review.id} className="bg-background p-6 rounded-lg border border-border">
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-semibold text-foreground">
-                            {review.narocnik?.first_name} {review.narocnik?.last_name}
+                            {review.profiles?.first_name} {review.profiles?.last_name}
                           </p>
                           <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                             <span className="flex items-center gap-1">
@@ -422,7 +437,7 @@ export default function MojsterDetailPage({ params }: PageProps) {
                 <div className="bg-background p-6 rounded-lg border border-border">
                   <h3 className="font-semibold text-foreground mb-4">Območje storitev</h3>
                   <div className="space-y-2 text-sm">
-                    {obrtnik.service_areas.map((area: any, idx: number) => (
+                    {obrtnik.service_areas.map((area: ServiceAreaDisplay, idx: number) => (
                       <div key={idx} className="flex justify-between items-center py-2 border-b border-border last:border-0">
                         <span className="text-foreground">{area.city || area.region}</span>
                         <span className="text-muted-foreground">do {area.radius_km} km</span>

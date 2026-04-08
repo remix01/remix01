@@ -17,6 +17,7 @@ import { routeIntent, intentMap } from './intentRouter'
 import { shortTermMemory, type ConversationState } from '@/lib/agent/memory/shortTerm'
 import { loadLongTermMemory, appendActivity } from '@/lib/agent/memory/longTerm'
 import { messageBus } from '../base/MessageBus'
+import { tracer } from '@/lib/observability/tracing'
 
 const anthropic = new Anthropic()
 const INTERACTION_THRESHOLD = 10 // Update long-term memory every N interactions
@@ -113,13 +114,14 @@ export class OrchestratorAgent extends BaseAgent {
           resourceId: (intent.extractedParams.id ?? intent.extractedParams.resourceId) as string | undefined,
           timestamp: Date.now(),
           success: true,
-        }).catch(err => {
+        }).catch((err: any) => {
           console.error('[OrchestratorAgent] Error appending activity:', err)
         })
       }
 
       // 11. After INTERACTION_THRESHOLD interactions, trigger long-term memory update
-      const messages = shortTermMemory.getMessages(message.sessionId)
+      const memCtx = shortTermMemory.getContext(message.sessionId)
+      const messages = memCtx?.messages ?? []
       if (messages.length % INTERACTION_THRESHOLD === 0) {
         // This would trigger a background summarization task
         // For now, just log it
@@ -148,7 +150,7 @@ export class OrchestratorAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     } finally {
-      span.end()
+      tracer.endSpan(span)
     }
   }
 
@@ -207,7 +209,7 @@ Be concise but informative.`
         ],
       })
 
-      const textContent = response.content.find(b => b.type === 'text')
+      const textContent = response.content.find((b: any) => b.type === 'text')
       if (textContent && textContent.type === 'text') {
         return textContent.text
       }

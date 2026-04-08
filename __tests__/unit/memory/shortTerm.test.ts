@@ -3,7 +3,7 @@ import { shortTermMemory, ConversationState, Message } from '@/lib/agent/memory/
 describe('ShortTermMemory', () => {
   beforeEach(() => {
     // Clear the store before each test
-    shortTermMemory.clear()
+    shortTermMemory.clear('__all__')
   })
 
   describe('session management', () => {

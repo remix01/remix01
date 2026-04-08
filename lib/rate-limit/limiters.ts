@@ -46,3 +46,53 @@ export const searchLimiter = new RateLimiter(
   60,             // 60 requests
   'search'
 )
+
+// AI/ML endpoints
+export const aiLimiter = new RateLimiter(
+  60 * 1000,      // 1 minute
+  30,             // 30 requests
+  'ai'
+)
+
+// Payment/checkout endpoints
+export const paymentLimiter = new RateLimiter(
+  60 * 1000,      // 1 minute
+  10,             // 10 requests
+  'payment'
+)
+
+// Webhook processing
+export const webhookLimiter = new RateLimiter(
+  60 * 1000,      // 1 minute
+  1000,           // High limit for webhook delivery
+  'webhook'
+)
+
+// Bid/quote submission
+export const bidLimiter = new RateLimiter(
+  60 * 60 * 1000, // 1 hour
+  50,             // 50 requests
+  'bid'
+)
+
+// Email operations (password reset, verification, etc)
+export const emailLimiter = new RateLimiter(
+  60 * 60 * 1000, // 1 hour
+  5,              // 5 requests
+  'email'
+)
+
+// Export all limiters as a registry for easier management
+export const RATE_LIMITERS = {
+  auth: authLimiter,
+  inquiry: inquiryLimiter,
+  offer: offerLimiter,
+  api: apiLimiter,
+  upload: uploadLimiter,
+  search: searchLimiter,
+  ai: aiLimiter,
+  payment: paymentLimiter,
+  webhook: webhookLimiter,
+  bid: bidLimiter,
+  email: emailLimiter,
+} as const

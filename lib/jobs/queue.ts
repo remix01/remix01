@@ -39,6 +39,11 @@ export type JobType =
   | 'request_review'       // Orchestrator: request task review from customer
   | 'agent_schedule_propose'
   | 'agent_video_analyze'
+  | 'stripe_refund_payment'
+  | 'stripe_capture_payment'
+  | 'stripe_release_payment'
+  | 'send_payment_confirmed_email'
+  | 'notify_dispute_resolved'
 
 export interface Job<T = any> {
   data: T
@@ -157,7 +162,7 @@ export async function getDeadLetterJobs(limit = 100): Promise<Job[]> {
 export async function getQueueStats(): Promise<{
   [key in JobType]: number
 } & { dead_letter: number }> {
-  const stats: any = {}
+  const stats: Partial<Record<JobType | 'dead_letter', number>> = {}
   const types: JobType[] = ['stripeCapture', 'stripeRelease', 'stripeCancel', 'sendEmail', 'auditLog', 'webhook']
   
   for (const type of types) {
@@ -166,7 +171,7 @@ export async function getQueueStats(): Promise<{
   
   stats.dead_letter = 0
   
-  return stats
+  return stats as { [key in JobType]: number } & { dead_letter: number }
 }
 
 // ── CLEAR QUEUE (for testing)

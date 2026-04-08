@@ -132,7 +132,7 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
       message: `${result.obrtnik.profile.full_name} je poslal ponudbo za vaše povpraševanje.`,
       link: `/narocnik/povprasevanja/${result.povprasevanje.id}`,
       metadata: { ponudbaId: result.id, obrtknikId: result.obrtnik_id }
-    }).catch(err => {
+    }).catch((err: any) => {
       console.error('[v0] Error sending notification:', err)
       // Don't fail the whole operation if notification fails
     })
@@ -149,7 +149,7 @@ export async function updatePonudba(id: string, updates: PonudbaUpdate): Promise
   
   const { data, error } = await supabase
     .from('ponudbe')
-    .update(updates)
+    .update(updates as any)
     .eq('id', id)
     .select(`
       *,
@@ -186,7 +186,7 @@ export async function acceptPonudba(id: string): Promise<boolean> {
         message: `Vaša ponudba je bila sprejeta. Dogovorite se za termin z naročnikom.`,
         link: '/obrtnik/ponudbe',
         metadata: { ponudbaId: id, povprasevanjeId: ponudba.povprasevanje.id }
-      }).catch(err => {
+      }).catch((err: any) => {
         console.error('[v0] Error sending notification:', err)
       })
     }
@@ -331,7 +331,7 @@ export async function createOcena(ocena: OcenaInsert): Promise<Ocena | null> {
       message: `Naročnik vas je ocenil z ${ocena.rating}/5 zvezdicami.`,
       link: '/obrtnik/ocene',
       metadata: { ocenaId: result.id, ponudbaId: result.ponudba_id, rating: ocena.rating }
-    }).catch(err => {
+    }).catch((err: any) => {
       console.error('[v0] Error sending notification:', err)
     })
   }
@@ -376,7 +376,7 @@ export async function getObrtnikAverageRating(obrtnikId: string): Promise<{ avg_
   }
 
   return {
-    avg_rating: data.avg_rating || 0,
-    total_reviews: data.total_reviews || 0
+    avg_rating: data?.avg_rating || 0,
+    total_reviews: data?.total_reviews || 0
   }
 }

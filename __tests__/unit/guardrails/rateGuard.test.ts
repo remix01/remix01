@@ -1,13 +1,17 @@
+// @ts-expect-error vi is not exported from @jest/globals in this config
 import { describe, it, expect, beforeEach, vi } from '@jest/globals'
 import { rateGuard } from '@/lib/agent/guardrails/rateGuard'
+import { anomalyDetector } from '@/lib/observability/alerting'
+
+const mockRedis = {
+  incr: vi.fn(),
+  expire: vi.fn(),
+  ttl: vi.fn(),
+}
 
 // Mock Redis and anomaly detector
 vi.mock('@upstash/redis', () => ({
-  Redis: vi.fn().mockImplementation(() => ({
-    incr: vi.fn(),
-    expire: vi.fn(),
-    ttl: vi.fn(),
-  })),
+  Redis: vi.fn().mockImplementation(() => mockRedis),
 }))
 
 vi.mock('@/lib/observability/alerting', () => ({
@@ -19,6 +23,9 @@ vi.mock('@/lib/observability/alerting', () => ({
 describe('RateGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRedis.incr.mockResolvedValue(1)
+    mockRedis.expire.mockResolvedValue(1)
+    mockRedis.ttl.mockResolvedValue(60)
     // Clear in-memory store
     ;(globalThis as any).__rateGuardInMemory = undefined
   })
@@ -44,14 +51,12 @@ describe('RateGuard', () => {
     it('rejects call 21 (exceeds limit)', async () => {
       process.env.KV_REST_API_URL = 'https://test-redis.upstash.io'
       process.env.KV_REST_API_TOKEN = 'test-token'
+      mockRedis.incr.mockResolvedValue(21)
+      mockRedis.ttl.mockResolvedValue(19)
 
-      // Simulate hitting the limit - test expects rate limiting behavior
-      const error = new Error('Rate limit exceeded')
-      ;(error as any).code = 429
-
-      // After 20 calls, the 21st should be rejected
-      // This would be verified by Redis tracking
-      expect(true).toBe(true) // Placeholder for actual Redis mock test
+      await expect(rateGuard('user-over-limit')).rejects.toMatchObject({
+        code: 429,
+      })
     })
 
     it('sets expiration on first increment', async () => {
@@ -59,9 +64,7 @@ describe('RateGuard', () => {
       process.env.KV_REST_API_TOKEN = 'test-token'
 
       await rateGuard('user-2')
-
-      // Verify Redis expire was called (would require more sophisticated mock setup)
-      expect(true).toBe(true)
+      expect(mockRedis.expire).toHaveBeenCalledWith('guardrail:ratelimit:user-2', 60)
     })
 
     it('increments counter on subsequent calls', async () => {
@@ -70,17 +73,24 @@ describe('RateGuard', () => {
 
       await rateGuard('user-3')
       // Second call should increment
+      mockRedis.incr.mockResolvedValue(2)
       await rateGuard('user-3')
 
-      expect(true).toBe(true)
+      expect(mockRedis.incr).toHaveBeenCalledTimes(2)
+      expect(mockRedis.expire).toHaveBeenCalledTimes(1)
     })
 
     it('returns retry-after TTL when limit exceeded', async () => {
       process.env.KV_REST_API_URL = 'https://test-redis.upstash.io'
       process.env.KV_REST_API_TOKEN = 'test-token'
 
-      // Test expects error with proper TTL calculation
-      expect(true).toBe(true)
+      mockRedis.incr.mockResolvedValue(21)
+      mockRedis.ttl.mockResolvedValue(9)
+
+      await expect(rateGuard('user-retry-after')).rejects.toMatchObject({
+        code: 429,
+        error: expect.stringContaining('Try again in 9 seconds'),
+      })
     })
   })
 
@@ -100,16 +110,16 @@ describe('RateGuard', () => {
       await expect(rateGuard('user-b')).resolves.toBeUndefined()
       await expect(rateGuard('user-c')).resolves.toBeUndefined()
 
-      // All three should succeed - different users
-      expect(true).toBe(true)
+      // In fallback mode Redis must not be used
+      expect(mockRedis.incr).not.toHaveBeenCalled()
     })
 
     it('tracks separate limits per user', async () => {
       await expect(rateGuard('user-x')).resolves.toBeUndefined()
       await expect(rateGuard('user-y')).resolves.toBeUndefined()
 
-      // user-x making multiple calls shouldn't affect user-y
-      expect(true).toBe(true)
+      // In fallback mode Redis must not be used; isolation is handled by the in-memory Map
+      expect(mockRedis.incr).not.toHaveBeenCalled()
     })
 
     it('resets counter after time window expires', async () => {
@@ -139,16 +149,16 @@ describe('RateGuard', () => {
       await rateGuard('user-distributed')
       await rateGuard('user-distributed')
 
-      // Key should be: guardrail:ratelimit:user-distributed
-      expect(true).toBe(true)
+      expect(mockRedis.incr).toHaveBeenNthCalledWith(1, 'guardrail:ratelimit:user-distributed')
+      expect(mockRedis.incr).toHaveBeenNthCalledWith(2, 'guardrail:ratelimit:user-distributed')
     })
 
     it('returns 429 error on rate limit in distributed mode', async () => {
       process.env.KV_REST_API_URL = 'https://test-redis.upstash.io'
       process.env.KV_REST_API_TOKEN = 'test-token'
 
-      // After 20 calls, next should fail with 429
-      expect(true).toBe(true)
+      mockRedis.incr.mockResolvedValue(21)
+      await expect(rateGuard('user-distributed-limit')).rejects.toMatchObject({ code: 429 })
     })
   })
 
@@ -211,13 +221,24 @@ describe('RateGuard', () => {
     })
 
     it('records anomaly on excessive calls', async () => {
-      // After hitting rate limit, anomalyDetector.record should be called
-      expect(true).toBe(true)
+      process.env.KV_REST_API_URL = 'https://test-redis.upstash.io'
+      process.env.KV_REST_API_TOKEN = 'test-token'
+      mockRedis.incr.mockResolvedValue(21)
+
+      await expect(rateGuard('user-anomaly')).rejects.toMatchObject({ code: 429 })
+      expect(anomalyDetector.record).toHaveBeenCalledWith('excessive_tool_calls', 'user-anomaly')
     })
 
     it('returns descriptive error message on rate limit', async () => {
-      // Error should indicate max calls and retry-after time
-      expect(true).toBe(true)
+      process.env.KV_REST_API_URL = 'https://test-redis.upstash.io'
+      process.env.KV_REST_API_TOKEN = 'test-token'
+      mockRedis.incr.mockResolvedValue(21)
+      mockRedis.ttl.mockResolvedValue(7)
+
+      await expect(rateGuard('user-msg')).rejects.toMatchObject({
+        code: 429,
+        error: expect.stringContaining('Max 20 tool calls per minute'),
+      })
     })
   })
 
@@ -232,12 +253,14 @@ describe('RateGuard', () => {
     })
 
     it('in-memory store tracks state across calls', async () => {
-      // Multiple calls with same user should be tracked
       const user = 'user-tracking'
       await expect(rateGuard(user)).resolves.toBeUndefined()
       await expect(rateGuard(user)).resolves.toBeUndefined()
-
-      expect(true).toBe(true)
+      // Exceed local fallback limit and verify enforcement
+      for (let i = 0; i < 19; i++) {
+        await rateGuard(user)
+      }
+      await expect(rateGuard(user)).rejects.toMatchObject({ code: 429 })
     })
 
     it('in-memory: different users do not interfere', async () => {
@@ -246,8 +269,11 @@ describe('RateGuard', () => {
 
       await expect(rateGuard(user1)).resolves.toBeUndefined()
       await expect(rateGuard(user2)).resolves.toBeUndefined()
-
-      expect(true).toBe(true)
+      for (let i = 0; i < 20; i++) {
+        await rateGuard(user1)
+      }
+      await expect(rateGuard(user1)).rejects.toMatchObject({ code: 429 })
+      await expect(rateGuard(user2)).resolves.toBeUndefined()
     })
   })
 })

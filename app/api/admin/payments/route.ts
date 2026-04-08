@@ -73,10 +73,10 @@ export async function GET() {
     }))
 
     return NextResponse.json({ transactions, payouts })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[admin/payments] error:', error)
     return NextResponse.json(
-      { error: error?.message || 'Failed to fetch payment data' },
+      { error: (error as any)?.message || 'Failed to fetch payment data' },
       { status: 500 }
     )
   }

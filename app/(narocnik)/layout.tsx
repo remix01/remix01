@@ -24,11 +24,12 @@ export default async function NarocnikLayout({
   }
 
   // Fetch profile with error handling
-  const { data: profile, error: profileError } = await supabase
+  const { data: profileData, error: profileError } = await supabase
     .from('profiles')
     .select('role, full_name')
     .eq('id', user.id)
     .maybeSingle()
+  const profile = profileData as { role: string | null; full_name: string | null } | null
 
   // If profile doesn't exist or user is not narocnik, redirect appropriately
   if (profileError || !profile) {

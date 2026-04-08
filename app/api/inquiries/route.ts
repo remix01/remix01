@@ -44,8 +44,9 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ success: true, data: inquiries })
-  } catch (error: any) {
+  } catch (error) {
     console.error('[API] Error fetching inquiries:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Internal server error'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

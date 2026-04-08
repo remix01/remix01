@@ -24,7 +24,7 @@ export async function acceptOffer(
     const supabase = await createClient()
 
     // Get offer with inquiry details
-    const { data: offer, error: offerError } = await supabase
+    const { data: offer, error: offerError } = await (supabase as any)
       .from('offers')
       .select(`
         id,
@@ -62,7 +62,7 @@ export async function acceptOffer(
     }
 
     // Update offer to accepted
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('offers')
       .update({ status: 'accepted' })
       .eq('id', offerId)
@@ -76,7 +76,7 @@ export async function acceptOffer(
     }
 
     // Create escrow for payment
-    const { data: escrow, error: escrowError } = await supabase
+    const { data: escrow, error: escrowError } = await (supabase as any)
       .from('escrow_transactions')
       .insert({
         customer_id: context.userId,

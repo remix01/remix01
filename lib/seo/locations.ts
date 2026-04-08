@@ -18,7 +18,7 @@ export const SLOVENIAN_CITIES = [
 ] as const
 
 export function getCityBySlug(slug: string) {
-  return SLOVENIAN_CITIES.find(c => c.slug === slug)
+  return SLOVENIAN_CITIES.find((c: any) => c.slug === slug)
 }
 
 export function getCityName(slug: string): string {

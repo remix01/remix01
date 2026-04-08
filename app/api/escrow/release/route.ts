@@ -1,3 +1,4 @@
+import { isStructuredError } from '@/lib/utils/error'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, calculateEscrow } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -41,13 +42,11 @@ export async function POST(request: NextRequest) {
     // This runs AFTER permission checks (above), BEFORE DB writes
     try {
       await assertEscrowTransition(escrowId, 'released')
-    } catch (error: any) {
+    } catch (error: unknown) {
       // State machine rejected the transition
-      if (error.code === 409) {
-        return conflict(error.error)
-      }
-      if (error.code === 404) {
-        return badRequest(error.error)
+      if (isStructuredError(error)) {
+        if (error.code === 409) return conflict(error.error)
+        if (error.code === 404) return badRequest(error.error)
       }
       throw error
     }

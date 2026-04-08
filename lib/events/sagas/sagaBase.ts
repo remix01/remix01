@@ -38,7 +38,7 @@ export abstract class SagaBase<TContext extends { taskId: string }> {
    * Execute saga: run all steps in sequence, compensate on failure
    */
   async execute(initialCtx: TContext): Promise<TContext> {
-    const supabase = createAdminClient()
+    const supabase = createAdminClient() as any
     const completedSteps: number[] = []
     let ctx = initialCtx
 
@@ -86,7 +86,7 @@ export abstract class SagaBase<TContext extends { taskId: string }> {
           .from('saga_instances')
           .update({
             current_step: i + 1,
-            completed_steps: completedSteps.map(stepIdx => ({
+            completed_steps: completedSteps.map((stepIdx: any) => ({
               step_index: stepIdx,
               step_name: this.steps[stepIdx].name,
               completedAt: new Date().toISOString(),

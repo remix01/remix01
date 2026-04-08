@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createPovprasevanje } from '@/lib/dal/povprasevanja'
-import { getActiveCategories } from '@/lib/dal/categories'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { uploadFile, generateFilePath } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,6 +41,7 @@ export default function NovoPoVprasevanjePage() {
 
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [customCategoryName, setCustomCategoryName] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [urgency, setUrgency] = useState<UrgencyLevel>('normalno')
@@ -69,18 +69,19 @@ export default function NovoPoVprasevanjePage() {
       setUser(currentUser)
 
       // Fetch user profile to get location
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('location_city')
         .eq('id', currentUser.id)
         .single()
+      const profile = profileData as { location_city: string | null } | null
 
       if (profile?.location_city) {
         setLocationCity(profile.location_city)
       }
 
-      // Fetch categories
-      const cats = await getActiveCategories()
+      // Fetch categories (using public client since this is public data)
+      const cats = await getActiveCategoriesPublic()
       setCategories(cats)
     }
 
@@ -110,7 +111,7 @@ export default function NovoPoVprasevanjePage() {
   }, [selectedCategory, urgency, step])
 
   // Validation functions
-  const isStep1Valid = selectedCategory !== null
+  const isStep1Valid = selectedCategory !== null || customCategoryName.trim().length >= 2
   const isStep2Valid = title.trim().length > 0 && description.length >= 20
   const isStep3Valid = locationCity.trim().length > 0
 
@@ -135,15 +136,14 @@ export default function NovoPoVprasevanjePage() {
 
   // Handle submit
   const handleSubmit = async () => {
-    if (!user || !selectedCategory) return
+    if (!user) return
 
     setLoading(true)
     setError(null)
 
     try {
-      const povprasevanje: PovprasevanjeInsert = {
-        narocnik_id: user.id,
-        category_id: selectedCategory.id,
+      const payload = {
+        category_id: selectedCategory?.id,
         title,
         description,
         urgency,
@@ -154,21 +154,32 @@ export default function NovoPoVprasevanjePage() {
         budget_min: !budgetUndetermined && budgetMin ? Number(budgetMin) : undefined,
         budget_max: !budgetUndetermined && budgetMax ? Number(budgetMax) : undefined,
         attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
+        // Include custom category name if provided
+        ...(customCategoryName && { categoryName: customCategoryName }),
       }
 
-      const result = await createPovprasevanje(povprasevanje)
+      // Call API endpoint
+      const response = await fetch('/api/povprasevanje', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
 
-      if (!result) {
-        setError('Napaka pri oddaji. Poskusite znova.')
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Napaka pri oddaji. Poskusite znova.')
         setLoading(false)
         return
       }
 
       // Success - redirect to povprasevanja page
       router.push(`/povprasevanja/${result.id}`)
-    } catch (err) {
+    } catch (err: any) {
       console.error('[v0] Error submitting povprasevanje:', err)
-      setError('Napaka pri oddaji. Poskusite znova.')
+      setError(err.message || 'Napaka pri oddaji. Poskusite znova.')
       setLoading(false)
     }
   }
@@ -244,7 +255,10 @@ export default function NovoPoVprasevanjePage() {
                   return (
                     <button
                       key={cat.id}
-                      onClick={() => setSelectedCategory(cat)}
+                      onClick={() => {
+                        setSelectedCategory(cat)
+                        setCustomCategoryName('')
+                      }}
                       className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
                         isSelected
                           ? 'border-teal-600 bg-teal-50'
@@ -263,6 +277,36 @@ export default function NovoPoVprasevanjePage() {
                     </button>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Custom Category Option */}
+            <div className="border-t pt-6">
+              <Label className="text-sm font-semibold mb-3 block">
+                Ali druge kategorije niste našli?
+              </Label>
+              <div className="p-4 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
+                <p className="text-xs text-slate-600 mb-3">
+                  Vnesite lastno kategorijo in jo bomo avtomatično ustvarili
+                </p>
+                <Input
+                  value={customCategoryName}
+                  onChange={(e) => {
+                    setCustomCategoryName(e.target.value)
+                    setSelectedCategory(null)
+                  }}
+                  placeholder="npr. Preurejanje stanovanja"
+                  className="text-base"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  {customCategoryName.length > 0 && customCategoryName.length < 2
+                    ? '❌ Najmanj 2 znaka'
+                    : customCategoryName.length > 100
+                      ? '❌ Največ 100 znakov'
+                      : customCategoryName.length > 0
+                        ? `✓ ${customCategoryName.length} znakov`
+                        : 'Neobvezno'}
+                </p>
               </div>
             </div>
 
