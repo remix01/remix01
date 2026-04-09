@@ -69,10 +69,12 @@ N8N_WEBHOOK_URL=https://n8n.liftgo.net/webhook
 N8N_WEBHOOK_BASE=https://n8n.liftgo.net/webhook
 N8N_WEBHOOK_SECRET=your-shared-secret-32-chars-min
 
-# Optional: For rate limiting
+# Optional: For rate limiting (install package first: pnpm add @upstash/ratelimit)
 UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=xxx
 ```
+
+**Note:** Rate limiting is optional and gracefully disabled if `@upstash/ratelimit` is not installed. Webhooks will still work without it.
 
 ### 5. Enable Workflows
 In n8n UI:

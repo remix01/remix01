@@ -7,7 +7,11 @@
 
 import crypto from 'crypto';
 
-// Optional: Rate limiting support
+/**
+ * Optional rate limiting (gracefully disabled if not installed)
+ * To enable: pnpm add @upstash/ratelimit
+ * Without it: webhooks still work at full speed with no limits
+ */
 let Ratelimit: any = null;
 let Redis: any = null;
 
@@ -15,14 +19,14 @@ try {
   const upstashRatelimit = require('@upstash/ratelimit');
   Ratelimit = upstashRatelimit.Ratelimit;
 } catch (e) {
-  // Rate limiting not available, will skip
+  // Rate limiting not available, webhooks will work without limits
 }
 
 try {
   const upstashRedis = require('@upstash/redis');
   Redis = upstashRedis.Redis;
 } catch (e) {
-  // Redis not available, will skip rate limiting
+  // Redis not available, rate limiting will be skipped
 }
 
 // Types for all webhook events
