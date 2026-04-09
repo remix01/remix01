@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     if (!isValidPlan(plan)) {
       return NextResponse.json(
-        { error: 'Neveljaven paket. Izberite START ali PRO.' },
+        { error: 'Neveljaven paket. Izberite veljaven naročniški paket.' },
         { status: 400 }
       )
     }
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     } catch {
       console.error('[Stripe] Neveljaven URL:', { baseUrl, successUrl, cancelUrl })
       return NextResponse.json(
-        { error: `Napaka konfiguracije URL: baseUrl="${baseUrl}". Nastavite NEXT_PUBLIC_URL=https://liftgo.net v env spremenljivkah.` },
+        { error: `Napaka konfiguracije URL: baseUrl="${baseUrl}". Nastavite NEXT_PUBLIC_APP_URL=https://liftgo.net v env spremenljivkah.` },
         { status: 500 }
       )
     }
