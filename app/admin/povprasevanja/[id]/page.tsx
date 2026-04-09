@@ -1,317 +1,136 @@
-'use client'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+import { revalidatePath } from 'next/cache'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 
-import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-
-interface Povprasevanje {
-  id: string
-  storitev: string
-  lokacija: string
-  stranka_ime: string
-  stranka_email: string
-  stranka_telefon: string
-  opis: string
-  status: string
-  obrtnik_id: string
-  termin_datum: string
-  termin_ura: string
-  cena_ocena_min: number
-  cena_ocena_max: number
-  admin_opomba: string
+interface PageProps {
+  params: Promise<{ id: string }>
 }
 
-interface Obrtnik {
-  id: string
-  ime: string
-  priimek: string
-  email: string
-  ocena: number
-}
+export default async function AdminPovprasevanjeDetailPage({ params }: PageProps) {
+  const { id } = await params
 
-export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = React.use(params)
-  const id = resolvedParams.id
-  const router = useRouter()
-  const [povprasevanje, setPovprasevanje] = useState<Povprasevanje | null>(null)
-  const [obrtniki, setObrtniki] = useState<Obrtnik[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [formData, setFormData] = useState<Partial<Povprasevanje>>({})
+  const { data: povprasevanje, error } = await supabaseAdmin
+    .from('povprasevanja')
+    .select(`
+      id,
+      title,
+      description,
+      location_city,
+      urgency,
+      status,
+      created_at,
+      budget_min,
+      budget_max,
+      location_notes,
+      categories(name),
+      profiles!povprasevanja_narocnik_id_fkey(full_name, email)
+    `)
+    .eq('id', id)
+    .maybeSingle()
 
-  const getAuthHeaders = async (): Promise<HeadersInit> => {
-    const supabase = createClient()
-    const { data: { session }, error } = await supabase.auth.getSession()
-
-    if (error) {
-      throw error
-    }
-
-    if (!session?.access_token) {
-      throw new Error('Manjka prijavna seja. Prosim prijavite se ponovno.')
-    }
-
-    return { Authorization: `Bearer ${session.access_token}` }
+  if (error) {
+    throw new Error(`Povpraševanja ni mogoče naložiti (${error.message})`)
   }
 
-  useEffect(() => {
-    if (!id || id === 'undefined') {
-      setLoading(false)
-      return
-    }
+  if (!povprasevanje) {
+    return <div className="p-4">Povpraševanje ni najdeno</div>
+  }
 
-    const fetchData = async () => {
-      try {
-        const authHeaders = await getAuthHeaders()
+  async function updateStatus(formData: FormData) {
+    'use server'
+    const status = String(formData.get('status') || '')
+    const adminNote = String(formData.get('admin_note') || '').trim()
 
-        // Fetch povprasevanje
-        const response = await fetch(`/api/povprasevanje/${id}`, {
-          headers: authHeaders,
-        })
-
-        if (!response.ok) {
-          throw new Error(`Povpraševanja ni mogoče naložiti (${response.status}).`)
-        }
-
-        const data = await response.json()
-        setPovprasevanje(data)
-        setFormData(data)
-
-        // Fetch contractors
-        const contractorResponse = await fetch('/api/obrtniki?admin=true', {
-          headers: authHeaders,
-        })
-
-        if (!contractorResponse.ok) {
-          throw new Error(`Seznama obrtnikov ni mogoče naložiti (${contractorResponse.status}).`)
-        }
-
-        const contractors = await contractorResponse.json()
-        setObrtniki(contractors)
-      } catch (error) {
-        console.error('[v0] Error fetching data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [id])
-
-  const handleSave = async () => {
-    if (!povprasevanje) return
-
-    setSaving(true)
-    try {
-      const authHeaders = await getAuthHeaders()
-      const response = await fetch(`/api/povprasevanje/${povprasevanje.id}`, {
-        method: 'PATCH',
-        headers: {
-          ...authHeaders,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+    const { error: updateError } = await supabaseAdmin
+      .from('povprasevanja')
+      .update({
+        status,
+        location_notes: adminNote || null,
       })
+      .eq('id', id)
 
-      if (response.ok) {
-        alert('Shranjeno!')
-        router.push('/admin/povprasevanja')
-      }
-    } catch (error) {
-      console.error('[v0] Error saving:', error)
-      alert('Napaka pri shranjevanju')
-    } finally {
-      setSaving(false)
+    if (updateError) {
+      throw new Error(updateError.message)
     }
+
+    revalidatePath('/admin/povprasevanja')
+    revalidatePath(`/admin/povprasevanja/${id}`)
   }
 
-  if (loading) return <div className="p-4">Nalagam...</div>
-  if (!povprasevanje) return <div className="p-4">Povpraševanje ni najdeno</div>
+  async function archiveRequest() {
+    'use server'
+    await supabaseAdmin
+      .from('povprasevanja')
+      .update({ status: 'preklicano' })
+      .eq('id', id)
+    revalidatePath('/admin/povprasevanja')
+    redirect('/admin/povprasevanja')
+  }
 
   return (
-    <div className="min-h-screen bg-bg-muted p-6">
-      <div className="mx-auto max-w-4xl">
-        {/* Header */}
-        <div className="mb-6 flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="rounded-lg border border-border-border p-2 hover:bg-bg-muted"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <h1 className="text-2xl font-bold text-text-foreground">Povpraševanje: {povprasevanje.storitev}</h1>
-        </div>
+    <div className="space-y-6">
+      <Link
+        href="/admin/povprasevanja"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Nazaj na seznam
+      </Link>
 
-        {/* Form */}
-        <div className="space-y-6 rounded-lg bg-white p-6 shadow-sm">
-          {/* Customer Info */}
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-text-foreground">Podatki stranke</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Ime</label>
-                <input
-                  type="text"
-                  value={formData.stranka_ime || ''}
-                  onChange={e => setFormData({ ...formData, stranka_ime: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Email</label>
-                <input
-                  type="email"
-                  value={formData.stranka_email || ''}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2 opacity-50"
-                  disabled
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Telefon</label>
-                <input
-                  type="tel"
-                  value={formData.stranka_telefon || ''}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2 opacity-50"
-                  disabled
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Service Info */}
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-text-foreground">Storitev</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Storitev</label>
-                <input
-                  type="text"
-                  value={formData.storitev || ''}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2 opacity-50"
-                  disabled
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Lokacija</label>
-                <input
-                  type="text"
-                  value={formData.lokacija || ''}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2 opacity-50"
-                  disabled
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Opis</label>
-                <textarea
-                  value={formData.opis || ''}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2 opacity-50"
-                  disabled
-                  rows={3}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Assignment & Status */}
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-text-foreground">Dodelitev in status</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Obrtnik</label>
-                <select
-                  value={formData.obrtnik_id || ''}
-                  onChange={e => setFormData({ ...formData, obrtnik_id: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2"
-                >
-                  <option value="">Izberi obrtnika</option>
-                  {obrtniki.map(o => (
-                    <option key={o.id} value={o.id}>
-                      {o.ime} {o.priimek} ({o.ocena.toFixed(1)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Status</label>
-                <select
-                  value={formData.status || ''}
-                  onChange={e => setFormData({ ...formData, status: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-border-border px-3 py-2"
-                >
-                  <option value="novo">Novo</option>
-                  <option value="dodeljeno">Dodeljeno</option>
-                  <option value="sprejeto">Sprejeto</option>
-                  <option value="zavrnjeno">Zavrnjeno</option>
-                  <option value="v_izvajanju">V izvajanju</option>
-                  <option value="zakljuceno">Zaključeno</option>
-                  <option value="preklicano">Preklicano</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-foreground">Termin</label>
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={formData.termin_datum || ''}
-                    onChange={e => setFormData({ ...formData, termin_datum: e.target.value })}
-                    className="flex-1 rounded-lg border border-border-border px-3 py-2"
-                  />
-                  <input
-                    type="time"
-                    value={formData.termin_ura || ''}
-                    onChange={e => setFormData({ ...formData, termin_ura: e.target.value })}
-                    className="flex-1 rounded-lg border border-border-border px-3 py-2"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Price Estimate */}
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-text-foreground">Ocena cene</h2>
-            <div className="flex gap-3">
-              <input
-                type="number"
-                placeholder="Min"
-                value={formData.cena_ocena_min || ''}
-                onChange={e => setFormData({ ...formData, cena_ocena_min: parseInt(e.target.value) })}
-                className="flex-1 rounded-lg border border-border-border px-3 py-2"
-              />
-              <input
-                type="number"
-                placeholder="Max"
-                value={formData.cena_ocena_max || ''}
-                onChange={e => setFormData({ ...formData, cena_ocena_max: parseInt(e.target.value) })}
-                className="flex-1 rounded-lg border border-border-border px-3 py-2"
-              />
-            </div>
-          </div>
-
-          {/* Admin Notes */}
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-text-foreground">Admin opomba</h2>
-            <textarea
-              value={formData.admin_opomba || ''}
-              onChange={e => setFormData({ ...formData, admin_opomba: e.target.value })}
-              placeholder="Interno..."
-              className="w-full rounded-lg border border-border-border px-3 py-2"
-              rows={3}
-            />
-          </div>
-
-          {/* Save Button */}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-text-primary px-6 py-2 text-white hover:opacity-90 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Shranjujem...' : 'Shrani'}
-          </button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold">{povprasevanje.title}</h1>
+        <p className="text-muted-foreground">Urejanje povpraševanja</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Podrobnosti</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div><span className="text-sm text-muted-foreground">Kategorija</span><div>{(povprasevanje as any).categories?.name || '—'}</div></div>
+          <div><span className="text-sm text-muted-foreground">Mesto</span><div>{povprasevanje.location_city}</div></div>
+          <div><span className="text-sm text-muted-foreground">Naročnik</span><div>{(povprasevanje as any).profiles?.full_name || (povprasevanje as any).profiles?.email || '—'}</div></div>
+          <div><span className="text-sm text-muted-foreground">Datum</span><div>{new Date(povprasevanje.created_at).toLocaleString('sl-SI')}</div></div>
+          <div><span className="text-sm text-muted-foreground">Proračun</span><div>{povprasevanje.budget_min ?? '—'} - {povprasevanje.budget_max ?? '—'} €</div></div>
+          <div><span className="text-sm text-muted-foreground">Nujnost</span><div>{povprasevanje.urgency}</div></div>
+          <div className="md:col-span-2"><span className="text-sm text-muted-foreground">Opis</span><p className="mt-1 whitespace-pre-wrap">{povprasevanje.description}</p></div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Admin urejanje</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={updateStatus} className="space-y-4">
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <select id="status" name="status" defaultValue={povprasevanje.status} className="mt-1 w-full rounded-md border px-3 py-2">
+                <option value="odprto">Odprto</option>
+                <option value="v_teku">V teku</option>
+                <option value="zakljuceno">Zaključeno</option>
+                <option value="preklicano">Preklicano</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="admin_note">Admin opomba</Label>
+              <Textarea id="admin_note" name="admin_note" defaultValue={povprasevanje.location_notes ?? ''} rows={4} />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit">Shrani spremembe</Button>
+            </div>
+          </form>
+          <form action={archiveRequest} className="mt-3">
+            <Button type="submit" variant="destructive">Označi kot preklicano</Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }

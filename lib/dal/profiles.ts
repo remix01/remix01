@@ -180,13 +180,27 @@ export async function listObrtniki(filters?: {
   }
 
   if (filters?.category_id) {
-    // Filter by category through join
-    query = query.in('id',
-      supabase
-        .from('obrtnik_categories')
-        .select('obrtnik_id')
-        .eq('category_id', filters.category_id) as any
-    )
+    // Supabase .in expects an iterable of primitive values, not a query builder.
+    // Resolve category matches first, then apply .in with a plain array of ids.
+    const { data: categoryRows, error: categoryError } = await supabase
+      .from('obrtnik_categories')
+      .select('obrtnik_id')
+      .eq('category_id', filters.category_id)
+
+    if (categoryError) {
+      console.error('[v0] Error loading obrtnik category mappings:', categoryError)
+      return []
+    }
+
+    const categoryObrtnikIds = (categoryRows ?? [])
+      .map((row) => row.obrtnik_id)
+      .filter((id): id is string => Boolean(id))
+
+    if (categoryObrtnikIds.length === 0) {
+      return []
+    }
+
+    query = query.in('id', categoryObrtnikIds)
   }
 
   query = query.order('avg_rating', { ascending: false })

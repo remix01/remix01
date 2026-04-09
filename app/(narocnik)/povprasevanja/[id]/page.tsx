@@ -23,7 +23,7 @@ export default async function PovprasevanjeDetailPage({ params }: Props) {
   }
 
   if (povprasevanje.narocnik_id !== user.id) {
-    redirect('/narocnik/povprasevanja')
+    redirect('/povprasevanja')
   }
 
   const ponudbe = await getPonudbeForPovprasevanje(id)

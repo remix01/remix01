@@ -45,7 +45,7 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background flex justify-around items-center h-20 px-2 gap-1">
+    <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t bg-background flex justify-around items-center h-20 px-2 gap-1">
       {navLinks.map((link) => (
         <Link
           key={link.href}
