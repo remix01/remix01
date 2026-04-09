@@ -95,8 +95,8 @@ export default async function MojstriCatalogPage(props: PageProps) {
                     Za izbrane filtre nismo našli mojstrov. Poskusite z drugačnimi kriteriji ali oddajte povpraševanje.
                   </p>
                   <a
-                    href="/povprasevanje/novo"
-                    className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
+                    href="/novo-povprasevanje"
+                    className="inline-flex min-h-11 items-center justify-center px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
                   >
                     Oddaj povpraševanje
                   </a>

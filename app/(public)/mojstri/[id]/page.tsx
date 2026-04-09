@@ -180,7 +180,7 @@ export default function MojsterDetailPage({ params }: PageProps) {
 
               {/* CTA Buttons */}
               <div className="flex gap-3 pt-4 flex-col sm:flex-row">
-                <Link href={`/povprasevanje/novo?obrtnik_id=${id}`} className="flex-1 sm:flex-none">
+                <Link href={`/novo-povprasevanje?obrtnik_id=${id}`} className="flex-1 sm:flex-none">
                   <button className="w-full sm:w-auto px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity min-h-[48px] flex items-center justify-center">
                     Pošlji povpraševanje
                   </button>
