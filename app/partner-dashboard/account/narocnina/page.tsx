@@ -191,7 +191,7 @@ export default function NarocninaPage() {
   return (
     <div className="flex h-screen">
       <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
         <div className="mx-auto max-w-4xl p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Naročnina</h1>
