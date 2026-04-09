@@ -31,7 +31,7 @@ export default async function PartnerNotificationsPage() {
 
   return (
     <div className="flex h-screen bg-background">
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0 w-full">
+      <main className="flex-1 overflow-y-auto pb-20 lg:pb-0 w-full">
         <div className="max-w-2xl mx-auto p-6">
           <h1 className="text-2xl font-bold mb-6">Obvestila</h1>
           
