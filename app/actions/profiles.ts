@@ -25,7 +25,7 @@ export async function updateProfileAction(
 
     // Revalidate paths
     revalidatePath('/narocnik/profil')
-    revalidatePath('/narocnik/dashboard')
+    revalidatePath('/dashboard')
 
     return { success: true }
   } catch (error) {
