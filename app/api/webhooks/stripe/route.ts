@@ -61,6 +61,7 @@ async function syncConnectedAccountStatus(connectedAccountId: string, stripeEven
 // Določi subscription tier iz Stripe price ID — zanesljivo, ne iz metadata
 function tierFromPriceId(priceId: string): 'pro' | 'start' {
   if (priceId === STRIPE_PRODUCTS.PRO.priceId) return 'pro'
+  if (priceId === STRIPE_PRODUCTS.ELITE.priceId) return 'pro'
   return 'start'
 }
 
@@ -136,7 +137,13 @@ export async function POST(request: NextRequest) {
         const customerId = session.customer as string
         const subscriptionId = session.subscription as string
         if (!customerId) break
-        await updateSubscriptionTier(userId, customerId, 'pro', subscriptionId)
+        let tier: 'pro' | 'start' = 'start'
+        if (subscriptionId) {
+          const subscription = await stripeProxy.subscriptions.retrieve(subscriptionId)
+          const priceId = subscription.items.data[0]?.price.id ?? ''
+          tier = tierFromPriceId(priceId)
+        }
+        await updateSubscriptionTier(userId, customerId, tier, subscriptionId)
         break
       }
 

@@ -5,8 +5,8 @@
 
 export const STRIPE_PRODUCTS = {
   START: {
-    productId: 'prod_U7z9Ymkbh2zRAW',
-    priceId: 'price_1T9jBPKWYyYULHZkR4J6NyK1',
+    productId: process.env.STRIPE_START_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_START || 'prod_U7z9Ymkbh2zRAW',
+    priceId: process.env.STRIPE_START_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_START || 'price_1T9jBPKWYyYULHZkR4J6NyK1',
     name: 'LiftGo START',
     price: 0,
     commission: 10, // 10% provizija
@@ -18,8 +18,8 @@ export const STRIPE_PRODUCTS = {
     ]
   },
   PRO: {
-    productId: 'prod_SpS7ixowByASns',
-    priceId: 'price_1RuAtoKWYyYULHZkiI9eg1Eq',
+    productId: process.env.STRIPE_PRO_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_PRO || 'prod_SpS7ixowByASns',
+    priceId: process.env.STRIPE_PRO_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO || 'price_1RuAtoKWYyYULHZkiI9eg1Eq',
     name: 'LiftGo PRO',
     price: 29,
     commission: 5, // 5% provizija
@@ -31,6 +31,30 @@ export const STRIPE_PRODUCTS = {
       'CRM orodje',
       'Generator ponudb',
       'Prioritetna vidnost'
+    ]
+  },
+  ELITE: {
+    productId: process.env.STRIPE_ELITE_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_ELITE || '',
+    priceId: process.env.STRIPE_ELITE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_ELITE || '',
+    name: 'LiftGo ELITE',
+    price: 79,
+    commission: 3,
+    features: [
+      'Top pozicija profila',
+      'Ekskluzivni lead-i',
+      'Prednostna podpora'
+    ]
+  },
+  CUSTOMER_PREMIUM: {
+    productId: process.env.STRIPE_CUSTOMER_PREMIUM_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_CUSTOMER_PREMIUM || '',
+    priceId: process.env.STRIPE_CUSTOMER_PREMIUM_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_CUSTOMER_PREMIUM || '',
+    name: 'LiftGo Customer Premium',
+    price: 9,
+    commission: 0,
+    features: [
+      'Prioritetne ponudbe obrtnikov',
+      'Hitrejši odziv',
+      'Prioritetna podpora'
     ]
   }
 } as const
@@ -62,5 +86,5 @@ export function getPlanDetails(plan: PlanType) {
  * Validate if a plan type is valid
  */
 export function isValidPlan(plan: unknown): plan is PlanType {
-  return plan === 'START' || plan === 'PRO'
+  return plan === 'START' || plan === 'PRO' || plan === 'ELITE' || plan === 'CUSTOMER_PREMIUM'
 }

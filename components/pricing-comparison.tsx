@@ -30,14 +30,19 @@ const features = [
 export function PricingComparison() {
   const [loading, setLoading] = useState(false)
 
-  async function handleProCheckout() {
+  async function startCheckout(
+    plan: 'PRO' | 'ELITE' | 'CUSTOMER_PREMIUM',
+    successPath: string,
+    cancelPath: string,
+    requireAuth: boolean
+  ) {
     setLoading(true)
     try {
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
-      if (!user) {
+      if (requireAuth && !user) {
         window.location.href = '/partner-auth/login?redirect=/cenik'
         return
       }
@@ -46,10 +51,10 @@ export function PricingComparison() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          plan: 'PRO',
-          email: user.email,
-          successPath: '/partner-dashboard/account/narocnina?stripe=success',
-          cancelPath: '/cenik?cancelled=true',
+          plan,
+          email: user?.email,
+          successPath,
+          cancelPath,
         }),
       })
       const data = await res.json()
@@ -60,6 +65,33 @@ export function PricingComparison() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleProCheckout() {
+    return startCheckout(
+      'PRO',
+      '/partner-dashboard/account/narocnina?stripe=success',
+      '/cenik?cancelled=true',
+      true
+    )
+  }
+
+  async function handleEliteCheckout() {
+    return startCheckout(
+      'ELITE',
+      '/partner-dashboard/account/narocnina?stripe=success',
+      '/cenik?cancelled=true',
+      true
+    )
+  }
+
+  async function handleCustomerPremiumCheckout() {
+    return startCheckout(
+      'CUSTOMER_PREMIUM',
+      '/povprasevanja?stripe=success',
+      '/cenik?cancelled=true',
+      false
+    )
   }
 
   return (
@@ -196,12 +228,11 @@ export function PricingComparison() {
                     variant="outline"
                     size="lg"
                     className="gap-2 w-full"
-                    asChild
+                    onClick={handleEliteCheckout}
+                    disabled={loading}
                   >
-                    <a href="mailto:info@liftgo.net?subject=ELITE%20-%20zanimanje">
-                      Kontaktirajte nas
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
+                    {loading ? 'Preusmerjam...' : 'Izberite ELITE'}
+                    {!loading && <ArrowRight className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
@@ -316,12 +347,11 @@ export function PricingComparison() {
                 variant="outline"
                 size="lg"
                 className="mt-6 gap-2"
-                asChild
+                onClick={handleEliteCheckout}
+                disabled={loading}
               >
-                <a href="mailto:info@liftgo.net?subject=ELITE%20-%20zanimanje">
-                  Kontaktirajte nas
-                  <ArrowRight className="h-4 w-4" />
-                </a>
+                {loading ? 'Preusmerjam...' : 'Izberite ELITE'}
+                {!loading && <ArrowRight className="h-4 w-4" />}
               </Button>
             </div>
           </div>
@@ -451,11 +481,14 @@ export function PricingComparison() {
                 </div>
               </div>
 
-              <Button size="lg" className="mt-8 gap-2" asChild>
-                <Link href="/povprasevanja">
-                  Začnite
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+              <Button
+                size="lg"
+                className="mt-8 gap-2"
+                onClick={handleCustomerPremiumCheckout}
+                disabled={loading}
+              >
+                {loading ? 'Preusmerjam...' : 'Izberite PREMIUM'}
+                {!loading && <ArrowRight className="h-4 w-4" />}
               </Button>
             </div>
           </div>
