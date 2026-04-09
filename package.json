@@ -55,6 +55,7 @@
     "@supabase/supabase-js": "^2.95.3",
     "@twilio/conversations": "^2.5.0",
     "@upstash/qstash": "^2.9.0",
+    "@upstash/ratelimit": "^2.0.5",
     "@upstash/redis": "^1.36.2",
     "@vercel/analytics": "^1.6.1",
     "@vercel/speed-insights": "^1.0.0",
