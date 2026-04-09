@@ -1,0 +1,258 @@
+{
+  "name": "Task Status Notifications",
+  "description": "Sends email and push notifications when task status changes",
+  "nodes": [
+    {
+      "name": "Database Trigger",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "parameters": {
+        "mode": "realtime",
+        "resource": "tasks",
+        "event": "UPDATE",
+        "filters": {
+          "status": ["draft", "open", "has_ponudbe", "in_progress", "completed", "cancelled"]
+        }
+      }
+    },
+    {
+      "name": "Get Customer Info",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 2,
+      "position": [300, 300],
+      "parameters": {
+        "mode": "executeQuery",
+        "operation": "select",
+        "table": "profiles",
+        "where": {
+          "id": "{{ $node['Database Trigger'].json.customer_id }}"
+        }
+      }
+    },
+    {
+      "name": "Status Template Selector",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "cases": [
+          {
+            "condition": "==",
+            "value1": "{{ $node['Database Trigger'].json.status }}",
+            "value2": "open",
+            "output": 1
+          },
+          {
+            "condition": "==",
+            "value1": "{{ $node['Database Trigger'].json.status }}",
+            "value2": "has_ponudbe",
+            "output": 2
+          },
+          {
+            "condition": "==",
+            "value1": "{{ $node['Database Trigger'].json.status }}",
+            "value2": "in_progress",
+            "output": 3
+          },
+          {
+            "condition": "==",
+            "value1": "{{ $node['Database Trigger'].json.status }}",
+            "value2": "completed",
+            "output": 4
+          }
+        ]
+      }
+    },
+    {
+      "name": "Email Task Open",
+      "type": "n8n-nodes-base.resend",
+      "typeVersion": 1,
+      "position": [700, 100],
+      "parameters": {
+        "toEmail": "{{ $node['Get Customer Info'].json[0].email }}",
+        "subject": "Vaša povpraševanja je objavljena 📢",
+        "htmlBody": "<h2>Odličko!</h2>\n<p>Vaša povpraševanja je sedaj vidna obrtnikom.</p>\n<p><strong>Naslov:</strong> {{ $node['Database Trigger'].json.title }}</p>\n<p>Obrtniki jo bodo videli in vam pošlji ponudbe.</p>"
+      }
+    },
+    {
+      "name": "Email Ponudbe Received",
+      "type": "n8n-nodes-base.resend",
+      "typeVersion": 1,
+      "position": [700, 200],
+      "parameters": {
+        "toEmail": "{{ $node['Get Customer Info'].json[0].email }}",
+        "subject": "Prejeli ste nove ponudbe 🎯",
+        "htmlBody": "<h2>Nove ponudbe!</h2>\n<p>Obrtniki so poslali ponudbe za vašo povpraševanja.</p>\n<p>Preverite jih v aplikaciji: <a href='https://liftgo.net/narocnik/povprasevanja/{{ $node['Database Trigger'].json.id }}'>Poglej ponudbe</a></p>"
+      }
+    },
+    {
+      "name": "Email In Progress",
+      "type": "n8n-nodes-base.resend",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "toEmail": "{{ $node['Get Customer Info'].json[0].email }}",
+        "subject": "Delo se je začelo ✅",
+        "htmlBody": "<h2>Delo je v teku</h2>\n<p>Obrtnik je začel z delom na vaši povpraševanja.</p>\n<p>Lahko ga kontaktirate v aplikaciji.</p>"
+      }
+    },
+    {
+      "name": "Email Completed",
+      "type": "n8n-nodes-base.resend",
+      "typeVersion": 1,
+      "position": [700, 400],
+      "parameters": {
+        "toEmail": "{{ $node['Get Customer Info'].json[0].email }}",
+        "subject": "Delo je zaključeno 🎉",
+        "htmlBody": "<h2>Vaša povpraševanja je zaključena!</h2>\n<p>Hvala, da ste uporabili LiftGO.</p>\n<p><a href='https://liftgo.net/narocnik/ocena/{{ $node['Database Trigger'].json.id }}'>Ocenite obrtnika</a></p>"
+      }
+    },
+    {
+      "name": "Send Push Notification",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://liftgo.net/api/push/send",
+        "sendBody": true,
+        "body": {
+          "userId": "{{ $node['Database Trigger'].json.customer_id }}",
+          "title": "Status Update",
+          "body": "Your task status: {{ $node['Database Trigger'].json.status }}",
+          "type": "task_status_update"
+        }
+      }
+    },
+    {
+      "name": "Log Notification",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 2,
+      "position": [1100, 300],
+      "parameters": {
+        "mode": "executeQuery",
+        "operation": "insert",
+        "table": "notification_logs",
+        "data": {
+          "task_id": "{{ $node['Database Trigger'].json.id }}",
+          "user_id": "{{ $node['Database Trigger'].json.customer_id }}",
+          "type": "task_status_change",
+          "status": "{{ $node['Database Trigger'].json.status }}",
+          "sent_at": "{{ new Date().toISOString() }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Database Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Customer Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Customer Info": {
+      "main": [
+        [
+          {
+            "node": "Status Template Selector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Template Selector": {
+      "main": [
+        [
+          {
+            "node": "Email Task Open",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Ponudbe Received",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email In Progress",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Task Open": {
+      "main": [
+        [
+          {
+            "node": "Send Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Ponudbe Received": {
+      "main": [
+        [
+          {
+            "node": "Send Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email In Progress": {
+      "main": [
+        [
+          {
+            "node": "Send Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Completed": {
+      "main": [
+        [
+          {
+            "node": "Send Push Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Push Notification": {
+      "main": [
+        [
+          {
+            "node": "Log Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

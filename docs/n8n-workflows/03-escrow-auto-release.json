@@ -1,0 +1,86 @@
+{
+  "name": "Escrow Auto-Release (7 Days)",
+  "description": "Automatically releases escrow payment to craftsman 7 days after task completion if no disputes",
+  "nodes": [
+    {
+      "name": "Cron Trigger Daily",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "parameters": {
+        "cronExpression": "0 2 * * *",
+        "timezone": "Europe/Ljubljana"
+      }
+    },
+    {
+      "name": "Find Completed Tasks 7+ Days Ago",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 2,
+      "position": [300, 300],
+      "parameters": {
+        "mode": "executeQuery",
+        "operation": "select",
+        "table": "tasks",
+        "where": {
+          "status": "completed",
+          "completed_at": {
+            "operator": "<=",
+            "value": "{{ new Date(Date.now() - 7*24*60*60*1000).toISOString() }}"
+          }
+        }
+      }
+    },
+    {
+      "name": "Filter Tasks Not Disputed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst tasksWithoutDisputes = [];\n\nfor (const item of items) {\n  const taskId = item.json.id;\n  // Would check disputes table here in real implementation\n  // For now, assume no disputes if not explicitly flagged\n  if (!item.json.is_disputed) {\n    tasksWithoutDisputes.push(item.json);\n  }\n}\n\nreturn tasksWithoutDisputes.map(task => ({ json: task }));"
+      }
+    },
+    {
+      "name": "Get Transaction Details",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "parameters": {
+        "mode": "executeQuery",
+        "operation": "select",
+        "table": "transactions",
+        "where": {
+          "task_id": "{{ $node['Filter Tasks Not Disputed'].json.id }}",
+          "status": "escrow_held"
+        }
+      }
+    },
+    {
+      "name": "Get Craftsman Payment Method",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "parameters": {
+        "mode": "executeQuery",
+        "operation": "select",
+        "table": "obrtnik_profiles",
+        "where": {
+          "id": "{{ $node['Filter Tasks Not Disputed'].json.assigned_to }}"
+        }
+      }
+    },
+    {
+      "name": "Calculate Final Amount",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "parameters": {
+        "jsCode": "const transaction = $('Get Transaction Details').json[0];\nconst craftsman = $('Get Craftsman Payment Method').json[0];\nconst tier = craftsman.tier || 'START';\n\n// Calculate payout after commission\nconst platformFeePercent = tier === 'PRO' ? 5 : 10;\nconst escrowAmount = transaction.amount_held;\nconst platformFee = (escrowAmount * platformFeePercent) / 100;\nconst payoutAmount = escrowAmount - platformFee;\n\nreturn [{\n  escrowAmount,\n  platformFeePercent,\n  platformFee,\n  payoutAmount,\n  stripeConnectId: craftsman.stripe_connect_id,\n  transactionId: transaction.id,\n  taskId: transaction.task_id,\n  craftmanId: craftsman.id,\n  craftmanEmail: craftsman.email\n}];"
+      }
+    },
+    {
+      "name": "Release Escrow via Stripe",
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 2,
+      "position": [1300, 300],
+      "parameters": {
+        "operation": "transfer",\n        \"amount\": \"{{ Math.round($node['Calculate Final Amount'].json[0].payoutAmount * 100) }}\",\n        \"destination\": \"{{ $node['Calculate Final Amount'].json[0].stripeConnectId }}\",\n        \"description\": \"Escrow release for task {{ $node['Calculate Final Amount'].json[0].taskId }}\"\n      }\n    },\n    {\n      \"name\": \"Update Transaction Status\",\n      \"type\": \"n8n-nodes-base.supabase\",\n      \"typeVersion\": 2,\n      \"position\": [1500, 300],\n      \"parameters\": {\n        \"mode\": \"executeQuery\",\n        \"operation\": \"update\",\n        \"table\": \"transactions\",\n        \"where\": {\n          \"id\": \"{{ $node['Calculate Final Amount'].json[0].transactionId }}\"\n        },\n        \"data\": {\n          \"status\": \"released\",\n          \"released_at\": \"{{ new Date().toISOString() }}\",\n          \"stripe_transfer_id\": \"{{ $node['Release Escrow via Stripe'].json.id }}\",\n          \"platform_fee\": \"{{ $node['Calculate Final Amount'].json[0].platformFee }}\"\n        }\n      }\n    },\n    {\n      \"name\": \"Send Confirmation Email\",\n      \"type\": \"n8n-nodes-base.resend\",\n      \"typeVersion\": 1,\n      \"position\": [1700, 300],\n      \"parameters\": {\n        \"toEmail\": \"{{ $node['Calculate Final Amount'].json[0].craftmanEmail }}\",\n        \"subject\": \"Plačilo je bili izdano 💰\",\n        \"htmlBody\": \"<h2>Vaše plačilo je bilo izdano!</h2>\\n<p><strong>Znesek:</strong> €{{ $node['Calculate Final Amount'].json[0].payoutAmount.toFixed(2) }}</p>\\n<p><strong>Tip transakcije:</strong> Escrow release (7 days after completion)</p>\\n<p>Plačilo bo prispelo na vašo bančni račun v 1-2 dneh.</p>\"\n      }\n    },\n    {\n      \"name\": \"Update Task Status to Paid\",\n      \"type\": \"n8n-nodes-base.supabase\",\n      \"typeVersion\": 2,\n      \"position\": [1900, 300],\n      \"parameters\": {\n        \"mode\": \"executeQuery\",\n        \"operation\": \"update\",\n        \"table\": \"tasks\",\n        \"where\": {\n          \"id\": \"{{ $node['Calculate Final Amount'].json[0].taskId }}\"\n        },\n        \"data\": {\n          \"payment_status\": \"paid\",\n          \"paid_at\": \"{{ new Date().toISOString() }}\"\n        }\n      }\n    },\n    {\n      \"name\": \"Log to Audit Trail\",\n      \"type\": \"n8n-nodes-base.supabase\",\n      \"typeVersion\": 2,\n      \"position\": [2100, 300],\n      \"parameters\": {\n        \"mode\": \"executeQuery\",\n        \"operation\": \"insert\",\n        \"table\": \"audit_logs\",\n        \"data\": {\n          \"action\": \"escrow_auto_released\",\n          \"task_id\": \"{{ $node['Calculate Final Amount'].json[0].taskId }}\",\n          \"craftsman_id\": \"{{ $node['Calculate Final Amount'].json[0].craftmanId }}\",\n          \"amount\": \"{{ $node['Calculate Final Amount'].json[0].payoutAmount }}\",\n          \"stripe_transfer_id\": \"{{ $node['Release Escrow via Stripe'].json.id }}\",\n          \"created_at\": \"{{ new Date().toISOString() }}\"\n        }\n      }\n    }\n  ],\n  \"connections\": {\n    \"Cron Trigger Daily\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Find Completed Tasks 7+ Days Ago\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Find Completed Tasks 7+ Days Ago\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Filter Tasks Not Disputed\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Filter Tasks Not Disputed\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Get Transaction Details\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Get Transaction Details\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Get Craftsman Payment Method\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Get Craftsman Payment Method\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Calculate Final Amount\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Calculate Final Amount\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Release Escrow via Stripe\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Release Escrow via Stripe\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Update Transaction Status\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Update Transaction Status\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Send Confirmation Email\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Send Confirmation Email\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Update Task Status to Paid\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Update Task Status to Paid\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Log to Audit Trail\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    }\n  }\n}\n

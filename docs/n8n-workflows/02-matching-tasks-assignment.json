@@ -1,0 +1,98 @@
+{
+  "name": "Matching Tasks Assignment to Craftsmen",
+  "description": "Notifies matching craftsmen when a new task is published",
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300],
+      "parameters": {
+        "path": "liftgo/task-published",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "Parse Task Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [300, 300],
+      "parameters": {
+        "jsCode": "return [\n  {\n    taskId: $('Webhook Trigger').first().json.id,\n    category: $('Webhook Trigger').first().json.category_id,\n    location: $('Webhook Trigger').first().json.location,\n    budget: $('Webhook Trigger').first().json.budget,\n    priority: $('Webhook Trigger').first().json.priority,\n    description: $('Webhook Trigger').first().json.description\n  }\n]"
+      }
+    },
+    {
+      "name": "Query Matching Craftsmen",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "parameters": {
+        "mode": "executeQuery",
+        "operation": "select",
+        "table": "obrtnik_profiles",
+        "where": {
+          "service_categories": "contains",
+          "value": "{{ $node['Parse Task Data'].json[0].category }}"
+        },
+        "limit": 50
+      }
+    },
+    {
+      "name": "Filter by Rating",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "jsCode": "// Filter craftsmen with rating >= 4.0\nconst items = $input.all();\nreturn items.filter(item => {\n  return item.json.average_rating >= 4.0;\n});"
+      }
+    },
+    {
+      "name": "Check Daily Quota",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "parameters": {
+        "jsCode": "// Check if craftsman is START tier (10 tasks/day) or PRO (unlimited)\nconst items = $input.all();\nconst today = new Date().toISOString().split('T')[0];\n\nreturn items.filter(craftsman => {\n  if (craftsman.json.tier === 'PRO') return true;\n  // For START tier, would need to check daily count\n  return craftsman.json.daily_task_count < 10;\n});"
+      }
+    },
+    {
+      "name": "Get Craftsman Preferences",
+      "type": "n8n-nodes-base.loop",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "parameters": {
+        "sourceData": "{{ $node['Check Daily Quota'].json }}"
+      }
+    },
+    {
+      "name": "Build Email Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1300, 300],
+      "parameters": {
+        "jsCode": "const craftsman = $('Check Daily Quota').json;\nconst task = $('Parse Task Data').json[0];\n\nreturn [{\n  email: craftsman.email,\n  subject: `Nova povpraševanja: ${task.description}`,\n  htmlBody: `\n    <h2>Nova povpraševanja za vas!</h2>\n    <p><strong>Kategorija:</strong> ${task.category}</p>\n    <p><strong>Lokacija:</strong> ${task.location}</p>\n    <p><strong>Proračun:</strong> €${task.budget}</p>\n    <p><a href=\"https://liftgo.net/obrtnik/povprasevanja/${task.taskId}\">Poglej povpraševanja</a></p>\n  `,\n  craftmanId: craftsman.id,\n  taskId: task.taskId\n}]"
+      }
+    },
+    {
+      "name": "Send Email to Craftsman",
+      "type": "n8n-nodes-base.resend",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "parameters": {
+        "toEmail": "{{ $node['Build Email Content'].json[0].email }}",
+        "subject": "{{ $node['Build Email Content'].json[0].subject }}",
+        "htmlBody": "{{ $node['Build Email Content'].json[0].htmlBody }}"
+      }
+    },
+    {
+      "name": "Send Push Notification",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [1700, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://liftgo.net/api/push/send",
+        "sendBody": true,
+        "body": {
+          "userId": "{{ $node['Build Email Content'].json[0].craftmanId }}",
+          "title": \"Nova povpraševanja!\",\n          \"body\": \"Pogledaj novo povpraševanja v svoji kategoriji\",\n          \"type\": \"new_task_match\",\n          \"taskId\": \"{{ $node['Build Email Content'].json[0].taskId }}\"\n        }\n      }\n    },\n    {\n      \"name\": \"Log Assignment\",\n      \"type\": \"n8n-nodes-base.supabase\",\n      \"typeVersion\": 2,\n      \"position\": [1900, 300],\n      \"parameters\": {\n        \"mode\": \"executeQuery\",\n        \"operation\": \"insert\",\n        \"table\": \"task_assignments\",\n        \"data\": {\n          \"task_id\": \"{{ $node['Parse Task Data'].json[0].taskId }}\",\n          \"craftsman_id\": \"{{ $node['Build Email Content'].json[0].craftmanId }}\",\n          \"notification_type\": \"email_and_push\",\n          \"sent_at\": \"{{ new Date().toISOString() }}\"\n        }\n      }\n    }\n  ],\n  \"connections\": {\n    \"Webhook Trigger\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Parse Task Data\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Parse Task Data\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Query Matching Craftsmen\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Query Matching Craftsmen\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Filter by Rating\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Filter by Rating\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Check Daily Quota\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Check Daily Quota\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Get Craftsman Preferences\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Get Craftsman Preferences\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Build Email Content\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Build Email Content\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Send Email to Craftsman\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Send Email to Craftsman\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Send Push Notification\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Send Push Notification\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Log Assignment\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    }\n  }\n}\n
