@@ -5,9 +5,25 @@
  * All events are queued and retried on failure.
  */
 
-import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+
+// Optional: Rate limiting support
+let Ratelimit: any = null;
+let Redis: any = null;
+
+try {
+  const upstashRatelimit = require('@upstash/ratelimit');
+  Ratelimit = upstashRatelimit.Ratelimit;
+} catch (e) {
+  // Rate limiting not available, will skip
+}
+
+try {
+  const upstashRedis = require('@upstash/redis');
+  Redis = upstashRedis.Redis;
+} catch (e) {
+  // Redis not available, will skip rate limiting
+}
 
 // Types for all webhook events
 export interface TaskPublishedEvent {
@@ -99,16 +115,25 @@ const DEFAULT_CONFIG: WebhookConfig = {
 };
 
 // Initialize rate limiter
-let ratelimit: Ratelimit | null = null;
+let ratelimit: any = null;
 
-function getRateLimiter(): Ratelimit {
-  if (!ratelimit && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    ratelimit = new Ratelimit({
-      redis: Redis.fromEnv(),
-      limiter: Ratelimit.slidingWindow(100, '1 m'),
-    });
+function getRateLimiter(): any {
+  if (!Ratelimit || !Redis) {
+    return null; // Rate limiting not available
   }
-  return ratelimit as Ratelimit;
+
+  if (!ratelimit && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    try {
+      ratelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(100, '1 m'),
+      });
+    } catch (error) {
+      console.warn('Failed to initialize rate limiter:', error);
+      return null;
+    }
+  }
+  return ratelimit;
 }
 
 /**
@@ -158,12 +183,14 @@ export async function sendWebhookEvent(
   if (process.env.UPSTASH_REDIS_REST_URL) {
     try {
       const limiter = getRateLimiter();
-      const { success } = await limiter.limit('n8n-webhook');
-      if (!success) {
-        console.warn('N8N webhook rate limit exceeded, queuing for later');
-        // Queue for retry via job queue
-        await queueWebhookEvent(event);
-        return false;
+      if (limiter) {
+        const { success } = await limiter.limit('n8n-webhook');
+        if (!success) {
+          console.warn('N8N webhook rate limit exceeded, queuing for later');
+          // Queue for retry via job queue
+          await queueWebhookEvent(event);
+          return false;
+        }
       }
     } catch (error) {
       console.error('Rate limit check failed:', error);
