@@ -54,6 +54,12 @@ export const env = {
   TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ?? '',
   TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER ?? '',
 
+
+  // ─── Google Cloud / Search / Maps ───
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY ?? '',
+  GOOGLE_SEARCH_ENGINE_ID: process.env.GOOGLE_SEARCH_ENGINE_ID ?? '',
+  GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID ?? '',
+
   // ─── App Config ───
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net',
   NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID ?? '',
@@ -73,6 +79,14 @@ export const hasResend = () => !!env.RESEND_API_KEY
 export const hasSlack = () => !!env.SLACK_WEBHOOK_URL
 export const hasSlackBot = () => !!env.SLACK_BOT_TOKEN
 export const hasTwilio = () => !!env.TWILIO_ACCOUNT_SID
+
+
+// Google Cloud integrations
+export const hasGoogleMaps = () => !!env.GOOGLE_MAPS_API_KEY
+export const hasGoogleSearch = () => !!env.GOOGLE_SEARCH_ENGINE_ID
+export const hasGoogleProject = () => !!env.GOOGLE_PROJECT_ID
+export const hasAdvancedGoogle = () =>
+  hasGoogleMaps() && hasGoogleSearch() && hasGoogleProject()
 
 // AI Providers
 export const hasAnthropicAI = () => !!env.ANTHROPIC_API_KEY

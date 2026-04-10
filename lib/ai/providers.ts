@@ -69,6 +69,20 @@ export interface SearchResult {
   model: string
 }
 
+class ProviderAPIError extends Error {
+  status: number
+  provider: string
+  requestId?: string
+
+  constructor(provider: string, status: number, message: string, requestId?: string) {
+    super(message)
+    this.name = 'ProviderAPIError'
+    this.provider = provider
+    this.status = status
+    this.requestId = requestId
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Chat Completions
 // ═══════════════════════════════════════════════════════════════════════════
@@ -82,16 +96,36 @@ export async function chat(
 ): Promise<ChatResult> {
   const provider = options.provider || selectChatProvider()
 
-  switch (provider) {
-    case 'anthropic':
-      return chatWithAnthropic(messages, options)
-    case 'openai':
-      return chatWithOpenAI(messages, options)
-    case 'gemini':
-      return chatWithGemini(messages, options)
-    default:
-      throw new Error(`No chat provider available`)
+  const order: AIProvider[] = [provider]
+  if (provider !== 'anthropic' && hasAnthropicAI()) order.push('anthropic')
+  if (provider !== 'openai' && hasOpenAI()) order.push('openai')
+  if (provider !== 'gemini' && hasGemini()) order.push('gemini')
+
+  let lastError: unknown
+
+  for (const current of order) {
+    try {
+      switch (current) {
+        case 'anthropic':
+          return await chatWithAnthropic(messages, options)
+        case 'openai':
+          return await chatWithOpenAI(messages, options)
+        case 'gemini':
+          return await chatWithGemini(messages, options)
+        default:
+          throw new Error(`No chat provider available`)
+      }
+    } catch (error) {
+      lastError = error
+      // Retry on transient upstream failures only
+      if (error instanceof ProviderAPIError && error.status >= 500) {
+        continue
+      }
+      throw error
+    }
   }
+
+  throw lastError || new Error('No chat provider available')
 }
 
 async function chatWithAnthropic(
@@ -165,7 +199,7 @@ async function chatWithOpenAI(
   })
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`)
+    await throwProviderError(response, 'openai')
   }
 
   const data = await response.json()
@@ -218,7 +252,7 @@ async function chatWithGemini(
   )
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.statusText}`)
+    await throwProviderError(response, 'gemini')
   }
 
   const data = await response.json()
@@ -283,7 +317,7 @@ export async function search(query: string, options: SearchOptions = {}): Promis
   })
 
   if (!response.ok) {
-    throw new Error(`Perplexity API error: ${response.statusText}`)
+    await throwProviderError(response, 'perplexity')
   }
 
   const data = await response.json()
@@ -396,7 +430,7 @@ async function analyzeWithOpenAI(
   })
 
   if (!response.ok) {
-    throw new Error(`OpenAI Vision error: ${response.statusText}`)
+    await throwProviderError(response, 'openai')
   }
 
   const data = await response.json()
@@ -444,7 +478,7 @@ async function analyzeWithGemini(
   )
 
   if (!response.ok) {
-    throw new Error(`Gemini Vision error: ${response.statusText}`)
+    await throwProviderError(response, 'gemini')
   }
 
   const data = await response.json()
@@ -498,4 +532,27 @@ function calculateCost(
   const providerCosts = COSTS[provider]
   const modelCosts = providerCosts?.[model] || { input: 1.0, output: 1.0 }
   return (inputTokens / 1_000_000) * modelCosts.input + (outputTokens / 1_000_000) * modelCosts.output
+}
+
+async function throwProviderError(response: Response, provider: string): Promise<never> {
+  let message = `${provider} API error (${response.status})`
+  let requestId: string | undefined
+
+  try {
+    const payload = await response.json()
+    const nestedError = payload?.error
+    const apiMessage = nestedError?.message || payload?.message
+    requestId = nestedError?.request_id || payload?.request_id
+    if (apiMessage) {
+      message = String(apiMessage)
+    } else if (response.statusText) {
+      message = `${provider} API error: ${response.statusText}`
+    }
+  } catch {
+    if (response.statusText) {
+      message = `${provider} API error: ${response.statusText}`
+    }
+  }
+
+  throw new ProviderAPIError(provider, response.status, message, requestId)
 }

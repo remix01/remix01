@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
+import { GoogleEnvStatusCard } from '@/components/dashboard/GoogleEnvStatusCard'
 
 export default function PartnerDashboard() {
   const router = useRouter()
@@ -193,6 +194,10 @@ export default function PartnerDashboard() {
               </Link>
             </div>
           </Card>
+
+          <div className="mb-8">
+            <GoogleEnvStatusCard />
+          </div>
 
           {/* Onboarding Checklist - Show only if completion < 80% */}
           {completionStatus && completionStatus.completionPercentage < 80 && (
