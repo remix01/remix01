@@ -33,13 +33,7 @@
       }
     },
     "sentry": {
-      "command": "npx",
-      "args": ["-y", "@sentry/mcp-server"],
-      "env": {
-        "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}",
-        "SENTRY_ORG": "liftgo",
-        "SENTRY_PROJECT": "liftgo-nextjs"
-      }
+      "url": "https://mcp.sentry.dev/mcp/liftgo-w5"
     },
     "github": {
       "command": "npx",
