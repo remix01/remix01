@@ -87,6 +87,17 @@
     "puppeteer": {
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-puppeteer"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "code-review": {
+      "command": "npx",
+      "args": ["-y", "@praneybehl/code-review-mcp"],
+      "env": {
+        "GOOGLE_API_KEY": "${GOOGLE_API_KEY}"
+      }
     }
   }
 }
