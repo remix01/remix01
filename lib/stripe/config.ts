@@ -65,14 +65,14 @@ export type PlanType = keyof typeof STRIPE_PRODUCTS
  * Get Stripe price ID for a plan type
  */
 export function getStripePriceId(plan: PlanType): string {
-  return STRIPE_PRODUCTS[plan].priceId
+  return STRIPE_PRODUCTS[plan].priceId.trim()
 }
 
 /**
  * Get Stripe product ID for a plan type
  */
 export function getStripeProductId(plan: PlanType): string {
-  return STRIPE_PRODUCTS[plan].productId
+  return STRIPE_PRODUCTS[plan].productId.trim()
 }
 
 /**
