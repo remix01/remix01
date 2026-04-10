@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getConfigReadiness } from '@/lib/health/configReadiness'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,6 +19,7 @@ interface HealthResponse {
   status: 'ok' | 'degraded'
   version: string
   checks: HealthCheck
+  env: ReturnType<typeof getConfigReadiness>
   timestamp: string
 }
 
@@ -25,6 +27,8 @@ export async function GET() {
   const checks: HealthCheck = {
     database: 'error',
   }
+
+  const envReadiness = getConfigReadiness()
 
   try {
     // Check Supabase database connectivity
@@ -39,7 +43,7 @@ export async function GET() {
 
     // Simple connectivity check - SELECT 1
     const { error } = await supabase.from('User').select('id').limit(1).single()
-    
+
     // If no error or just no rows found, database is accessible
     if (!error || error.code === 'PGRST116') {
       checks.database = 'ok'
@@ -57,6 +61,7 @@ export async function GET() {
     status,
     version: 'v1',
     checks,
+    env: envReadiness,
     timestamp: new Date().toISOString(),
   }
 
