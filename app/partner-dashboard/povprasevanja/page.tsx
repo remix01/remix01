@@ -79,7 +79,7 @@ export default async function PovprasevanjePage() {
 
   return (
     <div className="flex h-screen bg-background">
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
         <div className="p-4 md:p-6 lg:p-8">
           <div className="mb-6">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">

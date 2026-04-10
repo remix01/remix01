@@ -227,7 +227,7 @@ export default function CRMPage() {
     return (
       <div className="flex h-screen bg-background">
         <PartnerSidebar partner={partner} />
-        <main className="flex-1 flex items-center justify-center p-6 pb-20 md:pb-6">
+        <main className="flex-1 flex items-center justify-center p-6 pb-20 lg:pb-6">
           <Card className="max-w-md p-8 text-center border-amber-200 bg-amber-50">
             <AlertCircle className="h-12 w-12 text-amber-600 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-foreground mb-2">PRO Paket Obvezen</h2>
@@ -247,7 +247,7 @@ export default function CRMPage() {
   return (
     <div className="flex h-screen bg-background">
       <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
         <div className="p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">CRM Portal</h1>

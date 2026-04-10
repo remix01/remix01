@@ -175,7 +175,7 @@ export default async function PovprasevanjaPage() {
                         {formatDate(povprasevanje.created_at)}
                       </span>
                     </div>
-                    <Link href={`/narocnik/povprasevanja/${povprasevanje.id}`} className="md:flex-shrink-0">
+                    <Link href={`/povprasevanja/${povprasevanje.id}`} className="md:flex-shrink-0">
                       <Button variant="outline" className="w-full md:w-auto">
                         Poglej →
                       </Button>

@@ -135,7 +135,7 @@ export default async function NotificationsPage() {
 
         {/* Back link */}
         <div className="mt-8">
-          <Link href="/narocnik/dashboard" className="text-primary hover:underline">
+          <Link href="/dashboard" className="text-primary hover:underline">
             ← Nazaj na dashboard
           </Link>
         </div>

@@ -195,7 +195,7 @@ export default async function DashboardPage() {
                         </span>
                       </div>
                     </div>
-                    <Link href={`/narocnik/povprasevanja/${povprasevanje.id}`}>
+                    <Link href={`/povprasevanja/${povprasevanje.id}`}>
                       <Button variant="outline" className="whitespace-nowrap">
                         Poglej ponudbe →
                       </Button>

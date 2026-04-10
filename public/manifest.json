@@ -38,6 +38,20 @@
       "description": "Preglej svoja povpraševanja",
       "url": "/povprasevanja",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Nadzorna plošča",
+      "short_name": "Dashboard",
+      "description": "Odpri uporabniško nadzorno ploščo",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Partner dashboard",
+      "short_name": "Partner",
+      "description": "Odpri partner nadzorno ploščo",
+      "url": "/partner-dashboard",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
