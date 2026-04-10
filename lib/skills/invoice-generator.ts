@@ -161,14 +161,14 @@ export async function generateInvoice(
       },
     })
 
-    // Add line items
+    // Add line items — InvoiceItem uses `amount` (total in cents), not unit_amount
     for (const item of lineItems) {
+      const totalCents = Math.round(item.quantity * item.unitAmountEur * 100)
       await stripe.invoiceItems.create({
         customer: customer.id,
         invoice: invoice.id,
-        description: `${item.description} (${item.unit})`,
-        quantity: Math.max(1, Math.round(item.quantity * 100)), // Stripe uses integers
-        unit_amount: Math.round((item.unitAmountEur / 100) * 100), // cents
+        description: `${item.description} (${item.unit} × ${item.quantity})`,
+        amount: totalCents,
         currency: 'eur',
       })
     }
