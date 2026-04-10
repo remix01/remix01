@@ -1,22 +1,7 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Search, Filter } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-
-interface Povprasevanje {
-  id: string
-  title: string
-  location_city: string
-  urgency: string
-  status: string
-  created_at: string
-  stranka_email: string
-  stranka_telefon: string
-  category: { name: string } | null
-  narocnik: { email: string; first_name: string; last_name: string } | null
-}
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { getAdminPovprasevanja } from '@/app/admin/actions'
 
 const statusColors: Record<string, string> = {
   odprto: 'bg-green-100 text-green-800',
@@ -25,126 +10,70 @@ const statusColors: Record<string, string> = {
   preklicano: 'bg-red-100 text-red-800',
 }
 
-export default function PovprasevanjaPage() {
-  const router = useRouter()
-  const [povprasevanja, setPovprasevanja] = useState<Povprasevanje[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('vse')
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
+interface PageProps {
+  searchParams: Promise<{
+    q?: string
+    status?: string
+    page?: string
+  }>
+}
 
-  useEffect(() => {
-    const fetchPovprasevanja = async () => {
-      const supabase = createClient()
-      try {
-        setLoading(true)
+function buildQuery(params: { q?: string; status?: string; page?: number }) {
+  const usp = new URLSearchParams()
+  if (params.q) usp.set('q', params.q)
+  if (params.status && params.status !== 'vse') usp.set('status', params.status)
+  if (params.page && params.page > 1) usp.set('page', String(params.page))
+  const query = usp.toString()
+  return query ? `?${query}` : ''
+}
 
-        // Verify user is authenticated
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          router.push('/prijava')
-          return
-        }
+export default async function PovprasevanjaPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const search = params.q || ''
+  const statusFilter = params.status || 'vse'
+  const page = Math.max(1, Number(params.page || '1'))
 
-        // Build query
-        let query = supabase
-          .from('povprasevanja')
-          .select(`
-            id, 
-            title, 
-            location_city, 
-            urgency, 
-            status, 
-            created_at,
-            stranka_email, 
-            stranka_telefon,
-            category:categories(name),
-            narocnik:profiles!povprasevanja_narocnik_id_fkey(email, first_name, last_name)
-          `, { count: 'exact' })
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-        // Apply status filter
-        if (statusFilter !== 'vse') {
-          query = query.eq('status', statusFilter)
-        }
+  if (!user) redirect('/prijava')
 
-        // Apply search filter
-        if (search) {
-          query = query.or(`title.ilike.%${search}%,location_city.ilike.%${search}%`)
-        }
-
-        // Order and paginate
-        const { data, count, error: fetchError } = await query
-          .order('created_at', { ascending: false })
-          .range((page - 1) * 20, page * 20 - 1)
-
-        if (fetchError) {
-          console.error('[v0] Fetch error:', fetchError)
-          setError(fetchError.message)
-          setPovprasevanja([])
-          setTotal(0)
-          return
-        }
-
-        setPovprasevanja(data ?? [])
-        setTotal(count ?? 0)
-        setError(null)
-      } catch (err) {
-        console.error('[v0] Error fetching povprasevanja:', err)
-        setError(err instanceof Error ? err.message : 'Napaka pri nalaganju')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchPovprasevanja()
-  }, [search, statusFilter, page])
+  const { items, total, pageSize } = await getAdminPovprasevanja(search, statusFilter, page)
+  const hasPrev = page > 1
+  const hasNext = page * pageSize < total
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
       <div className="mx-auto max-w-7xl">
         <h1 className="mb-6 text-3xl font-bold text-foreground">Povpraševanja</h1>
 
-        {error && (
-          <div className="mb-6 rounded-lg bg-red-50 p-4 text-red-800">
-            {error}
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="mb-6 flex flex-col gap-4 md:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Iskanje po naslov, lokaciji..."
-              value={search}
-              onChange={e => {
-                setSearch(e.target.value)
-                setPage(1)
-              }}
-              className="w-full rounded-lg border border-border bg-card py-2 pl-10 pr-4 text-foreground placeholder-muted-foreground"
-            />
-          </div>
+        <form method="GET" className="mb-6 flex flex-col gap-4 md:flex-row">
+          <input
+            name="q"
+            defaultValue={search}
+            type="text"
+            placeholder="Iskanje po naslovu, lokaciji..."
+            className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-foreground placeholder-muted-foreground"
+          />
           <select
-            value={statusFilter}
-            onChange={e => {
-              setStatusFilter(e.target.value)
-              setPage(1)
-            }}
+            name="status"
+            defaultValue={statusFilter}
             className="rounded-lg border border-border bg-card px-4 py-2 text-foreground"
           >
-            <option value="vse">Vsi statusy</option>
+            <option value="vse">Vsi statusi</option>
             <option value="odprto">Odprto</option>
             <option value="v_teku">V teku</option>
             <option value="zakljuceno">Zaključeno</option>
             <option value="preklicano">Preklicano</option>
           </select>
-        </div>
+          <button type="submit" className="rounded-lg border border-border bg-card px-4 py-2 text-foreground hover:bg-muted">
+            Filtriraj
+          </button>
+        </form>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-lg bg-card shadow-sm border">
+        <div className="overflow-x-auto rounded-lg border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50">
               <tr>
@@ -158,27 +87,21 @@ export default function PovprasevanjaPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center text-muted-foreground">
-                    Nalagam...
-                  </td>
-                </tr>
-              ) : povprasevanja.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-4 text-center text-muted-foreground">
                     Ni povpraševanj
                   </td>
                 </tr>
               ) : (
-                povprasevanja.map(p => (
+                items.map((p) => (
                   <tr key={p.id} className="border-b hover:bg-muted/50">
                     <td className="px-6 py-4 font-medium text-foreground">{p.title}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{p.category?.name || '—'}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{p.category_name}</td>
                     <td className="px-6 py-4 text-muted-foreground">{p.location_city}</td>
                     <td className="px-6 py-4 text-sm">
-                      <div className="text-foreground">{p.narocnik?.first_name} {p.narocnik?.last_name}</div>
-                      <div className="text-xs text-muted-foreground">{p.narocnik?.email}</div>
+                      <div className="text-foreground">{p.narocnik_name}</div>
+                      <div className="text-xs text-muted-foreground">{p.narocnik_email}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusColors[p.status] || 'bg-gray-100 text-gray-800'}`}>
@@ -189,12 +112,9 @@ export default function PovprasevanjaPage() {
                       {new Date(p.created_at).toLocaleDateString('sl-SI')}
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => router.push(`/admin/povprasevanja/${p.id}`)}
-                        className="text-primary hover:underline"
-                      >
+                      <Link href={`/admin/povprasevanja/${p.id}`} className="text-primary hover:underline">
                         Uredi
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))
@@ -203,28 +123,25 @@ export default function PovprasevanjaPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        {total > 20 && (
+        {total > pageSize && (
           <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Skupaj: {total} povpraševanj
-            </div>
+            <div className="text-sm text-muted-foreground">Skupaj: {total} povpraševanj</div>
             <div className="flex gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="rounded-lg border border-border px-4 py-2 text-foreground disabled:opacity-50 hover:bg-muted"
+              <Link
+                href={`/admin/povprasevanja${buildQuery({ q: search, status: statusFilter, page: page - 1 })}`}
+                aria-disabled={!hasPrev}
+                className={`rounded-lg border border-border px-4 py-2 text-foreground ${!hasPrev ? 'pointer-events-none opacity-50' : 'hover:bg-muted'}`}
               >
                 Nazaj
-              </button>
+              </Link>
               <span className="flex items-center px-4 text-foreground">{page}</span>
-              <button
-                onClick={() => setPage(page + 1)}
-                disabled={page * 20 >= total}
-                className="rounded-lg border border-border px-4 py-2 text-foreground disabled:opacity-50 hover:bg-muted"
+              <Link
+                href={`/admin/povprasevanja${buildQuery({ q: search, status: statusFilter, page: page + 1 })}`}
+                aria-disabled={!hasNext}
+                className={`rounded-lg border border-border px-4 py-2 text-foreground ${!hasNext ? 'pointer-events-none opacity-50' : 'hover:bg-muted'}`}
               >
                 Naprej
-              </button>
+              </Link>
             </div>
           </div>
         )}

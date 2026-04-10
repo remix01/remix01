@@ -13,7 +13,7 @@ export type Partner = {
   id: string
   ime: string
   podjetje?: string
-  tip: 'VOZNIK' | 'AGENCIJA' | 'PREVOZNIK'
+  tip: string
   email: string
   telefon?: string
   createdAt: Date
