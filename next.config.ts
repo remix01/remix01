@@ -72,11 +72,6 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
-        source: '/blog/kako-izbrati-elektroinatalaterja',
-        destination: '/blog/kako-izbrati-elektroinatalaterja',
-        permanent: false,
-      },
-      {
         source: '/logo.png',
         destination: '/icons/icon-192x192.png',
         permanent: false,
@@ -85,6 +80,49 @@ const nextConfig: NextConfig = {
         source: '/images/og-image.jpg',
         destination: '/icons/icon-512x512.png',
         permanent: false,
+      },
+
+      // ─── SEO slug aliases (common misspellings / short forms) ───
+      // Redirects organic search traffic landing on wrong slugs
+      {
+        source: '/streha/:city*',
+        destination: '/stresna-dela/:city*',
+        permanent: true,
+      },
+      {
+        source: '/streha',
+        destination: '/stresna-dela',
+        permanent: true,
+      },
+      {
+        source: '/vodovodar/:city*',
+        destination: '/vodovodna-dela/:city*',
+        permanent: true,
+      },
+      {
+        source: '/vodovodar',
+        destination: '/vodovodna-dela',
+        permanent: true,
+      },
+      {
+        source: '/elektrikar/:city*',
+        destination: '/elektrika/:city*',
+        permanent: true,
+      },
+      {
+        source: '/elektrikar',
+        destination: '/elektrika',
+        permanent: true,
+      },
+      {
+        source: '/slikopleskar/:city*',
+        destination: '/slikopleskarstvo/:city*',
+        permanent: true,
+      },
+      {
+        source: '/slikopleskar',
+        destination: '/slikopleskarstvo',
+        permanent: true,
       },
     ]
   },

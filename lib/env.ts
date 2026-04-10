@@ -54,6 +54,15 @@ export const env = {
   TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ?? '',
   TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER ?? '',
 
+  // ─── Google ───
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? '',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? '',
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ?? '',
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY ?? '',
+  GOOGLE_SEARCH_ENGINE_ID: process.env.GOOGLE_SEARCH_ENGINE_ID ?? '',
+  GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID ?? '',
+  GA4_PROPERTY_ID: process.env.GA4_PROPERTY_ID ?? '',
+
   // ─── App Config ───
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net',
   NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID ?? '',
@@ -75,6 +84,11 @@ export const hasSlackBot = () => !!env.SLACK_BOT_TOKEN
 export const hasTwilio = () => !!env.TWILIO_ACCOUNT_SID
 
 // AI Providers
+export const hasGoogle = () => !!env.GOOGLE_CLIENT_ID && !!env.GOOGLE_CLIENT_SECRET
+export const hasGoogleAPI = () => !!env.GOOGLE_API_KEY
+export const hasGoogleMaps = () => !!env.GOOGLE_MAPS_API_KEY
+export const hasGoogleSearch = () => !!env.GOOGLE_API_KEY && !!env.GOOGLE_SEARCH_ENGINE_ID
+export const hasGoogleAnalytics = () => !!env.GA4_PROPERTY_ID
 export const hasAnthropicAI = () => !!env.ANTHROPIC_API_KEY
 export const hasOpenAI = () => !!env.OPENAI_API_KEY
 export const hasGemini = () => !!env.GEMINI_API_KEY
