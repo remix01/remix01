@@ -98,6 +98,60 @@
       "env": {
         "GOOGLE_API_KEY": "${GOOGLE_API_KEY}"
       }
+    },
+
+    "google-maps": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+      "env": {
+        "GOOGLE_MAPS_API_KEY": "${GOOGLE_MAPS_API_KEY}"
+      }
+    },
+
+    "google-maps-assist": {
+      "command": "npx",
+      "args": ["-y", "@googlemaps/code-assist-mcp@latest"]
+    },
+
+    "google-workspace": {
+      "command": "npx",
+      "args": [
+        "-y", "@googleworkspace/cli",
+        "mcp",
+        "--services", "gmail,drive,calendar,sheets,docs"
+      ],
+      "env": {
+        "GOOGLE_WORKSPACE_CLI_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
+        "GOOGLE_WORKSPACE_CLI_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET}",
+        "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE": "${GOOGLE_WORKSPACE_CREDENTIALS_FILE}"
+      }
+    },
+
+    "gemini": {
+      "command": "npx",
+      "args": ["-y", "@houtini/gemini-mcp"],
+      "env": {
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}"
+      }
+    },
+
+    "google-search": {
+      "command": "npx",
+      "args": ["-y", "@adenot/mcp-google-search"],
+      "env": {
+        "GOOGLE_API_KEY": "${GOOGLE_API_KEY}",
+        "GOOGLE_SEARCH_ENGINE_ID": "${GOOGLE_SEARCH_ENGINE_ID}"
+      }
+    },
+
+    "google-analytics": {
+      "command": "pipx",
+      "args": ["run", "analytics-mcp"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "${GOOGLE_APPLICATION_CREDENTIALS}",
+        "GOOGLE_PROJECT_ID": "${GOOGLE_PROJECT_ID}",
+        "GA4_PROPERTY_ID": "${GA4_PROPERTY_ID}"
+      }
     }
   }
 }
