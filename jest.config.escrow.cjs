@@ -1,11 +1,11 @@
-import type { Config } from 'jest'
-import nextJest from 'next/jest'
+const nextJest = require('next/jest')
 
 const createJestConfig = nextJest({
   dir: './',
 })
 
-const config: Config = {
+/** @type {import('jest').Config} */
+const config = {
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/__tests__/escrow/setup.ts'],
   testMatch: ['**/__tests__/escrow/**/*.test.ts'],
@@ -29,7 +29,7 @@ const config: Config = {
       statements: 80,
     },
   },
-  testTimeout: 30000, // 30s for integration tests
+  testTimeout: 30000,
 }
 
-export default createJestConfig(config)
+module.exports = createJestConfig(config)
