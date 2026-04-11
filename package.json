@@ -10,10 +10,10 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "generate-icons": "node scripts/generate-icons.js",
-    "test:unit": "jest --config jest.config.escrow.ts --testPathPattern='unit.test'",
-    "test:e2e": "jest --config jest.config.escrow.ts --testPathPattern='escrow.test'",
-    "test:stripe": "jest --config jest.config.escrow.ts --testPathPattern='stripe.integration'",
-    "test:escrow": "jest --config jest.config.escrow.ts",
+    "test:unit": "jest --config jest.config.escrow.cjs --testPathPattern='unit.test'",
+    "test:e2e": "jest --config jest.config.escrow.cjs --testPathPattern='escrow.test'",
+    "test:stripe": "jest --config jest.config.escrow.cjs --testPathPattern='stripe.integration'",
+    "test:escrow": "jest --config jest.config.escrow.cjs",
     "test:curl": "bash run-tests.sh"
   },
   "dependencies": {
