@@ -57,7 +57,9 @@ export function ChatWindow({ jobId, currentUserId }: ChatWindowProps) {
       try {
         // Get access token
         const response = await fetch(`/api/conversations/token?jobId=${jobId}`)
+        if (!response.ok) throw new Error(`Token fetch failed: ${response.status}`)
         const { token } = await response.json()
+        if (!token) throw new Error('No token in response')
 
         if (!mounted) return
 

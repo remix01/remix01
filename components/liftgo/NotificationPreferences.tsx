@@ -30,7 +30,13 @@ export function NotificationPreferences() {
     
     // Load saved preferences
     const saved = localStorage.getItem('liftgo-notification-prefs')
-    if (saved) setPreferences(JSON.parse(saved))
+    if (saved) {
+      try {
+        setPreferences(JSON.parse(saved))
+      } catch {
+        localStorage.removeItem('liftgo-notification-prefs')
+      }
+    }
   }, [])
 
   const requestPermission = async () => {

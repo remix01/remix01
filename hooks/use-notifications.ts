@@ -79,6 +79,7 @@ export function useNotifications() {
   useEffect(() => {
     const supabase = createClient()
     let mounted = true
+    let channelCleanup: (() => void) | undefined
 
     // Initial fetch
     fetchNotifications()
@@ -86,7 +87,7 @@ export function useNotifications() {
     // Set up real-time subscription
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       if (!user || !mounted) return
 
       const channel = supabase
@@ -124,7 +125,7 @@ export function useNotifications() {
                 n.id === payload.new.id ? (payload.new as Notification) : n
               )
             )
-            
+
             // Recalculate unread count
             if ((payload.new as Notification).is_read) {
               setUnreadCount(prev => Math.max(0, prev - 1))
@@ -133,15 +134,14 @@ export function useNotifications() {
         )
         .subscribe()
 
-      return () => {
-        channel.unsubscribe()
-      }
+      channelCleanup = () => { channel.unsubscribe() }
     }
 
     getUser()
 
     return () => {
       mounted = false
+      channelCleanup?.()
     }
   }, [fetchNotifications])
 

@@ -56,7 +56,9 @@ export function useAuth() {
       }
     }
 
-    supabase.auth.getSession().then(({ data }) => hydrate(data.session))
+    supabase.auth.getSession()
+      .then(({ data }) => hydrate(data.session))
+      .catch(err => console.error('[useAuth] getSession failed:', err))
 
     const {
       data: { subscription },
