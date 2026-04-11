@@ -8,12 +8,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "tsc --noEmit",
     "generate-icons": "node scripts/generate-icons.js",
-    "test:unit": "jest --config jest.config.escrow.ts --testPathPattern='unit.test'",
-    "test:e2e": "jest --config jest.config.escrow.ts --testPathPattern='escrow.test'",
-    "test:stripe": "jest --config jest.config.escrow.ts --testPathPattern='stripe.integration'",
-    "test:escrow": "jest --config jest.config.escrow.ts",
+    "test:unit": "jest --config jest.config.escrow.cjs --testPathPattern='unit.test'",
+    "test:e2e": "jest --config jest.config.escrow.cjs --testPathPattern='escrow.test'",
+    "test:stripe": "jest --config jest.config.escrow.cjs --testPathPattern='stripe.integration'",
+    "test:escrow": "jest --config jest.config.escrow.cjs",
     "test:curl": "bash run-tests.sh"
   },
   "dependencies": {
@@ -111,7 +111,11 @@
     "overrides": {
       "@types/react": "19.2.7",
       "@types/react-dom": "19.2.3",
-      "picomatch": "4.0.4"
+      "picomatch": "4.0.4",
+      "axios": "^1.12.2",
+      "handlebars": "^4.7.8",
+      "lodash": "^4.17.21",
+      "lodash-es": "^4.17.21"
     },
     "ignoredBuiltDependencies": [
       "core-js",

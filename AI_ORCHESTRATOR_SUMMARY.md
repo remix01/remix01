@@ -166,3 +166,19 @@ lib/agent/
 ✓ Ready for immediate deployment  
 
 The AI Orchestrator is **complete and production-ready**. It provides a secure, scalable foundation for intelligent tool routing that never directly exposes database or payment operations to the LLM.
+
+---
+
+## Update (April 11, 2026) — Marketplace Automation Hardening
+
+- Added a dedicated **MarketplaceAgent** to the multi-agent runtime for LiftGO marketplace automation flows.
+- New supported orchestrator actions:
+  - `matchMarketplaceRequest`
+  - `estimateMarketplacePrice`
+- Agent initialization is now **awaited** (`ensureAgentsInitialized()` is async and idempotent), reducing race conditions at startup.
+- Registry health check now validates **explicit required agent types** (not only count), improving startup correctness checks.
+- Core registration now includes orchestrator + inquiry + escrow + dispute + notify + marketplace agents.
+- Chat orchestration now consumes DB-defined prompt fallback via `getAgentDefinition('general_chat')` and applies stronger request limits:
+  - max message length guard
+  - bounded history window for token control
+  - marketplace-specific operational instructions for user automation journeys.

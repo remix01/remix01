@@ -49,6 +49,21 @@ export function MojsterMediaUpload({ userId = 'user-123' }: { userId?: string })
   const galleryInputRef = useRef<HTMLInputElement>(null)
   const documentInputRef = useRef<HTMLInputElement>(null)
 
+  const getSafeMediaUrl = (rawUrl: string | null): string | null => {
+    if (!rawUrl) return null
+    if (rawUrl.startsWith('blob:')) return rawUrl
+
+    try {
+      const parsedUrl = new URL(rawUrl)
+      if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+        return parsedUrl.toString()
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
   // Profile picture handlers
   const handleProfilePictureSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -252,8 +267,8 @@ export function MojsterMediaUpload({ userId = 'user-123' }: { userId?: string })
       <TabsContent value="profile" className="space-y-6">
         <div className="flex flex-col items-center">
           <div className="relative w-28 h-28 rounded-full border-4 border-primary/20 bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mb-6 overflow-hidden">
-            {profileImage ? (
-              <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+            {getSafeMediaUrl(profileImage) ? (
+              <img src={getSafeMediaUrl(profileImage) || ''} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <span className="text-white font-bold text-3xl">JD</span>
             )}
@@ -341,11 +356,17 @@ export function MojsterMediaUpload({ userId = 'user-123' }: { userId?: string })
                   draggedItem === image.id ? 'opacity-50 ring-2 ring-primary' : ''
                 }`}
               >
-                <img
-                  src={image.url}
-                  alt={image.title}
-                  className="w-full aspect-square object-cover"
-                />
+                {getSafeMediaUrl(image.url) ? (
+                  <img
+                    src={getSafeMediaUrl(image.url) || ''}
+                    alt={image.title}
+                    className="w-full aspect-square object-cover"
+                  />
+                ) : (
+                  <div className="w-full aspect-square bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                    Neveljaven URL slike
+                  </div>
+                )}
                 <div className="p-2 space-y-1">
                   <input
                     type="text"

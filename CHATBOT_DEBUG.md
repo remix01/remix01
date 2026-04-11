@@ -48,3 +48,15 @@ const client = new Anthropic({
 3. Send a message
 4. Check browser DevTools Network tab - should POST to `/api/agent/chat`
 5. Response should have `{ message: string, conversationHistory: [...] }`
+
+---
+
+## Update (April 11, 2026) — Robustness Improvements
+
+- Added client-side request timeout handling in `useAgentChat` with `AbortController` for better resilience on slow networks.
+- Ensured latest local message context is included in request payload (`anonHistory`) to improve continuity when persistent history is unavailable.
+- Added server-side input hardening in `/api/agent/chat`:
+  - max message length validation
+  - sanitized/validated fallback history parsing
+  - capped history window to control cost/latency.
+- System prompt now resolves from DB agent definitions (`general_chat`) with marketplace automation guidance.
