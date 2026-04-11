@@ -14,6 +14,7 @@ export type ChatMessage = {
 export type ConnectionStatus = 'idle' | 'loading' | 'connected' | 'error'
 
 const UNREAD_KEY = 'liftgo_chat_unread'
+const CHAT_TIMEOUT_MS = 20000
 
 function loadUnread(): number {
   try {
@@ -79,13 +80,14 @@ export function useAgentChat() {
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!content.trim() || isLoading) return
+      const cleanedContent = content.trim()
+      if (!cleanedContent || isLoading) return
 
       const userMessageId = crypto.randomUUID()
       const userMessage: ChatMessage = {
         id: userMessageId,
         role: 'user',
-        content,
+        content: cleanedContent,
         timestamp: Date.now(),
         status: 'sending',
       }
@@ -100,14 +102,24 @@ export function useAgentChat() {
         // for unauthenticated users (server ignores it for logged-in users)
         const anonHistory = messages
           .filter(m => m.status === 'sent')
+          .slice(-20)
           .map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp }))
 
-        const response = await fetch('/api/agent/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ message: content }),
-        })
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS)
+
+        let response: Response
+        try {
+          response = await fetch('/api/agent/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ message: cleanedContent, anonHistory }),
+            signal: controller.signal,
+          })
+        } finally {
+          clearTimeout(timeout)
+        }
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
@@ -155,12 +167,16 @@ export function useAgentChat() {
           )
         )
         setConnectionStatus('error')
+        if (error?.name === 'AbortError') {
+          setLastError('Povezava je potekla. Poskusite znova.')
+          return
+        }
         if (!lastError) setLastError('Napaka pri pošiljanju. Poskusite znova.')
       } finally {
         setIsLoading(false)
       }
     },
-    [isLoading, isOpen, lastError]
+    [isLoading, isOpen, lastError, messages]
   )
 
   const clearConversation = useCallback(async () => {

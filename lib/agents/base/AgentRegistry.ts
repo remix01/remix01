@@ -6,6 +6,18 @@
  */
 
 import { messageBus } from './MessageBus'
+import type { AgentType } from './types'
+
+let registryInitialized = false
+
+const REQUIRED_AGENTS: AgentType[] = [
+  'orchestrator',
+  'inquiry',
+  'escrow',
+  'dispute',
+  'notify',
+  'marketplace',
+]
 
 /**
  * Initialize all agents and register them with the MessageBus.
@@ -19,8 +31,11 @@ import { messageBus } from './MessageBus'
  * - EscrowAgent: Manages payment escrows, capture, release, refund
  * - DisputeAgent: Handles dispute creation and resolution
  * - NotifyAgent: Sends notifications and broadcasts events
+ * - MarketplaceAgent: Handles matching + pricing automation flows
  */
 export async function initializeAgents(): Promise<void> {
+  if (registryInitialized) return
+
   try {
     // Lazy load agents to avoid circular dependencies
     const { OrchestratorAgent } = await import('../orchestrator-agent/OrchestratorAgent')
@@ -28,6 +43,7 @@ export async function initializeAgents(): Promise<void> {
     const { EscrowAgent } = await import('../escrow-agent/EscrowAgent')
     const { DisputeAgent } = await import('../dispute-agent/DisputeAgent')
     const { NotifyAgent } = await import('../notify-agent/NotifyAgent')
+    const { MarketplaceAgent } = await import('../marketplace-agent/MarketplaceAgent')
 
     // Register each agent with the bus
     messageBus.register(new OrchestratorAgent())
@@ -35,11 +51,14 @@ export async function initializeAgents(): Promise<void> {
     messageBus.register(new EscrowAgent())
     messageBus.register(new DisputeAgent())
     messageBus.register(new NotifyAgent())
+    messageBus.register(new MarketplaceAgent())
+    registryInitialized = true
 
     console.log('[AgentRegistry] Multi-agent system initialized')
     console.log('[AgentRegistry] Registered agents:', messageBus.getRegistered().join(', '))
 
   } catch (error) {
+    registryInitialized = false
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[AgentRegistry] Failed to initialize agents:', msg)
     throw new Error(`Agent initialization failed: ${msg}`)
@@ -51,7 +70,6 @@ export async function initializeAgents(): Promise<void> {
  * Useful to avoid double-initialization.
  */
 export function agentsInitialized(): boolean {
-  const registered = messageBus.getRegistered()
-  // All 5 agents should be registered
-  return registered.length === 5
+  const registered = new Set(messageBus.getRegistered())
+  return REQUIRED_AGENTS.every((agentType) => registered.has(agentType))
 }

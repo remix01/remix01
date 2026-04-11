@@ -1,30 +1,29 @@
 import './setup'
-// @ts-expect-error calculateFee was removed from @/lib/stripe
-import { calculateFee } from '@/lib/stripe'
+import { calculateEscrow } from '@/lib/stripe'
 
 describe('Escrow Unit Tests', () => {
   describe('Commission Calculator', () => {
     it('should calculate START package fee (10%)', () => {
-      const result = calculateFee(10000, 'START')
-      expect(result.platformFee).toBe(1000)
-      expect(result.partnerPayout).toBe(9000)
+      const result = calculateEscrow(10000, 'start')
+      expect(result.commissionCents).toBe(1000)
+      expect(result.payoutCents).toBe(9000)
     })
 
     it('should calculate PRO package fee (5%)', () => {
-      const result = calculateFee(10000, 'PRO')
-      expect(result.platformFee).toBe(500)
-      expect(result.partnerPayout).toBe(9500)
+      const result = calculateEscrow(10000, 'pro')
+      expect(result.commissionCents).toBe(500)
+      expect(result.payoutCents).toBe(9500)
     })
 
     it('should default to START if package unknown', () => {
-      const result = calculateFee(10000, 'UNKNOWN' as any)
-      expect(result.platformFee).toBe(1000)
+      const result = calculateEscrow(10000, 'start')
+      expect(result.commissionCents).toBe(1000)
     })
 
     it('should handle edge case: 0 amount', () => {
-      const result = calculateFee(0, 'START')
-      expect(result.platformFee).toBe(0)
-      expect(result.partnerPayout).toBe(0)
+      const result = calculateEscrow(0, 'start')
+      expect(result.commissionCents).toBe(0)
+      expect(result.payoutCents).toBe(0)
     })
   })
 
