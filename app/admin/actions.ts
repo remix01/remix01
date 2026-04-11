@@ -142,11 +142,30 @@ export async function getPartnerji(
     profileMap = Object.fromEntries((profileData || []).map((p: any) => [p.id, p]))
   }
 
+  let categoriesByObrtnik: Record<string, string> = {}
+  if (ids.length > 0) {
+    const { data: categoryLinks } = await supabaseAdmin
+      .from('obrtnik_categories')
+      .select('obrtnik_id, categories(name)')
+      .in('obrtnik_id', ids)
+
+    categoriesByObrtnik = Object.fromEntries(
+      (categoryLinks || [])
+        .map((row: any) => {
+          const categoryName = Array.isArray(row.categories)
+            ? row.categories[0]?.name
+            : row.categories?.name
+          return [row.obrtnik_id, categoryName]
+        })
+        .filter(([, categoryName]) => Boolean(categoryName))
+    )
+  }
+
   let partnerji: Partner[] = (obrtniki || []).map((profile: any) => ({
     id: profile.id,
     ime: profile.business_name || '',
     podjetje: profile.business_name,
-    tip: 'PREVOZNIK' as const,
+    tip: categoriesByObrtnik[profile.id] || '—',
     email: profileMap[profile.id]?.email || '-',
     telefon: profileMap[profile.id]?.phone || undefined,
     createdAt: new Date(profile.created_at),
@@ -214,24 +233,94 @@ export async function getStranka(id: string): Promise<Stranka | null> {
 }
 
 export async function getPartner(id: string): Promise<Partner | null> {
-  const [{ data: profile }, { data: profileData }] = await Promise.all([
+  const [{ data: profile }, { data: profileData }, { data: categoryLink }] = await Promise.all([
     supabaseAdmin.from('obrtnik_profiles').select('*').eq('id', id).single(),
     supabaseAdmin.from('profiles').select('email, phone').eq('id', id).maybeSingle(),
+    supabaseAdmin
+      .from('obrtnik_categories')
+      .select('categories(name)')
+      .eq('obrtnik_id', id)
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (!profile) return null
+  const linkedCategory: any = categoryLink?.categories
+  const partnerTip = Array.isArray(linkedCategory)
+    ? linkedCategory[0]?.name
+    : linkedCategory?.name
 
   return {
     id: profile.id,
     ime: profile.business_name || '',
     podjetje: profile.business_name,
-    tip: 'PREVOZNIK' as const,
+    tip: partnerTip || '—',
     email: profileData?.email || '-',
     telefon: profileData?.phone || undefined,
     createdAt: new Date(profile.created_at),
     status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
     ocena: profile.avg_rating || 0,
     steviloPrevozov: 0,
+  }
+}
+
+export async function getAdminPovprasevanja(
+  search = '',
+  statusFilter = 'vse',
+  page = 1,
+  pageSize = 20
+) {
+  const offset = (page - 1) * pageSize
+  let query = supabaseAdmin
+    .from('povprasevanja')
+    .select('id, title, location_city, status, created_at, category_id, narocnik_id', { count: 'exact' })
+
+  if (statusFilter !== 'vse') {
+    query = query.eq('status', statusFilter)
+  }
+
+  if (search) {
+    query = query.or(`title.ilike.%${search}%,location_city.ilike.%${search}%`)
+  }
+
+  const { data: rows, count } = await query
+    .order('created_at', { ascending: false })
+    .range(offset, offset + pageSize - 1)
+
+  const categoryIds = [...new Set((rows || []).map((r: any) => r.category_id).filter(Boolean))]
+  const narocnikIds = [...new Set((rows || []).map((r: any) => r.narocnik_id).filter(Boolean))]
+
+  const [{ data: categories }, { data: narocniki }] = await Promise.all([
+    categoryIds.length
+      ? supabaseAdmin.from('categories').select('id, name').in('id', categoryIds)
+      : Promise.resolve({ data: [] as any[] }),
+    narocnikIds.length
+      ? supabaseAdmin.from('profiles').select('id, first_name, last_name, full_name, email').in('id', narocnikIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
+
+  const categoryMap = Object.fromEntries((categories || []).map((c: any) => [c.id, c.name]))
+  const narocnikMap = Object.fromEntries((narocniki || []).map((n: any) => [n.id, n]))
+
+  const items = (rows || []).map((row: any) => {
+    const narocnik = narocnikMap[row.narocnik_id]
+    const fullName = narocnik?.full_name || `${narocnik?.first_name || ''} ${narocnik?.last_name || ''}`.trim()
+    return {
+      id: row.id,
+      title: row.title,
+      location_city: row.location_city,
+      status: row.status,
+      created_at: row.created_at,
+      category_name: categoryMap[row.category_id] || '—',
+      narocnik_name: fullName || '—',
+      narocnik_email: narocnik?.email || '—',
+    }
+  })
+
+  return {
+    items,
+    total: count || 0,
+    pageSize,
   }
 }
 

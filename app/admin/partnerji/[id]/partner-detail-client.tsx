@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Star, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,6 +27,7 @@ import {
 import type { Partner } from '@/types/admin'
 
 export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; partnerId: string }) {
+  const router = useRouter()
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
 
@@ -155,7 +156,7 @@ export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; 
           variant="destructive"
           onConfirm={async () => {
             await deletePartner(partnerId)
-            redirect('/admin/partnerji')
+            router.push('/admin/partnerji')
           }}
         />
       </div>
