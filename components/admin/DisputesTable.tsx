@@ -148,6 +148,7 @@ export function DisputesTable() {
 
 function DisputeDetails({ jobId }: { jobId: string }) {
   const [details, setDetails] = useState<any>(null)
+  const [aiAnalysis, setAiAnalysis] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -156,9 +157,14 @@ function DisputeDetails({ jobId }: { jobId: string }) {
 
   const fetchDetails = async () => {
     try {
-      const response = await fetch(`/api/admin/disputes/${jobId}/details`)
-      const data = await response.json()
+      const [detailsRes, aiRes] = await Promise.all([
+        fetch(`/api/admin/disputes/${jobId}/details`),
+        fetch(`/api/admin/disputes/${jobId}/ai-analysis`)
+      ])
+      const data = await detailsRes.json()
+      const ai = await aiRes.json()
       setDetails(data)
+      setAiAnalysis(ai.analysis || '')
     } catch (error) {
       console.error('[v0] Failed to fetch dispute details:', error)
     } finally {
@@ -171,7 +177,8 @@ function DisputeDetails({ jobId }: { jobId: string }) {
   }
 
   return (
-    <div className="mt-4 pt-4 border-t space-y-4">
+    <div className="mt-4 pt-4 border-t grid gap-4 lg:grid-cols-3">
+      <div className="lg:col-span-2 space-y-4">
       <div>
         <h4 className="font-medium mb-2">Klepet zgodovina</h4>
         <div className="rounded-lg bg-muted p-4 max-h-64 overflow-y-auto space-y-2">
@@ -211,6 +218,12 @@ function DisputeDetails({ jobId }: { jobId: string }) {
             </div>
           </div>
         </div>
+      </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-4">
+        <h4 className="mb-2 font-medium">AI Analiza Spora</h4>
+        <pre className="whitespace-pre-wrap text-sm text-muted-foreground">{aiAnalysis || 'AI analiza ni na voljo.'}</pre>
       </div>
     </div>
   )

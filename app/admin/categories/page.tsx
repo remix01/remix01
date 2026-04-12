@@ -2,234 +2,113 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { createClient } from '@/lib/supabase/client'
-import { Edit2, ToggleLeft, Loader2 } from 'lucide-react'
 
-interface Category {
+type Category = {
   id: string
   name: string
-  icon_name: string | null
+  name_slo?: string
+  slug?: string
+  description?: string
+  meta_title?: string
+  meta_description?: string
+  icon?: string
   is_active: boolean
-  created_at: string
+  sort_order?: number
+}
+
+const emptyForm = {
+  name: '', name_slo: '', slug: '', description: '', meta_title: '', meta_description: '', icon: '', sort_order: 0,
 }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editName, setEditName] = useState('')
-  const [editIcon, setEditIcon] = useState('')
-  const supabase = createClient()
+  const [form, setForm] = useState<any>(emptyForm)
+  const [seoInsights, setSeoInsights] = useState('')
 
-  useEffect(() => {
-    fetchCategories()
-  }, [])
-
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name')
-
-      if (error) throw error
-      setCategories(data || [])
-    } catch (error) {
-      console.error('[v0] Error fetching categories:', error)
-    } finally {
-      setLoading(false)
-    }
+  const load = async () => {
+    const res = await fetch('/api/admin/categories')
+    const data = await res.json()
+    setCategories(data.categories || [])
   }
 
-  const handleToggleActive = async (category: Category) => {
-    try {
-      setSaving(true)
-      const { error } = await supabase
-        .from('categories')
-        .update({ is_active: !category.is_active })
-        .eq('id', category.id)
+  useEffect(() => { load() }, [])
 
-      if (error) throw error
-
-      setCategories(categories.map(c =>
-        c.id === category.id ? { ...c, is_active: !c.is_active } : c
-      ))
-    } catch (error) {
-      console.error('[v0] Error toggling category:', error)
-      alert('Napaka pri spreminjanju kategorije')
-    } finally {
-      setSaving(false)
-    }
+  const createCategory = async () => {
+    await fetch('/api/admin/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+    setForm(emptyForm)
+    await load()
   }
 
-  const handleEditOpen = (category: Category) => {
-    setSelectedCategory(category)
-    setEditName(category.name)
-    setEditIcon(category.icon_name || '')
-    setShowEditModal(true)
+  const updateCategory = async (category: Category, updates: Partial<Category>) => {
+    await fetch('/api/admin/categories', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...category, ...updates, id: category.id }),
+    })
+    await load()
   }
 
-  const handleSaveEdit = async () => {
-    if (!selectedCategory) return
-
-    try {
-      setSaving(true)
-      const { error } = await supabase
-        .from('categories')
-        .update({
-          name: editName,
-          icon_name: editIcon || null,
-        })
-        .eq('id', selectedCategory.id)
-
-      if (error) throw error
-
-      setCategories(categories.map(c =>
-        c.id === selectedCategory.id
-          ? { ...c, name: editName, icon_name: editIcon || null }
-          : c
-      ))
-
-      setShowEditModal(false)
-      setSelectedCategory(null)
-    } catch (error) {
-      console.error('[v0] Error saving category:', error)
-      alert('Napaka pri shranjevanju kategorije')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
+  const getAIRecommendations = async () => {
+    const res = await fetch('/api/admin/seo-insights', { method: 'POST' })
+    const data = await res.json()
+    setSeoInsights(data.insights || 'Ni priporočil.')
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Kategorije storitev</h1>
-        <p className="text-muted-foreground mt-1">Upravljajte {categories.length} kategorij</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Kategorije & SEO</h1>
+          <p className="text-muted-foreground">CRUD + meta podatki za admin upravljanje</p>
+        </div>
+        <Button onClick={getAIRecommendations}>Pridobi AI priporočila</Button>
       </div>
 
+      {seoInsights && (
+        <Card>
+          <CardHeader><CardTitle>AI SEO Advisor</CardTitle></CardHeader>
+          <CardContent><pre className="whitespace-pre-wrap text-sm">{seoInsights}</pre></CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardHeader>
-          <CardTitle>Vse kategorije</CardTitle>
-          <CardDescription>Spremenite ime, ikono ali aktivnost kategorije</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ime</TableHead>
-                  <TableHead>Ikona</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ustvarjena</TableHead>
-                  <TableHead className="text-right">Akcije</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {categories.map(category => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {category.icon_name || '—'}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-                        category.is_active
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {category.is_active ? 'Aktivna' : 'Neaktivna'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(category.created_at).toLocaleDateString('sl-SI')}
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditOpen(category)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant={category.is_active ? 'outline' : 'default'}
-                        size="sm"
-                        onClick={() => handleToggleActive(category)}
-                        disabled={saving}
-                      >
-                        <ToggleLeft className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        <CardHeader><CardTitle>Nova kategorija</CardTitle></CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          <Input placeholder="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input placeholder="name_slo" value={form.name_slo} onChange={(e) => setForm({ ...form, name_slo: e.target.value })} />
+          <Input placeholder="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+          <Input placeholder="icon" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
+          <Input placeholder="meta_title" value={form.meta_title} onChange={(e) => setForm({ ...form, meta_title: e.target.value })} />
+          <Input placeholder="meta_description" value={form.meta_description} onChange={(e) => setForm({ ...form, meta_description: e.target.value })} />
+          <Input className="md:col-span-2" placeholder="description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <Button className="md:col-span-2" onClick={createCategory}>Dodaj kategorijo</Button>
         </CardContent>
       </Card>
 
-      {/* Edit Modal */}
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Uredi kategorijo</DialogTitle>
-            <DialogDescription>Spremenite podatke o kategoriji</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Ime kategorije</Label>
-              <Input
-                id="name"
-                value={editName}
-                onChange={e => setEditName(e.target.value)}
-                placeholder="npr. Klemparstvo"
-              />
+      <Card>
+        <CardHeader><CardTitle>Obstoječe kategorije</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {categories.map((c) => (
+            <div key={c.id} className="rounded border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">{c.name_slo || c.name} <span className="text-xs text-muted-foreground">/{c.slug}</span></p>
+                  <p className="text-xs text-muted-foreground">{c.description || 'Brez opisa'}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => updateCategory(c, { is_active: !c.is_active })}>{c.is_active ? 'Deactivate' : 'Activate'}</Button>
+                </div>
+              </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="icon">Ikona (opciono)</Label>
-              <Input
-                id="icon"
-                value={editIcon}
-                onChange={e => setEditIcon(e.target.value)}
-                placeholder="npr. wrench, hammer, zap"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowEditModal(false)}
-            >
-              Prekliči
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={saving || !editName.trim()}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Shrani spremembe
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   )
 }

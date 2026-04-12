@@ -2,6 +2,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { StatsCards } from '@/components/admin/StatsCards'
 import { ViolationsChart } from '@/components/admin/ViolationsChart'
 import { ViolationsByTypeChart } from '@/components/admin/ViolationsByTypeChart'
+import { AIBriefingCard } from '@/components/admin/AIBriefingCard'
+import { AdminAlertsPanel } from '@/components/admin/AdminAlertsPanel'
 
 async function getStats() {
   const now = new Date()
@@ -136,6 +138,11 @@ export default async function AdminOverviewPage() {
       </div>
 
       <StatsCards stats={stats} />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AIBriefingCard />
+        <AdminAlertsPanel />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ViolationsChart data={chartsData.byDay} />
