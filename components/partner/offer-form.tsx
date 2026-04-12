@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,7 +38,9 @@ export function OfferForm({
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [availableInquiries, setAvailableInquiries] = useState<Array<{ id: string; title: string }>>([])
   const [formData, setFormData] = useState({
+    povprasevanje_id: '',
     title: '',
     description: '',
     category: '',
@@ -60,23 +62,35 @@ export function OfferForm({
     setLoading(true)
     setError(null)
 
+    if (!formData.povprasevanje_id) {
+      setError('Izberite povpraševanje.')
+      setLoading(false)
+      return
+    }
+
     try {
-      const { error: submitError } = await supabase.from('offers').insert([
-        {
-          partner_id: partnerId,
-          title: formData.title,
-          description: formData.description,
-          category: formData.category,
-          price: parseFloat(formData.price),
-          duration: formData.duration,
-          notes: formData.notes,
-          status: 'active',
-        },
-      ])
+      const composedMessage = [
+        `Naslov: ${formData.title}`,
+        `Kategorija: ${formData.category || 'Ni določeno'}`,
+        `Trajanje: ${formData.duration} dni`,
+        '',
+        formData.description,
+        formData.notes ? `\nOpombe: ${formData.notes}` : '',
+      ].join('\n')
+
+      const { error: submitError } = await supabase.from('ponudbe').insert({
+        povprasevanje_id: formData.povprasevanje_id,
+        obrtnik_id: partnerId,
+        message: composedMessage,
+        price_estimate: parseFloat(formData.price),
+        price_type: 'ocena',
+        status: 'poslana',
+      })
 
       if (submitError) throw submitError
 
       setFormData({
+        povprasevanje_id: '',
         title: '',
         description: '',
         category: '',
@@ -92,9 +106,45 @@ export function OfferForm({
     }
   }
 
+  useEffect(() => {
+    const loadInquiries = async () => {
+      const { data } = await supabase
+        .from('povprasevanja')
+        .select('id, title')
+        .eq('status', 'odprto')
+        .order('created_at', { ascending: false })
+        .limit(30)
+
+      if (data) {
+        setAvailableInquiries(data)
+      }
+    }
+
+    loadInquiries()
+  }, [supabase])
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor="povprasevanje_id">Povpraševanje</Label>
+          <Select
+            value={formData.povprasevanje_id}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, povprasevanje_id: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Izberite povpraševanje" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableInquiries.map((inq) => (
+                <SelectItem key={inq.id} value={inq.id}>
+                  {inq.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="grid gap-2">
           <Label htmlFor="title">Naslov ponudbe</Label>
           <Input

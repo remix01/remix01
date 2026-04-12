@@ -24,7 +24,7 @@ type PartnerProfile = {
   website_url: string | null
   facebook_url: string | null
   instagram_url: string | null
-  subscription_tier: 'start' | 'pro'
+  subscription_tier: 'start' | 'pro' | 'elite'
 }
 
 type UserProfile = {
@@ -444,7 +444,11 @@ export default function AccountPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Trenutni paket</p>
                   <p className="text-xl font-bold mt-1">
-                    {partner?.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
+                    {partner?.subscription_tier === 'elite'
+                      ? 'ELITE plan'
+                      : partner?.subscription_tier === 'pro'
+                        ? 'PRO plan'
+                        : 'START plan'}
                   </p>
                 </div>
                 <Link href="/partner-dashboard/account/narocnina">
