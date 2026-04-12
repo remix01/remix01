@@ -126,9 +126,11 @@ export default function CRMPage() {
         (o: any) => new Date(o.created_at) >= monthStart
       ).length
 
-      const offersAccepted = (offers || []).filter((o: any) => o.status === 'accepted').length
+      const offersAcceptedThisMonth = (offers || []).filter(
+        (o: any) => o.status === 'sprejeta' && new Date(o.created_at) >= monthStart
+      ).length
       const conversionRate = offersSentThisMonth > 0 
-        ? Math.round((offersAccepted / offersSentThisMonth) * 100)
+        ? Math.round((offersAcceptedThisMonth / offersSentThisMonth) * 100)
         : 0
 
       const escrowsThisMonth = (escrows || []).filter(
@@ -239,7 +241,7 @@ export default function CRMPage() {
             </Button>
           </Card>
         </main>
-        <PartnerBottomNav />
+        <PartnerBottomNav paket={{ paket: paket?.paket === 'pro' ? 'pro' : 'start' }} />
       </div>
     )
   }
@@ -385,7 +387,7 @@ export default function CRMPage() {
           </div>
         </div>
       </main>
-      <PartnerBottomNav />
+      <PartnerBottomNav paket={{ paket: paket?.paket === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

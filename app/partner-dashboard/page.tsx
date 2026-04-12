@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PartnerSidebar } from '@/components/partner/sidebar'
@@ -19,11 +19,17 @@ import { CheckCircle2, Circle } from 'lucide-react'
 
 export default function PartnerDashboard() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const allowedTabs = ['overview', 'offers', 'payments', 'referral', 'notifications', 'new-offer'] as const
+  const tabFromQuery = searchParams.get('tab')
+  const initialTab = tabFromQuery && allowedTabs.includes(tabFromQuery as typeof allowedTabs[number])
+    ? tabFromQuery
+    : 'overview'
   const [partner, setPartner] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<any[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
   const supabase = createClient()
@@ -92,6 +98,14 @@ export default function PartnerDashboard() {
     getPartner()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const tabIsAllowed = tab && allowedTabs.includes(tab as typeof allowedTabs[number])
+    if (tabIsAllowed) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   const getCompletionStatus = async (partnerId: string) => {
     try {
@@ -271,7 +285,7 @@ export default function PartnerDashboard() {
             </div>
 
             <TabsContent value="overview" className="space-y-6">
-              <PartnerStats partnerId={partner.id} offers={offers} />
+              <PartnerStats offers={offers} />
             </TabsContent>
 
             <TabsContent value="offers" className="space-y-6">

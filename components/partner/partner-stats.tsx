@@ -1,18 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { FileText, TrendingUp, Clock, DollarSign } from 'lucide-react'
 
 export function PartnerStats({
-  partnerId,
   offers,
 }: {
-  partnerId: string
   offers: any[]
 }) {
-  const supabase = createClient()
   const [stats, setStats] = useState({
     totalOffers: 0,
     activeOffers: 0,
@@ -22,8 +18,8 @@ export function PartnerStats({
 
   useEffect(() => {
     const calculateStats = () => {
-      const active = offers.filter((o) => o.status === 'active').length
-      const total = offers.reduce((sum, o) => sum + (o.price || 0), 0)
+      const active = offers.filter((o) => o.status === 'poslana').length
+      const total = offers.reduce((sum, o) => sum + (o.price_estimate || 0), 0)
       const avg = offers.length > 0 ? total / offers.length : 0
 
       setStats({
