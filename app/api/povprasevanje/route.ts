@@ -57,7 +57,21 @@ export async function POST(req: Request) {
         finalCategoryId = await getOrCreateCategory(categoryName, user.id)
       } catch (catError) {
         console.error('[v0] Error creating category:', catError)
-        // Continue without category if creation fails
+        console.warn('[monitor] CATEGORY_AUTO_CREATE_FAILED', {
+          userId: user.id,
+          categoryName,
+          endpoint: 'POST /api/povprasevanje',
+          timestamp: new Date().toISOString(),
+        })
+        return NextResponse.json(
+          {
+            error:
+              catError instanceof Error
+                ? catError.message
+                : 'Ustvarjanje kategorije ni uspelo. Prosimo poskusite ponovno.',
+          },
+          { status: 400 }
+        )
       }
     }
 
