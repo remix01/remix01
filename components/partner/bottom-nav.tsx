@@ -18,6 +18,31 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
   const router = useRouter()
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
+  const [resolvedPaket, setResolvedPaket] = useState<'start' | 'pro' | 'elite'>(paket?.paket ?? 'start')
+
+  useEffect(() => {
+    if (paket?.paket) {
+      setResolvedPaket(paket.paket)
+      return
+    }
+
+    const resolveSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: partner } = await supabase
+        .from('obrtnik_profiles')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (partner?.subscription_tier === 'elite') setResolvedPaket('elite')
+      else if (partner?.subscription_tier === 'pro') setResolvedPaket('pro')
+      else setResolvedPaket('start')
+    }
+
+    resolveSubscription()
+  }, [paket?.paket, supabase])
 
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
 
@@ -36,8 +61,9 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
   const navLinks = [
     { href: '/partner-dashboard', icon: Home, label: 'Domov' },
     { href: '/partner-dashboard/povprasevanja', icon: FileText, label: 'Povpraševanja' },
-    ...(paket?.paket === 'pro' || paket?.paket === 'elite' ? [
+    ...(resolvedPaket === 'pro' || resolvedPaket === 'elite' ? [
       { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM' },
+      { href: '/partner-dashboard/insights', icon: BarChart3, label: 'Insights' },
       { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator' },
     ] : []),
     { href: '/partner-dashboard/notifications', icon: Bell, label: 'Obvestila' },

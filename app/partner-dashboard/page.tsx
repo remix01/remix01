@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -12,14 +12,17 @@ import { PartnerStats } from '@/components/partner/partner-stats'
 import { PaymentsSection } from '@/components/partner/payments-section'
 import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
 import { ReferralSection } from '@/components/partner/ReferralSection'
+import { RouteOptimizerCard } from '@/components/partner/RouteOptimizerCard'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
 
-export default function PartnerDashboard() {
+function PartnerDashboardInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const allowedTabs = ['overview', 'offers', 'payments', 'referral', 'notifications', 'new-offer'] as const
+  const initialTab = 'overview'
   const [partner, setPartner] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<any[]>([])
@@ -95,12 +98,12 @@ export default function PartnerDashboard() {
   }, [])
 
   useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get('tab')
+    const tab = searchParams.get('tab')
     const tabIsAllowed = tab && allowedTabs.includes(tab as typeof allowedTabs[number])
     if (tabIsAllowed) {
       setActiveTab(tab)
     }
-  }, [])
+  }, [searchParams])
 
   const getCompletionStatus = async (partnerId: string) => {
     try {
@@ -281,6 +284,7 @@ export default function PartnerDashboard() {
 
             <TabsContent value="overview" className="space-y-6">
               <PartnerStats offers={offers} />
+              <RouteOptimizerCard visits={offers} />
             </TabsContent>
 
             <TabsContent value="offers" className="space-y-6">
@@ -313,5 +317,13 @@ export default function PartnerDashboard() {
       </main>
       <PartnerBottomNav paket={{ paket: partner?.subscription_tier === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
+  )
+}
+
+export default function PartnerDashboard() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Nalagam...</div>}>
+      <PartnerDashboardInner />
+    </Suspense>
   )
 }

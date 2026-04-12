@@ -53,6 +53,8 @@ export default function OfferGeneratorPage() {
   const [editingOffer, setEditingOffer] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
   const [inquiries, setInquiries] = useState<any[]>([])
+  const [mediaAnalysis, setMediaAnalysis] = useState('')
+  const [mediaLoading, setMediaLoading] = useState(false)
 
   const [formData, setFormData] = useState({
     serviceType: '',
@@ -62,6 +64,7 @@ export default function OfferGeneratorPage() {
     hourlyRate: '',
     materialsEstimate: '',
     selectedInquiry: '',
+    mediaUrl: '',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -186,6 +189,31 @@ export default function OfferGeneratorPage() {
     if (!generatedOffer || !formData.selectedInquiry) return
     // TODO: Send offer to selected inquiry
     alert('Ponudba bo poslana stranki')
+  }
+
+  const handleAnalyzeMedia = async () => {
+    if (!formData.mediaUrl) return
+    setMediaLoading(true)
+    try {
+      const res = await fetch('/api/ai/analyze-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: formData.mediaUrl,
+          description: formData.description,
+        }),
+      })
+      const payload = await res.json()
+      if (payload.success) {
+        setMediaAnalysis(payload.data)
+        setFormData((prev) => ({
+          ...prev,
+          description: `${prev.description}\\n\\n[AI ANALIZA SLIKE]\\n${payload.data}`.trim(),
+        }))
+      }
+    } finally {
+      setMediaLoading(false)
+    }
   }
 
   if (loading) {
@@ -329,6 +357,20 @@ export default function OfferGeneratorPage() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="mediaUrl">URL slike/videa (PRO/ELITE)</Label>
+                    <Input
+                      id="mediaUrl"
+                      placeholder="https://..."
+                      value={formData.mediaUrl}
+                      onChange={(e) => setFormData(prev => ({ ...prev, mediaUrl: e.target.value }))}
+                    />
+                    <Button type="button" variant="outline" onClick={handleAnalyzeMedia} disabled={mediaLoading || !formData.mediaUrl}>
+                      {mediaLoading ? 'Analiziram slike...' : 'Analiziraj slike z AI'}
+                    </Button>
+                    {mediaAnalysis && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{mediaAnalysis}</p>}
+                  </div>
+
                   {errors.submit && <p className="text-red-500 text-sm">{errors.submit}</p>}
 
                   <Button 
@@ -406,7 +448,7 @@ export default function OfferGeneratorPage() {
                               <SelectContent>
                                 {inquiries.map(inq => (
                                   <SelectItem key={inq.id} value={inq.id}>
-                                    {inq.customer_name} - {inq.service_type}
+                                    Povpraševanje #{inq.povprasevanje_id || inq.id}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

@@ -88,6 +88,13 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
               CRM
             </Link>
             <Link
+              href="/partner-dashboard/insights"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Insights
+            </Link>
+            <Link
               href="/partner-dashboard/offers/generate"
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
             >

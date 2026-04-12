@@ -28,10 +28,10 @@ export async function POST(req: Request) {
       )
     }
 
-    // AI offer generation requires PRO package
-    if (obrtnikProfile.subscription_tier !== 'pro') {
+    // AI offer generation requires PRO or ELITE package
+    if (obrtnikProfile.subscription_tier !== 'pro' && (obrtnikProfile.subscription_tier as string) !== 'elite') {
       return new Response(
-        JSON.stringify({ success: false, error: 'PRO paket je obvezen za AI generiranje ponudb' }),
+        JSON.stringify({ success: false, error: 'PRO ali ELITE paket je obvezen za AI generiranje ponudb' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       )
     }
