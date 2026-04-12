@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NarocnikSidebar } from '@/components/narocnik/sidebar'
 import { NarocnikBottomNav } from '@/components/narocnik/bottom-nav'
 import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
+import { ProjectAssistant } from '@/components/customer/ProjectAssistant'
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
@@ -60,6 +61,7 @@ export default async function NarocnikLayout({
           {children}
         </main>
       </div>
+      <ProjectAssistant context={`Naročniški portal uporabnika ${user.id}. Odgovarjaj v slovenščini in vodi uporabnika skozi naslednje korake projekta.`} />
 
       {/* Mobile Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background">

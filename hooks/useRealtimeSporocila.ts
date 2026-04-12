@@ -23,6 +23,12 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
 
   // Load initial messages
   useEffect(() => {
+    if (!povprasevanjeId || !currentUserId) {
+      setSporocila([])
+      setIsLoading(false)
+      return
+    }
+
     const loadMessages = async () => {
       try {
         const { data, error: err } = await supabaseRef.current
@@ -53,6 +59,8 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
 
   // Subscribe to real-time changes
   useEffect(() => {
+    if (!povprasevanjeId || !currentUserId) return
+
     const channel = supabaseRef.current
       .channel(`sporocila_${povprasevanjeId}`)
       .on(
@@ -88,7 +96,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
 
   const sendMessage = useCallback(
     async (text: string, receiverId: string): Promise<boolean> => {
-      if (!text.trim()) return false
+      if (!text.trim() || !receiverId || !povprasevanjeId || !currentUserId) return false
 
       try {
         const { error: err } = await supabaseRef.current
