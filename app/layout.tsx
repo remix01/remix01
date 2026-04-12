@@ -248,7 +248,7 @@ export default function RootLayout({
         {/* PWA Install Banner — prikaže se samo če je device-compat */}
         <PWAInstallBanner />
 
-        {/* Chat — prikaže se samo avtenticiranim uporabnikom */}
+        {/* Global AI chat trigger (self-hides on pages with dedicated assistants) */}
         <AgentChatButton />
 
         {/* Vercel Web Analytics */}
