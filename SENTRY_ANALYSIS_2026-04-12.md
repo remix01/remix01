@@ -1,81 +1,100 @@
-# Sentry Analysis Report (2026-04-12)
+# Sentry analiza (2026-04-12)
 
-## Scope
-- Attempted live Sentry API inventory (organizations/projects/issues/releases) using provided auth token.
-- Performed local repository audit of Sentry SDK setup and potential risk areas.
+## Povzetek
+Ta analiza združuje:
+1. **poskus live pregleda Sentry tenant podatkov** prek API,
+2. **statični pregled implementacije v repozitoriju**,
+3. **prioritiziran plan popravkov**.
 
-## Live API Check Result
-I attempted to query Sentry API endpoints (`sentry.io`, `us.sentry.io`, `de.sentry.io`) with the provided token.
+## 1) Live Sentry API pregled (z danim tokenom)
 
-### Commands used
+### Uporabljeni ukazi
 - `curl -sS -H "Authorization: Bearer <TOKEN>" https://sentry.io/api/0/organizations/`
 - `curl -I -sS -H "Authorization: Bearer <TOKEN>" https://sentry.io/api/0/`
 - `curl -I -sS -H "Authorization: Bearer <TOKEN>" https://us.sentry.io/api/0/`
 - `curl -I -sS -H "Authorization: Bearer <TOKEN>" https://de.sentry.io/api/0/`
 
-### Outcome
-- All attempts failed before authentication/authorization evaluation with:
+### Rezultat
+- Vsi requesti so padli še pred auth validacijo z napako:
   - `curl: (56) CONNECT tunnel failed, response 403`
-- This indicates an outbound network/proxy restriction in the current execution environment, so no live tenant data (issues/events/projects) could be retrieved.
+- To pomeni, da je v trenutnem okolju blokiran izhod na Sentry (proxy/network policy), zato **ni bilo možno** pridobiti realnih podatkov o issue-jih, eventih, release health ali alertih.
 
-## Repository-Level Findings
+## 2) Statična analiza kode (repo)
 
-### 1) DSN is hardcoded in multiple runtime configs (high risk)
-Hardcoded DSN exists in:
+### Kritične ugotovitve (P0/P1)
+
+| Prioriteta | Ugotovitev | Vpliv |
+|---|---|---|
+| P0 | Hardcoded DSN v več runtime datotekah | Secret leakage / težje upravljanje med okolji |
+| P0 | Dvojna strategija inicializacije (hardcoded + env-driven) | Nekonsistentno obnašanje telemetrije |
+| P1 | `tracesSampleRate: 1` v hardcoded poti | Prevelik volumen/cena v produkciji |
+| P1 | `sendDefaultPii: true` brez jasnega env-gatinga | Privacy/compliance tveganje |
+
+### Dokazi v kodi
+
+#### A) Hardcoded DSN (P0)
+Hardcoded DSN je neposredno v:
 - `sentry.server.config.ts`
 - `sentry.edge.config.ts`
 - `instrumentation-client.ts`
 
-This is brittle and can leak infrastructure details into repository history.
+To je varnostno in operativno neidealno; DSN naj bo izključno env-driven.
 
-### 2) Parallel config path exists (hardcoded + env-driven)
-There is also a cleaner env-driven initializer in:
-- `lib/sentry/init.ts`
+#### B) Dvojna Sentry init pot (P0)
+- **Hardcoded init**: server/edge/client config datoteke.
+- **Env-driven init**: `lib/sentry/init.ts` (`process.env.NEXT_PUBLIC_SENTRY_DSN`, `enabled` guard).
 
-Current state suggests two competing configuration strategies.
+Če sta obe poti aktivni ali se uporabljata različno po runtime-u, dobimo težko reproducibilne rezultate (sampling, replay, PII).
 
-### 3) Sampling/profile posture
-From hardcoded config files:
-- `tracesSampleRate: 1` (100%) for server/edge/client baseline.
+#### C) Sampling mismatch (P1)
+- Hardcoded init uporablja `tracesSampleRate: 1` (100%).
+- Env-driven init uporablja `0.1` v produkciji.
 
-From env-driven initializer (`lib/sentry/init.ts`):
-- Production traces are sampled at `0.1`.
-- Replays sampled at 10%, error replays at 100%.
+To lahko povzroči razliko v stroških in observability signal/noise.
 
-This mismatch can produce inconsistent telemetry volume/cost depending on which init path is active.
+#### D) PII policy (P1)
+V hardcoded konfiguraciji je `sendDefaultPii: true`; brez centralnega env gatinga je to tveganje za skladnost (GDPR/contractual requirements).
 
-### 4) PII defaults
-Hardcoded configs set `sendDefaultPii: true`, which can be acceptable but should be a deliberate policy decision and generally environment-gated.
+#### E) Build plugin metapodatki
+V `next.config.ts` je Sentry plugin nastavljen na:
+- `org: "liftgo-w5"`
+- `project: "javascript-nextjs"`
 
-### 5) Existing internal audit corroboration
-`LIFTGO_AUDIT_2026-04-08.md` already flagged the same core concern: unify Sentry configuration and remove hardcoded DSN.
+To je OK, vendar mora biti skladno s tenantom, v katerega dejansko pošilja DSN.
 
-## Recommended Remediation Plan
-1. **Unify to env-driven Sentry setup only**
-   - Remove hardcoded DSNs from server/edge/client config files.
-   - Read DSN from env vars in every runtime.
-2. **Standardize sampling policy**
-   - Keep production traces at 5–10% unless a troubleshooting burst is needed.
-3. **Gate PII by environment/compliance policy**
-   - Enable only where contractually/compliantly acceptable.
-4. **Add config sanity checks in CI**
-   - Fail builds on hardcoded DSN patterns.
-5. **Re-run live Sentry API scan from network-enabled environment**
-   - Pull issue counts, top regressions, unresolved-by-age, release health, and alert volume.
+## 3) Priporočena sanacija
 
-## Data Missing Due to Network Restriction
-The following could not be fetched in this run:
-- Organization/project list
-- Open issue inventory
-- Issue trend by 7/30 days
-- Top crash signatures
-- Release health (adoption/crash-free sessions)
-- Active alert rules and incidents
+### P0 (nujno)
+1. Odstrani hardcoded DSN iz:
+   - `sentry.server.config.ts`
+   - `sentry.edge.config.ts`
+   - `instrumentation-client.ts`
+2. Uporabi enoten env-driven model v vseh runtime-ih.
+3. Dodaj CI check, ki faila build ob regex-u za hardcoded Sentry DSN (`ingest.sentry.io`).
 
-## Next Execution Checklist (when network is available)
+### P1 (visoka)
+4. Standardiziraj sampling (npr. prod 5–10%, dev 100%).
+5. `sendDefaultPii` naj bo env-gated in dokumentiran po compliance pravilih.
+
+### P2 (srednja)
+6. Dodaj runbook: kako potrditi, da client/server/edge pošiljajo v isti projekt + kako meriti event volume.
+
+## 4) Kaj manjka zaradi network omejitve
+Ni bilo mogoče izvesti live preverjanja:
+- unresolved issue backlog,
+- top crash signatures,
+- release health (crash-free sessions/users),
+- alert noise/rule health,
+- regressions po zadnjih releasih.
+
+## 5) Natančen API checklist za naslednji zagon (network-enabled)
 - `GET /api/0/organizations/`
 - `GET /api/0/organizations/{org_slug}/projects/`
 - `GET /api/0/projects/{org_slug}/{project_slug}/issues/?query=is:unresolved`
 - `GET /api/0/projects/{org_slug}/{project_slug}/events/`
 - `GET /api/0/organizations/{org_slug}/releases/`
+- `GET /api/0/projects/{org_slug}/{project_slug}/keys/` (validacija DSN ključev)
 
+## Zaključek
+**Trenutno največje realno tveganje ni manjkajoč dashboard vpogled, ampak nekonsistentna in delno hardcoded Sentry konfiguracija v kodi.**
+Največji učinek bo imela poenotitev init poti na env-driven model + jasna sampling/PII politika.
