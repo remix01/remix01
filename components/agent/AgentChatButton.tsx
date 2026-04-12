@@ -2,19 +2,39 @@
 // components/agent/AgentChatButton.tsx
 
 import React from 'react'
+import { usePathname } from 'next/navigation'
 import { MessageCircle } from 'lucide-react'
 import { useAgentChat } from './useAgentChat'
 import { AgentChat } from './AgentChat'
+import { useAuth } from '@/lib/auth/AuthContext'
+
+const DEDICATED_ASSISTANT_PREFIXES = [
+  '/dashboard',
+  '/moj-dom',
+  '/profil',
+  '/obvestila',
+  '/povprasevanja',
+  '/novo-povprasevanje',
+  '/ocena',
+  '/sporocila',
+]
 
 export function AgentChatButton() {
+  const pathname = usePathname()
+  const { user, isLoading: authLoading } = useAuth()
   const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, clearConversation, closeChat, connectionStatus, lastError } = useAgentChat()
+  const hasDedicatedAssistant = pathname === '/' || DEDICATED_ASSISTANT_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+
+  if (authLoading || !user || hasDedicatedAssistant) {
+    return null
+  }
 
   return (
     <>
       {!isOpen && (
         <button
           onClick={setIsOpen}
-          className="fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 flex items-center justify-center transition-all duration-200 z-40 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+          className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-all duration-200 hover:scale-110 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           aria-label="Odpri chat z LiftGO asistentom"
           aria-haspopup="dialog"
           title="Chat z LiftGO asistentom"
@@ -32,7 +52,7 @@ export function AgentChatButton() {
           )}
 
           {unreadCount > 0 && (
-            <span className="absolute inset-0 rounded-full animate-ping bg-blue-400 opacity-30 pointer-events-none" />
+            <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-primary/40 opacity-30" />
           )}
         </button>
       )}
