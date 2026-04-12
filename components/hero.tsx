@@ -65,20 +65,22 @@ const FALLBACK_STATS = {
   reviews: 1200,
 }
 
-export function Hero() {
+type HeroStats = typeof FALLBACK_STATS
+
+export function Hero({ initialStats = FALLBACK_STATS }: { initialStats?: HeroStats }) {
   const [showForm, setShowForm] = useState(false)
   const [lokacijaInput, setLokacijaInput] = useState("")
   const [filteredLokacije, setFilteredLokacije] = useState<string[]>([])
   const [showLokacijaSuggestions, setShowLokacijaSuggestions] = useState(false)
   const [selectedService, setSelectedService] = useState("")
-  const [stats, setStats] = useState(FALLBACK_STATS)
+  const [stats, setStats] = useState(initialStats)
   const [statsLoading, setStatsLoading] = useState(true)
 
   // Fetch real stats from public API
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/stats/public')
+        const response = await fetch('/api/stats/public', { cache: 'no-store' })
         
         if (!response.ok) {
           console.error('[v0] Stats API error:', response.status)
@@ -143,7 +145,7 @@ export function Hero() {
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
                 </span>
                 <span className="text-xs font-medium text-muted-foreground">
-                  {stats.activeArtisans}+ aktivnih mojstrov po vsej Sloveniji
+                  <span suppressHydrationWarning>{stats.activeArtisans}+ aktivnih mojstrov po vsej Sloveniji</span>
                 </span>
               </div>
 
@@ -239,8 +241,8 @@ export function Hero() {
                       <Star key={i} className="h-4 w-4 fill-accent text-accent" />
                     ))}
                   </div>
-                  <span className="text-sm font-semibold text-foreground">{stats.rating}</span>
-                  <span className="text-xs text-muted-foreground">iz {stats.reviews.toLocaleString()}+ ocen</span>
+                  <span className="text-sm font-semibold text-foreground" suppressHydrationWarning>{stats.rating}</span>
+                  <span className="text-xs text-muted-foreground" suppressHydrationWarning>iz {stats.reviews.toLocaleString()}+ ocen</span>
                 </div>
                 <div className="h-4 w-px bg-border" />
                 <p className="text-xs text-muted-foreground">
@@ -292,7 +294,7 @@ export function Hero() {
                   Ta mesec
                 </p>
                 <p className="font-display text-xl sm:text-2xl font-bold text-primary">
-                  {statsLoading ? '-' : stats.successfulConnections}
+                  <span suppressHydrationWarning>{statsLoading ? '-' : stats.successfulConnections}</span>
                 </p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground">
                   uspešno povezav

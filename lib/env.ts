@@ -32,6 +32,7 @@ export const env = {
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY ?? '',
   LANGFUSE_HOST: process.env.LANGFUSE_HOST ?? '',
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
+  NEXT_PUBLIC_SENTRY_SEND_DEFAULT_PII: process.env.NEXT_PUBLIC_SENTRY_SEND_DEFAULT_PII ?? 'false',
 
   // ─── Email & Notifications ───
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
