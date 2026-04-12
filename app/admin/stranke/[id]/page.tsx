@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { createClient } from '@/lib/supabase/server'
-import { getStranka, updateStrankaStatus, deleteStranka } from '@/app/admin/actions'
+import { getStranka, getStrankaActivity, updateStrankaStatus, deleteStranka } from '@/app/admin/actions'
 
 interface PageProps {
   params: {
@@ -23,6 +23,8 @@ export default async function StrankaDetailPage({ params }: PageProps) {
 
   const stranka = await getStranka(params.id)
   if (!stranka) redirect('/admin/stranke')
+
+  const activity = await getStrankaActivity(params.id)
 
   return (
     <div className="space-y-6">
@@ -77,6 +79,48 @@ export default async function StrankaDetailPage({ params }: PageProps) {
           <div>
             <div className="text-sm font-medium text-muted-foreground">Število naročil</div>
             <div className="mt-1 text-base">{stranka.narocil}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Aktivnost uporabnika</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-6 lg:grid-cols-3">
+          <div>
+            <h3 className="mb-2 font-medium">Povpraševanja</h3>
+            <div className="space-y-2 text-sm">
+              {activity.inquiries.length === 0 ? <p className="text-muted-foreground">Ni aktivnosti</p> : activity.inquiries.map((item: any) => (
+                <div key={item.id} className="rounded border p-2">
+                  <p className="font-medium">{item.title || item.id}</p>
+                  <p className="text-xs text-muted-foreground">{item.status} · {new Date(item.created_at).toLocaleDateString('sl-SI')}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="mb-2 font-medium">Ponudbe</h3>
+            <div className="space-y-2 text-sm">
+              {activity.offers.length === 0 ? <p className="text-muted-foreground">Ni aktivnosti</p> : activity.offers.map((item: any) => (
+                <div key={item.id} className="rounded border p-2">
+                  <p className="font-medium">Ponudba #{item.id.slice(0, 8)}</p>
+                  <p className="text-xs text-muted-foreground">{item.status} · €{Number(item.cena || 0).toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="mb-2 font-medium">Plačila</h3>
+            <div className="space-y-2 text-sm">
+              {activity.payments.length === 0 ? <p className="text-muted-foreground">Ni aktivnosti</p> : activity.payments.map((item: any) => (
+                <div key={item.id} className="rounded border p-2">
+                  <p className="font-medium">€{Number(item.amount || 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">{item.status} · {new Date(item.created_at).toLocaleDateString('sl-SI')}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>

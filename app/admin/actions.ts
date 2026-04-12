@@ -3,8 +3,14 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
+import { requireAdmin } from '@/lib/admin-auth'
+
+async function ensureAdminAccess() {
+  await requireAdmin()
+}
 
 export async function getAdminStats(): Promise<AdminStats> {
+  await ensureAdminAccess()
   const now = new Date()
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
@@ -75,6 +81,7 @@ export async function getStranke(
   page = 1,
   pageSize = 10
 ) {
+  await ensureAdminAccess()
   const skip = (page - 1) * pageSize
 
   let query = supabaseAdmin
@@ -114,6 +121,7 @@ export async function getPartnerji(
   page = 1,
   pageSize = 10
 ) {
+  await ensureAdminAccess()
   const skip = (page - 1) * pageSize
 
   let query = supabaseAdmin
@@ -186,6 +194,7 @@ export async function getPartnerji(
 }
 
 export async function odobriPartnerja(id: string) {
+  await ensureAdminAccess()
   await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_verified: true })
@@ -194,6 +203,7 @@ export async function odobriPartnerja(id: string) {
 }
 
 export async function zavrniPartnerja(id: string, razlog: string) {
+  await ensureAdminAccess()
   await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_verified: false })
@@ -202,6 +212,7 @@ export async function zavrniPartnerja(id: string, razlog: string) {
 }
 
 export async function suspendiranjPartnerja(id: string, razlog?: string) {
+  await ensureAdminAccess()
   await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_available: false })
@@ -270,6 +281,7 @@ export async function getAdminPovprasevanja(
   page = 1,
   pageSize = 20
 ) {
+  await ensureAdminAccess()
   const offset = (page - 1) * pageSize
   let query = supabaseAdmin
     .from('povprasevanja')
@@ -325,6 +337,7 @@ export async function getAdminPovprasevanja(
 }
 
 export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPENDIRAN') {
+  await ensureAdminAccess()
   await supabaseAdmin
     .from('profiles')
     .update({ is_suspended: status === 'SUSPENDIRAN' })
@@ -334,16 +347,19 @@ export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPE
 }
 
 export async function deleteStranka(id: string) {
+  await ensureAdminAccess()
   await supabaseAdmin.from('profiles').delete().eq('id', id)
   revalidatePath('/admin/stranke')
 }
 
 export async function deletePartner(id: string) {
+  await ensureAdminAccess()
   await supabaseAdmin.from('obrtnik_profiles').delete().eq('id', id)
   revalidatePath('/admin/partnerji')
 }
 
 export async function reaktivirajPartnerja(id: string) {
+  await ensureAdminAccess()
   await supabaseAdmin
     .from('obrtnik_profiles')
     .update({ is_available: true })
@@ -491,4 +507,35 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
   }
 
   return chartData
+}
+
+export async function getStrankaActivity(userId: string) {
+  await ensureAdminAccess()
+
+  const [inquiriesRes, offersRes, paymentsRes] = await Promise.all([
+    supabaseAdmin
+      .from('povprasevanja')
+      .select('id, title, status, created_at')
+      .eq('narocnik_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabaseAdmin
+      .from('ponudbe')
+      .select('id, povprasevanje_id, status, cena, created_at')
+      .eq('narocnik_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabaseAdmin
+      .from('payment')
+      .select('id, amount, status, created_at')
+      .eq('customer_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ])
+
+  return {
+    inquiries: inquiriesRes.data || [],
+    offers: offersRes.data || [],
+    payments: paymentsRes.data || [],
+  }
 }
