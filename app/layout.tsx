@@ -12,7 +12,6 @@ import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
 import { PWAInstallBanner } from '@/components/liftgo/PWAInstallBanner'
 import { OfflineBanner } from '@/components/liftgo/OfflineBanner'
-import { AgentChatButton } from '@/components/agent/AgentChatButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalErrorHandler } from '@/components/GlobalErrorHandler'
 
@@ -247,9 +246,6 @@ export default function RootLayout({
 
         {/* PWA Install Banner — prikaže se samo če je device-compat */}
         <PWAInstallBanner />
-
-        {/* Chat — prikaže se samo avtenticiranim uporabnikom */}
-        <AgentChatButton />
 
         {/* Vercel Web Analytics */}
         <Analytics />
