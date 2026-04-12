@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { acceptPonudbaAction } from '@/app/actions/ponudbe'
+import { AIOfferAnalysisCard } from '@/components/customer/AIOfferAnalysisCard'
 
 interface PonudbeListProps {
   ponudbe: Ponudba[]
@@ -68,6 +69,8 @@ export default function PonudbeList({
 
   return (
     <div className="space-y-4">
+      <AIOfferAnalysisCard inquiryId={povprasevanjeId} offers={ponudbe} />
+
       {successMessage && (
         <div className="rounded-lg bg-green-100 p-4 text-green-900">
           {successMessage}
@@ -149,7 +152,7 @@ export default function PonudbeList({
             )}
 
             {/* Accept Button */}
-            {povprasevanjeStatus === 'odprto' && !isAccepted && (
+            {povprasevanjeStatus === 'odprto' && !isAccepted && !acceptedPonudba && (
               <Button
                 onClick={() => handleAcceptPonudba(ponudba.id)}
                 disabled={acceptingId === ponudba.id}

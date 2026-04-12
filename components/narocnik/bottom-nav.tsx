@@ -11,6 +11,7 @@ export function NarocnikBottomNav() {
     { href: '/novo-povprasevanje', icon: '➕', label: 'Novo' },
     { href: '/povprasevanja', icon: '📋', label: 'Povpraševanja' },
     { href: '/sporocila', icon: '💬', label: 'Sporočila' },
+    { href: '/moj-dom', icon: '🏡', label: 'Moj dom' },
     { href: '/profil', icon: '👤', label: 'Profil' },
   ]
 

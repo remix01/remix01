@@ -10,13 +10,12 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
 interface Props {
-  params: Promise<{ ponudbaId: string }>
+  params: { ponudbaId: string }
 }
 
 export default function OcenaPage({ params }: Props) {
   const router = useRouter()
-  const paramsValue = params as any
-  const ponudbaId = paramsValue.ponudbaId || (params as any).ponudbaId
+  const ponudbaId = params.ponudbaId
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -50,7 +49,8 @@ export default function OcenaPage({ params }: Props) {
           .from('ponudbe')
           .select(`
             id,
-            narocnik_id:povprasevanja(narocnik_id),
+            status,
+            narocnik_id:povprasevanja(narocnik_id,status),
             obrtnik:obrtnik_profiles(
               id,
               business_name,
@@ -68,8 +68,14 @@ export default function OcenaPage({ params }: Props) {
 
         // Security check - verify this is the naročnik who created the povprasevanje
         const povprasevanjeNarocnikId = (ponudba.narocnik_id as any)?.[0]?.narocnik_id
+        const povprasevanjeStatus = (ponudba.narocnik_id as any)?.[0]?.status
         if (povprasevanjeNarocnikId !== user.id) {
           setError('Nimate dostopa do te ocene')
+          setLoading(false)
+          return
+        }
+        if (povprasevanjeStatus !== 'zakljuceno') {
+          setError('Oceno lahko oddate šele po zaključku dela.')
           setLoading(false)
           return
         }
