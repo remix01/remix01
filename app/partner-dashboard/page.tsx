@@ -19,11 +19,13 @@ import { CheckCircle2, Circle } from 'lucide-react'
 
 export default function PartnerDashboard() {
   const router = useRouter()
+  const allowedTabs = ['overview', 'offers', 'payments', 'referral', 'notifications', 'new-offer'] as const
+  const initialTab = 'overview'
   const [partner, setPartner] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<any[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
   const supabase = createClient()
@@ -91,6 +93,14 @@ export default function PartnerDashboard() {
 
     getPartner()
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    const tabIsAllowed = tab && allowedTabs.includes(tab as typeof allowedTabs[number])
+    if (tabIsAllowed) {
+      setActiveTab(tab)
+    }
   }, [])
 
   const getCompletionStatus = async (partnerId: string) => {
@@ -170,7 +180,7 @@ export default function PartnerDashboard() {
             </div>
             {partner?.subscription_tier && (
               <div className="text-sm font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">
-                {partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
+                {partner.subscription_tier === 'elite' ? 'ELITE plan' : partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
               </div>
             )}
           </div>
@@ -271,7 +281,7 @@ export default function PartnerDashboard() {
             </div>
 
             <TabsContent value="overview" className="space-y-6">
-              <PartnerStats partnerId={partner.id} offers={offers} />
+              <PartnerStats offers={offers} />
             </TabsContent>
 
             <TabsContent value="offers" className="space-y-6">
@@ -302,7 +312,7 @@ export default function PartnerDashboard() {
           </Tabs>
         </div>
       </main>
-      <PartnerBottomNav paket={partner?.subscription_tier === 'pro' ? { paket: 'pro' } : { paket: 'start' }} />
+      <PartnerBottomNav paket={{ paket: partner?.subscription_tier === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

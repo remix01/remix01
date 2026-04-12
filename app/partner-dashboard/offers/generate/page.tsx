@@ -92,7 +92,7 @@ export default function OfferGeneratorPage() {
         const paketData = { paket: partnerData.subscription_tier || 'start' }
         setPaket(paketData)
 
-        if (paketData.paket === 'pro') {
+        if (paketData.paket === 'pro' || paketData.paket === 'elite') {
           // Load recent ponudbe as context for offer generation
           const { data: inquiriesData } = await supabase
             .from('ponudbe')
@@ -144,7 +144,7 @@ export default function OfferGeneratorPage() {
           estimatedHours: parseFloat(formData.estimatedHours),
           hourlyRate: parseFloat(formData.hourlyRate),
           materialsEstimate: formData.materialsEstimate ? parseFloat(formData.materialsEstimate) : 0,
-          partnerName: partner?.company_name || 'Partner',
+          partnerName: partner?.business_name || 'Partner',
         }),
       })
 
@@ -200,7 +200,7 @@ export default function OfferGeneratorPage() {
   }
 
   // Show upgrade prompt if not PRO
-  if (paket?.paket !== 'pro') {
+  if (paket?.paket !== 'pro' && paket?.paket !== 'elite') {
     return (
       <div className="flex h-screen bg-background">
         <PartnerSidebar partner={partner} />
@@ -218,7 +218,7 @@ export default function OfferGeneratorPage() {
             </Button>
           </Card>
         </main>
-        <PartnerBottomNav />
+        <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
       </div>
     )
   }
@@ -430,7 +430,7 @@ export default function OfferGeneratorPage() {
           </div>
         </div>
       </main>
-      <PartnerBottomNav />
+      <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }
