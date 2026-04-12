@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Metadata, Viewport } from 'next'
-// import { Inter, DM_Sans } from 'next/font/google' // Temporarily disabled due to network issues
+// import { Inter, DM_Sans } from 'next/font/google' // Disabled in CI/network-restricted builds
 import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -22,19 +22,6 @@ import './globals.css'
 initEventSubscribers()
 
 // ─── FONTI ───────────────────────────────────────────────────────────────────
-// Temporarily disabled due to network connectivity issues
-// const inter = Inter({
-//   subsets: ['latin', 'latin-ext'],
-//   variable: '--font-inter',
-//   display: 'swap',
-// })
-
-// const dmSans = DM_Sans({
-//   subsets: ['latin', 'latin-ext'],
-//   variable: '--font-dm-sans',
-//   display: 'swap',
-// })
-
 const inter = { variable: '' }
 const dmSans = { variable: '' }
 
