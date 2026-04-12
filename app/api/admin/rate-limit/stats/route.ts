@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import {
   authLimiter,
   inquiryLimiter,
@@ -7,21 +7,18 @@ import {
   uploadLimiter,
   searchLimiter,
 } from '@/lib/rate-limit/limiters'
+import { requireAdmin } from '@/lib/admin-auth'
 
 /**
  * Admin endpoint to view rate limiter statistics
  * GET /api/admin/rate-limit/stats
  */
-export async function GET(request: NextRequest) {
-  // TODO: Add proper admin role check
-  // For now, this is a placeholder - you should integrate with your auth system
-  const userRole = request.headers.get('x-user-role')
-  
-  if (userRole !== 'ADMIN') {
-    return NextResponse.json(
-      { error: 'Dostop zavrnjen. Samo administratorji.' },
-      { status: 403 }
-    )
+export async function GET() {
+  try {
+    await requireAdmin(['super_admin'])
+  } catch (error: any) {
+    const status = error?.message === 'UNAUTHORIZED' ? 401 : 403
+    return NextResponse.json({ error: 'Dostop zavrnjen. Samo administratorji.' }, { status })
   }
 
   const stats = {
