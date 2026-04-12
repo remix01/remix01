@@ -1,5 +1,5 @@
 // Data Access Layer - Categories
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { createClient as createPublicClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 import type { Category } from '@/types/marketplace'
@@ -193,6 +193,7 @@ export async function getOrCreateCategory(
   }
 
   const supabase = await createClient()
+  const supabaseAdmin = createAdminClient()
   
   // Try to find existing category (case-insensitive)
   const { data: existing, error: searchError } = await supabase
@@ -219,7 +220,7 @@ export async function getOrCreateCategory(
   // Check if slug already exists, if so append counter
   let slugExists = true
   while (slugExists) {
-    const { data: slugCheck, error: slugError } = await supabase
+    const { data: slugCheck, error: slugError } = await supabaseAdmin
       .from('categories')
       .select('id')
       .eq('slug', slug)
@@ -240,7 +241,7 @@ export async function getOrCreateCategory(
   }
 
   // Create new category
-  const { data: newCategory, error: insertError } = await supabase
+  const { data: newCategory, error: insertError } = await supabaseAdmin
     .from('categories')
     .insert({
       name: trimmedName,
@@ -259,7 +260,7 @@ export async function getOrCreateCategory(
     console.error('[v0] Error creating category:', insertError)
     
     // If unique constraint failed, try to find it again (race condition)
-    const { data: retry } = await supabase
+    const { data: retry } = await supabaseAdmin
       .from('categories')
       .select('id')
       .ilike('name', trimmedName)
