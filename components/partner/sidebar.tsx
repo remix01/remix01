@@ -10,7 +10,7 @@ import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell } from '
 interface PartnerSidebarProps {
   partner: {
     business_name: string
-    subscription_tier: 'start' | 'pro'
+    subscription_tier: 'start' | 'pro' | 'elite'
     avg_rating: number
     is_verified: boolean
   }
@@ -53,7 +53,11 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
           {partner.is_verified && '✓'} {partner.avg_rating.toFixed(1)} ⭐
         </p>
         <p className="text-xs font-medium text-primary mt-2">
-          {partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
+          {partner.subscription_tier === 'elite'
+            ? 'ELITE plan'
+            : partner.subscription_tier === 'pro'
+              ? 'PRO plan'
+              : 'START plan'}
         </p>
       </div>
 
@@ -74,7 +78,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
         </Link>
         
         {/* PRO Features */}
-        {partner.subscription_tier === 'pro' && (
+        {(partner.subscription_tier === 'pro' || partner.subscription_tier === 'elite') && (
           <>
             <Link
               href="/partner-dashboard/crm"

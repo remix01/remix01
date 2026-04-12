@@ -24,7 +24,7 @@ export function OffersList({
 
     setDeleting(offerId)
     try {
-      await supabase.from('offers').delete().eq('id', offerId)
+      await supabase.from('ponudbe').delete().eq('id', offerId)
       onUpdate()
     } catch (err) {
       console.error('Napaka pri brisanju:', err)
@@ -51,27 +51,25 @@ export function OffersList({
                 <h3 className="text-lg font-semibold text-foreground">
                   {offer.title}
                 </h3>
-                <Badge
-                  variant={offer.status === 'active' ? 'default' : 'secondary'}
-                >
-                  {offer.status === 'active' ? 'Aktivna' : 'Neaktivna'}
+                <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
+                  {offer.status === 'poslana' ? 'Poslana' : offer.status}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mb-3">
-                {offer.description}
+                {offer.message}
               </p>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Kategorija</p>
-                  <p className="font-medium">{offer.category}</p>
+                  <p className="text-muted-foreground">Vrsta cene</p>
+                  <p className="font-medium">{offer.price_type || 'ocena'}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Cena</p>
-                  <p className="font-medium">€{offer.price}</p>
+                  <p className="font-medium">€{offer.price_estimate}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Trajanje</p>
-                  <p className="font-medium">{offer.duration} dni</p>
+                  <p className="text-muted-foreground">Razpoložljiv od</p>
+                  <p className="font-medium">{offer.available_date || 'Ni določeno'}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Oddano</p>
