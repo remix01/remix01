@@ -7,6 +7,7 @@ import PonudbeList from '@/components/narocnik/ponudbe-list'
 import { AgentMatchResults } from '@/components/liftgo/AgentMatchResults'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { InquiryTransparencyTracker } from '@/components/narocnik/InquiryTransparencyTracker'
 
 export function PovprasevanjeDetailClient({
   povprasevanje,
@@ -118,6 +119,8 @@ export function PovprasevanjeDetailClient({
         </Card>
 
         {/* Section 2: Agent Matches */}
+        <InquiryTransparencyTracker createdAt={povprasevanje.created_at} offersCount={ponudbe.length} />
+
         {povprasevanje.status === 'odprto' && (
           <div className="mb-8">
             <AgentMatchResults povprasevanjeId={id} />

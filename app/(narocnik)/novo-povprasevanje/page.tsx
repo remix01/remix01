@@ -20,6 +20,7 @@ import { Loader2, Sparkles } from 'lucide-react'
 import { TaskDescriptionAssistant } from '@/components/agent/TaskDescriptionAssistant'
 import { VideoDiagnosisAssistant } from '@/components/agent/VideoDiagnosisAssistant'
 import { AgentDialog } from '@/components/agents/AgentDialog'
+import { AIConversationalForm } from '@/components/customer/AIConversationalForm'
 
 // Helper to get icon component from name
 function getIconComponent(iconName?: string) {
@@ -54,6 +55,7 @@ export default function NovoPoVprasevanjePage() {
   const [budgetMax, setBudgetMax] = useState<number | ''>('')
   const [pricingEstimate, setPricingEstimate] = useState<any>(null)
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Fetch user and categories on mount
   useEffect(() => {
@@ -326,6 +328,15 @@ export default function NovoPoVprasevanjePage() {
         {step === 2 && (
           <div className="space-y-6">
             {/* Video Diagnosis Assistant */}
+            <AIConversationalForm
+              onApply={(parsed) => {
+                if (parsed.title) setTitle(parsed.title)
+                if (parsed.description) setDescription(parsed.description)
+                if (parsed.urgency) setUrgency(parsed.urgency as UrgencyLevel)
+              }}
+            />
+
+            {/* Video Diagnosis Assistant */}
             <VideoDiagnosisAssistant
               onApply={(desc, title, _category, urgencyVal) => {
                 if (desc) setDescription(desc)
@@ -417,6 +428,7 @@ export default function NovoPoVprasevanjePage() {
                 onFilesChange={async (files) => {
                   if (files.length > 0) {
                     setLoading(true)
+                    setUploadError(null)
                     const urls: string[] = []
                     try {
                       for (const file of files) {
@@ -428,6 +440,9 @@ export default function NovoPoVprasevanjePage() {
                           console.error('[v0] Upload error:', error)
                         }
                       }
+                      if (urls.length !== files.length) {
+                        setUploadError('Nekaterih datotek ni bilo mogoče naložiti. Poskusite z manjšimi datotekami.')
+                      }
                       setAttachmentUrls(urls)
                     } finally {
                       setLoading(false)
@@ -435,6 +450,7 @@ export default function NovoPoVprasevanjePage() {
                   }
                 }}
               />
+              {uploadError && <p className="mt-2 text-sm text-red-600">{uploadError}</p>}
             </div>
 
             <div className="flex justify-between gap-2 mt-8">
@@ -534,7 +550,7 @@ export default function NovoPoVprasevanjePage() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between items-start">
                   <span className="text-slate-600 font-medium">Kategorija:</span>
-                  <span className="text-slate-900 font-semibold">{selectedCategory?.name}</span>
+                  <span className="text-slate-900 font-semibold">{selectedCategory?.name || customCategoryName || 'Ni izbrano'}</span>
                 </div>
                 <div className="flex justify-between items-start">
                   <span className="text-slate-600 font-medium">Naslov:</span>
