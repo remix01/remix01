@@ -40,6 +40,10 @@ export default function PovprasevanjeDetailPage() {
   const [message, setMessage] = useState('')
   const [priceEstimate, setPriceEstimate] = useState('')
   const [availableDate, setAvailableDate] = useState('')
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysis, setAnalysis] = useState<{ summary: string[]; estimatedMaterials: string[]; estimatedDuration: string; redFlags: string[] } | null>(null)
+  const [replyLoading, setReplyLoading] = useState(false)
+  const [replySuggestions, setReplySuggestions] = useState<string[]>([])
 
   const supabase = createClient()
 
@@ -89,6 +93,7 @@ export default function PovprasevanjeDetailPage() {
           categories:category_id(name, icon_name)
         `)
         .eq('id', id)
+        .eq('status', 'odprto')
         .maybeSingle()
 
       if (error) {
@@ -155,6 +160,47 @@ export default function PovprasevanjeDetailPage() {
     if (max) return `do ${max.toLocaleString('sl-SI')} €`
     if (min) return `od ${min.toLocaleString('sl-SI')} €`
     return null
+  }
+
+  const loadAnalysis = async () => {
+    if (!povprasevanje) return
+    setAnalysisLoading(true)
+    try {
+      const res = await fetch('/api/ai/analyze-inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inquiryId: povprasevanje.id,
+          title: povprasevanje.title,
+          description: povprasevanje.description,
+          location_city: povprasevanje.location_city,
+          urgency: povprasevanje.urgency,
+        }),
+      })
+      const payload = await res.json()
+      if (payload.success) setAnalysis(payload.data)
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
+  const loadReplySuggestions = async () => {
+    if (!povprasevanje) return
+    setReplyLoading(true)
+    try {
+      const res = await fetch('/api/ai/generate-replies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: povprasevanje.description || povprasevanje.title,
+          history: message,
+        }),
+      })
+      const payload = await res.json()
+      if (payload.success) setReplySuggestions(payload.data || [])
+    } finally {
+      setReplyLoading(false)
+    }
   }
 
   if (loading) {
@@ -233,6 +279,34 @@ export default function PovprasevanjeDetailPage() {
             </div>
           </Card>
 
+          <Card className="p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-foreground">AI Analiza povpraševanja</h2>
+              <Button type="button" variant="outline" onClick={loadAnalysis} disabled={analysisLoading}>
+                {analysisLoading ? 'Analiziram...' : 'Osveži analizo'}
+              </Button>
+            </div>
+            {!analysis ? (
+              <p className="text-sm text-muted-foreground">Kliknite “Osveži analizo” za AI povzetek in opozorila.</p>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="font-medium mb-1">Povzetek</p>
+                  <ul className="list-disc pl-5 space-y-1">{analysis.summary?.map((s, i) => <li key={`s-${i}`}>{s}</li>)}</ul>
+                </div>
+                <div>
+                  <p className="font-medium mb-1">Predvideni materiali</p>
+                  <ul className="list-disc pl-5 space-y-1">{analysis.estimatedMaterials?.map((s, i) => <li key={`m-${i}`}>{s}</li>)}</ul>
+                </div>
+                <p><span className="font-medium">Predvideno trajanje:</span> {analysis.estimatedDuration}</p>
+                <div>
+                  <p className="font-medium mb-1">Rdeče zastavice</p>
+                  <ul className="list-disc pl-5 space-y-1">{analysis.redFlags?.map((s, i) => <li key={`r-${i}`}>{s}</li>)}</ul>
+                </div>
+              </div>
+            )}
+          </Card>
+
           {/* Offer form */}
           {submitted ? (
             <Card className="p-8 text-center">
@@ -250,6 +324,16 @@ export default function PovprasevanjeDetailPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="message">Sporočilo naročniku *</Label>
+                  <div className="mb-2 flex items-center gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={loadReplySuggestions} disabled={replyLoading}>
+                      {replyLoading ? 'Pripravljam...' : 'Predlogi odgovorov'}
+                    </Button>
+                    {replySuggestions.slice(0, 3).map((reply, idx) => (
+                      <Button key={idx} type="button" variant="ghost" size="sm" onClick={() => setMessage(reply)} className="truncate max-w-[220px]">
+                        {reply}
+                      </Button>
+                    ))}
+                  </div>
                   <Textarea
                     id="message"
                     placeholder="Opišite svojo storitev, izkušnje in zakaj ste pravi izbor..."

@@ -16,20 +16,20 @@ export const offerService = {
    */
   async getOffers(userId: string, userRole: string | null, partnerId?: string) {
     const supabase = await createClient()
-    let query = supabase.from('offers').select('*').order('created_at', { ascending: false })
+    let query = supabase.from('ponudbe').select('*').order('created_at', { ascending: false })
 
     if (userRole === 'admin') {
       if (partnerId) {
-        query = query.eq('partner_id', partnerId)
+        query = query.eq('obrtnik_id', partnerId)
       }
     } else if (userRole === 'partner') {
-      query = query.eq('partner_id', userId)
+      query = query.eq('obrtnik_id', userId)
     } else {
       // Regular users see offers for their requests
       const { data: userRequests } = await supabaseAdmin
-        .from('inquiries')
+        .from('povprasevanja')
         .select('id')
-        .eq('email', userId)
+        .eq('narocnik_id', userId)
 
       const requestIds = userRequests?.map((r: any) => r.id) || []
 
@@ -37,7 +37,7 @@ export const offerService = {
         return []
       }
 
-      query = query.in('request_id', requestIds)
+      query = query.in('povprasevanje_id', requestIds)
     }
 
     const { data: offers, error } = await query
@@ -112,17 +112,15 @@ export const offerService = {
     }
 
     const { data: offer, error } = await supabase
-      .from('offers')
+      .from('ponudbe')
       .insert({
-        partner_id: data.partner_id,
-        request_id: data.request_id,
-        title: data.title,
-        description: data.description,
-        price: parseFloat(data.price.toString()),
+        obrtnik_id: data.partner_id,
+        povprasevanje_id: data.request_id,
+        message: `${data.title}\n\n${data.description || ''}\n${data.notes ? `\nOpombe: ${data.notes}` : ''}`.trim(),
+        price_estimate: parseFloat(data.price.toString()),
         estimated_duration: data.estimated_duration,
-        notes: data.notes,
-        status: 'pending',
-        payment_status: 'pending'
+        status: 'poslana',
+        price_type: 'ocena',
       })
       .select()
       .maybeSingle()
