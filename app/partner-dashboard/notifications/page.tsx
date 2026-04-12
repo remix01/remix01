@@ -9,7 +9,7 @@ export default async function PartnerNotificationsPage() {
 
   const { data: partner } = await supabase
     .from('obrtnik_profiles')
-    .select('id')
+    .select('id, subscription_tier')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -62,7 +62,7 @@ export default async function PartnerNotificationsPage() {
           )}
         </div>
       </main>
-      <PartnerBottomNav />
+      <PartnerBottomNav paket={{ paket: partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

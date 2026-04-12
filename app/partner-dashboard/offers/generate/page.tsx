@@ -144,7 +144,7 @@ export default function OfferGeneratorPage() {
           estimatedHours: parseFloat(formData.estimatedHours),
           hourlyRate: parseFloat(formData.hourlyRate),
           materialsEstimate: formData.materialsEstimate ? parseFloat(formData.materialsEstimate) : 0,
-          partnerName: partner?.company_name || 'Partner',
+          partnerName: partner?.business_name || 'Partner',
         }),
       })
 
@@ -218,7 +218,7 @@ export default function OfferGeneratorPage() {
             </Button>
           </Card>
         </main>
-        <PartnerBottomNav />
+        <PartnerBottomNav paket={{ paket: paket?.paket === 'pro' ? 'pro' : 'start' }} />
       </div>
     )
   }
@@ -430,7 +430,7 @@ export default function OfferGeneratorPage() {
           </div>
         </div>
       </main>
-      <PartnerBottomNav />
+      <PartnerBottomNav paket={{ paket: paket?.paket === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

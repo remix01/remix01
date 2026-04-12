@@ -35,6 +35,7 @@ export default function PovprasevanjeDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [paket, setPaket] = useState<'start' | 'pro'>('start')
 
   const [message, setMessage] = useState('')
   const [priceEstimate, setPriceEstimate] = useState('')
@@ -44,6 +45,36 @@ export default function PovprasevanjeDetailPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.replace('/partner-auth/login')
+        setLoading(false)
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!profile || profile.role !== 'obrtnik') {
+        router.replace('/partner-auth/login')
+        setLoading(false)
+        return
+      }
+
+      const { data: partnerData } = await supabase
+        .from('obrtnik_profiles')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (partnerData?.subscription_tier === 'pro') {
+        setPaket('pro')
+      }
+
       const { data, error } = await supabase
         .from('povprasevanja')
         .select(`
@@ -71,7 +102,7 @@ export default function PovprasevanjeDetailPage() {
     }
 
     fetchData()
-  }, [id])
+  }, [id, router, supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,7 +116,7 @@ export default function PovprasevanjeDetailPage() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      router.push('/prijava')
+      router.push('/partner-auth/login')
       return
     }
 
@@ -271,7 +302,7 @@ export default function PovprasevanjeDetailPage() {
           )}
         </div>
       </main>
-      <PartnerBottomNav />
+      <PartnerBottomNav paket={{ paket }} />
     </div>
   )
 }
