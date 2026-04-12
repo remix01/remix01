@@ -14,11 +14,12 @@ export async function POST(req: Request) {
       )
     }
 
-    // Get obrtnik profile to verify they exist and check package
+    // Get obrtnik profile to verify they exist and check package.
+    // Primary key on obrtnik_profiles matches auth user id directly (field: id).
     const { data: obrtnikProfile } = await supabase
       .from('obrtnik_profiles')
-      .select('id, subscription_tier')
-      .eq('user_id', user.id)
+      .select('id, subscription_tier, business_name')
+      .eq('id', user.id)
       .maybeSingle()
 
     if (!obrtnikProfile) {
@@ -28,8 +29,9 @@ export async function POST(req: Request) {
       )
     }
 
-    // AI offer generation requires PRO package
-    if (obrtnikProfile.subscription_tier !== 'pro') {
+    // AI offer generation requires PRO or ELITE package.
+    const tier = obrtnikProfile.subscription_tier
+    if (tier !== 'pro' && tier !== 'elite') {
       return new Response(
         JSON.stringify({ success: false, error: 'PRO paket je obvezen za AI generiranje ponudb' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -63,7 +65,7 @@ Opis dela: ${body.description}
 Ocenjene ure: ${body.estimatedHours}
 Urna postavka: €${body.hourlyRate}/ura
 Ocena materialov: ${body.materialsEstimate ? `€${body.materialsEstimate}` : 'ni navedena'}
-Ime podjetja: ${body.partnerName || 'Partner'}
+Ime podjetja: ${body.partnerName || obrtnikProfile.business_name || 'Partner'}
 
 Ustvari profesionalno strukturirano ponudbo s sledečimi odseki:
 

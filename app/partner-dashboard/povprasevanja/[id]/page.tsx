@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, MapPin, Clock, Banknote, Tag } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { ArrowLeft, MapPin, Clock, Banknote, Tag, ChevronDown, ChevronUp, Sparkles, MessageSquare, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 
@@ -23,6 +24,13 @@ interface Povprasevanje {
   budget_max: number | null
   created_at: string
   categories: { name: string; icon_name: string } | null
+}
+
+interface InquiryAnalysis {
+  summary: string
+  materials: string[]
+  duration: string
+  redFlags: string[]
 }
 
 export default function PovprasevanjeDetailPage() {
@@ -40,6 +48,17 @@ export default function PovprasevanjeDetailPage() {
   const [message, setMessage] = useState('')
   const [priceEstimate, setPriceEstimate] = useState('')
   const [availableDate, setAvailableDate] = useState('')
+
+  // AI Inquiry Analysis (Phase 2.1)
+  const [analysisOpen, setAnalysisOpen] = useState(false)
+  const [analysis, setAnalysis] = useState<InquiryAnalysis | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+
+  // AI Quick Replies (Phase 2.3)
+  const [repliesLoading, setRepliesLoading] = useState(false)
+  const [quickReplies, setQuickReplies] = useState<string[]>([])
+  const [repliesError, setRepliesError] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -74,7 +93,7 @@ export default function PovprasevanjeDetailPage() {
       if (partnerData?.subscription_tier === 'elite') setPaket('elite')
       else if (partnerData?.subscription_tier === 'pro') setPaket('pro')
 
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('povprasevanja')
         .select(`
           id,
@@ -91,12 +110,31 @@ export default function PovprasevanjeDetailPage() {
         .eq('id', id)
         .maybeSingle()
 
-      if (error) {
-        console.error('[povprasevanje-detail] fetch error:', error.message)
+      if (fetchError || !data) {
+        console.error('[povprasevanje-detail] fetch error:', fetchError?.message)
         setError('Povpraševanje ni bilo najdeno.')
-      } else {
-        setPovprasevanje(data as Povprasevanje)
+        setLoading(false)
+        return
       }
+
+      // === Authorization check (Fix 1.6) ===
+      // Partners may view open inquiries OR inquiries where they already submitted a bid.
+      const isOpen = data.status === 'odprto'
+      if (!isOpen) {
+        const { count } = await supabase
+          .from('ponudbe')
+          .select('id', { count: 'exact', head: true })
+          .eq('povprasevanje_id', id)
+          .eq('obrtnik_id', user.id)
+
+        if (!count || count === 0) {
+          setError('Nimate dostopa do tega povpraševanja.')
+          setLoading(false)
+          return
+        }
+      }
+
+      setPovprasevanje(data as Povprasevanje)
       setLoading(false)
     }
 
@@ -141,6 +179,65 @@ export default function PovprasevanjeDetailPage() {
     setSubmitting(false)
   }
 
+  /** Phase 2.1 — fetch AI analysis for this inquiry */
+  const handleAnalyze = async () => {
+    if (analysis) {
+      setAnalysisOpen((v) => !v)
+      return
+    }
+    setAnalysisOpen(true)
+    setAnalysisLoading(true)
+    setAnalysisError(null)
+    try {
+      const res = await fetch('/api/ai/analyze-inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inquiryId: id,
+          title: povprasevanje?.title,
+          description: povprasevanje?.description,
+        }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        throw new Error(d.error || 'Napaka pri analizi')
+      }
+      const d = await res.json()
+      setAnalysis(d.analysis)
+    } catch (err: any) {
+      setAnalysisError(err.message || 'Napaka pri AI analizi')
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
+  /** Phase 2.3 — generate AI quick-reply suggestions */
+  const handleGenerateReplies = async () => {
+    setRepliesLoading(true)
+    setRepliesError(null)
+    setQuickReplies([])
+    try {
+      const res = await fetch('/api/ai/generate-replies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inquiryTitle: povprasevanje?.title,
+          inquiryDescription: povprasevanje?.description,
+        }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        throw new Error(d.error || 'Napaka pri generiranju odgovorov')
+      }
+      const d = await res.json()
+      setQuickReplies(d.replies || [])
+    } catch (err: any) {
+      setRepliesError(err.message || 'Napaka pri generiranju odgovorov')
+    } finally {
+      setRepliesLoading(false)
+    }
+  }
+
   const timeAgo = (createdAt: string) => {
     const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
     if (hoursAgo < 1) return 'pred manj kot uro'
@@ -168,7 +265,7 @@ export default function PovprasevanjeDetailPage() {
   if (!povprasevanje) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Povpraševanje ni bilo najdeno.</p>
+        <p className="text-muted-foreground">{error || 'Povpraševanje ni bilo najdeno.'}</p>
         <Link href="/partner-dashboard/povprasevanja">
           <Button variant="outline">Nazaj na seznam</Button>
         </Link>
@@ -190,7 +287,7 @@ export default function PovprasevanjeDetailPage() {
           </Link>
 
           {/* Inquiry details */}
-          <Card className="p-5 mb-6">
+          <Card className="p-5 mb-4">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
@@ -233,6 +330,62 @@ export default function PovprasevanjeDetailPage() {
             </div>
           </Card>
 
+          {/* === Phase 2.1: AI Analysis Section === */}
+          <Card className="mb-4 overflow-hidden">
+            <button
+              onClick={handleAnalyze}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/40 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-500" />
+                <span className="font-medium text-sm">AI Analiza povpraševanja</span>
+              </div>
+              {analysisOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </button>
+
+            {analysisOpen && (
+              <div className="px-4 pb-4 border-t">
+                {analysisLoading && (
+                  <div className="flex items-center gap-2 pt-4 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analiziram povpraševanje...
+                  </div>
+                )}
+                {analysisError && (
+                  <p className="pt-4 text-sm text-red-500">{analysisError}</p>
+                )}
+                {analysis && !analysisLoading && (
+                  <div className="pt-4 space-y-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Povzetek</p>
+                      <p className="text-sm">{analysis.summary}</p>
+                    </div>
+                    {analysis.materials.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Predvideni materiali</p>
+                        <ul className="text-sm list-disc list-inside space-y-0.5">
+                          {analysis.materials.map((m, i) => <li key={i}>{m}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">Ocenjeno trajanje</p>
+                      <p className="text-sm">{analysis.duration}</p>
+                    </div>
+                    {analysis.redFlags.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-muted-foreground mb-1 text-amber-600">Opozorila</p>
+                        <ul className="text-sm list-disc list-inside space-y-0.5 text-amber-700">
+                          {analysis.redFlags.map((f, i) => <li key={i}>{f}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+
           {/* Offer form */}
           {submitted ? (
             <Card className="p-8 text-center">
@@ -249,7 +402,41 @@ export default function PovprasevanjeDetailPage() {
               <h2 className="text-lg font-semibold text-foreground mb-4">Pošlji ponudbo</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="message">Sporočilo naročniku *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="message">Sporočilo naročniku *</Label>
+                    {/* === Phase 2.3: AI Quick Replies === */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs text-purple-600 hover:text-purple-700"
+                      onClick={handleGenerateReplies}
+                      disabled={repliesLoading}
+                    >
+                      {repliesLoading
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <MessageSquare className="h-3 w-3" />}
+                      Predlogi odgovorov
+                    </Button>
+                  </div>
+
+                  {/* Quick reply chips */}
+                  {quickReplies.length > 0 && (
+                    <div className="flex flex-col gap-2 mb-2">
+                      {quickReplies.map((reply, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setMessage(reply)}
+                          className="text-left text-xs px-3 py-2 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 transition-colors"
+                        >
+                          {reply}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {repliesError && <p className="text-xs text-red-500">{repliesError}</p>}
+
                   <Textarea
                     id="message"
                     placeholder="Opišite svojo storitev, izkušnje in zakaj ste pravi izbor..."

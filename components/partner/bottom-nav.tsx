@@ -7,17 +7,53 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Home, BarChart3, FileText, Bell, User, LogOut, TrendingUp, Zap } from 'lucide-react'
 
+type PlanTier = 'start' | 'pro' | 'elite'
+
 interface PartnerBottomNavProps {
-  paket?: {
-    paket: 'start' | 'pro' | 'elite'
-  }
+  /** Optional: pass the tier if already known (avoids an extra Supabase call). */
+  paket?: { paket: PlanTier }
 }
 
+/**
+ * Mobile-only fixed bottom navigation for the partner dashboard.
+ *
+ * When `paket` prop is omitted the component fetches the partner's
+ * subscription tier from Supabase on mount, so sub-pages don't need
+ * to prop-drill the plan down just for this nav.
+ */
 export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+
+  // Initialise from prop if provided; otherwise start with 'start' and fetch.
+  const [tier, setTier] = useState<PlanTier>(paket?.paket ?? 'start')
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    // If the caller already told us the tier, skip the fetch.
+    if (paket?.paket) {
+      setTier(paket.paket)
+      return
+    }
+
+    // Self-fetch subscription tier so every page gets correct nav links.
+    const fetchTier = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('obrtnik_profiles')
+        .select('subscription_tier')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (data?.subscription_tier) {
+        setTier(data.subscription_tier as PlanTier)
+      }
+    }
+
+    fetchTier()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paket?.paket])
 
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
 
@@ -33,10 +69,12 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
     }
   }
 
+  const isPro = tier === 'pro' || tier === 'elite'
+
   const navLinks = [
     { href: '/partner-dashboard', icon: Home, label: 'Domov' },
     { href: '/partner-dashboard/povprasevanja', icon: FileText, label: 'Povpraševanja' },
-    ...(paket?.paket === 'pro' || paket?.paket === 'elite' ? [
+    ...(isPro ? [
       { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM' },
       { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator' },
     ] : []),

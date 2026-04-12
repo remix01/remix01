@@ -7,6 +7,14 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trash2, Edit2 } from 'lucide-react'
 
+/** Extract a short display title from the ponudba message (first non-empty line). */
+function offerDisplayTitle(message: string | null | undefined): string {
+  if (!message) return 'Ponudba'
+  const firstLine = message.split('\n').find((l) => l.trim())
+  if (!firstLine) return 'Ponudba'
+  return firstLine.length > 80 ? firstLine.slice(0, 80) + '…' : firstLine
+}
+
 export function OffersList({
   offers,
   partnerId,
@@ -24,8 +32,9 @@ export function OffersList({
 
     setDeleting(offerId)
     try {
-      await supabase.from('ponudbe').delete().eq('id', offerId)
-      onUpdate()
+      const { error } = await supabase.from('ponudbe').delete().eq('id', offerId).eq('obrtnik_id', partnerId)
+      if (!error) onUpdate()
+      else console.error('Napaka pri brisanju:', error)
     } catch (err) {
       console.error('Napaka pri brisanju:', err)
     } finally {
@@ -49,13 +58,13 @@ export function OffersList({
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h3 className="text-lg font-semibold text-foreground">
-                  {offer.title}
+                  {offerDisplayTitle(offer.message)}
                 </h3>
                 <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
-                  {offer.status === 'poslana' ? 'Poslana' : offer.status}
+                  {offer.status === 'poslana' ? 'Poslana' : offer.status === 'sprejeta' ? 'Sprejeta' : offer.status === 'zavrnjena' ? 'Zavrnjena' : offer.status}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground mb-3">
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
                 {offer.message}
               </p>
               <div className="grid grid-cols-2 gap-4 text-sm">

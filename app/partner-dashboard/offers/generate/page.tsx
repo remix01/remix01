@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Copy, Send, Edit2, Check } from 'lucide-react'
+import { AlertCircle, Copy, Send, Edit2, Check, ScanSearch, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 const CATEGORIES = [
@@ -53,6 +53,12 @@ export default function OfferGeneratorPage() {
   const [editingOffer, setEditingOffer] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
   const [inquiries, setInquiries] = useState<any[]>([])
+
+  // Phase 2.4: AI Image Analysis
+  const [imageUrl, setImageUrl] = useState('')
+  const [imageAnalysisLoading, setImageAnalysisLoading] = useState(false)
+  const [imageAnalysisResult, setImageAnalysisResult] = useState<string | null>(null)
+  const [imageAnalysisError, setImageAnalysisError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     serviceType: '',
@@ -114,6 +120,50 @@ export default function OfferGeneratorPage() {
 
     loadData()
   }, [])
+
+  /** Phase 2.4: Analyze an image URL with AI vision (PRO/ELITE only). */
+  const handleAnalyzeImage = async () => {
+    if (!imageUrl.trim()) {
+      setImageAnalysisError('Vnesite URL slike')
+      return
+    }
+    setImageAnalysisLoading(true)
+    setImageAnalysisError(null)
+    setImageAnalysisResult(null)
+    try {
+      // Get auth token for the existing analyze-image endpoint
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Neoverjeni')
+
+      const res = await fetch('/api/ai/analyze-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ imageUrl: imageUrl.trim(), analysisType: 'estimate' }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        throw new Error(d.message || d.error || 'Napaka pri analizi slike')
+      }
+      const d = await res.json()
+      const text = [
+        d.analysis,
+        d.recommendations?.length ? `\nPriporočila: ${d.recommendations.join(', ')}` : '',
+        d.estimatedComplexity ? `\nSloženost: ${d.estimatedComplexity}` : '',
+      ].filter(Boolean).join('\n')
+      setImageAnalysisResult(text)
+      // Pre-fill description if empty
+      if (!formData.description && text) {
+        setFormData(prev => ({ ...prev, description: text.slice(0, 500) }))
+      }
+    } catch (err: any) {
+      setImageAnalysisError(err.message || 'Napaka pri analizi slike')
+    } finally {
+      setImageAnalysisLoading(false)
+    }
+  }
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -329,10 +379,45 @@ export default function OfferGeneratorPage() {
                     />
                   </div>
 
+                  {/* Phase 2.4: AI Image Analysis (PRO/ELITE) */}
+                  <div className="rounded-lg border border-dashed border-purple-300 bg-purple-50 p-4 space-y-2">
+                    <p className="text-xs font-semibold text-purple-700 flex items-center gap-1.5">
+                      <ScanSearch className="h-3.5 w-3.5" />
+                      Analiziraj slike z AI <span className="font-normal text-purple-500">(PRO/ELITE)</span>
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="url"
+                        placeholder="URL slike povpraševanja..."
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        className="text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAnalyzeImage}
+                        disabled={imageAnalysisLoading}
+                        className="flex-shrink-0 border-purple-300 text-purple-700 hover:bg-purple-100"
+                      >
+                        {imageAnalysisLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Analiziraj'}
+                      </Button>
+                    </div>
+                    {imageAnalysisError && (
+                      <p className="text-xs text-red-500">{imageAnalysisError}</p>
+                    )}
+                    {imageAnalysisResult && (
+                      <div className="text-xs text-purple-800 bg-white rounded p-2 border border-purple-200 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                        {imageAnalysisResult}
+                      </div>
+                    )}
+                  </div>
+
                   {errors.submit && <p className="text-red-500 text-sm">{errors.submit}</p>}
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={generating}
                     className="w-full"
                   >

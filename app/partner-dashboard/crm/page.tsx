@@ -126,11 +126,13 @@ export default function CRMPage() {
         (o: any) => new Date(o.created_at) >= monthStart
       ).length
 
+      // Count offers accepted this month (sent AND accepted within the same month window).
       const offersAcceptedThisMonth = (offers || []).filter(
         (o: any) => o.status === 'sprejeta' && new Date(o.created_at) >= monthStart
       ).length
-      const conversionRate = offersSentThisMonth > 0 
-        ? Math.round((offersAcceptedThisMonth / offersSentThisMonth) * 100)
+      // Cap at 100% to guard against data anomalies (e.g. status updates from prior months).
+      const conversionRate = offersSentThisMonth > 0
+        ? Math.min(100, Math.round((offersAcceptedThisMonth / offersSentThisMonth) * 100))
         : 0
 
       const escrowsThisMonth = (escrows || []).filter(

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { PartnerSidebar } from '@/components/partner/sidebar'
@@ -24,7 +24,7 @@ export default function PartnerDashboard() {
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<any[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
-  const [activeTab, setActiveTab] = useState(initialTab)
+  const [activeTab, setActiveTab] = useState<string>('overview')
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
   const supabase = createClient()
