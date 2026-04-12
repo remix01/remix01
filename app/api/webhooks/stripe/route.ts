@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import Stripe from 'stripe'
 import { constructStripeEvent, stripe as stripeProxy } from '@/lib/stripe'
 import { env } from '@/lib/env'
@@ -55,6 +56,7 @@ async function syncConnectedAccountStatus(connectedAccountId: string, stripeEven
     )
   } catch (err) {
     console.error(`[WEBHOOK] Failed to sync connect account ${connectedAccountId}:`, err)
+    Sentry.captureException(err, { contexts: { webhook: { connectedAccountId, stripeEventId } } })
   }
 }
 
@@ -303,6 +305,7 @@ export async function POST(request: NextRequest) {
 
   } catch (err) {
     console.error('[WEBHOOK PROCESS]', err)
+    Sentry.captureException(err, { contexts: { webhook: { eventType: event?.type, eventId: event?.id } } })
     return NextResponse.json({ received: true, error: 'Processing error' })
   }
 }

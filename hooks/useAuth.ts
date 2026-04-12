@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { getSupabaseBrowserClient } from '@/lib/supabaseClient'
+import { setUser as setSentryUser, clearUser as clearSentryUser } from '@/lib/sentry/client'
 
 export type AppRole = 'customer' | 'craftsman' | 'admin' | null
 
@@ -29,6 +30,7 @@ export function useAuth() {
 
       if (!currentSession?.user) {
         setRole(null)
+        clearSentryUser()
         if (active) setIsLoading(false)
         return
       }
@@ -53,10 +55,16 @@ export function useAuth() {
       if (active) {
         setRole(mapRole(profileRole, isAdmin))
         setIsLoading(false)
+        setSentryUser({
+          id: currentSession.user.id,
+          email: currentSession.user.email,
+        })
       }
     }
 
-    supabase.auth.getSession().then(({ data }) => hydrate(data.session))
+    supabase.auth.getSession()
+      .then(({ data }) => hydrate(data.session))
+      .catch(err => console.error('[useAuth] getSession failed:', err))
 
     const {
       data: { subscription },

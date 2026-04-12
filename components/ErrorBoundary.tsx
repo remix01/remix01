@@ -1,6 +1,7 @@
 'use client'
 
 import React, { Component, ReactNode } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { Button } from '@/components/ui/button'
 
 interface ErrorBoundaryProps {
@@ -31,10 +32,9 @@ export class ErrorBoundary extends Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[ErrorBoundary] Caught error:', error)
-    console.error('[ErrorBoundary] Error info:', errorInfo)
-
-    // TODO: Add Sentry reporting when configured
-    // Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } })
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: errorInfo.componentStack } },
+    })
   }
 
   handleReset = () => {

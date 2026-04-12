@@ -8,10 +8,10 @@ export function ObrtknikBottomNav() {
   const pathname = usePathname()
 
   const navLinks = [
-    { href: '/dashboard', icon: Home, label: 'Dom' },
-    { href: '/povprasevanja', icon: FileText, label: 'Povpraševanja' },
-    { href: '/ponudbe', icon: Briefcase, label: 'Ponudbe' },
-    { href: '/profil', icon: User, label: 'Profil' },
+    { href: '/obrtnik/dashboard', icon: Home, label: 'Dom' },
+    { href: '/obrtnik/povprasevanja', icon: FileText, label: 'Povpraševanja' },
+    { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Ponudbe' },
+    { href: '/obrtnik/profil', icon: User, label: 'Profil' },
   ]
 
   return (
