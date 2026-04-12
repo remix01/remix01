@@ -1,3 +1,5 @@
+export const revalidate = 300
+
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -12,48 +14,32 @@ export async function GET() {
     const monthAgo = new Date(today)
     monthAgo.setDate(monthAgo.getDate() - 30)
 
-    // Get successful connections this month (payment_completed events)
-    const { count: successfulConnections } = await supabaseAdmin
-      .from('analytics_events')
-      .select('*', { count: 'exact', head: true })
-      .eq('event_name', 'payment_completed')
-      .gte('created_at', monthAgo.toISOString())
+    const { data: aggregatedStats, error: aggregatedError } = await supabaseAdmin.rpc(
+      'get_public_stats',
+      { window_start: monthAgo.toISOString() }
+    )
 
-    // Get total active craftworkers
-    const { count: activeArtisans } = await supabaseAdmin
-      .from('craftworker_profile')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
+    if (aggregatedError) {
+      console.error('[v0] get_public_stats RPC error:', aggregatedError)
+      throw aggregatedError
+    }
 
-    // Get average rating from recent jobs
-    const { data: recentJobs } = await supabaseAdmin
-      .from('job')
-      .select('rating')
-      .gt('rating', 0)
-      .gte('created_at', monthAgo.toISOString())
-      .limit(100)
-
-    const avgRating = recentJobs && recentJobs.length > 0
-      ? (recentJobs.reduce((sum, job) => sum + (job.rating || 0), 0) / recentJobs.length).toFixed(1)
-      : 4.9
-
-    // Count total reviews
-    const { count: totalReviews } = await supabaseAdmin
-      .from('job')
-      .select('*', { count: 'exact', head: true })
-      .gt('rating', 0)
+    const successfulConnections = Number(aggregatedStats?.successfulConnections || 0)
+    const activeArtisans = Number(aggregatedStats?.activeArtisans || 0)
+    const avgRating = Number(aggregatedStats?.rating || 4.9)
+    const totalReviews = Number(aggregatedStats?.reviews || 0)
 
     console.log('[v0] Public stats:', {
       successfulConnections: successfulConnections || 0,
       activeArtisans: activeArtisans || 0,
-      rating: parseFloat(avgRating as string),
+      rating: avgRating,
       reviews: totalReviews || 0,
     })
 
     return NextResponse.json({
       successfulConnections: successfulConnections || 347, // Fallback
       activeArtisans: activeArtisans || 225, // Fallback
-      rating: parseFloat(avgRating as string),
+      rating: avgRating,
       reviews: totalReviews || 1200, // Fallback
     })
   } catch (error) {

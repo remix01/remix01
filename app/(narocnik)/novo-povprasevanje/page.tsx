@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { uploadFile, generateFilePath } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -80,9 +79,10 @@ export default function NovoPoVprasevanjePage() {
         setLocationCity(profile.location_city)
       }
 
-      // Fetch categories (using public client since this is public data)
-      const cats = await getActiveCategoriesPublic()
-      setCategories(cats)
+      // Fetch categories through a public API route (client-safe, no server cookies coupling)
+      const categoriesResponse = await fetch('/api/categories/public', { cache: 'no-store' })
+      const categoriesPayload = await categoriesResponse.json()
+      setCategories(categoriesPayload.categories || [])
     }
 
     fetchData()

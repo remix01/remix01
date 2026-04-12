@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Star, Trash2 } from 'lucide-react'
@@ -30,6 +30,7 @@ export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; 
   const router = useRouter()
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  const [isPending, startTransition] = useTransition()
 
   const renderStars = (rating: number) => {
     return (
@@ -115,11 +116,18 @@ export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; 
       <div className="flex flex-wrap gap-3">
         {partner.status === 'PENDING' && (
           <>
-            <form action={() => odobriPartnerja(partnerId)}>
-              <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
-                Odobri
-              </Button>
-            </form>
+            <Button
+              type="button"
+              variant="default"
+              className="bg-green-600 hover:bg-green-700"
+              disabled={isPending}
+              onClick={() => startTransition(async () => {
+                await odobriPartnerja(partnerId)
+                router.refresh()
+              })}
+            >
+              Odobri
+            </Button>
             <Button variant="destructive" onClick={() => setRejectDialogOpen(true)}>
               Zavrni
             </Button>
@@ -127,19 +135,32 @@ export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; 
         )}
 
         {partner.status === 'AKTIVEN' && (
-          <form action={() => suspendiranjPartnerja(partnerId)}>
-            <Button type="submit" variant="destructive">
-              Suspendiraj
-            </Button>
-          </form>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isPending}
+            onClick={() => startTransition(async () => {
+              await suspendiranjPartnerja(partnerId)
+              router.refresh()
+            })}
+          >
+            Suspendiraj
+          </Button>
         )}
 
         {partner.status === 'SUSPENDIRAN' && (
-          <form action={() => reaktivirajPartnerja(partnerId)}>
-            <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
-              Reaktiviraj
-            </Button>
-          </form>
+          <Button
+            type="button"
+            variant="default"
+            className="bg-green-600 hover:bg-green-700"
+            disabled={isPending}
+            onClick={() => startTransition(async () => {
+              await reaktivirajPartnerja(partnerId)
+              router.refresh()
+            })}
+          >
+            Reaktiviraj
+          </Button>
         )}
 
         <ConfirmDialog
@@ -155,8 +176,10 @@ export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; 
           cancelText="Prekliči"
           variant="destructive"
           onConfirm={async () => {
-            await deletePartner(partnerId)
-            router.push('/admin/partnerji')
+            startTransition(async () => {
+              await deletePartner(partnerId)
+              router.push('/admin/partnerji')
+            })
           }}
         />
       </div>
@@ -177,11 +200,19 @@ export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; 
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
               Prekliči
             </Button>
-            <form action={() => zavrniPartnerja(partnerId, rejectReason)}>
-              <Button type="submit" variant="destructive" disabled={!rejectReason.trim()}>
-                Zavrni
-              </Button>
-            </form>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!rejectReason.trim() || isPending}
+              onClick={() => startTransition(async () => {
+                await zavrniPartnerja(partnerId, rejectReason)
+                setRejectDialogOpen(false)
+                setRejectReason('')
+                router.refresh()
+              })}
+            >
+              Zavrni
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

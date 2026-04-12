@@ -119,7 +119,21 @@ const faqSchema = {
   ]
 }
 
-export default function Page() {
+async function getHeroStats() {
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const response = await fetch(`${appUrl}/api/stats/public`, {
+      next: { revalidate: 300 },
+    })
+
+    if (!response.ok) return undefined
+    return await response.json()
+  } catch {
+    return undefined
+  }
+}
+
+export default async function Page() {
   return (
     <div className="flex min-h-screen flex-col">
       <script
@@ -140,7 +154,7 @@ export default function Page() {
       <Navbar />
       {/* FIX: Na mobilnih dodaj pb-20 da gumb ne prekriva vsebine, na md+ pa pb-0 */}
       <main className="flex-1 pb-20 sm:pb-0">
-        <Hero />
+        <Hero initialStats={await getHeroStats()} />
         <Stats />
         <OfferPreview />
         <CaseStudies />
