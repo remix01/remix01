@@ -16,15 +16,29 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
+import type { Database } from '@/types/supabase'
+
+type PartnerProfile = Database['public']['Tables']['obrtnik_profiles']['Row']
+type Offer = Database['public']['Tables']['ponudbe']['Row']
+type PartnerDashboardPartner = Pick<PartnerProfile, 'id' | 'business_name' | 'is_verified'> & {
+  subscription_tier: 'start' | 'pro'
+  avg_rating: number
+}
 
 export default function PartnerDashboard() {
   const router = useRouter()
-  const [partner, setPartner] = useState<any>(null)
+  const [partner, setPartner] = useState<PartnerDashboardPartner | null>(null)
   const [loading, setLoading] = useState(true)
-  const [offers, setOffers] = useState<any[]>([])
+  const [offers, setOffers] = useState<Offer[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState('overview')
-  const [completionStatus, setCompletionStatus] = useState<any>(null)
+  const [completionStatus, setCompletionStatus] = useState<{
+    completionPercentage: number
+    hasDescription: boolean
+    hasHourlyRate: boolean
+    hasPhone: boolean
+    hasOffers: boolean
+  } | null>(null)
 
   const supabase = createClient()
 
@@ -56,7 +70,13 @@ export default function PartnerDashboard() {
         .maybeSingle()
 
       if (partnerData) {
-        setPartner(partnerData)
+        setPartner({
+          id: partnerData.id,
+          business_name: partnerData.business_name,
+          is_verified: partnerData.is_verified,
+          subscription_tier: partnerData.subscription_tier ?? 'start',
+          avg_rating: partnerData.avg_rating ?? 0,
+        })
 
         // Check completion status
         const status = await getCompletionStatus(partnerData.id)

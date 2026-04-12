@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import type { Database } from '@/types/supabase'
 
 export const metadata = {
   title: 'Nadzorna plošča | LiftGO',
@@ -32,7 +33,12 @@ export default async function DashboardPage() {
     .select('id, title, location_city, created_at, status, budget_min, budget_max')
     .eq('narocnik_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(50) as { data: any[] | null }
+    .limit(50)
+
+  type InquiryPreview = Pick<
+    Database['public']['Tables']['povprasevanja']['Row'],
+    'id' | 'title' | 'location_city' | 'created_at' | 'status' | 'budget_min' | 'budget_max'
+  >
 
   // Calculate stats
   const stats = {
@@ -42,7 +48,7 @@ export default async function DashboardPage() {
     zakljuceno: povprasevanja?.filter((p) => p.status === 'zakljuceno').length || 0,
   }
 
-  const recentInquiries = povprasevanja?.slice(0, 5) || []
+  const recentInquiries: InquiryPreview[] = (povprasevanja || []).slice(0, 5)
 
   return (
     <div className="p-4 lg:p-8">
