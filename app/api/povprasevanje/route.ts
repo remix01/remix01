@@ -51,10 +51,15 @@ export async function POST(req: Request) {
     }
 
     // Handle category auto-creation if categoryName provided
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      req.headers.get('x-real-ip') ??
+      undefined
+
     let finalCategoryId = category_id
     if (categoryName && !finalCategoryId) {
       try {
-        finalCategoryId = await getOrCreateCategory(categoryName, user.id)
+        finalCategoryId = await getOrCreateCategory(categoryName, user.id, clientIp)
       } catch (catError) {
         console.error('[v0] Error creating category:', catError)
         console.warn('[monitor] CATEGORY_AUTO_CREATE_FAILED', {

@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FileUploadZone } from '@/components/file-upload-zone'
 import type { Category, UrgencyLevel, PovprasevanjeInsert } from '@/types/marketplace'
+import { validateCategoryName, categoryInputHint } from '@/lib/utils/categoryValidation'
 import * as LucideIcons from 'lucide-react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { TaskDescriptionAssistant } from '@/components/agent/TaskDescriptionAssistant'
@@ -111,7 +112,9 @@ export default function NovoPoVprasevanjePage() {
   }, [selectedCategory, urgency, step])
 
   // Validation functions
-  const isStep1Valid = selectedCategory !== null || customCategoryName.trim().length >= 2
+  const isStep1Valid =
+    selectedCategory !== null ||
+    validateCategoryName(customCategoryName).valid
   const isStep2Valid = title.trim().length > 0 && description.length >= 20
   const isStep3Valid = locationCity.trim().length > 0
 
@@ -299,13 +302,7 @@ export default function NovoPoVprasevanjePage() {
                   className="text-base"
                 />
                 <p className="text-xs text-slate-500 mt-2">
-                  {customCategoryName.length > 0 && customCategoryName.length < 2
-                    ? '❌ Najmanj 2 znaka'
-                    : customCategoryName.length > 100
-                      ? '❌ Največ 100 znakov'
-                      : customCategoryName.length > 0
-                        ? `✓ ${customCategoryName.length} znakov`
-                        : 'Neobvezno'}
+                  {categoryInputHint(customCategoryName) ?? 'Neobvezno'}
                 </p>
               </div>
             </div>

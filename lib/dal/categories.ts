@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createPublicClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 import type { Category } from '@/types/marketplace'
-import { slugify } from '@/lib/utils/slugify'
 import { checkUserRateLimit, checkIpRateLimit } from '@/lib/utils/rateLimiter'
+import { validateCategoryName } from '@/lib/utils/categoryValidation'
 
 /**
  * Get public Supabase client (no cookies, uses ANON key)
@@ -159,21 +159,12 @@ export async function getOrCreateCategory(
   userId?: string,
   ipAddress?: string
 ): Promise<string> {
-  // Validate category name
+  // Validate using shared rules (same regex + bounds used by frontend + SQL function)
+  const validation = validateCategoryName(name)
+  if (!validation.valid) {
+    throw new Error(validation.error)
+  }
   const trimmedName = name.trim()
-  
-  if (trimmedName.length < 2) {
-    throw new Error('Kategorija mora imeti najmanj 2 znaka')
-  }
-  
-  if (trimmedName.length > 100) {
-    throw new Error('Kategorija ne sme biti daljša od 100 znakov')
-  }
-
-  // Check for invalid characters (allow only letters, numbers, spaces, and hyphens)
-  if (!/^[a-žA-Ž0-9\s\-&]+$/u.test(trimmedName)) {
-    throw new Error('Kategorija sme vsebovati samo črke, številke, presledke in vezaje')
-  }
 
   // Check rate limits if user/IP provided
   if (userId) {
@@ -193,85 +184,23 @@ export async function getOrCreateCategory(
   }
 
   const supabase = await createClient()
-  
-  // Try to find existing category (case-insensitive)
-  const { data: existing, error: searchError } = await supabase
-    .from('categories')
-    .select('id')
-    .ilike('name', trimmedName)
-    .eq('is_active', true)
-    .maybeSingle()
 
-  if (searchError && searchError.code !== 'PGRST116') {
-    console.error('[v0] Error searching for existing category:', searchError)
-    throw new Error('Napaka pri preverjanju kategorije')
-  }
-
-  if (existing) {
-    return existing.id
-  }
-
-  // Generate slug from name
-  const baseSlug = slugify(trimmedName)
-  let slug = baseSlug
-  let counter = 1
-
-  // Check if slug already exists, if so append counter
-  let slugExists = true
-  while (slugExists) {
-    const { data: slugCheck, error: slugError } = await supabase
-      .from('categories')
-      .select('id')
-      .eq('slug', slug)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (slugError && slugError.code !== 'PGRST116') {
-      console.error('[v0] Error checking slug:', slugError)
-      throw new Error('Napaka pri generiranju slugja')
-    }
-
-    if (!slugCheck) {
-      slugExists = false
-    } else {
-      slug = `${baseSlug}-${counter}`
-      counter++
-    }
-  }
-
-  // Create new category
-  const { data: newCategory, error: insertError } = await supabase
-    .from('categories')
-    .insert({
-      name: trimmedName,
-      slug,
-      is_active: true,
-      is_auto_created: true,
-      icon_name: 'folder', // Default icon
-      description: `Uporabnik definirano - ${new Date().toLocaleDateString('sl-SI')}`,
-      sort_order: 999, // Low priority, sorted last
-      created_at: new Date().toISOString(),
+  // Delegate to the SECURITY DEFINER RPC – handles lookup, slug generation,
+  // uniqueness, and race conditions server-side, bypassing direct-INSERT RLS.
+  const { data: rpcId, error: rpcError } = await supabase
+    .rpc('create_or_find_category', {
+      p_name: trimmedName,
+      p_user_id: userId ?? null,
     })
-    .select('id')
-    .single()
 
-  if (insertError) {
-    console.error('[v0] Error creating category:', insertError)
-    
-    // If unique constraint failed, try to find it again (race condition)
-    const { data: retry } = await supabase
-      .from('categories')
-      .select('id')
-      .ilike('name', trimmedName)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (retry) {
-      return retry.id
-    }
-
-    throw new Error('Napaka pri ustvarjanju nove kategorije')
+  if (rpcError) {
+    console.error('[v0] Error in create_or_find_category RPC:', rpcError)
+    throw new Error(
+      rpcError.message?.startsWith('Kategorija')
+        ? rpcError.message
+        : 'Napaka pri ustvarjanju nove kategorije'
+    )
   }
 
-  return newCategory.id
+  return rpcId as string
 }
