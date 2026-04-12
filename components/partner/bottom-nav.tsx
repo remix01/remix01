@@ -9,7 +9,7 @@ import { Home, BarChart3, FileText, Bell, User, LogOut, TrendingUp, Zap } from '
 
 interface PartnerBottomNavProps {
   paket?: {
-    paket: 'start' | 'pro'
+    paket: 'start' | 'pro' | 'elite'
   }
 }
 
@@ -36,7 +36,7 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
   const navLinks = [
     { href: '/partner-dashboard', icon: Home, label: 'Domov' },
     { href: '/partner-dashboard/povprasevanja', icon: FileText, label: 'Povpraševanja' },
-    ...(paket?.paket === 'pro' ? [
+    ...(paket?.paket === 'pro' || paket?.paket === 'elite' ? [
       { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM' },
       { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator' },
     ] : []),

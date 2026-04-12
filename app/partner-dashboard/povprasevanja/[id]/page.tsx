@@ -35,7 +35,7 @@ export default function PovprasevanjeDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [paket, setPaket] = useState<'start' | 'pro'>('start')
+  const [paket, setPaket] = useState<'start' | 'pro' | 'elite'>('start')
 
   const [message, setMessage] = useState('')
   const [priceEstimate, setPriceEstimate] = useState('')
@@ -71,9 +71,8 @@ export default function PovprasevanjeDetailPage() {
         .eq('id', user.id)
         .maybeSingle()
 
-      if (partnerData?.subscription_tier === 'pro') {
-        setPaket('pro')
-      }
+      if (partnerData?.subscription_tier === 'elite') setPaket('elite')
+      else if (partnerData?.subscription_tier === 'pro') setPaket('pro')
 
       const { data, error } = await supabase
         .from('povprasevanja')

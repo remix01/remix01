@@ -62,7 +62,7 @@ export default async function PartnerNotificationsPage() {
           )}
         </div>
       </main>
-      <PartnerBottomNav paket={{ paket: partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
+      <PartnerBottomNav paket={{ paket: (partner?.subscription_tier as string) === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

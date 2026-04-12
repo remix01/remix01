@@ -82,7 +82,7 @@ export default function CRMPage() {
         setPaket(paketData)
 
         // Only load CRM data if PRO
-        if (paketData.paket === 'pro') {
+        if (paketData.paket === 'pro' || paketData.paket === 'elite') {
           await loadCRMData(partnerData.id)
         }
       } catch (error) {
@@ -225,7 +225,7 @@ export default function CRMPage() {
   }
 
   // Show upgrade prompt if not PRO
-  if (paket?.paket !== 'pro') {
+  if (paket?.paket !== 'pro' && paket?.paket !== 'elite') {
     return (
       <div className="flex h-screen bg-background">
         <PartnerSidebar partner={partner} />
@@ -241,7 +241,7 @@ export default function CRMPage() {
             </Button>
           </Card>
         </main>
-        <PartnerBottomNav paket={{ paket: paket?.paket === 'pro' ? 'pro' : 'start' }} />
+        <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
       </div>
     )
   }
@@ -387,7 +387,7 @@ export default function CRMPage() {
           </div>
         </div>
       </main>
-      <PartnerBottomNav paket={{ paket: paket?.paket === 'pro' ? 'pro' : 'start' }} />
+      <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }
