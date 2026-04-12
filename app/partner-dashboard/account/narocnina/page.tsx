@@ -13,7 +13,7 @@ import { Check, Zap, AlertCircle } from 'lucide-react'
 type PartnerProfile = {
   id: string
   business_name: string
-  subscription_tier: 'start' | 'pro'
+  subscription_tier: 'start' | 'pro' | 'elite'
   avg_rating: number
   is_verified: boolean
 }
@@ -49,6 +49,19 @@ const PLANS = {
       'AI: Video diagnoza',
       'AI: Povzetek dela',
       'CRM nadzorna plošča',
+    ],
+  },
+  elite: {
+    name: 'ELITE',
+    price: '79€',
+    per: '/mes',
+    benefits: [
+      'Vse iz PRO paketa',
+      '0% provizija',
+      'Top pozicija v rezultatih',
+      'Ekskluzivni lead-i',
+      'Neomejena AI sporočila',
+      'Prednostna podpora',
     ],
   },
 }
@@ -93,7 +106,7 @@ export default function NarocninaPage() {
     loadPartner()
   }, [router, supabase])
 
-  const handleUpgradeClick = async () => {
+  const handleCheckoutForPlan = async (plan: 'PRO' | 'ELITE') => {
     setProcessing(true)
     try {
       const {
@@ -110,7 +123,7 @@ export default function NarocninaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          plan: 'PRO',
+          plan,
           email: user.email,
           successPath: '/partner-dashboard/account/narocnina?stripe=success',
           cancelPath: '/partner-dashboard/account/narocnina?cancelled=true',
@@ -187,6 +200,7 @@ export default function NarocninaPage() {
   const currentTier = partner.subscription_tier || 'start'
   const startPlan = PLANS.start
   const proPlan = PLANS.pro
+  const elitePlan = PLANS.elite
 
   return (
     <div className="flex h-screen">
@@ -206,14 +220,15 @@ export default function NarocninaPage() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <Badge className="mb-3" variant={currentTier === 'pro' ? 'default' : 'secondary'}>
-                    {currentTier === 'pro' ? 'PRO' : 'START'}
+                  <Badge className="mb-3" variant={currentTier !== 'start' ? 'default' : 'secondary'}>
+                    {currentTier === 'elite' ? 'ELITE' : currentTier === 'pro' ? 'PRO' : 'START'}
                   </Badge>
                   <p className="text-muted-foreground">
-                    {currentTier === 'pro' 
-                      ? 'Uživate prednosti PRO paketa'
-                      : 'Trenutno ste na brezplačnem START paketu'
-                    }
+                    {currentTier === 'elite'
+                      ? 'Uživate prednosti ELITE paketa'
+                      : currentTier === 'pro'
+                        ? 'Uživate prednosti PRO paketa'
+                        : 'Trenutno ste na brezplačnem START paketu'}
                   </p>
                 </div>
               </div>
@@ -224,7 +239,7 @@ export default function NarocninaPage() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-6">Primerjava paketov</h2>
             
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
               {/* START Plan */}
               <Card className={currentTier === 'start' ? 'ring-2 ring-primary' : ''}>
                 <CardHeader>
@@ -289,11 +304,59 @@ export default function NarocninaPage() {
                   ) : (
                     <Button 
                       className="w-full gap-2"
-                      onClick={handleUpgradeClick}
+                      onClick={() => handleCheckoutForPlan('PRO')}
                       disabled={processing}
                     >
                       <Zap className="h-4 w-4" />
                       {processing ? 'Nalagam...' : 'Nadgradi na PRO'}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ELITE Plan */}
+              <Card className={currentTier === 'elite' ? 'ring-2 ring-primary' : ''}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-primary" />
+                        {elitePlan.name}
+                      </CardTitle>
+                    </div>
+                    <Badge variant="secondary">Premium</Badge>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-3xl font-bold text-primary">{elitePlan.price}</p>
+                    {elitePlan.per && <p className="text-sm text-muted-foreground">{elitePlan.per}</p>}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ul className="space-y-3">
+                    {elitePlan.benefits.map((benefit) => (
+                      <li key={benefit} className="flex gap-2">
+                        <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                        <span className="text-sm">{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {currentTier === 'elite' ? (
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      onClick={handleManageSubscription}
+                      disabled={processing}
+                    >
+                      {processing ? 'Nalagam...' : 'Upravljaj naročnino'}
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full gap-2"
+                      onClick={() => handleCheckoutForPlan('ELITE')}
+                      disabled={processing}
+                    >
+                      <Zap className="h-4 w-4" />
+                      {processing ? 'Nalagam...' : 'Nadgradi na ELITE'}
                     </Button>
                   )}
                 </CardContent>
@@ -314,6 +377,7 @@ export default function NarocninaPage() {
                       <th className="text-left py-3 px-3 font-semibold">Lastnost</th>
                       <th className="text-center py-3 px-3 font-semibold">START</th>
                       <th className="text-center py-3 px-3 font-semibold">PRO</th>
+                      <th className="text-center py-3 px-3 font-semibold">ELITE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -321,14 +385,17 @@ export default function NarocninaPage() {
                       <td className="py-3 px-3">Mesečnina</td>
                       <td className="text-center py-3 px-3">Brezplačno</td>
                       <td className="text-center py-3 px-3">29€/mes</td>
+                      <td className="text-center py-3 px-3">79€/mes</td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-3 px-3">Provizija</td>
                       <td className="text-center py-3 px-3">10%</td>
                       <td className="text-center py-3 px-3">5%</td>
+                      <td className="text-center py-3 px-3">0%</td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-3 px-3">Ponudbe</td>
+                      <td className="text-center py-3 px-3">Neomejene</td>
                       <td className="text-center py-3 px-3">Neomejene</td>
                       <td className="text-center py-3 px-3">Neomejene</td>
                     </tr>
@@ -336,30 +403,36 @@ export default function NarocninaPage() {
                       <td className="py-3 px-3">Vidnost</td>
                       <td className="text-center py-3 px-3">Osnovna</td>
                       <td className="text-center py-3 px-3">Prioritetna</td>
+                      <td className="text-center py-3 px-3">Top pozicija</td>
                     </tr>
                     <tr className="border-b">
                       <td className="text-left py-3 px-3">AI sporočila/dan</td>
                       <td className="text-center py-3 px-3">5</td>
                       <td className="text-center py-3 px-3">100</td>
+                      <td className="text-center py-3 px-3">Neomejeno</td>
                     </tr>
                     <tr className="border-b">
                       <td className="text-left py-3 px-3">AI Generator ponudb</td>
                       <td className="text-center py-3 px-3 text-gray-300">✗</td>
+                      <td className="text-center py-3 px-3">✓</td>
                       <td className="text-center py-3 px-3">✓</td>
                     </tr>
                     <tr className="border-b">
                       <td className="text-left py-3 px-3">AI Materiali in zaloge</td>
                       <td className="text-center py-3 px-3 text-gray-300">✗</td>
                       <td className="text-center py-3 px-3">✓</td>
+                      <td className="text-center py-3 px-3">✓</td>
                     </tr>
                     <tr className="border-b">
                       <td className="text-left py-3 px-3">AI Video diagnoza</td>
                       <td className="text-center py-3 px-3 text-gray-300">✗</td>
                       <td className="text-center py-3 px-3">✓</td>
+                      <td className="text-center py-3 px-3">✓</td>
                     </tr>
                     <tr>
                       <td className="text-left py-3 px-3">AI Povzetek dela</td>
                       <td className="text-center py-3 px-3 text-gray-300">✗</td>
+                      <td className="text-center py-3 px-3">✓</td>
                       <td className="text-center py-3 px-3">✓</td>
                     </tr>
                   </tbody>

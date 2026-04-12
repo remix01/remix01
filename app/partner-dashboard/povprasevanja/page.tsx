@@ -25,7 +25,17 @@ export default async function PovprasevanjePage() {
     },
   )
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   // location_city je na povprasevanja tabeli direktno — NE na profiles
+  const { data: partner } = await supabase
+    .from('obrtnik_profiles')
+    .select('subscription_tier')
+    .eq('id', user?.id)
+    .maybeSingle()
+
   const { data: povprasevanja, error } = await supabase
     .from('povprasevanja')
     .select(`
@@ -184,7 +194,7 @@ export default async function PovprasevanjePage() {
           )}
         </div>
       </main>
-      <PartnerBottomNav />
+      <PartnerBottomNav paket={{ paket: partner?.subscription_tier === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

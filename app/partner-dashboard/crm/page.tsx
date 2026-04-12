@@ -82,7 +82,7 @@ export default function CRMPage() {
         setPaket(paketData)
 
         // Only load CRM data if PRO
-        if (paketData.paket === 'pro') {
+        if (paketData.paket === 'pro' || paketData.paket === 'elite') {
           await loadCRMData(partnerData.id)
         }
       } catch (error) {
@@ -126,9 +126,11 @@ export default function CRMPage() {
         (o: any) => new Date(o.created_at) >= monthStart
       ).length
 
-      const offersAccepted = (offers || []).filter((o: any) => o.status === 'accepted').length
+      const offersAcceptedThisMonth = (offers || []).filter(
+        (o: any) => o.status === 'sprejeta' && new Date(o.created_at) >= monthStart
+      ).length
       const conversionRate = offersSentThisMonth > 0 
-        ? Math.round((offersAccepted / offersSentThisMonth) * 100)
+        ? Math.round((offersAcceptedThisMonth / offersSentThisMonth) * 100)
         : 0
 
       const escrowsThisMonth = (escrows || []).filter(
@@ -223,7 +225,7 @@ export default function CRMPage() {
   }
 
   // Show upgrade prompt if not PRO
-  if (paket?.paket !== 'pro') {
+  if (paket?.paket !== 'pro' && paket?.paket !== 'elite') {
     return (
       <div className="flex h-screen bg-background">
         <PartnerSidebar partner={partner} />
@@ -239,7 +241,7 @@ export default function CRMPage() {
             </Button>
           </Card>
         </main>
-        <PartnerBottomNav />
+        <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
       </div>
     )
   }
@@ -385,7 +387,7 @@ export default function CRMPage() {
           </div>
         </div>
       </main>
-      <PartnerBottomNav />
+      <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }
