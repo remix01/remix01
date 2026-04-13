@@ -2,6 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { type NextRequest, NextResponse } from 'next/server'
 
+const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
+  'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard', 'obrtnik', 'prijava', 'registracija',
+])
+
+function isCategoryCityPath(pathname: string) {
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts.length !== 2) return false
+  const [category, city] = parts
+  if (!category || !city) return false
+  if (category.includes('.') || city.includes('.')) return false
+  if (DYNAMIC_ROUTE_EXCLUSIONS.has(category)) return false
+  return true
+}
+
 export async function proxy(request: NextRequest) {
   // Block common WordPress/scanner attack paths
   const blockedPaths = [
@@ -19,6 +33,18 @@ export async function proxy(request: NextRequest) {
     url.host = 'liftgo.net'
     url.protocol = 'https'
     return NextResponse.redirect(url, { status: 301 })
+  }
+
+  const pathname = request.nextUrl.pathname
+  const retry = request.nextUrl.searchParams.get('retry')
+  const userAgent = request.headers.get('user-agent')?.toLowerCase() || ''
+  const isCrawler = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|linkedinbot/.test(userAgent)
+
+  if (request.method === 'GET' && isCrawler && isCategoryCityPath(pathname) && retry !== '1') {
+    const retryUrl = request.nextUrl.clone()
+    retryUrl.searchParams.set('retry', '1')
+    retryUrl.searchParams.set('_rt', Date.now().toString())
+    return NextResponse.redirect(retryUrl, { status: 302 })
   }
 
   let supabaseResponse = NextResponse.next({ request })
@@ -226,6 +252,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/:category/:city',
     '/dashboard/:path*',
     '/povprasevanja/:path*',
     '/novo-povprasevanje/:path*',

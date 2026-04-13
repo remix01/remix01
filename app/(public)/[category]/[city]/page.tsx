@@ -13,14 +13,18 @@ import { FAQSection } from '@/components/seo/faq-section'
 import { RelatedCities } from '@/components/seo/related-cities'
 import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
+import { fetchWithRetry } from '@/lib/fetchWithRetry'
 
 interface Props {
   params: Promise<{ category: string; city: string }>
 }
 
+export const revalidate = 300
+export const dynamicParams = true
+
 // Exclude static files and reserved paths from being caught by dynamic route
 const EXCLUDED_PATHS = [
-  'images', 'icons', 'fonts', 'api', 'admin', 
+  'images', 'icons', 'fonts', 'api', 'admin',
   '_next', 'static', 'favicon.ico', 'robots.txt',
   'sitemap.xml', 'sw.js', 'manifest.json'
 ]
@@ -48,12 +52,12 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
-  
+
   // Exclude static paths and file extensions
   if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.') || params.city.includes('.')) {
     return { title: 'LiftGO' }
   }
-  
+
   const category = await getCategoryBySlug(params.category)
   const city = getCityBySlug(params.city)
 
@@ -89,27 +93,103 @@ function getNearbyCities(region: string, currentCity: string) {
   ).slice(0, 5)
 }
 
+async function fetchDirectoryData(category: string, city: string) {
+  const pathname = `/${category}/${city}`
+  const apiUrl = `https://api.liftgo.net/pro/${encodeURIComponent(category)}/${encodeURIComponent(city)}`
+
+  const result = await fetchWithRetry<{
+    providers?: Array<Record<string, unknown>>
+    category?: string
+    city?: string
+  }>(apiUrl, {
+    retries: 2,
+    timeoutMs: 2500,
+    initialDelayMs: 250,
+    next: { revalidate },
+    requestLabel: pathname,
+  })
+
+  return result
+}
+
 export default async function CategoryCityPage(props: Props) {
   const params = await props.params
-  
+  const pathname = `/${params.category}/${params.city}`
+
   // Exclude static files and reserved paths
   if (EXCLUDED_PATHS.includes(params.category) || params.city.includes('.')) {
     notFound()
   }
-  
+
   const category = await getCategoryBySlug(params.category)
   const city = getCityBySlug(params.city)
 
   if (!category || !city) {
+    console.info('[category-city-page] not_found', {
+      pathname,
+      params,
+      found: false,
+      reason_not_found: 'category_or_city_missing',
+      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+      region: process.env.VERCEL_REGION,
+    })
     notFound()
   }
 
-  // Fetch obrtniki filtered by both category and city
-  const obrtniki = await listObrtniki({
-    category_id: category.id,
-    location_city: city.name,
-    is_available: true,
-    limit: 12
+  const externalResult = await fetchDirectoryData(params.category, params.city)
+
+  if (!externalResult.ok && externalResult.isMissing) {
+    console.info('[category-city-page] not_found', {
+      pathname,
+      params,
+      found: false,
+      reason_not_found: externalResult.reason,
+      status: externalResult.status,
+      fetchDurationMs: externalResult.durationMs,
+      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+      region: process.env.VERCEL_REGION,
+    })
+    notFound()
+  }
+
+  let obrtniki = [] as Awaited<ReturnType<typeof listObrtniki>>
+  let dataWarning: string | null = null
+
+  try {
+    obrtniki = await listObrtniki({
+      category_id: category.id,
+      location_city: city.name,
+      is_available: true,
+      limit: 12
+    })
+  } catch (error) {
+    dataWarning = 'Podatki o mojstrih so začasno nedosegljivi. Poskusite osvežiti stran čez nekaj trenutkov.'
+    console.warn('[category-city-page] obrtniki_fetch_failed', {
+      pathname,
+      params,
+      found: true,
+      reason_not_found: 'none',
+      fetchDurationMs: null,
+      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+      region: process.env.VERCEL_REGION,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  if (!externalResult.ok && externalResult.isTransient && !dataWarning) {
+    dataWarning = 'Stran je trenutno prikazana v varnem načinu zaradi začasnih težav s podatkovnim virom.'
+  }
+
+  console.info('[category-city-page] render', {
+    pathname,
+    params,
+    found: true,
+    reason_not_found: 'none',
+    fetchDurationMs: externalResult.durationMs,
+    externalStatus: externalResult.status,
+    externalSourceOk: externalResult.ok,
+    deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+    region: process.env.VERCEL_REGION,
   })
 
   const nearbyCities = getNearbyCities(city.region, params.city)
@@ -153,6 +233,12 @@ export default async function CategoryCityPage(props: Props) {
       ]} />
 
       <main className="min-h-screen">
+        {dataWarning && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 text-sm text-center">
+            {dataWarning}
+          </div>
+        )}
+
         {/* Hero Section */}
         <section className="py-12 md:py-20 bg-gradient-to-b from-blue-50 to-white">
           <div className="max-w-6xl mx-auto px-4">
@@ -160,7 +246,7 @@ export default async function CategoryCityPage(props: Props) {
               {category.name} v {city.name}
             </h1>
             <p className="text-lg text-gray-600 mb-8 max-w-2xl">
-              Preverjeni {category.name.toLowerCase()} mojstri v {city.name}. 
+              Preverjeni {category.name.toLowerCase()} mojstri v {city.name}.
               Brezplačno povpraševanje, odziv v 2 urah.
             </p>
             <Link href="/novo-povprasevanje">
