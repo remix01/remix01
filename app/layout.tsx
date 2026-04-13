@@ -14,7 +14,6 @@ import { PWAInstallBanner } from '@/components/liftgo/PWAInstallBanner'
 import { OfflineBanner } from '@/components/liftgo/OfflineBanner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalErrorHandler } from '@/components/GlobalErrorHandler'
-import { AgentChatButton } from '@/components/agent/AgentChatButton'
 
 import './globals.css'
 

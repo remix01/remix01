@@ -1,23 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useRef, useState } from 'react'
-import { Bot, Mic, Sparkles, Square } from 'lucide-react'
+import { useState } from 'react'
+import { Bot, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-type VoiceRecognition = {
-  lang: string
-  continuous: boolean
-  interimResults: boolean
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void) | null
-  onerror: (() => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-}
-
-type VoiceRecognitionCtor = new () => VoiceRecognition
 
 interface ConciergeResponse {
   category: string
@@ -29,15 +16,11 @@ export function AIConciergePopup() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ConciergeResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef<VoiceRecognition | null>(null)
 
   const handleAnalyze = async () => {
     if (!message.trim()) return
     setLoading(true)
     setResult(null)
-    setError(null)
     try {
       const res = await fetch('/api/ai/categorize', {
         method: 'POST',
@@ -45,67 +28,10 @@ export function AIConciergePopup() {
         body: JSON.stringify({ message }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setError(data?.error || 'Analiza trenutno ni na voljo. Poskusite znova čez trenutek.')
-        return
-      }
-      setResult(data)
-    } catch {
-      setError('Povezava z AI Concierge trenutno ni na voljo. Poskusite znova.')
+      if (res.ok) setResult(data)
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleVoiceToggle = () => {
-    if (typeof window === 'undefined') return
-
-    if (isListening) {
-      recognitionRef.current?.stop()
-      setIsListening(false)
-      return
-    }
-
-    const speechWindow = window as Window & {
-      SpeechRecognition?: VoiceRecognitionCtor
-      webkitSpeechRecognition?: VoiceRecognitionCtor
-    }
-
-    const SpeechRecognitionCtor = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition
-    if (!SpeechRecognitionCtor) {
-      setError('Glasovni vnos ni podprt na tej napravi/brskalniku.')
-      return
-    }
-
-    const recognition = new SpeechRecognitionCtor()
-    recognition.lang = 'sl-SI'
-    recognition.continuous = false
-    recognition.interimResults = true
-
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map(result => result[0]?.transcript || '')
-        .join(' ')
-        .trim()
-
-      if (transcript) {
-        setMessage(transcript)
-      }
-    }
-
-    recognition.onerror = () => {
-      setError('Glasovni vnos ni uspel. Preverite dovoljenja za mikrofon.')
-      setIsListening(false)
-    }
-
-    recognition.onend = () => {
-      setIsListening(false)
-    }
-
-    recognitionRef.current = recognition
-    setError(null)
-    setIsListening(true)
-    recognition.start()
   }
 
   const href = result
@@ -119,36 +45,16 @@ export function AIConciergePopup() {
         AI Concierge
       </p>
       <p className="mt-1 text-xs text-muted-foreground">Kaj potrebujete? Napišite ali povejte…</p>
-      <div className="mt-3 flex items-center gap-2">
-        <Input
-          className="h-11"
-          placeholder="Npr. pušča pipa v kopalnici"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              void handleAnalyze()
-            }
-          }}
-        />
-        <Button
-          type="button"
-          variant={isListening ? 'destructive' : 'outline'}
-          size="icon"
-          className="h-11 w-11 shrink-0"
-          aria-label={isListening ? 'Ustavi glasovni vnos' : 'Začni glasovni vnos'}
-          onClick={handleVoiceToggle}
-        >
-          {isListening ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </Button>
-      </div>
+      <Input
+        className="mt-3 h-11"
+        placeholder="Npr. pušča pipa v kopalnici"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      />
       <Button className="mt-3 h-11 w-full" onClick={handleAnalyze} disabled={loading}>
         <Sparkles className="mr-2 h-4 w-4" />
         {loading ? 'Analiziram…' : 'Predlagaj kategorijo'}
       </Button>
-      {error && (
-        <p className="mt-2 text-xs text-red-600">{error}</p>
-      )}
 
       {result && (
         <div className="mt-3 rounded-lg border bg-muted/50 p-3 text-sm">
