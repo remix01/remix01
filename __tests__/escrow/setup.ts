@@ -15,6 +15,20 @@ if (!process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) {
   console.warn('⚠️  WARNING: STRIPE_SECRET_KEY should start with sk_test_')
 }
 
+// Provide safe defaults so unit tests can run in isolated CI/sandbox environments
+const testDefaults: Record<string, string> = {
+  DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/liftgo_test',
+  STRIPE_SECRET_KEY: 'sk_test_dummy_key_for_unit_tests',
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_dummy_key_for_unit_tests',
+  STRIPE_WEBHOOK_SECRET: 'whsec_dummy_key_for_unit_tests',
+}
+
+for (const [key, value] of Object.entries(testDefaults)) {
+  if (!process.env[key]) {
+    process.env[key] = value
+  }
+}
+
 // Verify required env vars
 const required = [
   'DATABASE_URL',

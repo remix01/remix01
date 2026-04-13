@@ -13,8 +13,8 @@ const INJECTION_PATTERNS = {
   // Prompt injection attempts
   prompt: /ignore\s+(previous|all|prior).*?instructions?|you\s+are\s+now|jailbreak|bypass|exploit|system\s+prompt|override|unveil|internal|secret/gi,
 
-  // Script injection patterns
-  script: /<script[^>]*>.*?<\/script>|javascript:|onerror\s*=|onload\s*=|eval\s*\(|Function\s*\(|document\.|window\./gi,
+  // Script injection patterns (kept as simple tokens to avoid brittle HTML regex filtering)
+  script: /(javascript:|onerror\s*=|onload\s*=|eval\s*\(|Function\s*\(|document\.|window\.|<script|<\/script>)/gi,
 
   // Command injection
   command: /[;&|`$(){}[\]<>\\]/g,

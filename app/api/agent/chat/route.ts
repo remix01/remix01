@@ -7,6 +7,7 @@ import { selectModel, estimateCost } from '@/lib/model-router'
 import { handleAuthError } from '@/lib/api/auth-errors'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { apiLimiter } from '@/lib/rate-limit/limiters'
+import { getAgentDefinition } from '@/lib/agents/ai-definitions'
 
 
 function anthropicErrorMessage(error: unknown): string {
@@ -31,6 +32,8 @@ const TIER_LIMITS: Record<string, number> = {
 const SOFT_LIMIT_RATIO = 0.8
 
 const MAX_TOKENS = 500
+const MAX_MESSAGE_CHARS = 2000
+const MAX_HISTORY_MESSAGES = 20
 
 type StoredMessage = {
   role: 'user' | 'agent'
@@ -91,8 +94,6 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-const ANON_MESSAGE_LIMIT = 3
-
 // POST — send a message, get AI response
 // Authenticated users: full history persisted to DB, 20 msg/hour limit
 // Anonymous visitors: in-request context only, 3 msg limit
@@ -114,8 +115,12 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     }
 
     const { message, anonHistory } = await req.json()
-    if (!message?.trim()) {
+    if (typeof message !== 'string' || !message.trim()) {
       return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
+    }
+    const normalizedMessage = message.trim()
+    if (normalizedMessage.length > MAX_MESSAGE_CHARS) {
+      return NextResponse.json({ error: `Sporočilo je predolgo (max ${MAX_MESSAGE_CHARS} znakov).` }, { status: 400 })
     }
 
     // Load profile: subscription tier + daily usage
@@ -159,7 +164,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
         : null
 
     // Check Redis cache
-    const cacheKey = buildCacheKey(message)
+    const cacheKey = buildCacheKey(normalizedMessage)
     const cached = await getCachedResponse(cacheKey)
     if (cached) {
       // Increment usage counter even for cached responses
@@ -177,7 +182,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
         cost_usd: 0,
         response_cached: true,
         message_hash: cacheKey,
-        user_message: message.slice(0, 500),
+        user_message: normalizedMessage.slice(0, 500),
       })
 
       // Persist to conversation
@@ -195,7 +200,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
             user_id: user.id,
             messages: [
               ...history,
-              { role: 'user', content: message, timestamp: Date.now() },
+              { role: 'user', content: normalizedMessage, timestamp: Date.now() },
               { role: 'agent', content: cached, timestamp: Date.now() },
             ],
           },
@@ -211,7 +216,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     }
 
     // Select model based on complexity
-    const modelSelection = selectModel(message)
+    const modelSelection = selectModel(normalizedMessage)
 
     // Load conversation history
     const { data: conv } = await supabaseAdmin
@@ -220,7 +225,18 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       .eq('user_id', user.id)
       .maybeSingle()
 
-    const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+    const persistedHistory: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+    const requestHistory: StoredMessage[] = Array.isArray(anonHistory)
+      ? anonHistory
+          .filter((m: any) => m && (m.role === 'user' || m.role === 'agent') && typeof m.content === 'string')
+          .map((m: any) => ({
+            role: m.role,
+            content: String(m.content).slice(0, MAX_MESSAGE_CHARS),
+            timestamp: Number(m.timestamp) || Date.now(),
+          }))
+      : []
+
+    const history: StoredMessage[] = (persistedHistory.length > 0 ? persistedHistory : requestHistory).slice(-MAX_HISTORY_MESSAGES)
 
     const claudeMessages = history.map(m => ({
       role: (m.role === 'agent' ? 'assistant' : 'user') as 'user' | 'assistant',
@@ -229,29 +245,24 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-    const systemPrompt = `Si LiftGO asistent za Slovenijo.
-Pomagaš strankam najti prave mojstre za njihova dela ter obratno.
-Odgovarjaš kratko in jasno v slovenščini.
-Ko stranka opiše problem, vprašaj:
-1. Kje se nahaja (mesto)?
-2. Kako nujno je?
-3. Ali ima okvirni proračun?
+    const generalAgentDefinition = await getAgentDefinition('general_chat')
+    const systemPrompt = `${generalAgentDefinition.system_prompt}
+
+Operativna pravila za marketplace:
+Odgovori morajo biti usmerjeni v avtomatizacijo procesa za uporabnike LiftGO.
+Če uporabnik želi ujemanje mojstra ali oceno cene, predlagaj uporabo avtomatiziranega agenta.
 
 Pravilne povezave za uporabnike:
 - Za oddajo povpraševanja: /#oddaj-povprasevanje (forma na domači strani)
 - Za pregled mojstrov: /mojstri
 - Za informacije kako deluje: /kako-deluje
-- Za obrtnike ki želijo postati partnerji: /za-obrtnike
-
-NIKOLI ne uporabi teh napačnih poti:
-- /narocnik/... (napačno)
-- /novo-povprasevanje/obrazec (napačno)`
+- Za obrtnike ki želijo postati partnerji: /za-obrtnike`
 
     const response = await client.messages.create({
       model: modelSelection.modelId,
       max_tokens: MAX_TOKENS,
       system: systemPrompt,
-      messages: [...claudeMessages, { role: 'user', content: message }],
+      messages: [...claudeMessages, { role: 'user', content: normalizedMessage }],
     })
 
     const assistantText = response.content
@@ -302,7 +313,7 @@ NIKOLI ne uporabi teh napačnih poti:
       cost_usd: costUsd,
       response_cached: false,
       message_hash: cacheKey,
-      user_message: message.slice(0, 500),
+      user_message: normalizedMessage.slice(0, 500),
     })
 
     // Persist conversation
@@ -313,7 +324,7 @@ NIKOLI ne uporabi teh napačnih poti:
           user_id: user.id,
           messages: [
             ...history,
-            { role: 'user', content: message, timestamp: Date.now() },
+            { role: 'user', content: normalizedMessage, timestamp: Date.now() },
             { role: 'agent', content: assistantText, timestamp: Date.now() },
           ],
         },
