@@ -23,7 +23,7 @@ Stripe:      START=prod_U7z9Ymkbh2zRAW (0€,10%) | PRO=prod_SpS7ixowByASns (29�
 | Database | Supabase PostgreSQL + RLS |
 | Auth | Supabase Auth |
 | Payments | Stripe (subscriptions) |
-| AI | Anthropic Claude (7 agents) |
+| AI | Anthropic Claude (5 bus agents + 10 AI personas) |
 | Queue | Upstash QStash + Redis |
 | Deploy | Vercel |
 
@@ -122,7 +122,7 @@ created_at, published_at, accepted_at, completed_at, expires_at
 1. **Serverless** — Vercel + Supabase + Upstash
 2. **Security** — RLS + RBAC + SECURITY DEFINER
 3. **Realtime** — Supabase channels
-4. **AI** — 7 agents, tier-gated (START: 10/day, PRO: 100/day)
+4. **AI** — 5 message-bus agents + persona router (10 AI personas), tier-gated
 5. **Stripe** — Subscriptions + webhooks
 6. **Async** — XState + QStash
 7. **Observability** — Structured logging
