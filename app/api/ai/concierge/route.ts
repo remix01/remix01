@@ -5,7 +5,7 @@ import { executeAgent, AgentAccessError, QuotaExceededError } from '@/lib/ai/orc
 import { isAgentAccessible, type AIAgentType } from '@/lib/agents/ai-router'
 import { determineRouting } from '@/lib/ai/concierge-routing'
 import { detectLanguage } from '@/lib/ai/concierge-language'
-import type { ConciergeLanguage } from '@/hooks/useLanguage'
+import type { ConciergeLanguage } from '@/lib/ai/concierge-types'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
 
 interface ConciergeRequest {
@@ -81,6 +81,17 @@ function buildWeatherSuggestion(language: ConciergeLanguage, city?: string) {
   return null
 }
 
+function buildGuestReply(language: ConciergeLanguage, message: string, intent: string) {
+  const byLanguage: Record<ConciergeLanguage, string> = {
+    sl: `${message}\n\nZa bolj točne rezultate se prijavite. Trenutno ocenjen namen: ${intent}.`,
+    en: `${message}\n\nSign in for more accurate guidance. Detected intent: ${intent}.`,
+    hr: `${message}\n\nPrijavite se za točnije rezultate. Procijenjena namjera: ${intent}.`,
+    de: `${message}\n\nMelden Sie sich an für genauere Ergebnisse. Erkannte Absicht: ${intent}.`,
+    it: `${message}\n\nAccedi per risultati più precisi. Intento rilevato: ${intent}.`,
+  }
+  return byLanguage[language]
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body: ConciergeRequest = await req.json()
@@ -112,9 +123,8 @@ export async function POST(req: NextRequest) {
     const routing = determineRouting(message, Boolean(body.imageUrl))
 
     if (!user) {
-      const guestReply = `${message}\n\nZa bolj točne rezultate se prijavite. Trenutno ocenjen namen: ${routing.intent}.`
       return NextResponse.json({
-        message: guestReply,
+        message: buildGuestReply(language, message, routing.intent),
         language,
         intent: routing.intent,
         usedAgents: [],

@@ -1,14 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-
-export type ConciergeLanguage = 'sl' | 'en' | 'hr' | 'de' | 'it'
-
-const SUPPORTED: ConciergeLanguage[] = ['sl', 'en', 'hr', 'de', 'it']
+import {
+  CONCIERGE_LANGUAGE_LABELS,
+  SUPPORTED_CONCIERGE_LANGUAGES,
+  type ConciergeLanguage,
+} from '@/lib/ai/concierge-types'
 
 function normalizeLanguage(input?: string | null): ConciergeLanguage {
   const base = String(input || '').toLowerCase().split('-')[0]
-  if (SUPPORTED.includes(base as ConciergeLanguage)) {
+  if (SUPPORTED_CONCIERGE_LANGUAGES.includes(base as ConciergeLanguage)) {
     return base as ConciergeLanguage
   }
 
@@ -34,11 +35,11 @@ export function useLanguage(initial?: string) {
 
   const availableLanguages = useMemo(
     () => [
-      { code: 'sl' as const, label: 'Slovenščina' },
-      { code: 'en' as const, label: 'English' },
-      { code: 'hr' as const, label: 'Hrvatski' },
-      { code: 'de' as const, label: 'Deutsch' },
-      { code: 'it' as const, label: 'Italiano' },
+      { code: 'sl' as const, label: CONCIERGE_LANGUAGE_LABELS.sl },
+      { code: 'en' as const, label: CONCIERGE_LANGUAGE_LABELS.en },
+      { code: 'hr' as const, label: CONCIERGE_LANGUAGE_LABELS.hr },
+      { code: 'de' as const, label: CONCIERGE_LANGUAGE_LABELS.de },
+      { code: 'it' as const, label: CONCIERGE_LANGUAGE_LABELS.it },
     ],
     []
   )

@@ -1,15 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { ConciergeLanguage } from '@/hooks/useLanguage'
-
-const speechLangMap: Record<ConciergeLanguage, string> = {
-  sl: 'sl-SI',
-  en: 'en-US',
-  hr: 'hr-HR',
-  de: 'de-DE',
-  it: 'it-IT',
-}
+import { CONCIERGE_SPEECH_LOCALES, type ConciergeLanguage } from '@/lib/ai/concierge-types'
 
 export function useTextToSpeech(language: ConciergeLanguage) {
   const supported = useMemo(() => typeof window !== 'undefined' && 'speechSynthesis' in window, [])
@@ -18,7 +10,7 @@ export function useTextToSpeech(language: ConciergeLanguage) {
     if (!supported || !text) return
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = speechLangMap[language]
+    utterance.lang = CONCIERGE_SPEECH_LOCALES[language]
     utterance.rate = 1
     utterance.pitch = 1
     window.speechSynthesis.speak(utterance)

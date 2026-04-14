@@ -9,8 +9,6 @@ import { identifySystemHealth, trackInternalMetric } from '@/lib/analytics/segme
 
 let hasLoggedPublicCategoriesFetchFailure = false
 
-let hasLoggedPublicCategoriesFetchFailure = false
-
 // Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
 const categoriesGlobalState = globalThis as typeof globalThis & {
   __hasLoggedPublicCategoriesFetchFailure?: boolean

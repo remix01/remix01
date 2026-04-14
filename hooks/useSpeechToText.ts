@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { ConciergeLanguage } from '@/hooks/useLanguage'
+import { CONCIERGE_SPEECH_LOCALES, type ConciergeLanguage } from '@/lib/ai/concierge-types'
 
 type BrowserSpeechRecognition = {
   lang: string
@@ -28,14 +28,6 @@ declare global {
     SpeechRecognition?: new () => BrowserSpeechRecognition
     webkitSpeechRecognition?: new () => BrowserSpeechRecognition
   }
-}
-
-const speechLangMap: Record<ConciergeLanguage, string> = {
-  sl: 'sl-SI',
-  en: 'en-US',
-  hr: 'hr-HR',
-  de: 'de-DE',
-  it: 'it-IT',
 }
 
 interface UseSpeechToTextOptions {
@@ -65,7 +57,7 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
 
     setIsSupported(true)
     const recognition = new SpeechRecognition()
-    recognition.lang = speechLangMap[language]
+    recognition.lang = CONCIERGE_SPEECH_LOCALES[language]
     recognition.continuous = false
     recognition.interimResults = true
 

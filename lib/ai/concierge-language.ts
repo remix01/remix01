@@ -1,4 +1,4 @@
-import type { ConciergeLanguage } from '@/hooks/useLanguage'
+import type { ConciergeLanguage } from '@/lib/ai/concierge-types'
 
 const DICTIONARY: Record<ConciergeLanguage, string[]> = {
   sl: ['koliko', 'zanima', 'kopalnica', 'pipa', 'streha', 'mojster', 'rabim', 'prosim'],
