@@ -38,6 +38,92 @@ type StoredMessage = {
   timestamp: number
 }
 
+type UserPersona = 'narocnik' | 'obrtnik' | 'unknown'
+
+type AssistantContext = {
+  persona: UserPersona
+  city?: string
+  categories: string[]
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.map((entry) => String(entry || '').trim()).filter(Boolean)
+}
+
+async function getAssistantContext(userId: string): Promise<AssistantContext> {
+  const [profileRes, craftProfileRes, inquiriesRes] = await Promise.all([
+    supabaseAdmin
+      .from('profiles')
+      .select('city')
+      .eq('id', userId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id, city, kategorije')
+      .eq('id', userId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('povprasevanja')
+      .select('kategorija')
+      .eq('narocnik_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ])
+
+  const inquiryCategories = toStringArray((inquiriesRes.data || []).map((item) => item.kategorija))
+  const craftCategories = toStringArray(craftProfileRes.data?.kategorije)
+  const categories = Array.from(new Set([...craftCategories, ...inquiryCategories])).slice(0, 5)
+
+  const persona: UserPersona = craftProfileRes.data?.id ? 'obrtnik' : profileRes.data ? 'narocnik' : 'unknown'
+  const city = craftProfileRes.data?.city || profileRes.data?.city || undefined
+
+  return { persona, city, categories }
+}
+
+function buildSystemPrompt(context: AssistantContext): string {
+  const roleSpecificGuidance =
+    context.persona === 'obrtnik'
+      ? `Uporabnik je najverjetneje OBRTNIK.
+- Pomagaj mu pridobiti več kakovostnih povpraševanj, napisati boljše ponudbe in uskladiti termine.
+- Predlagaj konkretne korake v obrtnik nadzorni plošči (ponudbe, profil, razpoložljivost, termini).
+- Pri cenah in obsegu dela opozori na transparentnost, realne roke in jasen opis materiala.`
+      : context.persona === 'narocnik'
+        ? `Uporabnik je najverjetneje NAROČNIK.
+- Pomagaj mu pripraviti jasno povpraševanje, primerjati ponudbe in izbrati najboljšega obrtnika.
+- Če manjkajo ključni podatki, vedno vprašaj za: lokacijo, nujnost, obseg dela, proračun.
+- Predlagaj naslednji korak na platformi (oddaja povpraševanja, pregled mojstrov, primerjava ponudb).`
+        : `Vloga uporabnika ni znana.
+- Najprej ugotovi, ali je uporabnik naročnik ali obrtnik.
+- Nato prilagodi nasvet vlogi.`
+
+  const contextLine = [
+    context.city ? `Mesto uporabnika: ${context.city}.` : null,
+    context.categories.length ? `Pogoste kategorije: ${context.categories.join(', ')}.` : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return `Si LiftGO AI asistent za slovensko platformo domačih storitev.
+Odgovarjaj kratko, praktično in v slovenščini (razen če uporabnik piše v drugem jeziku).
+Vedno daj uporaben odgovor za TAKOJŠNJI naslednji korak na LiftGO platformi.
+
+${roleSpecificGuidance}
+
+${contextLine}
+
+Pravila kakovosti odgovorov:
+1) Najprej podaj kratek odgovor (2-5 stavkov), potem "Naslednji koraki" v točkah.
+2) Če so informacije nepopolne, postavi največ 3 ključna vprašanja.
+3) Ne izmišljuj si cen, rokov ali pravnih trditev. Če nisi prepričan, to jasno povej.
+4) Ko je smiselno, usmeri na prave poti:
+   - Oddaja povpraševanja: /#oddaj-povprasevanje
+   - Pregled mojstrov: /mojstri
+   - Kako deluje platforma: /kako-deluje
+   - Za obrtnike/partnerje: /za-obrtnike
+5) Nikoli ne predlagaj napačnih poti, kot sta /narocnik/... ali /novo-povprasevanje/obrazec.`
+}
+
 // GET — load conversation history (empty for unauthenticated visitors)
 export async function GET(req: NextRequest) {
   try {
@@ -113,7 +199,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
     }
 
-    const { message, anonHistory } = await req.json()
+    const { message } = await req.json()
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
     }
@@ -228,24 +314,8 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     }))
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-    const systemPrompt = `Si LiftGO asistent za Slovenijo.
-Pomagaš strankam najti prave mojstre za njihova dela ter obratno.
-Odgovarjaš kratko in jasno v slovenščini.
-Ko stranka opiše problem, vprašaj:
-1. Kje se nahaja (mesto)?
-2. Kako nujno je?
-3. Ali ima okvirni proračun?
-
-Pravilne povezave za uporabnike:
-- Za oddajo povpraševanja: /#oddaj-povprasevanje (forma na domači strani)
-- Za pregled mojstrov: /mojstri
-- Za informacije kako deluje: /kako-deluje
-- Za obrtnike ki želijo postati partnerji: /za-obrtnike
-
-NIKOLI ne uporabi teh napačnih poti:
-- /narocnik/... (napačno)
-- /novo-povprasevanje/obrazec (napačno)`
+    const assistantContext = await getAssistantContext(user.id)
+    const systemPrompt = buildSystemPrompt(assistantContext)
 
     const response = await client.messages.create({
       model: modelSelection.modelId,
