@@ -49,6 +49,11 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
   const transcriptRef = useRef('')
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsSupported(false)
+      return
+    }
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
       setIsSupported(false)
@@ -103,6 +108,10 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
     }
 
     recognition.onend = () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current)
+        silenceTimerRef.current = null
+      }
       setIsListening(false)
       setInterimTranscript('')
       const text = transcriptRef.current.trim()
@@ -127,8 +136,13 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
     transcriptRef.current = ''
     setTranscript('')
     setInterimTranscript('')
-    recognitionRef.current?.start()
-    setIsListening(true)
+    try {
+      recognitionRef.current?.start()
+      setIsListening(true)
+    } catch (err) {
+      setIsListening(false)
+      setError(err instanceof Error ? err.message : 'speech-start-failed')
+    }
   }
 
   const stop = () => {
