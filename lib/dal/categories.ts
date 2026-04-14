@@ -5,6 +5,9 @@ import { env } from '@/lib/env'
 import type { Category } from '@/types/marketplace'
 import { slugify } from '@/lib/utils/slugify'
 import { checkUserRateLimit, checkIpRateLimit } from '@/lib/utils/rateLimiter'
+import { identifySystemHealth, trackInternalMetric } from '@/lib/analytics/segmentInternal'
+
+let hasLoggedPublicCategoriesFetchFailure = false
 
 let hasLoggedPublicCategoriesFetchFailure = false
 
@@ -37,6 +40,15 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
       console.warn('[Categories] Public categories fetch failed; returning empty list for resilience.', {
         message: error.message,
         code: error.code,
+      })
+      trackInternalMetric('System Health: Categories Empty Fallback Triggered', {
+        reason: 'public_categories_fetch_failed',
+        message: error.message,
+        code: error.code,
+      })
+      identifySystemHealth({
+        categories_fetch_healthy: false,
+        categories_empty_fallback_triggered: true,
       })
       hasLoggedPublicCategoriesFetchFailure = true
     }

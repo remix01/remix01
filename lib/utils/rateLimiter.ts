@@ -4,6 +4,7 @@
  */
 
 import { Redis } from '@upstash/redis'
+import { identifySystemHealth, trackInternalMetric } from '@/lib/analytics/segmentInternal'
 
 let redisClient: Redis | null | undefined
 
@@ -63,6 +64,17 @@ async function checkRateLimit(
   const redis = getRedisClient()
 
   if (!redis) {
+    trackInternalMetric('System Health: Redis Fallback Triggered', {
+      reason: 'missing_redis_configuration',
+      rateLimitKey: key,
+      windowSeconds,
+    })
+    identifySystemHealth({
+      redis_available: false,
+      redis_fallback_triggered: true,
+      redis_fallback_reason: 'missing_redis_configuration',
+    })
+
     return {
       allowed: true,
       remaining: limit,
@@ -90,6 +102,16 @@ async function checkRateLimit(
     }
   } catch (error) {
     console.error('[RateLimit] Error checking rate limit:', error)
+    trackInternalMetric('System Health: Redis Fallback Triggered', {
+      reason: 'redis_operation_failed',
+      rateLimitKey: key,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    identifySystemHealth({
+      redis_available: false,
+      redis_fallback_triggered: true,
+      redis_fallback_reason: 'redis_operation_failed',
+    })
     // Fail open - allow if Redis is unavailable
     return {
       allowed: true,
