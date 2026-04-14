@@ -5,6 +5,11 @@ import { env } from '@/lib/env'
 import type { Category } from '@/types/marketplace'
 import { slugify } from '@/lib/utils/slugify'
 import { checkUserRateLimit, checkIpRateLimit } from '@/lib/utils/rateLimiter'
+import { identifySystemHealth, trackInternalMetric } from '@/lib/analytics/segmentInternal'
+
+let hasLoggedPublicCategoriesFetchFailure = false
+
+let hasLoggedPublicCategoriesFetchFailure = false
 
 // Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
 let hasLoggedPublicCategoriesFetchFailure = false
