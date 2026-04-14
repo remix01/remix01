@@ -6,6 +6,9 @@ import type { Category } from '@/types/marketplace'
 import { slugify } from '@/lib/utils/slugify'
 import { checkUserRateLimit, checkIpRateLimit } from '@/lib/utils/rateLimiter'
 
+// Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
+let hasLoggedPublicCategoriesFetchFailure = false;
+
 /**
  * Get public Supabase client (no cookies, uses ANON key)
  * Use this ONLY in generateStaticParams and generateMetadata
@@ -31,7 +34,10 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('[v0] Error fetching categories (public):', error)
+    if (!hasLoggedPublicCategoriesFetchFailure) {
+      console.error('[v0] Error fetching categories (public):', error)
+      hasLoggedPublicCategoriesFetchFailure = true
+    }
     return []
   }
 
