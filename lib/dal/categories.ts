@@ -11,6 +11,11 @@ let hasLoggedPublicCategoriesFetchFailure = false
 
 let hasLoggedPublicCategoriesFetchFailure = false
 
+// Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
+const categoriesGlobalState = globalThis as typeof globalThis & {
+  __hasLoggedPublicCategoriesFetchFailure?: boolean
+}
+
 /**
  * Get public Supabase client (no cookies, uses ANON key)
  * Use this ONLY in generateStaticParams and generateMetadata
@@ -36,21 +41,9 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    if (!hasLoggedPublicCategoriesFetchFailure) {
-      console.warn('[Categories] Public categories fetch failed; returning empty list for resilience.', {
-        message: error.message,
-        code: error.code,
-      })
-      trackInternalMetric('System Health: Categories Empty Fallback Triggered', {
-        reason: 'public_categories_fetch_failed',
-        message: error.message,
-        code: error.code,
-      })
-      identifySystemHealth({
-        categories_fetch_healthy: false,
-        categories_empty_fallback_triggered: true,
-      })
-      hasLoggedPublicCategoriesFetchFailure = true
+    if (!categoriesGlobalState.__hasLoggedPublicCategoriesFetchFailure) {
+      console.error('[v0] Error fetching categories (public):', error)
+      categoriesGlobalState.__hasLoggedPublicCategoriesFetchFailure = true
     }
     return []
   }
