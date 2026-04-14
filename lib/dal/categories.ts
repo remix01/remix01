@@ -11,6 +11,9 @@ let hasLoggedPublicCategoriesFetchFailure = false
 
 let hasLoggedPublicCategoriesFetchFailure = false
 
+// Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
+let hasLoggedPublicCategoriesFetchFailure = false
+
 /**
  * Get public Supabase client (no cookies, uses ANON key)
  * Use this ONLY in generateStaticParams and generateMetadata
@@ -37,19 +40,7 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
 
   if (error) {
     if (!hasLoggedPublicCategoriesFetchFailure) {
-      console.warn('[Categories] Public categories fetch failed; returning empty list for resilience.', {
-        message: error.message,
-        code: error.code,
-      })
-      trackInternalMetric('System Health: Categories Empty Fallback Triggered', {
-        reason: 'public_categories_fetch_failed',
-        message: error.message,
-        code: error.code,
-      })
-      identifySystemHealth({
-        categories_fetch_healthy: false,
-        categories_empty_fallback_triggered: true,
-      })
+      console.error(' Error fetching categories (public):', error)
       hasLoggedPublicCategoriesFetchFailure = true
     }
     return []
@@ -71,7 +62,7 @@ export async function getActiveCategories(): Promise<Category[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('[v0] Error fetching categories:', error)
+    console.error(' Error fetching categories:', error)
     return []
   }
 
@@ -91,7 +82,7 @@ export async function getCategory(categoryId: string): Promise<Category | null> 
     .maybeSingle()
 
   if (error) {
-    console.error('[v0] Error fetching category:', error)
+    console.error(' Error fetching category:', error)
     return null
   }
 
@@ -111,7 +102,7 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
     .maybeSingle()
 
   if (error) {
-    console.error('[v0] Error fetching category by slug:', error)
+    console.error(' Error fetching category by slug:', error)
     return null
   }
 
@@ -132,7 +123,7 @@ export async function getObrtnikCategories(obrtnikId: string): Promise<Category[
     .eq('obrtnik_id', obrtnikId)
 
   if (error) {
-    console.error('[v0] Error fetching obrtnik categories:', error)
+    console.error(' Error fetching obrtnik categories:', error)
     return []
   }
 
@@ -150,7 +141,7 @@ export async function countObrtnikPerCategory(): Promise<Record<string, number>>
     .select('category_id')
 
   if (error) {
-    console.error('[v0] Error counting obrtnik per category:', error)
+    console.error(' Error counting obrtnik per category:', error)
     return {}
   }
 
@@ -223,7 +214,7 @@ export async function getOrCreateCategory(
     .maybeSingle()
 
   if (searchError && searchError.code !== 'PGRST116') {
-    console.error('[v0] Error searching for existing category:', searchError)
+    console.error(' Error searching for existing category:', searchError)
     throw new Error('Napaka pri preverjanju kategorije')
   }
 
@@ -247,7 +238,7 @@ export async function getOrCreateCategory(
       .maybeSingle()
 
     if (slugError && slugError.code !== 'PGRST116') {
-      console.error('[v0] Error checking slug:', slugError)
+      console.error(' Error checking slug:', slugError)
       throw new Error('Napaka pri generiranju slugja')
     }
 
@@ -276,7 +267,7 @@ export async function getOrCreateCategory(
     .single()
 
   if (insertError) {
-    console.error('[v0] Error creating category:', insertError)
+    console.error(' Error creating category:', insertError)
     
     // If unique constraint failed, try to find it again (race condition)
     const { data: retry } = await supabase
