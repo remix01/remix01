@@ -9,6 +9,8 @@ import { identifySystemHealth, trackInternalMetric } from '@/lib/analytics/segme
 
 let hasLoggedPublicCategoriesFetchFailure = false
 
+let hasLoggedPublicCategoriesFetchFailure = false
+
 /**
  * Get public Supabase client (no cookies, uses ANON key)
  * Use this ONLY in generateStaticParams and generateMetadata
