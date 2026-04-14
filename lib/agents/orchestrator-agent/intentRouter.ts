@@ -41,6 +41,10 @@ export const intentMap: Record<string, AgentType> = {
   // Notify actions
   'sendNotification': 'notify',
   'updatePreferences': 'notify',
+
+  // Marketplace automation actions
+  'matchMarketplaceRequest': 'marketplace',
+  'estimateMarketplacePrice': 'marketplace',
 }
 
 const anthropic = new Anthropic()
