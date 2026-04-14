@@ -5,10 +5,22 @@
 
 import { Redis } from '@upstash/redis'
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL || '',
-  token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
-})
+let redisClient: Redis | null | undefined
+
+function getRedisClient(): Redis | null {
+  if (redisClient !== undefined) return redisClient
+
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN
+
+  if (!url || !token) {
+    redisClient = null
+    return redisClient
+  }
+
+  redisClient = new Redis({ url, token })
+  return redisClient
+}
 
 interface RateLimitResult {
   allowed: boolean
@@ -48,6 +60,16 @@ async function checkRateLimit(
   limit: number,
   windowSeconds: number
 ): Promise<RateLimitResult> {
+  const redis = getRedisClient()
+
+  if (!redis) {
+    return {
+      allowed: true,
+      remaining: limit,
+      resetAt: new Date(Date.now() + windowSeconds * 1000),
+    }
+  }
+
   try {
     // Get current count
     const current = await redis.incr(key)
