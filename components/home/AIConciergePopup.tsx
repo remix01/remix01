@@ -1,343 +1,286 @@
 'use client'
 
-import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Bot, ChevronUp, Globe, Mic, Paperclip, Send, Settings2, Sparkles, Volume2, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Bot, Globe, Mic, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { useLanguage } from '@/hooks/useLanguage'
 import { useSpeechToText } from '@/hooks/useSpeechToText'
-import { useTextToSpeech } from '@/hooks/useTextToSpeech'
+import { generateFilePath, uploadFile } from '@/lib/storage'
 import type { ConciergeLanguage } from '@/lib/ai/concierge-types'
 
-type Message = {
-  id: string
-  role: 'user' | 'assistant'
-  text: string
-  agents?: string[]
-}
+type WidgetLanguage = 'sl' | 'en'
 
-const I18N: Record<ConciergeLanguage, Record<string, string>> = {
+const I18N: Record<WidgetLanguage, Record<string, string>> = {
   sl: {
-    title: 'Brutal AI Concierge',
-    subtitle: 'Glasovno, večjezično in samodejno vodenje povpraševanja',
-    placeholder: 'Npr. Koliko stane polaganje ploščic v kopalnici 10m2?',
-    send: 'Pošlji',
-    listening: 'Poslušam…',
-    autoSend: 'Samodejno pošlji',
-    manualSend: 'Ročno pošiljanje',
-    submitInquiry: 'Oddaj povpraševanje',
-    attach: 'Priloži URL slike',
-    noSpeech: 'Brskalnik ne podpira govornega vnosa',
-    cancel: 'Prekliči',
-    assistantError: 'Asistent trenutno ni dosegljiv. Poskusite znova čez nekaj trenutkov.',
-    open: 'Odpri AI Concierge',
-    close: 'Skrij AI Concierge',
-    autoSendingIn: 'Pošiljam čez',
+    title: 'LiftGO AI Pomočnik',
+    subtitle: 'Hitro oddajte povpraševanje z glasom ali besedilom',
+    placeholder: 'Opišite težavo ali storitev, ki jo potrebujete...',
+    listening: 'Poslušam...',
+    submit: 'Pošlji povpraševanje',
+    success: 'Hvala! Povpraševanje poslano. Obrtniki vas bodo kontaktirali.',
+    speechUnavailable: 'Brskalnik ne podpira govornega vnosa.',
+    micDenied: 'Mikrofon ni dovoljen. Če je widget v iframe, dodajte allow="microphone".',
+    uploadError: 'Nalaganje datoteke ni uspelo. Poskusite znova.',
+    languageLabel: 'Slo/Eng',
+    open: 'Odpri LiftGO Concierge',
+    close: 'Zapri LiftGO Concierge',
   },
   en: {
-    title: 'Brutal AI Concierge', subtitle: 'Voice-first, multilingual autonomous intake', placeholder: 'e.g. How much to tile a 10m2 bathroom?',
-    send: 'Send', listening: 'Listening…', autoSend: 'Auto-send', manualSend: 'Manual send', submitInquiry: 'Submit inquiry', attach: 'Attach image URL', noSpeech: 'Speech recognition not supported', cancel: 'Cancel', assistantError: 'Assistant is temporarily unavailable. Please try again shortly.', open: 'Open AI Concierge', close: 'Hide AI Concierge', autoSendingIn: 'Sending in',
-  },
-  hr: {
-    title: 'Brutal AI Concierge', subtitle: 'Glasovno i višejezično automatsko zaprimanje', placeholder: 'npr. Koliko košta polaganje pločica u kupaonici 10m2?',
-    send: 'Pošalji', listening: 'Slušam…', autoSend: 'Auto-slati', manualSend: 'Ručno slanje', submitInquiry: 'Pošalji upit', attach: 'Dodaj URL slike', noSpeech: 'Govor nije podržan', cancel: 'Odustani', assistantError: 'Asistent je trenutno nedostupan. Pokušajte ponovno uskoro.', open: 'Otvori AI Concierge', close: 'Sakrij AI Concierge', autoSendingIn: 'Šaljem za',
-  },
-  de: {
-    title: 'Brutal AI Concierge', subtitle: 'Sprachgesteuerter, mehrsprachiger Einstieg', placeholder: 'z.B. Was kostet Fliesenlegen im Bad 10m2?',
-    send: 'Senden', listening: 'Ich höre…', autoSend: 'Automatisch senden', manualSend: 'Manuell senden', submitInquiry: 'Anfrage senden', attach: 'Bild-URL anhängen', noSpeech: 'Spracheingabe nicht verfügbar', cancel: 'Abbrechen', assistantError: 'Assistent ist momentan nicht verfügbar. Bitte versuchen Sie es gleich erneut.', open: 'AI Concierge öffnen', close: 'AI Concierge ausblenden', autoSendingIn: 'Sende in',
-  },
-  it: {
-    title: 'Brutal AI Concierge', subtitle: 'Interfaccia vocale multilingue autonoma', placeholder: 'es. Quanto costa posare piastrelle bagno 10m2?',
-    send: 'Invia', listening: 'In ascolto…', autoSend: 'Invio automatico', manualSend: 'Invio manuale', submitInquiry: 'Invia richiesta', attach: 'Allega URL immagine', noSpeech: 'Riconoscimento vocale non supportato', cancel: 'Annulla', assistantError: "L'assistente non è al momento disponibile. Riprova tra poco.", open: 'Apri AI Concierge', close: 'Nascondi AI Concierge', autoSendingIn: 'Invio tra',
+    title: 'LiftGO Concierge',
+    subtitle: 'Quickly submit your request by voice or text',
+    placeholder: 'Describe the issue or service you need...',
+    listening: 'Listening...',
+    submit: 'Send inquiry',
+    success: 'Thank you! Inquiry sent. Professionals will contact you.',
+    speechUnavailable: 'Speech recognition is not supported in this browser.',
+    micDenied: 'Microphone permission denied. If embedded in iframe, add allow="microphone".',
+    uploadError: 'File upload failed. Please try again.',
+    languageLabel: 'Slo/Eng',
+    open: 'Open LiftGO Concierge',
+    close: 'Close LiftGO Concierge',
   },
 }
 
 export function AIConciergePopup() {
-  const { language, setLanguage, availableLanguages } = useLanguage()
-  const t = I18N[language]
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
-  const [autoSend, setAutoSend] = useState(true)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [countdown, setCountdown] = useState<number | null>(null)
-  const [imageUrl, setImageUrl] = useState('')
-  const [location, setLocation] = useState<{ lat: number; lng: number; city?: string } | null>(null)
-  const lockRef = useRef(false)
+  const [language, setLanguage] = useState<WidgetLanguage>('sl')
+  const [input, setInput] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null)
+  const [attachmentName, setAttachmentName] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
-  useEffect(() => {
-    const key = '__liftgo_concierge_mounted__'
-    const win = window as unknown as Window & { __liftgo_concierge_mounted__?: boolean }
-    if (win[key]) {
-      lockRef.current = true
-      return
-    }
-    win[key] = true
-    return () => {
-      win[key] = false
-    }
-  }, [])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const t = I18N[language]
 
-  useEffect(() => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
-      },
-      () => undefined,
-      { enableHighAccuracy: false, timeout: 4000 }
-    )
-  }, [])
-
-  const sendMessage = async (value = input) => {
-    const message = value.trim()
-    if (!message || loading) return
-
-    setMessages((prev) => [...prev, { id: `${Date.now()}-u`, role: 'user', text: message }])
-    setInput('')
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/ai/concierge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, language, imageUrl: imageUrl || undefined, location }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data?.error || t.assistantError)
-      }
-      setLanguage(data.language || language)
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-a`,
-          role: 'assistant',
-          text: data.message || 'AI response unavailable.',
-          agents: data.usedAgents,
-        },
-      ])
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-a-error`,
-          role: 'assistant',
-          text: t.assistantError,
-        },
-      ])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const triggerAutoSend = (text: string) => {
-    if (!autoSend) {
-      setInput(text)
-      return
-    }
-
-    setInput(text)
-    setCountdown(1)
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev === null) return null
-        if (prev <= 1) {
-          clearInterval(timer)
-          sendMessage(text)
-          return null
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }
-
+  const speechLanguage: ConciergeLanguage = language
   const { start, stop, isListening, interimTranscript, isSupported } = useSpeechToText({
-    language,
-    onFinalTranscript: (text) => triggerAutoSend(text),
-    onSpeechEnd: () => {
-      if (autoSend) setCountdown(1)
-    },
-    silenceMs: 1500,
+    language: speechLanguage,
+    onFinalTranscript: (text) => setInput(text),
   })
-
-  const { supported: ttsSupported, speak } = useTextToSpeech(language)
 
   const quickChips = useMemo(
     () =>
-      ({
-        sl: ['Koliko stane?', 'Pušča cev v kuhinji', 'Potrebujem termin ta teden', 'Primerjaj prejete ponudbe'],
-        en: ['How much does it cost?', 'Pipe leaking in kitchen', 'Need an appointment this week', 'Compare my offers'],
-        hr: ['Koliko košta?', 'Curi cijev u kuhinji', 'Trebam termin ovaj tjedan', 'Usporedi moje ponude'],
-        de: ['Was kostet das?', 'Rohr in der Küche undicht', 'Ich brauche einen Termin diese Woche', 'Vergleiche meine Angebote'],
-        it: ['Quanto costa?', 'Perdita dal tubo in cucina', 'Mi serve un appuntamento questa settimana', 'Confronta le mie offerte'],
-      })[language],
+      language === 'sl'
+        ? ['Pušča cev', 'Pleskanje 20m2', 'Montaža klime', 'Popravilo strehe']
+        : ['Leaking pipe', 'Painting 20m2', 'AC installation', 'Roof repair'],
     [language]
   )
 
-  if (lockRef.current) return null
+  const handleMicClick = async () => {
+    setErrorMessage(null)
+
+    if (isListening) {
+      stop()
+      return
+    }
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true })
+      start()
+    } catch {
+      setErrorMessage(t.micDenied)
+    }
+  }
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setErrorMessage(null)
+    setIsUploading(true)
+
+    try {
+      const path = generateFilePath('ai-concierge', file.name)
+      const { url, error } = await uploadFile('inquiry-attachments', path, file)
+
+      if (!url || error) {
+        setErrorMessage(t.uploadError)
+        return
+      }
+
+      setAttachmentUrl(url)
+      setAttachmentName(file.name)
+      setAttachmentPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const removeAttachment = () => {
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview)
+    }
+    setAttachmentPreview(null)
+    setAttachmentName(null)
+    setAttachmentUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const submitInquiry = async () => {
+    const query = input.trim()
+    if (!query || isSubmitting) return
+
+    setStatusMessage(null)
+    setErrorMessage(null)
+    setIsSubmitting(true)
+
+    try {
+      const payload = {
+        query,
+        message: query,
+        language,
+        attachments: attachmentUrl ? [attachmentUrl] : [],
+        imageUrl: attachmentUrl || undefined,
+        source: 'ai_concierge_widget',
+      }
+
+      const response = await fetch('/api/ai/concierge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        throw new Error('Submit failed')
+      }
+
+      setStatusMessage(t.success)
+      setInput('')
+      removeAttachment()
+    } catch {
+      setErrorMessage('Prišlo je do napake. Poskusite znova.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <div className="fixed bottom-6 right-4 z-40 w-[min(94vw,430px)]">
+    <div className="fixed bottom-4 right-4 z-40 w-[min(96vw,430px)]">
       {!open && (
         <Button
           aria-label={t.open}
+          className="ml-auto h-12 rounded-full bg-primary px-5 text-white shadow-lg hover:bg-[#059669]"
           onClick={() => setOpen(true)}
-          className="ml-auto h-12 rounded-full px-4 shadow-xl"
         >
           <Bot className="mr-2 h-4 w-4" />
-          AI Concierge
+          LiftGO Concierge
         </Button>
       )}
 
       {open && (
-        <div className="rounded-2xl border border-border/80 bg-background p-4 shadow-2xl">
-          <div className="flex items-start justify-between">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Bot className="h-4 w-4 text-primary" />
-            {t.title}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">{t.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button aria-label="settings" variant="ghost" size="icon" onClick={() => setSettingsOpen((v) => !v)}>
-            <Settings2 className="h-4 w-4" />
-          </Button>
-          <Button aria-label={t.close} variant="ghost" size="icon" onClick={() => setOpen(false)}>
-            <ChevronUp className="h-4 w-4" />
-          </Button>
-        </div>
-          </div>
-
-          {settingsOpen && (
-            <div className="mt-3 rounded-lg border bg-muted/40 p-3 text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <span>{autoSend ? t.autoSend : t.manualSend}</span>
-                <Switch aria-label="Auto send toggle" checked={autoSend} onCheckedChange={setAutoSend} />
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <Globe className="h-3.5 w-3.5" />
-                <select
-                  aria-label="Language selector"
-                  className="h-8 rounded border bg-background px-2"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                >
-                  {availableLanguages.map((item) => (
-                    <option key={item.code} value={item.code}>{item.label}</option>
-                  ))}
-                </select>
-              </div>
+        <div className="rounded-2xl bg-white p-4 shadow-lg">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                <Bot className="h-5 w-5 text-[#10B981]" />
+                {t.title}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">{t.subtitle}</p>
             </div>
-          )}
-
-          <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1" role="log" aria-live="polite">
-            {messages.map((msg) => (
-              <div key={msg.id} className={cn('rounded-lg p-2 text-sm', msg.role === 'assistant' ? 'bg-muted/60' : 'bg-primary/10')}>
-                <p>{msg.text}</p>
-                {msg.agents?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {msg.agents.map((agent) => (
-                      <Badge key={agent} variant="secondary" className="text-[10px]">{agent}</Badge>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 flex gap-2">
-            <Input
-              aria-label="Concierge message input"
-              className="h-11"
-              placeholder={interimTranscript || t.placeholder}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') sendMessage()
-                if (e.key === 'Escape') setCountdown(null)
-              }}
-            />
-            <Button
-              aria-label="microphone"
-              variant={isListening ? 'destructive' : 'secondary'}
-              className="relative h-11 w-11 p-0"
-              onClick={() => {
-                if (isListening) stop()
-                else start()
-              }}
-              disabled={!isSupported}
-            >
-              <Mic className="h-4 w-4" />
-              {countdown !== null ? (
-                <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-primary">
-                  {t.autoSendingIn} {countdown}s
-                </span>
-              ) : null}
+            <Button aria-label={t.close} variant="ghost" size="icon" className="h-10 w-10" onClick={() => setOpen(false)}>
+              <X className="h-4 w-4" />
             </Button>
-            {!autoSend && (
-              <Button aria-label="send" className="h-11" onClick={() => sendMessage()} disabled={loading}>
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
           </div>
-
-          {!isSupported && <p className="mt-2 text-xs text-amber-600">{t.noSpeech}</p>}
-          {isListening && <p className="mt-2 text-xs text-muted-foreground">{t.listening}</p>}
 
           <div className="mt-3 flex flex-wrap gap-2">
             {quickChips.map((chip) => (
               <button
                 key={chip}
-                className="rounded-full border px-2 py-1 text-xs hover:bg-muted"
-                onClick={() => {
-                  setInput(chip)
-                  if (autoSend) sendMessage(chip)
-                }}
+                type="button"
+                className="min-h-10 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700"
+                onClick={() => setInput(chip)}
               >
                 {chip}
               </button>
             ))}
           </div>
 
-          <div className="mt-3 flex items-center gap-2">
-            <Input
-              aria-label="image-url"
-              placeholder={t.attach}
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="h-9"
-            />
-            <Paperclip className="h-4 w-4 text-muted-foreground" />
-            {countdown !== null && (
-              <Button size="sm" variant="ghost" onClick={() => setCountdown(null)} aria-label={t.cancel}>
-                <X className="h-4 w-4" />
+          <textarea
+            aria-label="LiftGO concierge input"
+            className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-emerald-500"
+            placeholder={interimTranscript || t.placeholder}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+          />
+
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 min-w-12"
+                onClick={() => setLanguage((prev) => (prev === 'sl' ? 'en' : 'sl'))}
+              >
+                <Globe className="mr-1 h-4 w-4" />
+                {t.languageLabel}
               </Button>
-            )}
+
+              <Button type="button" variant="outline" className="h-12 min-w-12" onClick={() => fileInputRef.current?.click()}>
+                <Paperclip className="h-5 w-5" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </div>
+
+            <Button
+              type="button"
+              aria-label="microphone"
+              variant="outline"
+              className={cn(
+                'h-12 min-w-12 rounded-full border-2',
+                isListening && 'animate-pulse border-emerald-500 text-emerald-600'
+              )}
+              onClick={handleMicClick}
+              disabled={!isSupported}
+            >
+              <Mic className="h-6 w-6" />
+            </Button>
           </div>
 
-          <div className="mt-3 flex gap-2">
-            <Button asChild variant="outline" className="h-10 flex-1">
-              <Link href="/povprasevanje/novo">{t.submitInquiry}</Link>
-            </Button>
-            <Button
-              aria-label="read last response"
-              variant="outline"
-              className="h-10"
-              onClick={() => ttsSupported && messages.filter((m) => m.role === 'assistant').at(-1) && speak(messages.filter((m) => m.role === 'assistant').at(-1)?.text || '')}
-            >
-              <Volume2 className="h-4 w-4" />
-            </Button>
-            <Button aria-label="spark" variant="outline" className="h-10" onClick={() => sendMessage(quickChips[0] || 'Koliko stane?')}>
-              <Sparkles className="h-4 w-4" />
-            </Button>
-          </div>
+          {isListening && <p className="mt-2 text-xs font-medium text-emerald-600">{t.listening}</p>}
+          {!isSupported && <p className="mt-2 text-xs text-amber-600">{t.speechUnavailable}</p>}
+
+          {attachmentUrl && (
+            <div className="mt-3 relative w-fit rounded-xl border border-slate-200 p-2">
+              {attachmentPreview ? (
+                <img src={attachmentPreview} alt="Attachment preview" className="h-20 w-20 rounded-lg object-cover" />
+              ) : (
+                <p className="max-w-52 text-xs text-slate-600">{attachmentName}</p>
+              )}
+              <button
+                type="button"
+                aria-label="Remove attachment"
+                className="absolute -right-2 -top-2 rounded-full bg-slate-900 p-1 text-white"
+                onClick={removeAttachment}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {(errorMessage || statusMessage || isUploading) && (
+            <p className={cn('mt-3 text-xs', errorMessage ? 'text-red-600' : 'text-emerald-700')}>
+              {isUploading ? 'Nalagam datoteko...' : errorMessage || statusMessage}
+            </p>
+          )}
+
+          <Button
+            type="button"
+            className="mt-4 h-12 w-full bg-primary text-white hover:bg-[#059669]"
+            onClick={submitInquiry}
+            disabled={isSubmitting || isUploading || !input.trim()}
+          >
+            {isSubmitting ? '....' : t.submit}
+          </Button>
         </div>
       )}
     </div>
