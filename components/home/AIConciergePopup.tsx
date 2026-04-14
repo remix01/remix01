@@ -1,10 +1,12 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { Bot, Globe, Mic, Paperclip, X } from 'lucide-react'
+import { Bot, Globe, Mic, Paperclip, Volume2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useSpeechToText } from '@/hooks/useSpeechToText'
+import { useTextToSpeech } from '@/hooks/useTextToSpeech'
+import { useLanguage } from '@/hooks/useLanguage'
 import { generateFilePath, uploadFile } from '@/lib/storage'
 import type { ConciergeLanguage } from '@/lib/ai/concierge-types'
 
@@ -21,6 +23,9 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
     speechUnavailable: 'Brskalnik ne podpira govornega vnosa.',
     micDenied: 'Mikrofon ni dovoljen. Če je widget v iframe, dodajte allow="microphone".',
     uploadError: 'Nalaganje datoteke ni uspelo. Poskusite znova.',
+    genericError: 'Prišlo je do napake. Poskusite znova.',
+    aiReplyTitle: 'AI odgovor',
+    speakReply: 'Preberi odgovor',
     languageLabel: 'Slo/Eng',
     open: 'Odpri LiftGO Concierge',
     close: 'Zapri LiftGO Concierge',
@@ -35,6 +40,9 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
     speechUnavailable: 'Speech recognition is not supported in this browser.',
     micDenied: 'Microphone permission denied. If embedded in iframe, add allow="microphone".',
     uploadError: 'File upload failed. Please try again.',
+    genericError: 'Something went wrong. Please try again.',
+    aiReplyTitle: 'AI response',
+    speakReply: 'Read answer',
     languageLabel: 'Slo/Eng',
     open: 'Open LiftGO Concierge',
     close: 'Close LiftGO Concierge',
@@ -43,20 +51,23 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
 
 export function AIConciergePopup() {
   const [open, setOpen] = useState(false)
-  const [language, setLanguage] = useState<WidgetLanguage>('sl')
   const [input, setInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [assistantReply, setAssistantReply] = useState<string | null>(null)
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null)
   const [attachmentName, setAttachmentName] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const t = I18N[language]
+  const { language, setLanguage } = useLanguage('sl')
+  const activeLanguage: WidgetLanguage = language === 'en' ? 'en' : 'sl'
+  const t = I18N[activeLanguage]
+  const { supported: ttsSupported, speak } = useTextToSpeech(activeLanguage)
 
-  const speechLanguage: ConciergeLanguage = language
+  const speechLanguage: ConciergeLanguage = activeLanguage
   const { start, stop, isListening, interimTranscript, isSupported } = useSpeechToText({
     language: speechLanguage,
     onFinalTranscript: (text) => setInput(text),
@@ -64,10 +75,10 @@ export function AIConciergePopup() {
 
   const quickChips = useMemo(
     () =>
-      language === 'sl'
+      activeLanguage === 'sl'
         ? ['Pušča cev', 'Pleskanje 20m2', 'Montaža klime', 'Popravilo strehe']
         : ['Leaking pipe', 'Painting 20m2', 'AC installation', 'Roof repair'],
-    [language]
+    [activeLanguage]
   )
 
   const handleMicClick = async () => {
@@ -126,6 +137,7 @@ export function AIConciergePopup() {
 
     setStatusMessage(null)
     setErrorMessage(null)
+    setAssistantReply(null)
     setIsSubmitting(true)
 
     try {
@@ -148,11 +160,14 @@ export function AIConciergePopup() {
         throw new Error('Submit failed')
       }
 
+      const data = await response.json().catch(() => ({}))
+      const reply = typeof data.message === 'string' ? data.message : ''
+      setAssistantReply(reply || null)
       setStatusMessage(t.success)
       setInput('')
       removeAttachment()
     } catch {
-      setErrorMessage('Prišlo je do napake. Poskusite znova.')
+      setErrorMessage(t.genericError)
     } finally {
       setIsSubmitting(false)
     }
@@ -213,7 +228,7 @@ export function AIConciergePopup() {
                 type="button"
                 variant="outline"
                 className="h-12 min-w-12"
-                onClick={() => setLanguage((prev) => (prev === 'sl' ? 'en' : 'sl'))}
+                onClick={() => setLanguage(activeLanguage === 'sl' ? 'en' : 'sl')}
               >
                 <Globe className="mr-1 h-4 w-4" />
                 {t.languageLabel}
@@ -271,6 +286,27 @@ export function AIConciergePopup() {
             <p className={cn('mt-3 text-xs', errorMessage ? 'text-red-600' : 'text-emerald-700')}>
               {isUploading ? 'Nalagam datoteko...' : errorMessage || statusMessage}
             </p>
+          )}
+
+          {assistantReply && (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-emerald-800">{t.aiReplyTitle}</p>
+                {ttsSupported && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-emerald-200 bg-white text-emerald-700"
+                    onClick={() => speak(assistantReply)}
+                  >
+                    <Volume2 className="mr-1 h-3.5 w-3.5" />
+                    {t.speakReply}
+                  </Button>
+                )}
+              </div>
+              <p className="whitespace-pre-wrap text-sm text-emerald-900">{assistantReply}</p>
+            </div>
           )}
 
           <Button

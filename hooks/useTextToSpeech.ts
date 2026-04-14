@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { CONCIERGE_SPEECH_LOCALES, type ConciergeLanguage } from '@/lib/ai/concierge-types'
 
 export function useTextToSpeech(language: ConciergeLanguage) {
@@ -20,6 +20,14 @@ export function useTextToSpeech(language: ConciergeLanguage) {
     if (!supported) return
     window.speechSynthesis.cancel()
   }
+
+  useEffect(() => {
+    return () => {
+      if (supported) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [supported])
 
   return {
     supported,
