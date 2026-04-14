@@ -7,7 +7,9 @@ import { slugify } from '@/lib/utils/slugify'
 import { checkUserRateLimit, checkIpRateLimit } from '@/lib/utils/rateLimiter'
 
 // Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
-let hasLoggedPublicCategoriesFetchFailure = false;
+const categoriesGlobalState = globalThis as typeof globalThis & {
+  __hasLoggedPublicCategoriesFetchFailure?: boolean
+}
 
 /**
  * Get public Supabase client (no cookies, uses ANON key)
@@ -34,9 +36,9 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    if (!hasLoggedPublicCategoriesFetchFailure) {
+    if (!categoriesGlobalState.__hasLoggedPublicCategoriesFetchFailure) {
       console.error('[v0] Error fetching categories (public):', error)
-      hasLoggedPublicCategoriesFetchFailure = true
+      categoriesGlobalState.__hasLoggedPublicCategoriesFetchFailure = true
     }
     return []
   }

@@ -96,7 +96,8 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser()
 
     const language = detectLanguage(message, body.language || 'sl')
-    const cacheKey = buildCacheKey(`concierge:${language}:${message}`)
+    const cacheUserScope = user?.id || 'anonymous'
+    const cacheKey = buildCacheKey(`concierge:${cacheUserScope}:${language}:${message}`)
     const cached = await getCachedResponse(cacheKey)
     if (cached) {
       return NextResponse.json({
