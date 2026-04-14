@@ -77,6 +77,41 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: '/narocnanja',
+        destination: '/povprasevanja',
+        permanent: false,
+      },
+      {
+        source: '/narocnik/novo-povprasevanje',
+        destination: '/novo-povprasevanje',
+        permanent: false,
+      },
+      {
+        source: '/narocnik/dashboard',
+        destination: '/dashboard',
+        permanent: false,
+      },
+      {
+        source: '/narocnik/povprasevanja',
+        destination: '/povprasevanja',
+        permanent: false,
+      },
+      {
+        source: '/narocnik/profil',
+        destination: '/profil',
+        permanent: false,
+      },
+      {
+        source: '/narocnik/obvestila',
+        destination: '/obvestila',
+        permanent: false,
+      },
+      {
+        source: '/narocnik/sporocila',
+        destination: '/sporocila',
+        permanent: false,
+      },
+      {
         source: '/logo.png',
         destination: '/icons/icon-192x192.png',
         permanent: false,
