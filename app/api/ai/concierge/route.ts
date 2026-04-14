@@ -19,6 +19,8 @@ interface ConciergeRequest {
   } | null
 }
 
+type UserRole = 'narocnik' | 'obrtnik' | 'guest'
+
 async function getUserContext(userId: string) {
   const [recentInquiries, preferredCategories] = await Promise.all([
     supabaseAdmin
@@ -61,6 +63,17 @@ async function getTier(userId: string): Promise<string> {
   return profile?.subscription_tier || partner?.subscription_tier || 'start'
 }
 
+async function getUserRole(userId: string): Promise<UserRole> {
+  const [{ data: profile }, { data: partner }] = await Promise.all([
+    supabaseAdmin.from('profiles').select('id').eq('id', userId).maybeSingle(),
+    supabaseAdmin.from('obrtnik_profiles').select('id').eq('id', userId).maybeSingle(),
+  ])
+
+  if (partner?.id) return 'obrtnik'
+  if (profile?.id) return 'narocnik'
+  return 'guest'
+}
+
 function filterAgentsByTier(agents: AIAgentType[], tier: string) {
   return agents.filter((agent) => isAgentAccessible(agent, tier))
 }
@@ -83,13 +96,42 @@ function buildWeatherSuggestion(language: ConciergeLanguage, city?: string) {
 
 function buildGuestReply(language: ConciergeLanguage, message: string, intent: string) {
   const byLanguage: Record<ConciergeLanguage, string> = {
-    sl: `${message}\n\nZa bolj točne rezultate se prijavite. Trenutno ocenjen namen: ${intent}.`,
-    en: `${message}\n\nSign in for more accurate guidance. Detected intent: ${intent}.`,
-    hr: `${message}\n\nPrijavite se za točnije rezultate. Procijenjena namjera: ${intent}.`,
-    de: `${message}\n\nMelden Sie sich an für genauere Ergebnisse. Erkannte Absicht: ${intent}.`,
-    it: `${message}\n\nAccedi per risultati più precisi. Intento rilevato: ${intent}.`,
+    sl: `Razumem vaše sporočilo: "${message}".\n\nPredlagan naslednji korak na LiftGO:\n• Oddajte povpraševanje: /#oddaj-povprasevanje\n• Ali preverite mojstre: /mojstri\n\nZa bolj natančno pomoč se prijavite. Ocenjen namen: ${intent}.`,
+    en: `I understand your message: "${message}".\n\nSuggested next step on LiftGO:\n• Submit an inquiry: /#oddaj-povprasevanje\n• Or browse professionals: /mojstri\n\nSign in for more precise help. Detected intent: ${intent}.`,
+    hr: `Razumijem vašu poruku: "${message}".\n\nPredloženi sljedeći korak na LiftGO:\n• Pošaljite upit: /#oddaj-povprasevanje\n• Ili pregledajte majstore: /mojstri\n\nPrijavite se za točniju pomoć. Procijenjena namjera: ${intent}.`,
+    de: `Ich habe Ihre Nachricht verstanden: "${message}".\n\nEmpfohlener nächster Schritt auf LiftGO:\n• Anfrage senden: /#oddaj-povprasevanje\n• Oder Handwerker ansehen: /mojstri\n\nFür genauere Hilfe bitte anmelden. Erkannte Absicht: ${intent}.`,
+    it: `Ho capito il tuo messaggio: "${message}".\n\nProssimo passo consigliato su LiftGO:\n• Invia richiesta: /#oddaj-povprasevanje\n• Oppure sfoglia i professionisti: /mojstri\n\nAccedi per supporto più preciso. Intento rilevato: ${intent}.`,
   }
   return byLanguage[language]
+}
+
+function buildFinalMessage(params: {
+  language: ConciergeLanguage
+  role: UserRole
+  results: Array<{ agentType: AIAgentType; response: string }>
+  latestInquiry?: { title?: string | null; kategorija?: string | null } | null
+  proactiveSuggestion: string | null
+}) {
+  const introByLanguage: Record<ConciergeLanguage, string> = {
+    sl: params.role === 'obrtnik' ? 'Predlog za obrtnika:' : 'Predlog za naročnika:',
+    en: params.role === 'obrtnik' ? 'Suggested plan for craftsman:' : 'Suggested plan for customer:',
+    hr: params.role === 'obrtnik' ? 'Prijedlog za majstora:' : 'Prijedlog za naručitelja:',
+    de: params.role === 'obrtnik' ? 'Vorschlag für Handwerker:' : 'Vorschlag für Kunden:',
+    it: params.role === 'obrtnik' ? 'Piano consigliato per artigiano:' : 'Piano consigliato per cliente:',
+  }
+
+  const cleanResponses = params.results
+    .map((item) => item.response.trim())
+    .filter(Boolean)
+    .join('\n\n')
+
+  const latestInquiryLine = params.latestInquiry
+    ? `Vaše zadnje povpraševanje: ${params.latestInquiry.title || 'brez naslova'} (${params.latestInquiry.kategorija || 'Splošno'})`
+    : null
+
+  return [introByLanguage[params.language], cleanResponses, latestInquiryLine, params.proactiveSuggestion]
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 export async function POST(req: NextRequest) {
@@ -132,7 +174,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const [userContext, tier] = await Promise.all([getUserContext(user.id), getTier(user.id)])
+    const [userContext, tier, role] = await Promise.all([getUserContext(user.id), getTier(user.id), getUserRole(user.id)])
     const allowedAgents = filterAgentsByTier(routing.requiredAgents, tier)
     const fallbackAgents: AIAgentType[] =
       allowedAgents.length > 0 ? allowedAgents : (['work_description'] as AIAgentType[])
@@ -161,19 +203,13 @@ export async function POST(req: NextRequest) {
 
     const proactiveSuggestion = buildWeatherSuggestion(language, body.location?.city)
 
-    const combined = results
-      .map((item) => `[${item.agentType}] ${item.response}`)
-      .join('\n\n')
-
-    const finalMessage = [
-      combined,
-      userContext.inquiries.length
-        ? `\nVaše zadnje povpraševanje: ${userContext.inquiries[0].title || 'brez naslova'} (${userContext.inquiries[0].kategorija || 'Splošno'})`
-        : null,
+    const finalMessage = buildFinalMessage({
+      language,
+      role,
+      results,
+      latestInquiry: userContext.inquiries[0],
       proactiveSuggestion,
-    ]
-      .filter(Boolean)
-      .join('\n\n')
+    })
 
     await setCachedResponse(cacheKey, finalMessage)
 

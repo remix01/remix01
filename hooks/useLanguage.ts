@@ -7,6 +7,8 @@ import {
   type ConciergeLanguage,
 } from '@/lib/ai/concierge-types'
 
+const STORAGE_KEY = 'liftgo_concierge_language'
+
 function normalizeLanguage(input?: string | null): ConciergeLanguage {
   const base = String(input || '').toLowerCase().split('-')[0]
   if (SUPPORTED_CONCIERGE_LANGUAGES.includes(base as ConciergeLanguage)) {
@@ -25,13 +27,23 @@ function normalizeLanguage(input?: string | null): ConciergeLanguage {
 export function useLanguage(initial?: string) {
   const [language, setLanguage] = useState<ConciergeLanguage>(() => {
     if (initial) return normalizeLanguage(initial)
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(STORAGE_KEY)
+      if (stored) return normalizeLanguage(stored)
+    }
     if (typeof navigator !== 'undefined') {
       return normalizeLanguage(navigator.language)
     }
     return 'sl'
   })
 
-  const setResolvedLanguage = (next: string) => setLanguage(normalizeLanguage(next))
+  const setResolvedLanguage = (next: string) => {
+    const resolved = normalizeLanguage(next)
+    setLanguage(resolved)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, resolved)
+    }
+  }
 
   const availableLanguages = useMemo(
     () => [
