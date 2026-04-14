@@ -1,0 +1,149 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import type { ConciergeLanguage } from '@/hooks/useLanguage'
+
+type BrowserSpeechRecognition = {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  start: () => void
+  stop: () => void
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onend: (() => void) | null
+  onerror: ((event: { error: string }) => void) | null
+  onspeechend: (() => void) | null
+}
+
+type SpeechRecognitionEventLike = {
+  results: ArrayLike<{
+    isFinal: boolean
+    length: number
+    [index: number]: { transcript: string }
+  }>
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => BrowserSpeechRecognition
+    webkitSpeechRecognition?: new () => BrowserSpeechRecognition
+  }
+}
+
+const speechLangMap: Record<ConciergeLanguage, string> = {
+  sl: 'sl-SI',
+  en: 'en-US',
+  hr: 'hr-HR',
+  de: 'de-DE',
+  it: 'it-IT',
+}
+
+interface UseSpeechToTextOptions {
+  language: ConciergeLanguage
+  silenceMs?: number
+  onFinalTranscript: (text: string) => void
+  onSpeechEnd?: () => void
+}
+
+export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, silenceMs = 1500 }: UseSpeechToTextOptions) {
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [interimTranscript, setInterimTranscript] = useState('')
+  const [isSupported, setIsSupported] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setIsSupported(false)
+      return
+    }
+
+    setIsSupported(true)
+    const recognition = new SpeechRecognition()
+    recognition.lang = speechLangMap[language]
+    recognition.continuous = false
+    recognition.interimResults = true
+
+    recognition.onresult = (event) => {
+      let interim = ''
+      let final = ''
+
+      for (let i = 0; i < event.results.length; i++) {
+        const res = event.results[i]
+        const text = res[0]?.transcript || ''
+        if (res.isFinal) {
+          final += `${text} `
+        } else {
+          interim += `${text} `
+        }
+      }
+
+      const normalizedFinal = final.trim()
+      const normalizedInterim = interim.trim()
+
+      if (normalizedInterim) setInterimTranscript(normalizedInterim)
+      if (normalizedFinal) {
+        setTranscript((prev) => `${prev} ${normalizedFinal}`.trim())
+      }
+
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+      silenceTimerRef.current = setTimeout(() => {
+        recognition.stop()
+      }, silenceMs)
+    }
+
+    recognition.onspeechend = () => {
+      onSpeechEnd?.()
+    }
+
+    recognition.onerror = (event) => {
+      setError(event.error)
+      setIsListening(false)
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+      setInterimTranscript('')
+      const text = transcript.trim()
+      if (text) {
+        onFinalTranscript(text)
+        setTranscript('')
+      }
+    }
+
+    recognitionRef.current = recognition
+
+    return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+      recognition.stop()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, onFinalTranscript, onSpeechEnd, silenceMs, transcript])
+
+  const start = () => {
+    setError(null)
+    setTranscript('')
+    setInterimTranscript('')
+    recognitionRef.current?.start()
+    setIsListening(true)
+  }
+
+  const stop = () => {
+    recognitionRef.current?.stop()
+    setIsListening(false)
+  }
+
+  return {
+    start,
+    stop,
+    isListening,
+    transcript,
+    interimTranscript,
+    isSupported,
+    error,
+  }
+}
