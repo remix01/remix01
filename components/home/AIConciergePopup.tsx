@@ -15,11 +15,10 @@ type WidgetLanguage = 'sl' | 'en'
 const I18N: Record<WidgetLanguage, Record<string, string>> = {
   sl: {
     title: 'LiftGO AI Pomočnik',
-    subtitle: 'Hitro oddajte povpraševanje z glasom ali besedilom',
+    subtitle: 'Vprašajte za nasvet ali pomoč pri oddaji povpraševanja',
     placeholder: 'Opišite težavo ali storitev, ki jo potrebujete...',
     listening: 'Poslušam...',
-    submit: 'Pošlji povpraševanje',
-    success: 'Hvala! Povpraševanje poslano. Obrtniki vas bodo kontaktirali.',
+    submit: 'Vprašaj AI',
     speechUnavailable: 'Brskalnik ne podpira govornega vnosa.',
     micDenied: 'Mikrofon ni dovoljen. Če je widget v iframe, dodajte allow="microphone".',
     uploadError: 'Nalaganje datoteke ni uspelo. Poskusite znova.',
@@ -32,11 +31,10 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
   },
   en: {
     title: 'LiftGO Concierge',
-    subtitle: 'Quickly submit your request by voice or text',
+    subtitle: 'Ask for advice or help with submitting a request',
     placeholder: 'Describe the issue or service you need...',
     listening: 'Listening...',
-    submit: 'Send inquiry',
-    success: 'Thank you! Inquiry sent. Professionals will contact you.',
+    submit: 'Ask AI',
     speechUnavailable: 'Speech recognition is not supported in this browser.',
     micDenied: 'Microphone permission denied. If embedded in iframe, add allow="microphone".',
     uploadError: 'File upload failed. Please try again.',
@@ -163,7 +161,7 @@ export function AIConciergePopup() {
       const data = await response.json().catch(() => ({}))
       const reply = typeof data.message === 'string' ? data.message : ''
       setAssistantReply(reply || null)
-      setStatusMessage(t.success)
+      setStatusMessage(null)
       setInput('')
       removeAttachment()
     } catch {
