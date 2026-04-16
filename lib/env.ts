@@ -33,7 +33,8 @@ export const env = {
   LANGFUSE_HOST: process.env.LANGFUSE_HOST ?? '',
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '',
-  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com',
+  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
+  NEXT_PUBLIC_POSTHOG_DEFAULTS: process.env.NEXT_PUBLIC_POSTHOG_DEFAULTS ?? '2026-01-30',
 
   // ─── Email & Notifications ───
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',

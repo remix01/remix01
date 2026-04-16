@@ -6,7 +6,8 @@ import posthog from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com'
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com'
+const POSTHOG_DEFAULTS = process.env.NEXT_PUBLIC_POSTHOG_DEFAULTS ?? '2026-01-30'
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -14,16 +15,17 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
 
     posthog.init(POSTHOG_KEY, {
       api_host: POSTHOG_HOST,
+      defaults: POSTHOG_DEFAULTS,
       person_profiles: 'identified_only',
       capture_pageview: false,
       capture_pageleave: true,
       autocapture: true,
-      loaded: (ph) => {
+      loaded: (ph: any) => {
         if (process.env.NODE_ENV === 'development') {
           ph.debug()
         }
       },
-    })
+    } as any)
   }, [])
 
   if (!POSTHOG_KEY) {
