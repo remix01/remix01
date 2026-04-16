@@ -8,11 +8,13 @@ import { AdminAlertsPanel } from '@/components/admin/AdminAlertsPanel'
 async function getStats() {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
   let totalPartners = 0
   try {
     const { count } = await supabaseAdmin
-      .from('obrtnik_profiles')
+      .from('craftworker_profile')
       .select('*', { count: 'exact', head: true })
     totalPartners = count ?? 0
   } catch (e) {
@@ -22,9 +24,10 @@ async function getStats() {
   let activePartners = 0
   try {
     const { count } = await supabaseAdmin
-      .from('obrtnik_profiles')
+      .from('craftworker_profile')
       .select('*', { count: 'exact', head: true })
-      .eq('is_available', true)
+      .eq('is_suspended', false)
+      .eq('is_verified', true)
     activePartners = count ?? 0
   } catch (e) {
     console.error('[admin] activePartners query failed:', e instanceof Error ? e.message : String(e))
@@ -64,22 +67,85 @@ async function getStats() {
   let pendingVerifications = 0
   try {
     const { count } = await supabaseAdmin
-      .from('obrtnik_profiles')
+      .from('craftworker_profile')
       .select('*', { count: 'exact', head: true })
-      .eq('verification_status', 'pending')
+      .eq('is_verified', false)
     pendingVerifications = count ?? 0
   } catch (e) {
     console.error('[admin] pendingVerifications query failed:', e instanceof Error ? e.message : String(e))
   }
 
+  let violationsToday = 0
+  let violationsThisWeek = 0
+  let violationsThisMonth = 0
+  try {
+    const [{ count: todayCount }, { count: weekCount }, { count: monthCount }] = await Promise.all([
+      supabaseAdmin.from('violation').select('*', { count: 'exact', head: true }).gte('created_at', today.toISOString()),
+      supabaseAdmin.from('violation').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo.toISOString()),
+      supabaseAdmin.from('violation').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo.toISOString()),
+    ])
+
+    violationsToday = todayCount ?? 0
+    violationsThisWeek = weekCount ?? 0
+    violationsThisMonth = monthCount ?? 0
+  } catch (e) {
+    console.error('[admin] violation counters query failed:', e instanceof Error ? e.message : String(e))
+  }
+
+  let blockedMessagesToday = 0
+  try {
+    const { count } = await supabaseAdmin
+      .from('message')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_blocked', true)
+      .gte('created_at', today.toISOString())
+    blockedMessagesToday = count ?? 0
+  } catch (e) {
+    console.error('[admin] blocked messages query failed:', e instanceof Error ? e.message : String(e))
+  }
+
+  let highRiskJobs = 0
+  try {
+    const { count } = await supabaseAdmin
+      .from('risk_scores')
+      .select('*', { count: 'exact', head: true })
+      .gte('score', 70)
+      .gte('created_at', thirtyDaysAgo.toISOString())
+    highRiskJobs = count ?? 0
+  } catch (e) {
+    console.error('[admin] high-risk jobs query failed:', e instanceof Error ? e.message : String(e))
+  }
+
+  let suspendedCraftworkers = 0
+  try {
+    const { count } = await supabaseAdmin
+      .from('craftworker_profile')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_suspended', true)
+    suspendedCraftworkers = count ?? 0
+  } catch (e) {
+    console.error('[admin] suspended craftworkers query failed:', e instanceof Error ? e.message : String(e))
+  }
+
+  let disputedJobs = 0
+  try {
+    const { count } = await supabaseAdmin
+      .from('escrow_disputes')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'open')
+    disputedJobs = count ?? 0
+  } catch (e) {
+    console.error('[admin] disputed jobs query failed:', e instanceof Error ? e.message : String(e))
+  }
+
   return {
-    violationsToday: 0,
-    violationsThisWeek: 0,
-    violationsThisMonth: 0,
-    blockedMessagesToday: 0,
-    highRiskJobs: totalPartners,
-    suspendedCraftworkers: activePartners,
-    disputedJobs: openPovprasevanja,
+    violationsToday,
+    violationsThisWeek,
+    violationsThisMonth,
+    blockedMessagesToday,
+    highRiskJobs,
+    suspendedCraftworkers,
+    disputedJobs,
     totalPartners,
     activePartners,
     totalPovprasevanja,
@@ -91,32 +157,25 @@ async function getStats() {
 
 async function getViolationsData() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString()
 
-  let povprasevanja: any[] = []
+  let violations: Array<{ created_at: string; type: string }> = []
   try {
     const { data } = await supabaseAdmin
-      .from('povprasevanja')
-      .select('created_at')
-      .gte('created_at', thirtyDaysAgoStr)
-    povprasevanja = data ?? []
+      .from('violation')
+      .select('created_at, type')
+      .gte('created_at', thirtyDaysAgo.toISOString())
+    violations = (data as Array<{ created_at: string; type: string }> | null) ?? []
   } catch (e) {
-    console.error('[admin] povprasevanja query failed:', e instanceof Error ? e.message : String(e))
+    console.error('[admin] violations data query failed:', e instanceof Error ? e.message : String(e))
   }
 
-  // Group by day
   const byDay: Record<string, number> = {}
-  const byType: Record<string, number> = {
-    'Novo povpraševanje': 0,
-    'Sprejeto povpraševanje': 0,
-    'Zaključeno povpraševanje': 0,
-    'Preklicano povpraševanje': 0,
-  }
+  const byType: Record<string, number> = {}
 
-  povprasevanja.forEach(p => {
-    const date = new Date(p.created_at).toISOString().split('T')[0]
+  violations.forEach((v) => {
+    const date = new Date(v.created_at).toISOString().split('T')[0]
     byDay[date] = (byDay[date] || 0) + 1
-    byType['Novo povpraševanje'] += 1
+    byType[v.type] = (byType[v.type] || 0) + 1
   })
 
   return { byDay, byType }
