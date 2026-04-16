@@ -234,7 +234,9 @@ export default function RootLayout({
 
       <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>
         <PostHogProvider>
-          <PostHogPageView />
+          <React.Suspense fallback={null}>
+            <PostHogPageView />
+          </React.Suspense>
           <OfflineBanner />
           <GlobalErrorHandler />
           <ErrorBoundary>
