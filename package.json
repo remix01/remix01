@@ -71,6 +71,7 @@
     "lucide-react": "^0.544.0",
     "next": "16.1.7",
     "next-themes": "^0.4.6",
+    "posthog-js": "^1.253.0",
     "react": "19.2.3",
     "react-day-picker": "9.13.2",
     "react-dom": "19.2.3",
