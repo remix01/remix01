@@ -15,6 +15,7 @@ import { OfflineBanner } from '@/components/liftgo/OfflineBanner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalErrorHandler } from '@/components/GlobalErrorHandler'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
+import { PostHogProvider, PostHogPageView } from '@/components/posthog-provider'
 
 import './globals.css'
 
@@ -232,13 +233,16 @@ export default function RootLayout({
       </head>
 
       <body className={`${inter.variable} ${dmSans.variable} font-sans antialiased`}>
-        <OfflineBanner />
-        <GlobalErrorHandler />
-        <ErrorBoundary>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </ErrorBoundary>
+        <PostHogProvider>
+          <PostHogPageView />
+          <OfflineBanner />
+          <GlobalErrorHandler />
+          <ErrorBoundary>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ErrorBoundary>
+        </PostHogProvider>
 
         <CookieConsent />
 
