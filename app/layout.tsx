@@ -12,6 +12,7 @@ import { CookieConsent } from '@/components/cookie-consent'
 import { ServiceWorkerRegistration } from '@/components/liftgo/ServiceWorkerRegistration'
 import { PWAInstallBanner } from '@/components/liftgo/PWAInstallBanner'
 import { OfflineBanner } from '@/components/liftgo/OfflineBanner'
+import { AgentChatButton as GlobalAgentChatButton } from '@/components/agent/AgentChatButton'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { GlobalErrorHandler } from '@/components/GlobalErrorHandler'
 import { AgentChatButton } from '@/components/agent/AgentChatButton'
@@ -255,7 +256,7 @@ export default function RootLayout({
         <PWAInstallBanner />
 
         {/* Global AI chat trigger (self-hides on pages with dedicated assistants) */}
-        <AgentChatButton />
+        <GlobalAgentChatButton />
 
         {/* Vercel Web Analytics */}
         <Analytics />
