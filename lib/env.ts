@@ -25,6 +25,7 @@ export const env = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? '',
   GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? '',
   PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY ?? '',
+  BRAVE_API_KEY: process.env.BRAVE_API_KEY ?? '',
   VOYAGE_API_KEY: process.env.VOYAGE_API_KEY ?? '',
 
   // ─── Observability ───
@@ -99,6 +100,7 @@ export const hasAnthropicAI = () => !!env.ANTHROPIC_API_KEY
 export const hasOpenAI = () => !!env.OPENAI_API_KEY
 export const hasGemini = () => !!env.GEMINI_API_KEY
 export const hasPerplexity = () => !!env.PERPLEXITY_API_KEY
+export const hasBraveSearch = () => !!env.BRAVE_API_KEY
 export const hasVoyageAPI = () => !!env.VOYAGE_API_KEY
 
 // Check if ANY AI provider is available
