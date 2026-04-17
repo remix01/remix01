@@ -1,24 +1,47 @@
 {
   "mcpServers": {
     "supabase": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=whabaeatixtymbccwigu"
+    },
+    "supabase-local": {
       "command": "npx",
-      "args": ["-y", "@supabase/mcp-server"],
+      "args": [
+        "-y",
+        "@supabase/mcp-server"
+      ],
       "env": {
         "SUPABASE_URL": "https://whabaeatixtymbccwigu.supabase.co",
         "SUPABASE_ANON_KEY": "${NEXT_PUBLIC_SUPABASE_ANON_KEY}",
         "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}"
       }
     },
+    "supabase-readonly": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server"
+      ],
+      "env": {
+        "SUPABASE_URL": "https://whabaeatixtymbccwigu.supabase.co",
+        "SUPABASE_ANON_KEY": "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+      }
+    },
     "postgres": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
       "env": {
         "POSTGRES_CONNECTION_STRING": "${SUPABASE_DB_URL}"
       }
     },
     "upstash": {
       "command": "npx",
-      "args": ["-y", "@upstash/mcp-server"],
+      "args": [
+        "-y",
+        "@upstash/mcp-server"
+      ],
       "env": {
         "UPSTASH_REDIS_REST_URL": "${UPSTASH_REDIS_REST_URL}",
         "UPSTASH_REDIS_REST_TOKEN": "${UPSTASH_REDIS_REST_TOKEN}",
@@ -27,14 +50,20 @@
     },
     "stripe": {
       "command": "npx",
-      "args": ["-y", "@stripe/mcp"],
+      "args": [
+        "-y",
+        "@stripe/mcp"
+      ],
       "env": {
         "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}"
       }
     },
     "sentry": {
       "command": "npx",
-      "args": ["-y", "@sentry/mcp-server"],
+      "args": [
+        "-y",
+        "@sentry/mcp-server"
+      ],
       "env": {
         "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}",
         "SENTRY_ORG": "liftgo",
@@ -43,7 +72,10 @@
     },
     "github": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
@@ -53,40 +85,62 @@
     },
     "openai": {
       "command": "npx",
-      "args": ["-y", "@openai/mcp-server"],
+      "args": [
+        "-y",
+        "@openai/mcp-server"
+      ],
       "env": {
         "OPENAI_API_KEY": "${OPENAI_API_KEY}"
       }
     },
     "vercel": {
       "command": "npx",
-      "args": ["-y", "vercel-mcp-server"],
+      "args": [
+        "-y",
+        "vercel-mcp-server"
+      ],
       "env": {
         "VERCEL_TOKEN": "${VERCEL_TOKEN}"
       }
     },
     "sequential-thinking": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
     },
     "memory": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
     },
     "brave-search": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-brave-search"],
+      "args": [
+        "-y",
+        "@anthropic/mcp-server-brave-search"
+      ],
       "env": {
         "BRAVE_API_KEY": "${BRAVE_API_KEY}"
       }
     },
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/vercel/share/v0-project"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/vercel/share/v0-project"
+      ]
     },
     "puppeteer": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-puppeteer"]
+      "args": [
+        "-y",
+        "@anthropic/mcp-server-puppeteer"
+      ]
     }
   }
 }
