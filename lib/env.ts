@@ -31,7 +31,10 @@ export const env = {
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? '',
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY ?? '',
   LANGFUSE_HOST: process.env.LANGFUSE_HOST ?? '',
+  SENTRY_DSN: process.env.SENTRY_DSN ?? '',
+  SENTRY_RELEASE: process.env.SENTRY_RELEASE ?? '',
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
+  NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? '',
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '',
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
   NEXT_PUBLIC_POSTHOG_DEFAULTS: process.env.NEXT_PUBLIC_POSTHOG_DEFAULTS ?? '2026-01-30',
@@ -107,7 +110,7 @@ export const hasEmbeddings = () => hasOpenAI() || hasVoyageAPI() || hasGemini()
 
 // Observability
 export const hasLangfuse = () => !!env.LANGFUSE_SECRET_KEY
-export const hasSentry = () => !!env.NEXT_PUBLIC_SENTRY_DSN
+export const hasSentry = () => !!(env.SENTRY_DSN || env.NEXT_PUBLIC_SENTRY_DSN)
 export const hasPostHog = () => !!env.NEXT_PUBLIC_POSTHOG_KEY
 export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
 
