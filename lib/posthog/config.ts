@@ -2,6 +2,7 @@
  * PostHog Configuration
  * Advanced analytics setup for EU-based deployment
  */
+import type { PostHogConfig } from 'posthog-js'
 
 export const POSTHOG_CONFIG = {
   // ─── CREDENTIALS ────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ export const POSTHOG_CONFIG = {
     batch_events: true,
     batch_size: 50,
     batch_timeout: 10000,
-  },
+  } satisfies PostHogConfig,
 
   // ─── EVENT NAMES (for consistency) ──────────────────────────────────
   events: {
