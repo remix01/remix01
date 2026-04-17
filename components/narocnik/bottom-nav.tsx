@@ -15,7 +15,7 @@ export function NarocnikBottomNav() {
     { href: '/profil', icon: '👤', label: 'Profil' },
   ]
 
-  const isActive = (href: string) => pathname === href
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
 
   return (
     <div className="flex justify-around items-center h-20 px-4">

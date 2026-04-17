@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell } from 'lucide-react'
 
 interface PartnerSidebarProps {
@@ -16,16 +15,46 @@ interface PartnerSidebarProps {
   }
 }
 
+interface PartnerNavItem {
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+}
+
 export function PartnerSidebar({ partner }: PartnerSidebarProps) {
+  const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
 
+  const isProOrElite = partner.subscription_tier === 'pro' || partner.subscription_tier === 'elite'
+
+  const navItems: PartnerNavItem[] = [
+    { href: '/partner-dashboard', icon: Home, label: 'Domov' },
+    { href: '/partner-dashboard/povprasevanja', icon: FileText, label: 'Povpraševanja' },
+    ...(isProOrElite
+      ? [
+          { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM' },
+          { href: '/partner-dashboard/insights', icon: BarChart3, label: 'Insights' },
+          { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator ponudb' },
+        ]
+      : []),
+    { href: '/partner-dashboard/notifications', icon: Bell, label: 'Obvestila' },
+    { href: '/partner-dashboard/account', icon: User, label: 'Račun' },
+  ]
+
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
+
   const handleLogout = async () => {
     setIsLoading(true)
     try {
-      await supabase.auth.signOut()
-      router.replace('/')
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Logout error:', error)
+        return
+      }
+      router.replace('/partner-auth/login')
+      router.refresh()
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
@@ -40,19 +69,16 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
             <span className="text-lg font-bold text-primary-foreground">L</span>
           </div>
-          <span className="font-display text-xl font-bold text-foreground">
-            LiftGO
-          </span>
+          <span className="font-display text-xl font-bold text-foreground">LiftGO</span>
         </Link>
       </div>
 
-      {/* Partner info card */}
-      <div className="mb-8 p-4 bg-background rounded-lg border">
-        <p className="font-semibold text-foreground text-sm">{partner.business_name}</p>
-        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+      <div className="mb-8 rounded-lg border bg-background p-4">
+        <p className="text-sm font-semibold text-foreground">{partner.business_name}</p>
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
           {partner.is_verified && '✓'} {partner.avg_rating.toFixed(1)} ⭐
         </p>
-        <p className="text-xs font-medium text-primary mt-2">
+        <p className="mt-2 text-xs font-medium text-primary">
           {partner.subscription_tier === 'elite'
             ? 'ELITE plan'
             : partner.subscription_tier === 'pro'
@@ -61,70 +87,21 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
         </p>
       </div>
 
-      <nav className="space-y-2 mb-8 flex-1">
-        <Link
-          href="/partner-dashboard"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-        >
-          <Home className="h-4 w-4" />
-          Domov
-        </Link>
-        <Link
-          href="/partner-dashboard"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-        >
-          <BarChart3 className="h-4 w-4" />
-          Statistika
-        </Link>
-        
-        {/* PRO Features */}
-        {(partner.subscription_tier === 'pro' || partner.subscription_tier === 'elite') && (
-          <>
-            <Link
-              href="/partner-dashboard/crm"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-            >
-              <TrendingUp className="h-4 w-4" />
-              CRM
-            </Link>
-            <Link
-              href="/partner-dashboard/insights"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Insights
-            </Link>
-            <Link
-              href="/partner-dashboard/offers/generate"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-            >
-              <Zap className="h-4 w-4" />
-              Generator Ponudb
-            </Link>
-          </>
-        )}
-
-        <Link
-          href="/partner-dashboard"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-        >
-          <FileText className="h-4 w-4" />
-          Ponudbe
-        </Link>
-        <Link
-          href="/partner-dashboard/notifications"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-        >
-          <Bell className="h-4 w-4" />
-          Obvestila
-        </Link>
-        <Link
-          href="/partner-dashboard/account"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-background transition-colors"
-        >
-          <User className="h-4 w-4" />
-          Račun
-        </Link>
+      <nav className="mb-8 flex-1 space-y-2">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              isActive(item.href)
+                ? 'bg-primary text-primary-foreground'
+                : 'text-foreground hover:bg-background'
+            }`}
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </Link>
+        ))}
       </nav>
 
       <div className="border-t pt-6">
@@ -133,10 +110,11 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
           <p className="font-semibold text-foreground">{partner.business_name}</p>
           <p className="text-xs text-muted-foreground">{partner.avg_rating.toFixed(1)} ⭐</p>
         </div>
-        <button 
+        <button
+          type="button"
           onClick={handleLogout}
           disabled={isLoading}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 w-full transition-colors disabled:opacity-50"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
         >
           <LogOut className="h-4 w-4" />
           {isLoading ? 'Odjavljam...' : 'Odjava'}
