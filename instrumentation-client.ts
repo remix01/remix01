@@ -3,6 +3,8 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import posthog from 'posthog-js'
+import { POSTHOG_CONFIG } from './lib/posthog/config'
 
 Sentry.init({
   dsn: "https://48711f0deb77ec04e76c4e80a2a81093@o4511142901448704.ingest.de.sentry.io/4511143182794832",
@@ -27,5 +29,19 @@ Sentry.init({
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   sendDefaultPii: true,
 });
+
+if (POSTHOG_CONFIG.apiKey) {
+  posthog.init(POSTHOG_CONFIG.apiKey, {
+    ...POSTHOG_CONFIG.initialization,
+    api_host: POSTHOG_CONFIG.apiHost,
+    defaults: POSTHOG_CONFIG.defaults,
+    loaded: (ph) => {
+      if (process.env.NODE_ENV === 'development') {
+        ph.debug()
+        console.log('[PostHog] Initialized in development mode')
+      }
+    },
+  })
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
