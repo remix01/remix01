@@ -5,6 +5,36 @@ import { checkPermission, type Session } from '@/lib/agent/permissions'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueue } from '@/lib/jobs/queue'
 import { v4 as uuidv4 } from 'uuid'
+import { alertDisputeOpened, alertPaymentFailed } from '@/lib/connectors/telegram'
+import { notifyNewRequestWhatsApp, notifyOfferReceivedWhatsApp } from '@/lib/connectors/whatsapp'
+import { trackConversion } from '@/lib/connectors/posthog'
+
+// ── Channel dispatcher ───────────────────────────────────────────────────────
+// Resolves which channels to use based on user preferences.
+// Falls back gracefully — a missing channel never throws.
+
+type NotifyChannel = 'email' | 'telegram' | 'whatsapp'
+
+interface ChannelPreferences {
+  email?: boolean
+  telegram?: boolean
+  whatsapp?: boolean
+  telegram_chat_id?: string
+  whatsapp_number?: string   // E.164 format
+}
+
+async function getChannels(userId: string): Promise<{ prefs: ChannelPreferences; email: string }> {
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('email, notification_preferences')
+    .eq('id', userId)
+    .single()
+
+  return {
+    email: profile?.email ?? '',
+    prefs: (profile?.notification_preferences ?? {}) as ChannelPreferences,
+  }
+}
 
 export class NotifyAgent extends BaseAgent {
   type: AgentType = 'notify'
@@ -186,20 +216,28 @@ export class NotifyAgent extends BaseAgent {
     const { inquiryId, userId, title } = payload
 
     try {
-      // Get user email
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('email')
-        .eq('id', userId)
-        .single()
+      const { prefs, email } = await getChannels(userId)
 
-      if (profile?.email) {
+      // Email channel
+      if (email && prefs.email !== false) {
         await enqueue('send_release_email', {
-          recipientEmail: profile.email,
+          recipientEmail: email,
           template: 'inquiry_created',
           templateData: { inquiryId, title },
         })
       }
+
+      // WhatsApp — notify matched craftsmen if they opted in
+      if (prefs.whatsapp && prefs.whatsapp_number) {
+        await notifyNewRequestWhatsApp({
+          to: prefs.whatsapp_number,
+          taskTitle: title,
+          taskId: inquiryId,
+        }).catch(() => {}) // Non-blocking
+      }
+
+      // PostHog conversion tracking
+      trackConversion({ userId, event: 'task_created', meta: { inquiryId, title } })
 
       this.log('inquiry_created_handled', { inquiryId })
       return {
@@ -225,19 +263,25 @@ export class NotifyAgent extends BaseAgent {
     const { escrowId, customerId, partnerId, amount } = payload
 
     try {
-      // Notify both parties
       const profiles = await supabaseAdmin
         .from('profiles')
-        .select('id, email')
+        .select('id, email, notification_preferences')
         .in('id', [customerId, partnerId])
 
       for (const profile of profiles.data || []) {
-        await enqueue('send_payment_confirmed_email', {
-          recipientEmail: profile.email,
-          template: 'escrow_captured',
-          templateData: { escrowId, amount },
-        })
+        const prefs = (profile.notification_preferences ?? {}) as { email?: boolean; whatsapp?: boolean; whatsapp_number?: string }
+
+        if (profile.email && prefs.email !== false) {
+          await enqueue('send_payment_confirmed_email', {
+            recipientEmail: profile.email,
+            template: 'escrow_captured',
+            templateData: { escrowId, amount },
+          })
+        }
       }
+
+      // PostHog conversion
+      trackConversion({ userId: customerId, event: 'escrow_captured', meta: { escrowId, amount } })
 
       this.log('escrow_captured_handled', { escrowId })
       return {
@@ -322,7 +366,6 @@ export class NotifyAgent extends BaseAgent {
     const { disputeId, escrowId, userId, reason } = payload
 
     try {
-      // Get all involved parties: customer, partner, and admin
       const { data: escrow } = await supabaseAdmin
         .from('escrows')
         .select('customer_id, partner_id, customer_email, partner_email')
@@ -330,7 +373,6 @@ export class NotifyAgent extends BaseAgent {
         .single()
 
       if (escrow) {
-        // Email to both parties
         for (const email of [escrow.customer_email, escrow.partner_email]) {
           if (email) {
             await enqueue('send_dispute_email', {
@@ -342,12 +384,14 @@ export class NotifyAgent extends BaseAgent {
         }
       }
 
-      // Alert admin (send to admin alert email)
       await enqueue('send_dispute_email', {
-        recipientEmail: 'admin@liftgo.com', // TODO: config
+        recipientEmail: process.env.ADMIN_EMAIL ?? 'admin@liftgo.net',
         template: 'dispute_opened_admin_alert',
         templateData: { disputeId, escrowId, openedBy: userId, reason },
       })
+
+      // Telegram alert to admin — disputes are always high-priority
+      await alertDisputeOpened({ disputeId, escrowId, reason }).catch(() => {})
 
       this.log('dispute_opened_handled', { disputeId })
       return {

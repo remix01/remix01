@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, CheckCircle, Star, Clock, Shield } from "lucide-react"
-import { useState, useEffect } from "react"
+import { ArrowRight, CheckCircle, Clock, Shield } from "lucide-react"
+import { useState, useEffect, useRef, useCallback, useId } from "react"
 import { Button } from "@/components/ui/button"
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { HeroFormDialog } from "@/components/hero-form-dialog"
+import { STORITVE, LOKACIJE } from "@/lib/constants/hero"
 import dynamic from "next/dynamic"
 
 // Lazy load the heavy demonstrator
@@ -20,42 +21,6 @@ const HeroDemonstrator = dynamic(
   () => import("@/components/hero-demonstrator"),
   { loading: () => <div className="w-full h-full bg-slate-100 rounded-2xl animate-pulse" /> }
 )
-
-const STORITVE = [
-  "Gradnja & adaptacije",
-  "Vodovod & ogrevanje",
-  "Elektrika & pametni sistemi",
-  "Mizarstvo & kovinarstvo",
-  "Zaključna dela",
-  "Okna, vrata & senčila",
-  "Okolica & zunanja ureditev",
-  "Vzdrževanje & popravila",
-  "Poslovne storitve",
-  "Drugo",
-]
-
-const LOKACIJE = [
-  "Ljubljana",
-  "Maribor",
-  "Celje",
-  "Kranj",
-  "Koper",
-  "Novo Mesto",
-  "Velenje",
-  "Murska Sobota",
-  "Ptuj",
-  "Kamnik",
-  "Domžale",
-  "Škofja Loka",
-  "Trbovlje",
-  "Krško",
-  "Postojna",
-  "Slovenj Gradec",
-  "Jesenice",
-  "Nova Gorica",
-  "Brežice",
-  "Izola",
-]
 
 // Fallback stats if API fails
 const FALLBACK_STATS = {
@@ -65,52 +30,80 @@ const FALLBACK_STATS = {
   reviews: 1200,
 }
 
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex -space-x-0.5" aria-label={`Ocena: ${rating} od 5`}>
+      {Array.from({ length: 5 }).map((_, i) => {
+        const filled = i < Math.floor(rating)
+        const half = !filled && i < rating
+        return (
+          <svg
+            key={i}
+            className={`h-4 w-4 ${filled || half ? "text-accent" : "text-muted-foreground/30"}`}
+            viewBox="0 0 20 20"
+            fill={filled ? "currentColor" : half ? "url(#halfFill)" : "none"}
+            stroke="currentColor"
+            strokeWidth={filled || half ? 0 : 1}
+            aria-hidden="true"
+          >
+            {half && (
+              <defs>
+                <linearGradient id="halfFill">
+                  <stop offset="50%" stopColor="currentColor" />
+                  <stop offset="50%" stopColor="transparent" />
+                </linearGradient>
+              </defs>
+            )}
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+          </svg>
+        )
+      })}
+    </div>
+  )
+}
+
 export function Hero() {
+  const lokacijaId = useId()
+  const listboxId = useId()
+
   const [showForm, setShowForm] = useState(false)
   const [lokacijaInput, setLokacijaInput] = useState("")
   const [filteredLokacije, setFilteredLokacije] = useState<string[]>([])
   const [showLokacijaSuggestions, setShowLokacijaSuggestions] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
   const [selectedService, setSelectedService] = useState("")
   const [stats, setStats] = useState(FALLBACK_STATS)
   const [statsLoading, setStatsLoading] = useState(true)
+
+  const listboxRef = useRef<HTMLDivElement>(null)
 
   // Fetch real stats from public API
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/stats/public')
-        
-        if (!response.ok) {
-          console.error('[v0] Stats API error:', response.status)
-          setStatsLoading(false)
-          return
-        }
-
+        const response = await fetch("/api/stats/public")
+        if (!response.ok) return
         const data = await response.json()
-        
         if (data.successfulConnections) {
           setStats({
-            successfulConnections: data.successfulConnections || FALLBACK_STATS.successfulConnections,
-            activeArtisans: data.activeArtisans || FALLBACK_STATS.activeArtisans,
-            rating: data.rating || FALLBACK_STATS.rating,
-            reviews: data.reviews || FALLBACK_STATS.reviews,
+            successfulConnections: data.successfulConnections ?? FALLBACK_STATS.successfulConnections,
+            activeArtisans: data.activeArtisans ?? FALLBACK_STATS.activeArtisans,
+            rating: data.rating ?? FALLBACK_STATS.rating,
+            reviews: data.reviews ?? FALLBACK_STATS.reviews,
           })
-          console.log('[v0] Hero stats loaded:', data)
         }
-      } catch (error) {
-        console.error('[v0] Error fetching hero stats:', error)
-        // Use fallback stats
+      } catch {
+        // Use fallback stats silently
       } finally {
         setStatsLoading(false)
       }
     }
-
     fetchStats()
   }, [])
 
-  const handleLokacijaChange = (value: string) => {
+  const handleLokacijaChange = useCallback((value: string) => {
     setLokacijaInput(value)
-
+    setActiveIndex(-1)
     if (value.trim() === "") {
       setFilteredLokacije([])
       setShowLokacijaSuggestions(false)
@@ -121,12 +114,42 @@ export function Hero() {
       setFilteredLokacije(filtered)
       setShowLokacijaSuggestions(filtered.length > 0)
     }
-  }
+  }, [])
 
-  const selectLokacija = (lokacija: string) => {
+  const selectLokacija = useCallback((lokacija: string) => {
     setLokacijaInput(lokacija)
+    setFilteredLokacije([])
     setShowLokacijaSuggestions(false)
-  }
+    setActiveIndex(-1)
+  }, [])
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!showLokacijaSuggestions || filteredLokacije.length === 0) return
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setActiveIndex((i) => Math.min(i + 1, filteredLokacije.length - 1))
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setActiveIndex((i) => Math.max(i - 1, 0))
+      } else if (e.key === "Enter" && activeIndex >= 0) {
+        e.preventDefault()
+        selectLokacija(filteredLokacije[activeIndex])
+      } else if (e.key === "Escape") {
+        setShowLokacijaSuggestions(false)
+        setActiveIndex(-1)
+      }
+    },
+    [showLokacijaSuggestions, filteredLokacije, activeIndex, selectLokacija]
+  )
+
+  // Scroll active option into view
+  useEffect(() => {
+    if (activeIndex >= 0 && listboxRef.current) {
+      const option = listboxRef.current.children[activeIndex] as HTMLElement
+      option?.scrollIntoView({ block: "nearest" })
+    }
+  }, [activeIndex])
 
   return (
     <>
@@ -138,12 +161,12 @@ export function Hero() {
             {/* Left content */}
             <div className="flex flex-col justify-center">
               <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-card px-4 py-1.5">
-                <span className="relative flex h-2 w-2">
+                <span className="relative flex h-2 w-2" aria-hidden="true">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
                 </span>
                 <span className="text-xs font-medium text-muted-foreground">
-                  {stats.activeArtisans}+ aktivnih mojstrov po vsej Sloveniji
+                  {statsLoading ? "225+" : `${stats.activeArtisans}+`} aktivnih mojstrov po vsej Sloveniji
                 </span>
               </div>
 
@@ -176,29 +199,54 @@ export function Hero() {
                   <div className="hidden h-8 w-px bg-border sm:block" />
                   <div className="flex-1 relative">
                     <Input
+                      id={lokacijaId}
                       type="text"
                       inputMode="text"
-                      autoComplete="address-level2"
+                      autoComplete="off"
                       placeholder="Lokacija?"
                       value={lokacijaInput}
                       onChange={(e) => handleLokacijaChange(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       onFocus={() => {
                         if (lokacijaInput.trim() && filteredLokacije.length > 0) {
                           setShowLokacijaSuggestions(true)
                         }
                       }}
                       onBlur={() => {
-                        setTimeout(() => setShowLokacijaSuggestions(false), 200)
+                        // Only hide if pointer didn't click an option
+                        requestAnimationFrame(() => setShowLokacijaSuggestions(false))
                       }}
+                      role="combobox"
+                      aria-expanded={showLokacijaSuggestions}
+                      aria-haspopup="listbox"
+                      aria-controls={listboxId}
+                      aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
                       className="border-0 shadow-none focus-visible:ring-0 min-h-[48px] text-[16px]"
                     />
                     {showLokacijaSuggestions && filteredLokacije.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-md">
-                        {filteredLokacije.map((lok) => (
+                      <div
+                        id={listboxId}
+                        ref={listboxRef}
+                        role="listbox"
+                        aria-label="Predlagane lokacije"
+                        className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover shadow-md"
+                      >
+                        {filteredLokacije.map((lok, i) => (
                           <div
                             key={lok}
-                            onClick={() => selectLokacija(lok)}
-                            className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                            id={`${listboxId}-${i}`}
+                            role="option"
+                            aria-selected={i === activeIndex}
+                            onMouseDown={(e) => {
+                              // Prevent input blur before click registers
+                              e.preventDefault()
+                              selectLokacija(lok)
+                            }}
+                            className={`cursor-pointer px-3 py-2 text-sm ${
+                              i === activeIndex
+                                ? "bg-accent text-accent-foreground"
+                                : "hover:bg-accent hover:text-accent-foreground"
+                            }`}
                           >
                             {lok}
                           </div>
@@ -234,13 +282,11 @@ export function Hero() {
               {/* Trust strip */}
               <div className="mt-8 flex flex-wrap items-center gap-6 border-t pt-6">
                 <div className="flex items-center gap-1.5">
-                  <div className="flex -space-x-1.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-                    ))}
-                  </div>
+                  <StarRating rating={stats.rating} />
                   <span className="text-sm font-semibold text-foreground">{stats.rating}</span>
-                  <span className="text-xs text-muted-foreground">iz {stats.reviews.toLocaleString()}+ ocen</span>
+                  <span className="text-xs text-muted-foreground">
+                    iz {stats.reviews.toLocaleString("sl-SI")}+ ocen
+                  </span>
                 </div>
                 <div className="h-4 w-px bg-border" />
                 <p className="text-xs text-muted-foreground">
@@ -280,9 +326,7 @@ export function Hero() {
                   </div>
                 </div>
                 <div className="mt-2 flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-3 w-3 fill-accent text-accent" />
-                  ))}
+                  <StarRating rating={5} />
                   <span className="ml-1 text-xs text-muted-foreground">5.0</span>
                 </div>
               </div>
@@ -292,7 +336,7 @@ export function Hero() {
                   Ta mesec
                 </p>
                 <p className="font-display text-xl sm:text-2xl font-bold text-primary">
-                  {statsLoading ? '-' : stats.successfulConnections}
+                  {statsLoading ? "—" : stats.successfulConnections}
                 </p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground">
                   uspešno povezav
@@ -303,8 +347,13 @@ export function Hero() {
         </div>
       </section>
 
-      {/* Form Dialog */}
-      <HeroFormDialog open={showForm} onOpenChange={setShowForm} />
+      {/* Form Dialog — passes pre-filled values from inline form */}
+      <HeroFormDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        initialService={selectedService}
+        initialLokacija={lokacijaInput}
+      />
     </>
   )
 }

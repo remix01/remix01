@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 // ── TYPER HOOK ──────────────────────────────────────────────────
 function useTyper(words: string[], speed = 80) {
@@ -95,7 +95,7 @@ export default function HeroDemonstrator() {
   // Info rows
   const [infoVisible, setInfoVisible] = useState([false, false, false])
 
-  function resetAll() {
+  const resetAll = useCallback(() => {
     setScene('form')
     setStep(0)
     setFormSent(false)
@@ -107,7 +107,7 @@ export default function HeroDemonstrator() {
     setShowRating(false)
     setShowRepeat(false)
     setInfoVisible([false, false, false])
-  }
+  }, [])
 
   useEffect(() => {
     if (paused) return
@@ -355,8 +355,9 @@ export default function HeroDemonstrator() {
             <div className={`flex items-center gap-1.5 bg-teal-50 border border-teal-200
                             rounded-lg px-2.5 py-1 text-[8px] font-semibold text-teal-700
                             transition-opacity duration-500
-                            ${showRepeat ? 'opacity-100' : 'opacity-0'}`}>
-              🔄 Shranjeno za naslednjič
+                            ${showRepeat ? 'opacity-100' : 'opacity-0'}`}
+                 aria-label="Shranjeno za naslednjič">
+              <span aria-hidden="true">🔄</span> Shranjeno za naslednjič
             </div>
           </div>
 

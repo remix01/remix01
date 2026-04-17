@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { CheckCircle, Star, Phone, Mail, X, Clock, Shield } from "lucide-react"
+import { useState, useEffect } from "react"
+import { CheckCircle, Phone, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -20,78 +21,66 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-
-const STORITVE = [
-  "Gradnja & adaptacije",
-  "Vodovod & ogrevanje",
-  "Elektrika & pametni sistemi",
-  "Mizarstvo & kovinarstvo",
-  "Zaključna dela",
-  "Okna, vrata & senčila",
-  "Okolica & zunanja ureditev",
-  "Vzdrževanje & popravila",
-  "Poslovne storitve",
-  "Drugo",
-]
-
-const LOKACIJE = [
-  "Ljubljana",
-  "Maribor",
-  "Celje",
-  "Kranj",
-  "Koper",
-  "Novo Mesto",
-  "Velenje",
-  "Murska Sobota",
-  "Ptuj",
-  "Kamnik",
-  "Domžale",
-  "Škofja Loka",
-  "Trbovlje",
-  "Krško",
-  "Postojna",
-  "Slovenj Gradec",
-  "Jesenice",
-  "Nova Gorica",
-  "Brežice",
-  "Izola",
-]
+import { STORITVE, LOKACIJE } from "@/lib/constants/hero"
 
 interface HeroFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Pre-fill service from the inline hero form */
+  initialService?: string
+  /** Pre-fill location from the inline hero form */
+  initialLokacija?: string
 }
 
-export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
+const EMPTY_FORM = {
+  storitev: "",
+  lokacija: "",
+  email: "",
+  telefon: "",
+  zeljeniDatum: "",
+  opis: "",
+}
+
+function validatePhone(phone: string) {
+  const cleaned = phone.replace(/\s/g, "")
+  return /^(\+386|0)[0-9]{8,9}$/.test(cleaned)
+}
+
+function validateEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+export function HeroFormDialog({
+  open,
+  onOpenChange,
+  initialService = "",
+  initialLokacija = "",
+}: HeroFormDialogProps) {
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [gdprChecked, setGdprChecked] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [formData, setFormData] = useState({
-    storitev: "",
-    lokacija: "",
-    email: "",
-    telefon: "",
-    zeljeniDatum: "",
-    opis: "",
-  })
+  const [formData, setFormData] = useState({ ...EMPTY_FORM })
   const [showLokacijaSuggestions, setShowLokacijaSuggestions] = useState(false)
   const [lokacijaInput, setLokacijaInput] = useState("")
   const [filteredLokacije, setFilteredLokacije] = useState<string[]>([])
 
-  const validatePhone = (phone: string) => {
-    const cleaned = phone.replace(/\s/g, "")
-    return /^(\+386|0)[0-9]{8,9}$/.test(cleaned)
-  }
-
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  }
+  // Sync pre-filled values when dialog opens
+  useEffect(() => {
+    if (open) {
+      setFormData((prev) => ({
+        ...prev,
+        storitev: initialService || prev.storitev,
+        lokacija: initialLokacija || prev.lokacija,
+      }))
+      setLokacijaInput(initialLokacija || "")
+    }
+  }, [open, initialService, initialLokacija])
 
   const handleLokacijaChange = (value: string) => {
     setLokacijaInput(value)
-    setFormData({ ...formData, lokacija: value })
-    if (errors.lokacija) setErrors({ ...errors, lokacija: "" })
+    setFormData((prev) => ({ ...prev, lokacija: value }))
+    if (errors.lokacija) setErrors((prev) => ({ ...prev, lokacija: "" }))
 
     if (value.trim() === "") {
       setFilteredLokacije([])
@@ -107,9 +96,9 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
 
   const selectLokacija = (lokacija: string) => {
     setLokacijaInput(lokacija)
-    setFormData({ ...formData, lokacija })
+    setFormData((prev) => ({ ...prev, lokacija }))
     setShowLokacijaSuggestions(false)
-    if (errors.lokacija) setErrors({ ...errors, lokacija: "" })
+    if (errors.lokacija) setErrors((prev) => ({ ...prev, lokacija: "" }))
   }
 
   const validate = () => {
@@ -158,7 +147,6 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
 
       setSubmitted(true)
     } catch (error) {
-      console.error("[v0] Form submission error:", error)
       setErrors({
         submit:
           error instanceof Error
@@ -171,28 +159,22 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
   }
 
   const resetForm = () => {
-    onOpenChange(false)
     setSubmitted(false)
     setGdprChecked(false)
     setErrors({})
-    setFormData({
-      storitev: "",
-      lokacija: "",
-      email: "",
-      telefon: "",
-      zeljeniDatum: "",
-      opis: "",
-    })
+    setFormData({ ...EMPTY_FORM })
     setLokacijaInput("")
     setShowLokacijaSuggestions(false)
     setFilteredLokacije([])
   }
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) resetForm()
+    onOpenChange(newOpen)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (!newOpen) resetForm()
-      onOpenChange(newOpen)
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         {submitted ? (
           <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -208,14 +190,10 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                 Preverite mapo Prejeto.
               </DialogDescription>
             </DialogHeader>
-
             <Button
               size="lg"
               className="mt-4 w-full sm:w-auto min-h-[48px]"
-              onClick={() => {
-                resetForm()
-                setSubmitted(false)
-              }}
+              onClick={resetForm}
             >
               Oddaj novo povpraševanje
             </Button>
@@ -223,20 +201,17 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="text-xl">
-                Oddajte povpraševanje
-              </DialogTitle>
+              <DialogTitle className="text-xl">Oddajte povpraševanje</DialogTitle>
               <DialogDescription>Izpolnitev traja ~2 minuti</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-4">
+            <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-4" noValidate>
               <div className="grid gap-1.5">
                 <Label htmlFor="inq-storitev">Storitev *</Label>
                 <Select
                   value={formData.storitev}
                   onValueChange={(val) => {
-                    setFormData({ ...formData, storitev: val })
-                    if (errors.storitev)
-                      setErrors({ ...errors, storitev: "" })
+                    setFormData((prev) => ({ ...prev, storitev: val }))
+                    if (errors.storitev) setErrors((prev) => ({ ...prev, storitev: "" }))
                   }}
                 >
                   <SelectTrigger
@@ -255,9 +230,10 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                   </SelectContent>
                 </Select>
                 {errors.storitev && (
-                  <p className="text-xs text-destructive">{errors.storitev}</p>
+                  <p className="text-xs text-destructive" role="alert">{errors.storitev}</p>
                 )}
               </div>
+
               <div className="grid gap-1.5">
                 <Label htmlFor="inq-lokacija">Lokacija *</Label>
                 <div className="relative">
@@ -265,19 +241,16 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                     id="inq-lokacija"
                     type="text"
                     placeholder="npr. Ljubljana, Maribor, Celje..."
-                    autoComplete="address-level2"
+                    autoComplete="off"
                     value={lokacijaInput}
                     onChange={(e) => handleLokacijaChange(e.target.value)}
                     onFocus={() => {
-                      if (
-                        lokacijaInput.trim() &&
-                        filteredLokacije.length > 0
-                      ) {
+                      if (lokacijaInput.trim() && filteredLokacije.length > 0) {
                         setShowLokacijaSuggestions(true)
                       }
                     }}
                     onBlur={() => {
-                      setTimeout(() => setShowLokacijaSuggestions(false), 200)
+                      requestAnimationFrame(() => setShowLokacijaSuggestions(false))
                     }}
                     aria-invalid={!!errors.lokacija}
                     className="min-h-[48px] text-[16px]"
@@ -287,7 +260,10 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                       {filteredLokacije.map((lok) => (
                         <div
                           key={lok}
-                          onClick={() => selectLokacija(lok)}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            selectLokacija(lok)
+                          }}
                           className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                         >
                           {lok}
@@ -297,9 +273,10 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                   )}
                 </div>
                 {errors.lokacija && (
-                  <p className="text-xs text-destructive">{errors.lokacija}</p>
+                  <p className="text-xs text-destructive" role="alert">{errors.lokacija}</p>
                 )}
               </div>
+
               <div className="grid gap-1.5">
                 <Label htmlFor="inq-email">E-poštni naslov *</Label>
                 <div className="relative">
@@ -312,20 +289,14 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                     placeholder="npr. janez@gmail.com"
                     value={formData.email}
                     onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value })
-                      if (errors.email) setErrors({ ...errors, email: "" })
+                      setFormData((prev) => ({ ...prev, email: e.target.value }))
+                      if (errors.email) setErrors((prev) => ({ ...prev, email: "" }))
                     }}
                     onBlur={() => {
                       if (!formData.email.trim()) {
-                        setErrors({
-                          ...errors,
-                          email: "Vnesite e-poštni naslov",
-                        })
+                        setErrors((prev) => ({ ...prev, email: "Vnesite e-poštni naslov" }))
                       } else if (!validateEmail(formData.email)) {
-                        setErrors({
-                          ...errors,
-                          email: "Nepravilen e-poštni naslov",
-                        })
+                        setErrors((prev) => ({ ...prev, email: "Nepravilen e-poštni naslov" }))
                       }
                     }}
                     className="pl-10 min-h-[48px] text-[16px]"
@@ -333,9 +304,10 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                   />
                 </div>
                 {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email}</p>
+                  <p className="text-xs text-destructive" role="alert">{errors.email}</p>
                 )}
               </div>
+
               <div className="grid gap-1.5">
                 <Label htmlFor="inq-telefon">Telefonska številka *</Label>
                 <div className="relative">
@@ -348,22 +320,14 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                     placeholder="+386 XX XXX XXX"
                     value={formData.telefon}
                     onChange={(e) => {
-                      setFormData({ ...formData, telefon: e.target.value })
-                      if (errors.telefon)
-                        setErrors({ ...errors, telefon: "" })
+                      setFormData((prev) => ({ ...prev, telefon: e.target.value }))
+                      if (errors.telefon) setErrors((prev) => ({ ...prev, telefon: "" }))
                     }}
                     onBlur={() => {
                       if (!formData.telefon.trim()) {
-                        setErrors({
-                          ...errors,
-                          telefon: "Vnesite telefonsko številko",
-                        })
+                        setErrors((prev) => ({ ...prev, telefon: "Vnesite telefonsko številko" }))
                       } else if (!validatePhone(formData.telefon)) {
-                        setErrors({
-                          ...errors,
-                          telefon:
-                            "Nepravilna telefonska številka (npr. +386 41 123 456)",
-                        })
+                        setErrors((prev) => ({ ...prev, telefon: "Nepravilna telefonska številka (npr. +386 41 123 456)" }))
                       }
                     }}
                     className="pl-10 min-h-[48px] text-[16px]"
@@ -371,9 +335,10 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                   />
                 </div>
                 {errors.telefon && (
-                  <p className="text-xs text-destructive">{errors.telefon}</p>
+                  <p className="text-xs text-destructive" role="alert">{errors.telefon}</p>
                 )}
               </div>
+
               <div className="grid gap-1.5">
                 <Label htmlFor="inq-datum">Željeni datum dela</Label>
                 <Input
@@ -381,53 +346,49 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                   type="date"
                   value={formData.zeljeniDatum}
                   onChange={(e) =>
-                    setFormData({ ...formData, zeljeniDatum: e.target.value })
+                    setFormData((prev) => ({ ...prev, zeljeniDatum: e.target.value }))
                   }
                   className="min-h-[48px] text-[16px]"
                 />
               </div>
+
               <div className="grid gap-1.5">
                 <Label htmlFor="inq-opis">Opis dela *</Label>
-                <textarea
+                <Textarea
                   id="inq-opis"
                   placeholder="Kaj natančno potrebujete? (max 500 znakov)"
                   value={formData.opis}
                   onChange={(e) => {
-                    setFormData({ ...formData, opis: e.target.value })
-                    if (errors.opis) setErrors({ ...errors, opis: "" })
+                    setFormData((prev) => ({ ...prev, opis: e.target.value }))
+                    if (errors.opis) setErrors((prev) => ({ ...prev, opis: "" }))
                   }}
                   onBlur={() => {
                     if (!formData.opis.trim()) {
-                      setErrors({
-                        ...errors,
-                        opis: "Opis dela je obvezen",
-                      })
+                      setErrors((prev) => ({ ...prev, opis: "Opis dela je obvezen" }))
                     }
                   }}
                   rows={4}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  maxLength={500}
                   aria-invalid={!!errors.opis}
                 />
                 <div className="flex justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    Opis je obvezen
-                  </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">Opis je obvezen</p>
+                  <p className={`text-xs ${formData.opis.length > 480 ? "text-destructive" : "text-muted-foreground"}`}>
                     {formData.opis.length}/500
                   </p>
                 </div>
                 {errors.opis && (
-                  <p className="text-xs text-destructive">{errors.opis}</p>
+                  <p className="text-xs text-destructive" role="alert">{errors.opis}</p>
                 )}
               </div>
+
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="inq-gdpr"
                   checked={gdprChecked}
                   onCheckedChange={(checked) => {
                     setGdprChecked(checked as boolean)
-                    if (checked && errors.gdpr)
-                      setErrors({ ...errors, gdpr: "" })
+                    if (checked && errors.gdpr) setErrors((prev) => ({ ...prev, gdpr: "" }))
                   }}
                 />
                 <Label htmlFor="inq-gdpr" className="text-xs cursor-pointer">
@@ -435,11 +396,13 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
                 </Label>
               </div>
               {errors.gdpr && (
-                <p className="text-xs text-destructive">{errors.gdpr}</p>
+                <p className="text-xs text-destructive" role="alert">{errors.gdpr}</p>
               )}
+
               {errors.submit && (
-                <p className="text-sm text-destructive">{errors.submit}</p>
+                <p className="text-sm text-destructive" role="alert">{errors.submit}</p>
               )}
+
               <Button type="submit" size="lg" disabled={isLoading} className="w-full min-h-[48px]">
                 {isLoading ? "Pošiljam..." : "Oddaj povpraševanje"}
               </Button>
