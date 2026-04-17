@@ -10,7 +10,7 @@ export function ObrtknikBottomNav() {
   const navLinks = [
     { href: '/dashboard', icon: Home, label: 'Dom' },
     { href: '/povprasevanja', icon: FileText, label: 'Povpraševanja' },
-    { href: '/ponudbe', icon: Briefcase, label: 'Ponudbe' },
+    { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Ponudbe' },
     { href: '/profil', icon: User, label: 'Profil' },
   ]
 

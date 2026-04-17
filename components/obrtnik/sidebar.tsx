@@ -14,7 +14,7 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
   const navLinks = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
     { href: '/povprasevanja', icon: FileText, label: 'Povpraševanja' },
-    { href: '/ponudbe', icon: Briefcase, label: 'Moje ponudbe' },
+    { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Moje ponudbe' },
     { href: '/ocene', icon: Star, label: 'Ocene' },
     { href: '/profil', icon: User, label: 'Profil' },
   ]
