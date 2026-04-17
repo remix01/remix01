@@ -63,8 +63,14 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   const supabase = createClient()
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error('Admin logout error:', error)
+      return
+    }
+
+    router.replace('/prijava')
+    router.refresh()
   }
 
   // Filter nav items based on user role
@@ -72,6 +78,14 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
     if (!item.roles) return true
     return item.roles.includes(user.vloga)
   })
+
+
+  const isActive = (href: string) => {
+    if (href === '/admin') {
+      return pathname === '/admin'
+    }
+    return pathname === href || pathname.startsWith(href + '/')
+  }
 
   const getRoleLabel = (vloga: Vloga) => {
     const roleLabels: Record<Vloga, string> = {
@@ -83,7 +97,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   }
 
   return (
-    <div className="w-64 h-full border-r bg-card p-6 flex flex-col">
+    <div className="h-full w-64 border-r bg-card p-6 flex flex-col">
       <div className="mb-8">
         <h1 className="font-display text-2xl font-bold text-primary">
           Lift<span className="text-accent">GO</span>
@@ -99,7 +113,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
               href={item.href}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
-                pathname === item.href || pathname.startsWith(item.href + '/')
+                isActive(item.href)
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}

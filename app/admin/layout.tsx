@@ -13,8 +13,7 @@ export default async function AdminLayout({
   const supabase = await createClient()
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  if (!user) {
-    console.log('[v0] Admin layout: No authenticated user, redirecting to login')
+  if (!user || userError) {
     redirect('/prijava?redirectTo=/admin')
   }
 
@@ -27,11 +26,8 @@ export default async function AdminLayout({
     .maybeSingle()
 
   if (adminError || !adminUser) {
-    console.log(`[v0] Admin layout: User ${user.id} is not an active admin, redirecting`)
     redirect('/prijava')
   }
-
-  console.log(`[v0] Admin layout: User ${user.id} is admin, allowing access`)
 
   return (
     <AdminAuthProvider>
