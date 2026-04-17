@@ -20,6 +20,16 @@ const supabaseAdmin = createClient(
 
 // Embedding configuration - standardized to 1536 dimensions
 const EMBEDDING_DIMENSIONS = 1536
+const OPENAI_QUOTA_COOLDOWN_MS = 60 * 60 * 1000 // 1 hour
+let openAIQuotaBlockedUntil = 0
+let hasLoggedOpenAIQuotaCooldown = false
+
+function isOpenAIQuotaError(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false
+  const error = (payload as { error?: { code?: string; type?: string } }).error
+  if (!error) return false
+  return error.code === 'insufficient_quota' || error.type === 'insufficient_quota'
+}
 
 export type EmbeddingTarget = 'tasks' | 'obrtnik_profiles' | 'sporocila' | 'ponudbe'
 
@@ -68,27 +78,52 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
   // Try OpenAI embeddings (primary - best quality)
   if (hasOpenAI()) {
-    try {
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-3-small',
-          input: cleanText,
-          dimensions: EMBEDDING_DIMENSIONS,
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        return data.data[0].embedding
+    if (Date.now() < openAIQuotaBlockedUntil) {
+      if (!hasLoggedOpenAIQuotaCooldown) {
+        console.info(
+          '[RAG] Skipping OpenAI embeddings during quota cooldown window; trying fallback providers.'
+        )
+        hasLoggedOpenAIQuotaCooldown = true
       }
-      console.warn('OpenAI embedding failed:', await response.text())
-    } catch (error) {
-      console.warn('OpenAI embedding error:', error)
+    } else {
+      hasLoggedOpenAIQuotaCooldown = false
+      try {
+        const response = await fetch('https://api.openai.com/v1/embeddings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: 'text-embedding-3-small',
+            input: cleanText,
+            dimensions: EMBEDDING_DIMENSIONS,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          return data.data[0].embedding
+        }
+        let errorPayload: unknown = null
+        try {
+          errorPayload = await response.json()
+        } catch {
+          errorPayload = { error: { message: 'Non-JSON error response from OpenAI embeddings API' } }
+        }
+
+        if (isOpenAIQuotaError(errorPayload)) {
+          openAIQuotaBlockedUntil = Date.now() + OPENAI_QUOTA_COOLDOWN_MS
+          hasLoggedOpenAIQuotaCooldown = false
+          console.warn(
+            `[RAG] OpenAI embeddings quota exceeded. Cooling down for ${Math.round(OPENAI_QUOTA_COOLDOWN_MS / 60000)} minutes before retrying.`
+          )
+        } else {
+          console.warn('OpenAI embedding failed:', errorPayload)
+        }
+      } catch (error) {
+        console.warn('OpenAI embedding error:', error)
+      }
     }
   }
 

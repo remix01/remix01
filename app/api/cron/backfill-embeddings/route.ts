@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { env } from '@/lib/env'
+import { env, hasEmbeddings } from '@/lib/env'
 import { backfillEmbeddings, type EmbeddingTarget } from '@/lib/ai/rag'
 
 // Verify cron secret to prevent unauthorized access
@@ -30,6 +30,15 @@ export async function GET(request: NextRequest) {
 
   const startTime = Date.now()
   const results: Record<string, { processed: number; errors: number }> = {}
+
+  if (!hasEmbeddings()) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: 'No embedding provider configured (OPENAI_API_KEY, VOYAGE_API_KEY, GEMINI_API_KEY)',
+      timestamp: new Date().toISOString(),
+    })
+  }
 
   // Tables and their text columns for embedding
   const targets: Array<{ table: EmbeddingTarget; textColumn: string; batchSize: number }> = [
