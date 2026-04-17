@@ -112,7 +112,11 @@
     "overrides": {
       "@types/react": "19.2.7",
       "@types/react-dom": "19.2.3",
-      "picomatch": "4.0.4"
+      "picomatch": "4.0.4",
+      "axios": "^1.12.2",
+      "handlebars": "^4.7.8",
+      "lodash": "^4.17.21",
+      "lodash-es": "^4.17.21"
     },
     "ignoredBuiltDependencies": [
       "core-js",
