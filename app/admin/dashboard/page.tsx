@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Badge } from '@/components/ui/badge'
+import { GoogleEnvStatusCard } from '@/components/dashboard/GoogleEnvStatusCard'
 
 interface AnalyticsSummary {
   today: {
@@ -199,6 +200,8 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <GoogleEnvStatusCard />
 
       {/* 7-day trend */}
       <Card>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Briefcase, Star, TrendingUp } from 'lucide-react'
+import { GoogleEnvStatusCard } from '@/components/dashboard/GoogleEnvStatusCard'
 
 export default async function ObrtknikDashboardPage() {
   const supabase = await createClient()
@@ -144,6 +145,8 @@ export default async function ObrtknikDashboardPage() {
           </div>
         </Card>
       </div>
+
+      <GoogleEnvStatusCard />
 
       {/* Quick Actions (Mobile Only) */}
       <div className="md:hidden">

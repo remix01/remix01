@@ -5,6 +5,7 @@ import { getNarocnikPovprasevanja, countNarocnikPovprasevanjaByStatus } from '@/
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { GoogleEnvStatusCard } from '@/components/dashboard/GoogleEnvStatusCard'
 import type { Povprasevanje } from '@/types/marketplace'
 
 export const metadata = {
@@ -140,6 +141,10 @@ export default async function DashboardPage() {
             <div className="text-sm text-muted-foreground">Zaključena dela</div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mb-8">
+        <GoogleEnvStatusCard />
       </div>
 
       {/* Recent Requests Section */}
