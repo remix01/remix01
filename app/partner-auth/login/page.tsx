@@ -50,7 +50,10 @@ export default function Page() {
         throw new Error('Ta račun nima obrtniških pravic. Uporabite prijavo na /prijava.')
       }
 
-      const redirectTo = searchParams.get('redirectTo')
+      const redirectTo =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('redirectTo')
+          : null
       const safeRedirect = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/partner-dashboard'
       router.push(safeRedirect)
     } catch (error: unknown) {
