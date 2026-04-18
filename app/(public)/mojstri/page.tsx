@@ -27,12 +27,14 @@ export default async function MojstriCatalogPage(props: PageProps) {
   const searchParams = await props.searchParams
 
   const minRating   = searchParams.rating    ? parseFloat(searchParams.rating as string) : undefined
+  const minPrice    = searchParams.min_price ? parseFloat(searchParams.min_price as string) : undefined
+  const maxPrice    = searchParams.max_price ? parseFloat(searchParams.max_price as string) : undefined
   const search      = searchParams.search    as string | undefined
-  const kategorija  = searchParams.kategorija as string | undefined
-  const lokacija    = searchParams.lokacija  as string | undefined
+  const kategorija  = (searchParams.category || searchParams.kategorija) as string | undefined
+  const lokacija    = (searchParams.location || searchParams.lokacija) as string | undefined
 
   const [obrtniki, availableSpecialnosti, availableLokacije] = await Promise.all([
-    listVerifiedObrtniki({ minRating, search, kategorija, lokacija, limit: 50 }),
+    listVerifiedObrtniki({ minRating, minPrice, maxPrice, search, kategorija, lokacija, limit: 50 }),
     getActiveSpecialnosti(),
     getActiveLokacije(),
   ])
@@ -62,7 +64,7 @@ export default async function MojstriCatalogPage(props: PageProps) {
               <CatalogFilters
                 specialnosti={availableSpecialnosti}
                 lokacije={availableLokacije}
-                currentFilters={{ minRating, search, kategorija, lokacija }}
+                currentFilters={{ minRating, minPrice, maxPrice, search, kategorija, lokacija }}
               />
             </aside>
 

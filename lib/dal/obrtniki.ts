@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 
 export interface ObrtnikiFilter {
   minRating?: number
+  minPrice?: number
+  maxPrice?: number
   search?: string
   kategorija?: string   // category slug
   lokacija?: string    // city name
@@ -85,6 +87,16 @@ export async function listVerifiedObrtniki(
   // Rating filter
   if (filters?.minRating) {
     query = query.gte('avg_rating', filters.minRating)
+  }
+
+  // Hourly rate filter
+  const minPrice = filters?.minPrice
+  const maxPrice = filters?.maxPrice
+  if (Number.isFinite(minPrice)) {
+    query = query.gte('hourly_rate', minPrice)
+  }
+  if (Number.isFinite(maxPrice)) {
+    query = query.lte('hourly_rate', maxPrice)
   }
 
   // Search by business_name, description or tagline
