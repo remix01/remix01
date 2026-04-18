@@ -1,30 +1,84 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
+import { PartnerSidebar } from '@/components/partner/sidebar'
+import { createClient } from '@/lib/supabase/client'
 
 export default function PartnerInsightsPage() {
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [accessChecked, setAccessChecked] = useState(false)
   const [metrics, setMetrics] = useState<any>(null)
   const [recommendations, setRecommendations] = useState('')
   const [question, setQuestion] = useState('')
   const [chatResponse, setChatResponse] = useState('')
+  const [paket, setPaket] = useState<'start' | 'pro' | 'elite'>('pro')
+  const [partnerMeta, setPartnerMeta] = useState({
+    business_name: 'Moj portal',
+    subscription_tier: 'pro' as 'start' | 'pro' | 'elite',
+    avg_rating: 0,
+    is_verified: false,
+  })
+
+  const supabase = createClient()
 
   useEffect(() => {
-    const load = async () => {
-      const res = await fetch('/api/partner/insights')
-      const payload = await res.json()
-      if (payload.success) {
-        setMetrics(payload.data.metrics)
-        setRecommendations(payload.data.recommendations)
+    const loadAccess = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.replace('/partner-auth/login?redirectTo=/partner-dashboard/insights')
+        return false
       }
-      setLoading(false)
+
+      const { data: partner } = await supabase
+        .from('obrtnik_profiles')
+        .select('subscription_tier, business_name, avg_rating, is_verified')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!partner) {
+        router.replace('/partner-dashboard')
+        return false
+      }
+
+      const resolvedPaket = partner.subscription_tier === 'elite' ? 'elite' : partner.subscription_tier === 'pro' ? 'pro' : 'start'
+      setPaket(resolvedPaket)
+      setPartnerMeta({
+        business_name: partner.business_name || 'Moj portal',
+        subscription_tier: resolvedPaket,
+        avg_rating: partner.avg_rating || 0,
+        is_verified: !!partner.is_verified,
+      })
+      setAccessChecked(true)
+      return true
     }
-    load()
-  }, [])
+
+    const load = async () => {
+      try {
+        const res = await fetch('/api/partner/insights')
+        const payload = await res.json()
+        if (payload.success) {
+          setMetrics(payload.data.metrics)
+          setRecommendations(payload.data.recommendations)
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAccess().then((hasAccess) => {
+      if (!hasAccess) {
+        setLoading(false)
+        return
+      }
+      load()
+    })
+  }, [router, supabase])
 
   const askFollowup = async () => {
     if (!question.trim()) return
@@ -39,11 +93,13 @@ export default function PartnerInsightsPage() {
     setChatResponse(payload?.data?.response || payload?.response || 'Ni odgovora.')
   }
 
-  if (loading) return <div className="p-6">Nalagam AI uvide...</div>
+  if (loading || !accessChecked) return <div className="p-6">Nalagam AI uvide...</div>
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="flex min-h-screen bg-background">
+      <PartnerSidebar partner={partnerMeta} />
+      <div className="w-full pb-24">
+      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
         <h1 className="text-3xl font-bold">My Business Advisor</h1>
 
         <Card className="p-6">
@@ -71,7 +127,8 @@ export default function PartnerInsightsPage() {
         </Card>
       </div>
 
-      <PartnerBottomNav paket={{ paket: 'pro' }} />
+      <PartnerBottomNav paket={{ paket }} />
+      </div>
     </div>
   )
 }

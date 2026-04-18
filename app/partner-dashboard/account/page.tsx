@@ -144,19 +144,38 @@ export default function AccountPage() {
 
       if (!user) throw new Error('Not authenticated')
 
+      const normalizedBusinessName = formData.business_name.trim()
+      if (!normalizedBusinessName) {
+        throw new Error('Ime podjetja je obvezno.')
+      }
+
+      const hourlyRate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null
+      const yearsExperience = formData.years_experience ? parseInt(formData.years_experience) : null
+      const serviceRadiusKm = formData.service_radius_km ? parseInt(formData.service_radius_km) : null
+
+      if (hourlyRate !== null && (Number.isNaN(hourlyRate) || hourlyRate < 0)) {
+        throw new Error('Urna postavka mora biti pozitivno število.')
+      }
+      if (yearsExperience !== null && (Number.isNaN(yearsExperience) || yearsExperience < 0)) {
+        throw new Error('Leta izkušenj morajo biti 0 ali več.')
+      }
+      if (serviceRadiusKm !== null && (Number.isNaN(serviceRadiusKm) || serviceRadiusKm < 5 || serviceRadiusKm > 200)) {
+        throw new Error('Polmer dela mora biti med 5 in 200 km.')
+      }
+
       // Update obrtnik_profiles
       const { error: partnerError } = await supabase
         .from('obrtnik_profiles')
         .update({
-          business_name: formData.business_name,
-          description: formData.description || null,
-          tagline: formData.tagline || null,
-          hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
-          years_experience: formData.years_experience ? parseInt(formData.years_experience) : null,
-          service_radius_km: formData.service_radius_km ? parseInt(formData.service_radius_km) : null,
-          website_url: formData.website_url || null,
-          facebook_url: formData.facebook_url || null,
-          instagram_url: formData.instagram_url || null,
+          business_name: normalizedBusinessName,
+          description: formData.description.trim() || null,
+          tagline: formData.tagline.trim() || null,
+          hourly_rate: hourlyRate,
+          years_experience: yearsExperience,
+          service_radius_km: serviceRadiusKm,
+          website_url: formData.website_url.trim() || null,
+          facebook_url: formData.facebook_url.trim() || null,
+          instagram_url: formData.instagram_url.trim() || null,
         })
         .eq('id', user.id)
 
@@ -178,15 +197,15 @@ export default function AccountPage() {
       // Update local state
       setPartner(prev => prev ? {
         ...prev,
-        business_name: formData.business_name,
-        description: formData.description || null,
-        tagline: formData.tagline || null,
-        hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
-        years_experience: formData.years_experience ? parseInt(formData.years_experience) : null,
-        service_radius_km: formData.service_radius_km ? parseInt(formData.service_radius_km) : null,
-        website_url: formData.website_url || null,
-        facebook_url: formData.facebook_url || null,
-        instagram_url: formData.instagram_url || null,
+        business_name: normalizedBusinessName,
+        description: formData.description.trim() || null,
+        tagline: formData.tagline.trim() || null,
+        hourly_rate: hourlyRate,
+        years_experience: yearsExperience,
+        service_radius_km: serviceRadiusKm,
+        website_url: formData.website_url.trim() || null,
+        facebook_url: formData.facebook_url.trim() || null,
+        instagram_url: formData.instagram_url.trim() || null,
       } : null)
     } catch (err: any) {
       console.error('Error saving profile:', err)
