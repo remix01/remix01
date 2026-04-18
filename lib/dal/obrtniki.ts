@@ -19,7 +19,7 @@ export interface ObrtnikiPublic {
   avg_rating: number
   total_reviews: number
   is_available: boolean
-  subscription_tier: 'start' | 'pro'
+  subscription_tier: 'start' | 'pro' | 'elite'
   hourly_rate: number | null
   years_experience: number | null
   number_of_ratings: number | null

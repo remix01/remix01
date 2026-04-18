@@ -403,20 +403,31 @@ export async function dodajStranko(data: {
   ime: string
   priimek: string
   telefon?: string
+  lokacija?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const email = data.email.trim().toLowerCase()
+    const ime = data.ime.trim()
+    const priimek = data.priimek.trim()
+    const fullName = `${ime} ${priimek}`.trim()
+
+    if (!email || !ime) {
+      return { success: false, error: 'Ime in e-mail sta obvezna.' }
+    }
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
+      email,
       email_confirm: true,
-      user_metadata: { first_name: data.ime, last_name: data.priimek },
+      user_metadata: { first_name: ime, last_name: priimek },
     })
     if (authError) return { success: false, error: authError.message }
 
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: authData.user.id,
-      email: data.email,
-      full_name: `${data.ime} ${data.priimek}`.trim(),
+      email,
+      full_name: fullName,
       phone: data.telefon || null,
+      location_city: data.lokacija?.trim() || null,
       role: 'narocnik',
     })
     if (profileError) return { success: false, error: profileError.message }
@@ -428,14 +439,111 @@ export async function dodajStranko(data: {
   }
 }
 
+export async function getAdminInquiryFormOptions() {
+  await ensureAdminAccess()
+  const [{ data: categories }, { data: customers }] = await Promise.all([
+    supabaseAdmin
+      .from('categories')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true }),
+    supabaseAdmin
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('role', 'narocnik')
+      .order('created_at', { ascending: false })
+      .limit(500),
+  ])
+
+  return {
+    categories: categories || [],
+    customers: customers || [],
+  }
+}
+
+export async function dodajPovprasevanjeAdmin(data: {
+  narocnik_id: string
+  category_id: string
+  title: string
+  description: string
+  location_city: string
+  location_region?: string
+  urgency?: 'normalno' | 'kmalu' | 'nujno'
+  budget_min?: number
+  budget_max?: number
+  preferred_date_from?: string
+  preferred_date_to?: string
+}) {
+  await ensureAdminAccess()
+  try {
+    const title = data.title.trim()
+    const description = data.description.trim()
+    const locationCity = data.location_city.trim()
+
+    if (!data.narocnik_id || !data.category_id || !title || !description || !locationCity) {
+      return { success: false, error: 'Izpolnite vsa obvezna polja.' }
+    }
+
+    if (data.budget_min && data.budget_max && data.budget_min > data.budget_max) {
+      return { success: false, error: 'Minimalni budget ne sme biti večji od maksimalnega.' }
+    }
+
+    const { error } = await supabaseAdmin
+      .from('povprasevanja')
+      .insert({
+        narocnik_id: data.narocnik_id,
+        category_id: data.category_id,
+        title,
+        description,
+        location_city: locationCity,
+        location_region: data.location_region?.trim() || null,
+        urgency: data.urgency || 'normalno',
+        budget_min: data.budget_min || null,
+        budget_max: data.budget_max || null,
+        preferred_date_from: data.preferred_date_from || null,
+        preferred_date_to: data.preferred_date_to || null,
+        status: 'odprto',
+      })
+
+    if (error) return { success: false, error: error.message }
+
+    revalidatePath('/admin/povprasevanja')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Napaka pri dodajanju povpraševanja' }
+  }
+}
+
 export async function dodajPartnerja(data: {
   email: string
   business_name: string
+  ime?: string
+  priimek?: string
   telefon?: string
+  lokacija?: string
+  category_id?: string
+  verifyNow?: boolean
+  subscription_tier?: 'start' | 'pro' | 'elite'
+  payment_confirmed?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const businessName = data.business_name.trim()
+    const email = data.email.trim().toLowerCase()
+    const fullName = [data.ime?.trim(), data.priimek?.trim()].filter(Boolean).join(' ').trim()
+    const shouldVerify = Boolean(data.verifyNow)
+    const subscriptionTier = data.subscription_tier || 'start'
+    const paymentConfirmed = Boolean(data.payment_confirmed)
+
+    if (!businessName || !email) {
+      return { success: false, error: 'E-mail in ime podjetja sta obvezna.' }
+    }
+
+    if (subscriptionTier !== 'start' && !paymentConfirmed) {
+      return { success: false, error: 'PRO/ELITE paket lahko dodelite samo po potrjenem plačilu.' }
+    }
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
+      email,
       email_confirm: true,
       user_metadata: { business_name: data.business_name },
     })
@@ -443,30 +551,55 @@ export async function dodajPartnerja(data: {
 
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: authData.user.id,
-      email: data.email,
-      full_name: data.business_name,
+      email,
+      full_name: fullName || businessName,
       phone: data.telefon || null,
       role: 'obrtnik',
+      location_city: data.lokacija?.trim() || null,
     })
     if (profileError) return { success: false, error: profileError.message }
 
     const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
       id: authData.user.id,
-      email: data.email,
-      business_name: data.business_name,
-      phone: data.telefon || null,
-      is_verified: false,
-      is_available: false,
+      business_name: businessName,
+      is_verified: shouldVerify,
+      verification_status: shouldVerify ? 'verified' : 'pending',
+      is_available: shouldVerify,
+      subscription_tier: subscriptionTier,
       avg_rating: 0,
       total_reviews: 0,
     })
     if (obrtnikError) return { success: false, error: obrtnikError.message }
 
+    if (data.category_id) {
+      const { error: categoryError } = await supabaseAdmin
+        .from('obrtnik_categories')
+        .upsert({
+          obrtnik_id: authData.user.id,
+          category_id: data.category_id,
+        })
+
+      if (categoryError) return { success: false, error: categoryError.message }
+    }
+
     revalidatePath('/admin/partnerji')
+    revalidatePath('/mojstri')
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message || 'Napaka pri dodajanju partnerja' }
   }
+}
+
+export async function getAktivneKategorije() {
+  await ensureAdminAccess()
+  const { data, error } = await supabaseAdmin
+    .from('categories')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+
+  if (error) return []
+  return data || []
 }
 
 export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji: ChartData[] }> {

@@ -187,8 +187,12 @@ export default async function ObrtnikProfilePage(props: Props) {
                 </div>
 
                 {/* Subscription Tier Badge */}
-                <Badge className="mb-6 mr-2" variant={obrtnik.subscription_tier === 'pro' ? 'default' : 'secondary'}>
-                  {obrtnik.subscription_tier === 'pro' ? '⭐ Pro' : 'Start'}
+                <Badge className="mb-6 mr-2" variant={obrtnik.subscription_tier === 'start' ? 'secondary' : 'default'}>
+                  {obrtnik.subscription_tier === 'elite'
+                    ? '💎 Elite'
+                    : obrtnik.subscription_tier === 'pro'
+                      ? '⭐ Pro'
+                      : 'Start'}
                 </Badge>
 
                 {/* CTA Button */}

@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getAdminPovprasevanja } from '@/app/admin/actions'
+import { DodajPovprasevanjeModal } from '@/components/admin/DodajPovprasevanjeModal'
+import { getAdminInquiryFormOptions, getAdminPovprasevanja } from '@/app/admin/actions'
 
 const statusColors: Record<string, string> = {
   odprto: 'bg-green-100 text-green-800',
@@ -40,14 +41,23 @@ export default async function PovprasevanjaPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/prijava')
 
-  const { items, total, pageSize } = await getAdminPovprasevanja(search, statusFilter, page)
+  const [{ items, total, pageSize }, inquiryOptions] = await Promise.all([
+    getAdminPovprasevanja(search, statusFilter, page),
+    getAdminInquiryFormOptions(),
+  ])
   const hasPrev = page > 1
   const hasNext = page * pageSize < total
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-6 text-3xl font-bold text-foreground">Povpraševanja</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-foreground">Povpraševanja</h1>
+          <DodajPovprasevanjeModal
+            categories={inquiryOptions.categories}
+            customers={inquiryOptions.customers}
+          />
+        </div>
 
         <form method="GET" className="mb-6 flex flex-col gap-4 md:flex-row">
           <input
