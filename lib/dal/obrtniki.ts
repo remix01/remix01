@@ -90,11 +90,13 @@ export async function listVerifiedObrtniki(
   }
 
   // Hourly rate filter
-  if (typeof filters?.minPrice === 'number') {
-    query = query.gte('hourly_rate', filters.minPrice)
+  const minPrice = filters?.minPrice
+  const maxPrice = filters?.maxPrice
+  if (Number.isFinite(minPrice)) {
+    query = query.gte('hourly_rate', minPrice)
   }
-  if (typeof filters?.maxPrice === 'number') {
-    query = query.lte('hourly_rate', filters.maxPrice)
+  if (Number.isFinite(maxPrice)) {
+    query = query.lte('hourly_rate', maxPrice)
   }
 
   // Search by business_name, description or tagline

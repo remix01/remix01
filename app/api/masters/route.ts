@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { listVerifiedObrtniki } from '@/lib/dal/obrtniki'
+import { listVerifiedObrtniki, type ObrtnikiPublic } from '@/lib/dal/obrtniki'
+
+type PublicMasterDto = Omit<ObrtnikiPublic, 'profiles'> & {
+  profiles: Pick<ObrtnikiPublic['profiles'], 'id' | 'full_name' | 'location_city' | 'location_region'>
+}
 
 /**
  * GET /api/masters
@@ -32,12 +36,22 @@ export async function GET(request: NextRequest) {
       offset: Number.isFinite(offset) ? Math.max(offset, 0) : 0,
     })
 
+    const publicMasters: PublicMasterDto[] = masters.map((master) => ({
+      ...master,
+      profiles: {
+        id: master.profiles.id,
+        full_name: master.profiles.full_name,
+        location_city: master.profiles.location_city,
+        location_region: master.profiles.location_region,
+      },
+    }))
+
     return NextResponse.json(
       {
         success: true,
-        data: masters,
+        data: publicMasters,
         meta: {
-          count: masters.length,
+          count: publicMasters.length,
         },
       },
       {
