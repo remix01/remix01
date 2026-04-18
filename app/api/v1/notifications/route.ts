@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { notificationService, handleServiceError } from '@/lib/services'
-import { z } from 'zod'
-
-const querySchema = z.object({
-  page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().positive().max(100).optional().default(20),
-})
+import { notificationsListQuerySchema } from '@/lib/api/schemas/v1'
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Parse and validate query params
     const searchParams = Object.fromEntries(request.nextUrl.searchParams)
-    const validationResult = querySchema.safeParse(searchParams)
+    const validationResult = notificationsListQuerySchema.safeParse(searchParams)
 
     if (!validationResult.success) {
       return NextResponse.json(

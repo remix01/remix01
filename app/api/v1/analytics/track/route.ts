@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-
-const eventSchema = z.object({
-  name: z.string(),
-  properties: z.record(z.any()).optional(),
-  sessionId: z.string(),
-  timestamp: z.string().optional(),
-})
-
-const trackBodySchema = z.object({
-  events: z.array(eventSchema).max(50, 'Maximum 50 events per batch'),
-})
+import { analyticsTrackBodySchema } from '@/lib/api/schemas/v1'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const validation = trackBodySchema.safeParse(body)
+    const validation = analyticsTrackBodySchema.safeParse(body)
 
     if (!validation.success) {
       return NextResponse.json(
