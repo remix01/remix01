@@ -1,1 +1,5 @@
-export { revalidate, metadata, default } from '@/app/(public)/mojstri/page'
+import { redirect } from 'next/navigation'
+
+export default function MastersAliasPage() {
+  redirect('/mojstri')
+}
