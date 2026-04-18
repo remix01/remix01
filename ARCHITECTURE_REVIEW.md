@@ -254,6 +254,7 @@ Podvajanje entitet (`artisans`, `partners`, `profiles`) je evolucijski "dead end
 - Definirati `profiles` kot **single identity spine** (FK na `auth.users`).
 - Vse auxiliary tabele (npr. partner profil, nastavitve, preference) morajo referencirati isti `user_id`.
 - Izogniti se policy-jem z več OR pogoji preko različnih identitetnih tabel.
+- Če je provider `auth.users` (Supabase/Clerk), potem naj bo policy vir identitete izključno JWT (`auth.uid()` + claims), ne iz `public.profiles` lookupov.
 
 **Dodatni deliverable poleg ERD: RLS Dependency Graph**
 
@@ -266,6 +267,25 @@ Podvajanje entitet (`artisans`, `partners`, `profiles`) je evolucijski "dead end
 
 **Pravilo:**
 RLS policy naj bere primarno iz JWT (`auth.uid()`, claims), ne iz posrednih public lookup tabel, kjer je možno obiti ownership semantiko.
+
+**Praktični anti-pattern (prepovedano):**
+
+```sql
+-- Slabo: OR preko različnih identitetnih tabel poveča tveganje data leak-a
+USING (
+  rating.partner_id IN (SELECT id FROM partners WHERE user_id = auth.uid())
+  OR rating.partner_id IN (SELECT id FROM artisans WHERE user_id = auth.uid())
+)
+```
+
+**Praktični pattern (priporočeno):**
+
+```sql
+-- Dobro: ena identiteta, en FK chain, en auth vir
+USING (
+  ratings.partner_user_id = auth.uid()
+)
+```
 
 ---
 
@@ -340,6 +360,7 @@ Za preprečevanje "use client" proliferacije:
 
 - Client-side fetching standardizirati na **TanStack Query** (namesto ad-hoc `useEffect` fetch).
 - S tem zmanjšamo duplicate requeste, poenotimo cache invalidation in poenostavimo optimistic update flow.
+- Operativno pravilo: novi client fetch PR-ji brez Query key konvencije (`['resource', id]`) se ne mergajo.
 
 ---
 
@@ -531,6 +552,10 @@ const TaskSchema = z.object({
 **IDOR tveganje (kritično za marketplace):**
 Endpointi tipa `GET /api/jobs/:id` morajo preveriti ownership ali relation-based access.
 
+**Primer grožnje:**
+Ali lahko mojster A odpre `GET /api/jobs/123`, kjer je job last uporabnika B in mojster A ni oddal ponudbe?
+Če da, gre za IDOR.
+
 **Primer pravilnega preverjanja dostopa:**
 
 ```sql
@@ -547,6 +572,20 @@ WHERE jobs.owner_id = auth.uid()
 
 - Dodati centralni "Data Ownership Check" middleware/helper za vse endpointe z `:id` parametrom.
 - Varnostni testi naj eksplicitno pokrivajo cross-tenant dostop (A ne sme brati B).
+
+**Minimalni middleware kontrakt (primer):**
+
+```typescript
+// allow access only if owner OR participant
+const canAccessJob = await db
+  .from("jobs")
+  .select("id")
+  .eq("id", jobId)
+  .or(`owner_id.eq.${userId},id.in.(
+    select job_id from offers where job_id = ${jobId} and partner_id = ${userId}
+  )`)
+  .single();
+```
 
 ---
 
