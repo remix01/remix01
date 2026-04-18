@@ -7,41 +7,10 @@ import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { POSTHOG_CONFIG } from '@/lib/posthog/config'
 
 const POSTHOG_KEY = POSTHOG_CONFIG.apiKey
-const POSTHOG_HOST = POSTHOG_CONFIG.apiHost
-
-type PostHogFlaggedWindow = Window & {
-  __POSTHOG_INITIALIZED__?: boolean
-}
 
 type EventProperties = Record<string, unknown>
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    if (!POSTHOG_KEY) return
-    const flaggedWindow =
-      typeof window === 'undefined' ? undefined : (window as PostHogFlaggedWindow)
-
-    if (flaggedWindow?.__POSTHOG_INITIALIZED__) return
-    if ((posthog as { __loaded?: boolean }).__loaded) {
-      if (flaggedWindow) flaggedWindow.__POSTHOG_INITIALIZED__ = true
-      return
-    }
-
-    posthog.init(POSTHOG_KEY, {
-      ...POSTHOG_CONFIG.initialization,
-      api_host: POSTHOG_HOST,
-      loaded: (ph) => {
-        if (flaggedWindow) flaggedWindow.__POSTHOG_INITIALIZED__ = true
-        if (process.env.NODE_ENV === 'development') {
-          ph.debug()
-          console.log('[PostHog] Initialized in development mode')
-        }
-      },
-    })
-
-    if (flaggedWindow) flaggedWindow.__POSTHOG_INITIALIZED__ = true
-  }, [])
-
   if (!POSTHOG_KEY) {
     return <>{children}</>
   }

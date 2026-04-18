@@ -3,6 +3,8 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import posthog from 'posthog-js'
+import { POSTHOG_CONFIG } from './lib/posthog/config'
 
 const tracesSampleRate = process.env.NODE_ENV === "production" ? 0.1 : 1;
 const sentryRelease =
@@ -38,5 +40,19 @@ Sentry.init({
     },
   },
 });
+
+if (POSTHOG_CONFIG.apiKey) {
+  posthog.init(POSTHOG_CONFIG.apiKey, {
+    ...POSTHOG_CONFIG.initialization,
+    api_host: POSTHOG_CONFIG.apiHost,
+    defaults: POSTHOG_CONFIG.defaults,
+    loaded: (ph) => {
+      if (process.env.NODE_ENV === 'development') {
+        ph.debug()
+        console.log('[PostHog] Initialized in development mode')
+      }
+    },
+  })
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
