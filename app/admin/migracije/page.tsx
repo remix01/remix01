@@ -115,7 +115,7 @@ ON public.partners(new_profile_id);`}
               </pre>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -230,6 +230,7 @@ ON public.partners(new_profile_id);`}
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -258,6 +259,7 @@ ON public.partners(new_profile_id);`}
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       ) : (

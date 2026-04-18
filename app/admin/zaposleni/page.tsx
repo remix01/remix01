@@ -57,6 +57,7 @@ export default function ZaposleniPage() {
     vloga: 'OPERATER' as Vloga,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadZaposlenci();
@@ -65,12 +66,16 @@ export default function ZaposleniPage() {
   async function loadZaposlenci() {
     try {
       setIsLoading(true);
+      setError(null);
       const result = await getZaposleniList();
       if (result.success) {
         setZaposlenci(result.data || []);
+      } else {
+        setError(result.error || 'Napaka pri nalaganju zaposlenih.');
       }
     } catch (error) {
       console.error('Error loading employees:', error);
+      setError('Napaka pri nalaganju zaposlenih.');
     } finally {
       setIsLoading(false);
     }
@@ -110,14 +115,14 @@ export default function ZaposleniPage() {
         });
 
         if (!result.success) {
-          alert('Error updating employee: ' + result.error);
+          alert('Napaka pri urejanju zaposlenega: ' + result.error);
           return;
         }
       } else {
         const result = await createZaposleni(formData);
 
         if (!result.success) {
-          alert('Error creating employee: ' + result.error);
+          alert('Napaka pri ustvarjanju zaposlenega: ' + result.error);
           return;
         }
       }
@@ -130,14 +135,14 @@ export default function ZaposleniPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this employee?')) {
+    if (!confirm('Ali ste prepričani, da želite izbrisati zaposlenega?')) {
       return;
     }
 
     try {
       const result = await deleteZaposleni(id);
       if (!result.success) {
-        alert('Error deleting employee: ' + result.error);
+        alert('Napaka pri brisanju zaposlenega: ' + result.error);
         return;
       }
       await loadZaposlenci();
@@ -178,6 +183,11 @@ export default function ZaposleniPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
             {isLoading ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -187,7 +197,54 @@ export default function ZaposleniPage() {
                 Ni zaposlenih. Dodajte prvega!
               </div>
             ) : (
-              <div className="border rounded-lg overflow-hidden">
+              <>
+                <div className="space-y-3 md:hidden">
+                  {zaposlenci.map((zaposleni) => (
+                    <div key={zaposleni.id} className="rounded-lg border p-3">
+                      <div className="font-medium">{zaposleni.ime} {zaposleni.priimek}</div>
+                      <div className="text-sm text-muted-foreground">{zaposleni.email}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+                          {zaposleni.vloga === 'SUPER_ADMIN'
+                            ? 'Super admin'
+                            : zaposleni.vloga === 'MODERATOR'
+                              ? 'Moderator'
+                              : 'Operater'}
+                        </span>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            zaposleni.aktiven
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {zaposleni.aktiven ? 'Aktiven' : 'Neaktiven'}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenDialog(zaposleni)}
+                          className="gap-2"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                          Uredi
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(zaposleni.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden md:block border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -249,7 +306,8 @@ export default function ZaposleniPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
