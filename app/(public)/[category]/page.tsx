@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
-import { getCategoryBySlug, getActiveCategoriesPublic } from '@/lib/dal/categories'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
 import { ObrtnikCard } from '@/components/obrtnik-card'
 import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
@@ -13,6 +13,7 @@ import { FAQSection } from '@/components/seo/faq-section'
 import { RelatedCities } from '@/components/seo/related-cities'
 import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
+import { normalizeDirectoryParams, resolveCategorySlugOrFallback } from '@/lib/seo/directory-routing'
 
 interface Props {
   params: Promise<{ category: string }>
@@ -39,13 +40,14 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
+  const normalized = normalizeDirectoryParams(params.category)
   
   // Exclude static paths from being treated as categories
-  if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.')) {
+  if (EXCLUDED_PATHS.includes(normalized.category) || normalized.category.includes('.')) {
     return { title: 'LiftGO' }
   }
   
-  const category = await getCategoryBySlug(params.category)
+  const category = await resolveCategorySlugOrFallback(normalized.category)
 
   if (!category) {
     return { title: 'LiftGO' }
@@ -72,13 +74,14 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function CategoryPage(props: Props) {
   const params = await props.params
+  const normalized = normalizeDirectoryParams(params.category)
   
   // Exclude static files and reserved paths
-  if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.')) {
+  if (EXCLUDED_PATHS.includes(normalized.category) || normalized.category.includes('.')) {
     notFound()
   }
   
-  const category = await getCategoryBySlug(params.category)
+  const category = await resolveCategorySlugOrFallback(normalized.category)
 
   if (!category) {
     notFound()
@@ -92,7 +95,7 @@ export default async function CategoryPage(props: Props) {
   })
 
   // Get pricing for schema
-  const pricing = getPricingForCategory(params.category)
+  const pricing = getPricingForCategory(normalized.category)
 
   // Generate schema markup
   const businessSchema = generateLocalBusinessSchema({
@@ -125,7 +128,7 @@ export default async function CategoryPage(props: Props) {
 
       <Breadcrumb items={[
         { name: 'Domov', href: '/' },
-        { name: category.name, href: '/' + params.category }
+        { name: category.name, href: '/' + normalized.category }
       ]} />
 
       <main className="min-h-screen">
@@ -203,18 +206,18 @@ export default async function CategoryPage(props: Props) {
         {/* FAQ Section */}
         <FAQSection 
           categoryName={category.name}
-          categorySlug={params.category}
+          categorySlug={normalized.category}
         />
 
         {/* Related Cities */}
         <RelatedCities
-          categorySlug={params.category}
+          categorySlug={normalized.category}
           categoryName={category.name}
         />
 
         {/* Related Categories */}
         <RelatedCategories
-          currentCategorySlug={params.category}
+          currentCategorySlug={normalized.category}
         />
       </main>
     </>
