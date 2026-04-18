@@ -17,6 +17,8 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
+export const dynamic = 'force-dynamic'
+
 export default function Page() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,7 +35,7 @@ export default function Page() {
 
     try {
       const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       })
       if (error) throw error
@@ -50,7 +52,10 @@ export default function Page() {
         throw new Error('Ta račun nima obrtniških pravic. Uporabite prijavo na /prijava.')
       }
 
-      const redirectTo = searchParams.get('redirectTo')
+      const redirectTo =
+        typeof window !== 'undefined'
+          ? new URL(window.location.href).searchParams.get('redirectTo')
+          : null
       const safeRedirect = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/partner-dashboard'
       router.push(safeRedirect)
     } catch (error: unknown) {
