@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ComponentType } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -17,7 +17,7 @@ interface PartnerSidebarProps {
 
 interface PartnerNavItem {
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
   label: string
 }
 
@@ -48,11 +48,9 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
   const handleLogout = async () => {
     setIsLoading(true)
     try {
+      await fetch('/api/auth/logout', { method: 'POST' })
       const { error } = await supabase.auth.signOut()
-      if (error) {
-        console.error('Logout error:', error)
-        return
-      }
+      if (error) console.error('Logout error:', error)
       router.replace('/partner-auth/login')
       router.refresh()
     } catch (error) {
@@ -63,63 +61,94 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
   }
 
   return (
-    <aside className="hidden w-64 border-r bg-muted/50 p-6 lg:flex flex-col">
-      <div className="mb-8">
-        <Link href="/partner-dashboard" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">L</span>
-          </div>
-          <span className="font-display text-xl font-bold text-foreground">LiftGO</span>
-        </Link>
-      </div>
-
-      <div className="mb-8 rounded-lg border bg-background p-4">
-        <p className="text-sm font-semibold text-foreground">{partner.business_name}</p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-          {partner.is_verified && '✓'} {partner.avg_rating.toFixed(1)} ⭐
-        </p>
-        <p className="mt-2 text-xs font-medium text-primary">
-          {partner.subscription_tier === 'elite'
-            ? 'ELITE plan'
-            : partner.subscription_tier === 'pro'
-              ? 'PRO plan'
-              : 'START plan'}
-        </p>
-      </div>
-
-      <nav className="mb-8 flex-1 space-y-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              isActive(item.href)
-                ? 'bg-primary text-primary-foreground'
-                : 'text-foreground hover:bg-background'
-            }`}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
+    <>
+      <div className="sticky top-0 z-30 border-b bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/partner-dashboard" className="flex min-w-0 items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <span className="text-sm font-bold text-primary-foreground">L</span>
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{partner.business_name || 'Moj portal'}</p>
+              <p className="text-xs text-muted-foreground">
+                {partner.subscription_tier === 'elite'
+                  ? 'ELITE'
+                  : partner.subscription_tier === 'pro'
+                    ? 'PRO'
+                    : 'START'}
+              </p>
+            </div>
           </Link>
-        ))}
-      </nav>
-
-      <div className="border-t pt-6">
-        <div className="mb-4 rounded-lg bg-background p-4">
-          <p className="text-xs font-semibold text-muted-foreground">PODJETJE</p>
-          <p className="font-semibold text-foreground">{partner.business_name}</p>
-          <p className="text-xs text-muted-foreground">{partner.avg_rating.toFixed(1)} ⭐</p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoading}
+            className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-medium text-destructive disabled:opacity-50"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            {isLoading ? 'Odjavljam...' : 'Odjava'}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={isLoading}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-        >
-          <LogOut className="h-4 w-4" />
-          {isLoading ? 'Odjavljam...' : 'Odjava'}
-        </button>
       </div>
-    </aside>
+
+      <aside className="hidden w-64 border-r bg-muted/50 p-6 lg:flex lg:flex-col">
+        <div className="mb-8">
+          <Link href="/partner-dashboard" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+              <span className="text-lg font-bold text-primary-foreground">L</span>
+            </div>
+            <span className="font-display text-xl font-bold text-foreground">LiftGO</span>
+          </Link>
+        </div>
+
+        <div className="mb-8 rounded-lg border bg-background p-4">
+          <p className="text-sm font-semibold text-foreground">{partner.business_name}</p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            {partner.is_verified && '✓'} {partner.avg_rating.toFixed(1)} ⭐
+          </p>
+          <p className="mt-2 text-xs font-medium text-primary">
+            {partner.subscription_tier === 'elite'
+              ? 'ELITE plan'
+              : partner.subscription_tier === 'pro'
+                ? 'PRO plan'
+                : 'START plan'}
+          </p>
+        </div>
+
+        <nav className="mb-8 flex-1 space-y-2">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                isActive(item.href)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-foreground hover:bg-background'
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="border-t pt-6">
+          <div className="mb-4 rounded-lg bg-background p-4">
+            <p className="text-xs font-semibold text-muted-foreground">PODJETJE</p>
+            <p className="font-semibold text-foreground">{partner.business_name}</p>
+            <p className="text-xs text-muted-foreground">{partner.avg_rating.toFixed(1)} ⭐</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoading}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+          >
+            <LogOut className="h-4 w-4" />
+            {isLoading ? 'Odjavljam...' : 'Odjava'}
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
