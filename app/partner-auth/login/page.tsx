@@ -39,12 +39,13 @@ export default function Page() {
         password,
       })
       if (error) throw error
+      if (!authData.user?.id) throw new Error('Prijava ni uspela. Poskusite znova.')
 
       // Verify user has an obrtnik profile
       const { data: obrtnikProfile } = await supabase
         .from('obrtnik_profiles')
         .select('id')
-        .eq('id', authData.user?.id)
+        .eq('id', authData.user.id)
         .maybeSingle()
 
       if (!obrtnikProfile) {
