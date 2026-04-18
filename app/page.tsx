@@ -15,7 +15,7 @@ import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 
 export const revalidate = 180
 export const metadata: Metadata = {
-  title: 'LiftGO Homepage — Mojster za vsak dom',
+  title: 'LiftGO — Mojster za vsak dom',
   description:
     'Najdite preverjenega mojstra ali postanite LiftGO partner. AI Concierge pomaga izbrati pravo kategorijo in oceno cene.',
   alternates: {
