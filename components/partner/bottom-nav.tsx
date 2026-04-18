@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Home, BarChart3, FileText, Bell, User, TrendingUp, Zap } from 'lucide-react'
+import { Home, FileText, Bell, User, TrendingUp, Zap, MessageCircle } from 'lucide-react'
 
 interface PartnerBottomNavProps {
   paket?: {
@@ -46,10 +46,10 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
   const navLinks = [
     { href: '/partner-dashboard', icon: Home, label: 'Domov' },
     { href: '/partner-dashboard/povprasevanja', icon: FileText, label: 'Povpraševanja' },
+    { href: '/partner-dashboard/sporocila', icon: MessageCircle, label: 'Sporočila' },
     ...(resolvedPaket === 'pro' || resolvedPaket === 'elite' ? [
       { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM' },
-      { href: '/partner-dashboard/insights', icon: BarChart3, label: 'Insights' },
-      { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator' },
+      { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'AI ponudbe' },
     ] : []),
     { href: '/partner-dashboard/notifications', icon: Bell, label: 'Obvestila' },
     { href: '/partner-dashboard/account', icon: User, label: 'Račun' },
