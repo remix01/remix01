@@ -1,4 +1,5 @@
 # LiftGO — Architecture, Revenue & Growth Review
+
 **Author:** System Architecture Review
 **Project:** LiftGO Marketplace
 **Date:** 2026
@@ -7,6 +8,7 @@
 ---
 
 ## TABLE OF CONTENTS
+
 1. [Project Overview](#1-project-overview)
 2. [Critical Fixes](#2-critical-fixes)
 3. [Database Architecture](#3-database-architecture)
@@ -27,6 +29,7 @@
 LiftGO je marketplace platforma za povezovanje **naročnikov** (customers) in **obrtnikov** (partners).
 
 ### Glavni flow
+
 ```
 1. Naročnik odda povpraševanje
 2. Mojstri pošljejo ponudbe
@@ -36,15 +39,16 @@ LiftGO je marketplace platforma za povezovanje **naročnikov** (customers) in **
 ```
 
 ### Tech stack
-| Komponenta   | Tehnologija              |
-|-------------|--------------------------|
-| Frontend    | Next.js (App Router)     |
-| Backend     | Next.js API Routes       |
-| Baza        | Supabase (PostgreSQL)    |
-| Plačila     | Stripe (Escrow + Webhooks) |
-| AI          | Claude / AI Orchestrator |
-| Real-time   | Supabase Realtime        |
-| Hosting     | Vercel / Cloudflare      |
+
+| Komponenta | Tehnologija                |
+| ---------- | -------------------------- |
+| Frontend   | Next.js (App Router)       |
+| Backend    | Next.js API Routes         |
+| Baza       | Supabase (PostgreSQL)      |
+| Plačila    | Stripe (Escrow + Webhooks) |
+| AI         | Claude / AI Orchestrator   |
+| Real-time  | Supabase Realtime          |
+| Hosting    | Vercel / Cloudflare        |
 
 ---
 
@@ -54,10 +58,12 @@ LiftGO je marketplace platforma za povezovanje **naročnikov** (customers) in **
 
 **Problem:**
 Webhook (`app/api/webhooks/stripe/route.ts`) posodablja `obrtnik_profiles`, vendar AI sistem bere subscription tier iz `profiles`. To pomeni:
+
 - Obrtnik kupi PRO
 - AI sistem še vedno vidi START plan
 
 **Trenutna koda (webhook):**
+
 ```typescript
 .from('obrtnik_profiles')
 .update({ subscription_tier: 'pro' })
@@ -84,22 +90,24 @@ await supabaseAdmin.from('profiles').update({ subscription_tier: tier }).eq(...)
 Webhook uporablja `subscription.metadata?.plan` za določanje tipa plana. Metadata se lahko pokvari ali manjka.
 
 **Trenutna koda:**
+
 ```typescript
-const plan = subscription.metadata?.plan || 'START'
-subscription_tier: plan === 'PRO' ? 'pro' : 'start'
+const plan = subscription.metadata?.plan || "START";
+subscription_tier: plan === "PRO" ? "pro" : "start";
 ```
 
 **Boljša rešitev — Price ID kot source of truth:**
-```typescript
-import { STRIPE_PRODUCTS } from '@/lib/stripe/config'
 
-const priceId = subscription.items.data[0]?.price.id
-let subscription_tier: 'start' | 'plus' | 'pro' = 'start'
+```typescript
+import { STRIPE_PRODUCTS } from "@/lib/stripe/config";
+
+const priceId = subscription.items.data[0]?.price.id;
+let subscription_tier: "start" | "plus" | "pro" = "start";
 
 if (priceId === STRIPE_PRODUCTS.PRO.priceId) {
-  subscription_tier = 'pro'
+  subscription_tier = "pro";
 } else if (priceId === STRIPE_PRODUCTS.PLUS?.priceId) {
-  subscription_tier = 'plus'
+  subscription_tier = "plus";
 }
 ```
 
@@ -110,15 +118,17 @@ if (priceId === STRIPE_PRODUCTS.PRO.priceId) {
 Checkout session mora vključevati `client_reference_id`, da webhook enostavno najde uporabnika brez lookup po `stripe_customer_id`.
 
 **V `app/api/stripe/create-checkout/route.ts`:**
+
 ```typescript
 const session = await stripe.checkout.sessions.create({
-  client_reference_id: user.id,   // ← DODATI
+  client_reference_id: user.id, // ← DODATI
   customer_email: user.email,
   // ...
-})
+});
 ```
 
 **V webhookov:**
+
 ```typescript
 case 'checkout.session.completed': {
   const session = event.data.object as Stripe.Checkout.Session
@@ -126,6 +136,28 @@ case 'checkout.session.completed': {
   // posodobi profiles kjer id = userId
 }
 ```
+
+---
+
+### 2.4 API Endpoint Contract Strategy (OpenAPI + Router Pattern) 🔴 P0
+
+Največji scaling problem za FE ekipo je trenutno odsotnost formalnega API kontrakta.
+
+**Trenutno stanje:**
+
+- Velik del endpointov nima OpenAPI specifikacije.
+- Prisoten je "action router" pattern (`/api/tasks` + `action` parameter), kar oteži testiranje in onboarding.
+
+**Priporočilo (P0):**
+
+1. **Ne pisati OpenAPI ročno.**
+2. Uvesti `zod-openapi` in generirati OpenAPI JSON neposredno iz obstoječih Zod shem.
+3. V CI dodati preverjanje, da se OpenAPI dokument regenerira ob spremembi shem.
+
+**Opomba glede route strategije (REST vs RPC):**
+
+- Če ekipa preferira RPC ergonomijo, standardizirajte na **tRPC** ali **JSON-RPC**.
+- Če ekipa preferira REST, razbijte action router v resource route-e, vendar načrtujte grouping po domenah, da ne nastane eksplozija `route.ts` datotek in večji cold-start overhead na Vercel.
 
 ---
 
@@ -209,6 +241,32 @@ CREATE INDEX idx_offers_partner_id ON offers(partner_id);
 CREATE INDEX idx_reviews_partner_id ON reviews(partner_id);
 ```
 
+### 3.4 Schema Consolidation + RLS Dependency Graph 🔴 P0
+
+Podvajanje entitet (`artisans`, `partners`, `profiles`) je evolucijski "dead end":
+
+- podvojen business logic,
+- kompleksni joini,
+- težje in bolj tvegano RLS policy-je.
+
+**Priporočilo:**
+
+- Definirati `profiles` kot **single identity spine** (FK na `auth.users`).
+- Vse auxiliary tabele (npr. partner profil, nastavitve, preference) morajo referencirati isti `user_id`.
+- Izogniti se policy-jem z več OR pogoji preko različnih identitetnih tabel.
+
+**Dodatni deliverable poleg ERD: RLS Dependency Graph**
+
+- Vozlišča: `auth.users`, `profiles`, `tasks`, `offers`, `reviews`, ...
+- Povezave: FK + policy odvisnosti.
+- Za vsako tabelo navedi:
+  - source of truth za auth (`auth.uid()` / JWT claim),
+  - ali policy bere iz JWT ali iz druge public tabele,
+  - potencialne leakage poti.
+
+**Pravilo:**
+RLS policy naj bere primarno iz JWT (`auth.uid()`, claims), ne iz posrednih public lookup tabel, kjer je možno obiti ownership semantiko.
+
 ---
 
 ## 4. MARKETPLACE FEATURES
@@ -219,6 +277,7 @@ Obstoječa stran `/mojstri/[id]` prikazuje posameznega mojstra.
 **Manjka:** seznam z filtri.
 
 **Dodati filtre:**
+
 - Kategorija (vodovodar, elektrikar, pleskár...)
 - Lokacija (Ljubljana, Maribor, ...)
 - Min. rating (4+, 4.5+)
@@ -259,9 +318,28 @@ Supabase Realtime za komunikacijo customer ↔ partner.
 Ko naročnik odda povpraševanje, AI predlaga top 5 partnerjev.
 
 **Algoritem:**
+
 ```
 score = (rating × 0.4) + (distance_score × 0.3) + (availability × 0.2) + (category_match × 0.1)
 ```
+
+### 4.6 Server/Client Boundary Rule (Next.js App Router) 🟡 PARTIAL
+
+Za preprečevanje "use client" proliferacije:
+
+- `app/` vsebuje **Server Components** kot privzeto.
+- `components/` vsebuje **Client Components** samo kjer je interaktivnost nujna.
+
+**Taktično pravilo za ekipo:**
+
+1. Najprej server-first implementacija.
+2. `use client` dodamo samo na leaf komponentah.
+3. Prepoved prenosa občutljive business logike v client-only layer.
+
+**Data fetching standard:**
+
+- Client-side fetching standardizirati na **TanStack Query** (namesto ad-hoc `useEffect` fetch).
+- S tem zmanjšamo duplicate requeste, poenotimo cache invalidation in poenostavimo optimistic update flow.
 
 ---
 
@@ -279,9 +357,9 @@ async function categorizeJob(description: string) {
   const response = await ai.complete({
     prompt: `Kategoriziraj povpraševanje: "${description}"
              Vrni JSON: { category, urgency, keywords }
-             Kategorije: vodovodar, elektrikar, pleskár, zidar, mizar, kleparji`
-  })
-  return JSON.parse(response)
+             Kategorije: vodovodar, elektrikar, pleskár, zidar, mizar, kleparji`,
+  });
+  return JSON.parse(response);
 }
 ```
 
@@ -294,21 +372,21 @@ async function categorizeJob(description: string) {
 
 **Cenovni referenčni podatki (Slovenija 2026):**
 
-| Storitev                | Min  | Max   |
-|------------------------|------|-------|
-| Pleskanje (m²)         | 8€   | 18€   |
-| Vodovod (ura)          | 50€  | 90€   |
-| Elektrika (ura)        | 45€  | 80€   |
-| Tlakovanje (m²)        | 30€  | 80€   |
-| Ogrevanje (servis)     | 80€  | 200€  |
+| Storitev           | Min | Max  |
+| ------------------ | --- | ---- |
+| Pleskanje (m²)     | 8€  | 18€  |
+| Vodovod (ura)      | 50€ | 90€  |
+| Elektrika (ura)    | 45€ | 80€  |
+| Tlakovanje (m²)    | 30€ | 80€  |
+| Ogrevanje (servis) | 80€ | 200€ |
 
 ### 5.3 AI Partner Matching — 🔴 TODO
 
 ```typescript
 async function matchPartners(task: Task): Promise<Partner[]> {
-  const partners = await getActivePartners(task.category, task.location)
+  const partners = await getActivePartners(task.category, task.location);
   // AI rangira po: rating, odzivnem času, reviews, distance
-  return partners.sort(byAIScore).slice(0, 5)
+  return partners.sort(byAIScore).slice(0, 5);
 }
 ```
 
@@ -319,12 +397,13 @@ async function matchPartners(task: Task): Promise<Partner[]> {
 ### 6.1 Subscription Plani
 
 | Plan  | Cena      | Provizija | Status         |
-|-------|-----------|-----------|----------------|
+| ----- | --------- | --------- | -------------- |
 | START | 0€/mesec  | 10%       | 🟢 Implemented |
 | PLUS  | 19€/mesec | 7%        | 🔴 TODO        |
 | PRO   | 29€/mesec | 5%        | 🟢 Implemented |
 
 **Dodati PLUS plan** v `lib/stripe/config.ts`:
+
 ```typescript
 PLUS: {
   productId: 'prod_XXXXX',       // ustvariti v Stripe Dashboard
@@ -353,13 +432,13 @@ Top pozicija v iskanju / katalogu mojstrov.
 
 ### Projekcija prihodkov
 
-| Scenarij  | Aktivni partnerji | Avg. mesečni promet | Prihodek          |
-|-----------|-------------------|---------------------|-------------------|
-| Seed      | 50                | 2.000€              | ~2.000€/mes       |
-| Growth    | 200               | 2.500€              | ~10.000€/mes      |
-| Scale     | 500               | 3.000€              | ~30.000€/mes      |
+| Scenarij | Aktivni partnerji | Avg. mesečni promet | Prihodek     |
+| -------- | ----------------- | ------------------- | ------------ |
+| Seed     | 50                | 2.000€              | ~2.000€/mes  |
+| Growth   | 200               | 2.500€              | ~10.000€/mes |
+| Scale    | 500               | 3.000€              | ~30.000€/mes |
 
-*(provizija 7% povprečno + subscriptions)*
+_(provizija 7% povprečno + subscriptions)_
 
 ---
 
@@ -370,18 +449,22 @@ Top pozicija v iskanju / katalogu mojstrov.
 ### 7.1 Partner Acquisition
 
 #### Faza 1 — Direct Outreach (0–3 meseci)
+
 - [ ] Zbrati seznam 500 obrtnikov iz AJPES / PRS registra
 - [ ] Email kampanja: "3 mesece PRO brezplačno"
 - [ ] Telefonski klic top 50 obrtnikov v Ljubljana
 
 #### Faza 2 — Community (1–6 mesecev)
+
 **Facebook skupine za ciljanje:**
+
 - Gradnja Slovenija (15k+ članov)
 - Obrtniki Slovenija
 - Prenova stanovanja
 - DIY Slovenija
 
 #### Faza 3 — Programmatic (3–12 mesecev)
+
 - Google Maps API: iskanje "vodovodar Ljubljana", scrape kontaktov
 - Avtomatizirani email follow-up sekvenca (3 emaili v 2 tednih)
 - SEO content: "/vodovodar-ljubljana", "/elektrikar-maribor"
@@ -399,22 +482,23 @@ Top pozicija v iskanju / katalogu mojstrov.
 ### 8.1 Webhook Signature Validation — 🟢 IMPLEMENTED
 
 ```typescript
-event = constructStripeEvent(rawBody, sig)  // ✓ že implementirano
+event = constructStripeEvent(rawBody, sig); // ✓ že implementirano
 ```
 
 ### 8.2 Rate Limiting — 🔴 TODO
 
 ```typescript
 // app/api/middleware.ts
-import { Ratelimit } from '@upstash/ratelimit'
+import { Ratelimit } from "@upstash/ratelimit";
 
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(10, '10 s'),
-})
+  limiter: Ratelimit.slidingWindow(10, "10 s"),
+});
 ```
 
 Prioriteta endpoint-ov za rate limiting:
+
 1. `/api/ai/*` — 10 req/min na uporabnika
 2. `/api/stripe/*` — 5 req/min
 3. `/api/auth/*` — 20 req/min
@@ -424,15 +508,45 @@ Prioriteta endpoint-ov za rate limiting:
 Dodati Zod sheme za vse API route-e.
 
 ```typescript
-import { z } from 'zod'
+import { z } from "zod";
 
 const TaskSchema = z.object({
-  category: z.enum(['vodovodar', 'elektrikar', 'pleskár', 'zidar']),
+  category: z.enum(["vodovodar", "elektrikar", "pleskár", "zidar"]),
   description: z.string().min(20).max(2000),
   location: z.string().min(3).max(100),
   budget_max: z.number().int().positive().optional(),
-})
+});
 ```
+
+### 8.4 RLS Hardening (No `USING (true)`) + IDOR Controls 🔴 P0
+
+`USING (true)` v policy-jih je "time bomb" in naj bo dovoljen samo za striktno public read scenarije.
+
+**Minimalni security standard:**
+
+- Vsaka tabela z občutljivimi podatki mora imeti ownership-based policy.
+- Privzeti deny model: explicit allow > implicit allow.
+- Policy review checklist pri vsaki migraciji.
+
+**IDOR tveganje (kritično za marketplace):**
+Endpointi tipa `GET /api/jobs/:id` morajo preveriti ownership ali relation-based access.
+
+**Primer pravilnega preverjanja dostopa:**
+
+```sql
+WHERE jobs.owner_id = auth.uid()
+   OR EXISTS (
+     SELECT 1
+     FROM offers
+     WHERE offers.job_id = jobs.id
+       AND offers.partner_id = auth.uid()
+   )
+```
+
+**Priporočilo implementacije:**
+
+- Dodati centralni "Data Ownership Check" middleware/helper za vse endpointe z `:id` parametrom.
+- Varnostni testi naj eksplicitno pokrivajo cross-tenant dostop (A ne sme brati B).
 
 ---
 
@@ -443,18 +557,34 @@ const TaskSchema = z.object({
 ```typescript
 // lib/logger.ts
 type LogEvent =
-  | { type: 'STRIPE'; event: string; userId: string; amount?: number }
-  | { type: 'AI'; event: string; userId: string; tokens?: number; cost?: number }
-  | { type: 'TASK'; event: string; taskId: string; userId: string }
+  | { type: "STRIPE"; event: string; userId: string; amount?: number }
+  | {
+      type: "AI";
+      event: string;
+      userId: string;
+      tokens?: number;
+      cost?: number;
+    }
+  | { type: "TASK"; event: string; taskId: string; userId: string };
 
 function log(entry: LogEvent) {
-  console.log(JSON.stringify({ ts: new Date().toISOString(), ...entry }))
+  console.log(JSON.stringify({ ts: new Date().toISOString(), ...entry }));
   // + shrani v supabase audit_logs tabelo
 }
 
 // Primeri:
-log({ type: 'STRIPE', event: 'subscription_created', userId: 'usr_123', amount: 2900 })
-log({ type: 'AI', event: 'daily_limit_reached', userId: 'usr_456', tokens: 50000 })
+log({
+  type: "STRIPE",
+  event: "subscription_created",
+  userId: "usr_123",
+  amount: 2900,
+});
+log({
+  type: "AI",
+  event: "daily_limit_reached",
+  userId: "usr_456",
+  tokens: 50000,
+});
 ```
 
 ### 9.2 Audit Logs Tabela
@@ -479,46 +609,83 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
 ## 10. PERFORMANCE
 
 ### 10.1 Database
+
 - [ ] Dodati indekse (glejte sekcijo 3.3)
 - [ ] Enable `pg_stat_statements` za počasne poizvedbe
 - [ ] Connection pooling via Supabase Pooler (že vključeno)
 
 ### 10.2 API Caching
+
 ```typescript
 // app/api/mojstri/route.ts
-export const revalidate = 60  // ISR — osveži vsakih 60 sekund
+export const revalidate = 60; // ISR — osveži vsakih 60 sekund
 
 // ali za dinamične strani:
-import { unstable_cache } from 'next/cache'
-const getCachedPartners = unstable_cache(getPartners, ['partners-list'], { revalidate: 30 })
+import { unstable_cache } from "next/cache";
+const getCachedPartners = unstable_cache(getPartners, ["partners-list"], {
+  revalidate: 30,
+});
 ```
 
 ### 10.3 Images
+
 - Uporabi Supabase Storage transformations za resize
 - `<Image>` komponenta z `priority` za LCP elemente
 - WebP format z fallback
 
 ### 10.4 SSR/ISR Strategija
-| Stran          | Strategija | Razlog                        |
-|---------------|------------|-------------------------------|
-| `/mojstri`    | ISR 60s    | Catalog se redko spreminja    |
-| `/mojstri/[id]` | ISR 30s  | Profile updates               |
-| `/dashboard`  | Dynamic    | Personalizirana vsebina       |
-| `/`           | Static     | Landing page                  |
+
+| Stran           | Strategija | Razlog                     |
+| --------------- | ---------- | -------------------------- |
+| `/mojstri`      | ISR 60s    | Catalog se redko spreminja |
+| `/mojstri/[id]` | ISR 30s    | Profile updates            |
+| `/dashboard`    | Dynamic    | Personalizirana vsebina    |
+| `/`             | Static     | Landing page               |
+
+### 10.5 Performance Methodology (No Mock-Only Benchmarks) 🔴 P0
+
+Mocked performance testi brez realne baze dajejo lažen občutek hitrosti.
+
+**Zahteva za performance poročila:**
+
+1. Realistični volumni podatkov (npr. 10k+ partnerjev).
+2. Meritev na real DB query-jih (ne samo Node runtime).
+3. Obvezno vključiti `EXPLAIN ANALYZE` za kritične query-je.
+
+**Kritična LiftGO pot:**
+`/mojstri?kategorija=...&lokacija=...`
+
+Če se uporablja `ILIKE` brez `pg_trgm` indeksa, latenca hitro preseže produkcijske cilje.
+
+**Priporočilo:**
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_profiles_title_trgm
+  ON profiles USING gin (title gin_trgm_ops);
+```
+
+Poleg tega spremljaj p95/p99 latenco za katalog in filter endpointe v produkciji (ne samo lokalno).
 
 ---
 
 ## 11. INFRASTRUCTURE ROADMAP
 
 ### Faza 1 — Marketplace Completion (Q1 2026)
+
 - [ ] Fix Stripe webhook table mismatch (sekcija 2.1)
 - [ ] Fix Price ID validation (sekcija 2.2)
 - [ ] Add client_reference_id (sekcija 2.3)
+- [ ] OpenAPI generation with zod-openapi (sekcija 2.4)
 - [ ] Mojstri katalog z filtri (sekcija 4.1)
+- [ ] Server/Client boundary rule + TanStack Query standard (sekcija 4.6)
 - [ ] PLUS subscription plan (sekcija 6.1)
 - [ ] Rate limiting (sekcija 8.2)
+- [ ] RLS hardening + IDOR ownership checks (sekcija 8.4)
+- [ ] Real DB benchmarking + EXPLAIN ANALYZE baseline (sekcija 10.5)
 
 ### Faza 2 — AI & Automation (Q2 2026)
+
 - [ ] AI job categorization (sekcija 5.1)
 - [ ] AI price estimation (sekcija 5.2)
 - [ ] AI partner matching (sekcija 5.3)
@@ -526,6 +693,7 @@ const getCachedPartners = unstable_cache(getPartners, ['partners-list'], { reval
 - [ ] Featured listings (sekcija 6.2)
 
 ### Faza 3 — Scale (Q3–Q4 2026)
+
 - [ ] Material marketplace (obrtniki naročajo material)
 - [ ] Supplier integrations (Merkur, Bauhaus API)
 - [ ] Mobile app (React Native / PWA enhancement)
@@ -537,8 +705,8 @@ const getCachedPartners = unstable_cache(getPartners, ['partners-list'], { reval
 
 ### KPI Dashboard (meriti tedensko)
 
-| Metrika                    | Cilj Seed | Cilj Growth |
-|---------------------------|-----------|-------------|
+| Metrika                   | Cilj Seed | Cilj Growth |
+| ------------------------- | --------- | ----------- |
 | Aktivni partnerji         | 50        | 200         |
 | Povpraševanja / mesec     | 100       | 1.000       |
 | Konverzija (offer → deal) | 20%       | 35%         |
@@ -548,6 +716,7 @@ const getCachedPartners = unstable_cache(getPartners, ['partners-list'], { reval
 | Čas do prve ponudbe       | < 4 ure   | < 2 uri     |
 
 ### Funnel Metrike
+
 ```
 Obisk strani → Registracija → 1. povpraševanje → Sprejet deal → Review
     100%             15%              40%                25%          70%
@@ -565,4 +734,4 @@ Naslednji 3 popravki, ki vzamejo < 1 dan in imajo največji impact:
 
 ---
 
-*Zadnja posodobitev: 2026-03-16*
+_Zadnja posodobitev: 2026-03-16_
