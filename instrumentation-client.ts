@@ -4,7 +4,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-const tracesSampleRate = process.env.NODE_ENV === "production" ? 0.1 : 1;
+const tracesSampleRate = process.env.NODE_ENV === "production" ? 0.05 : 1;
 const sentryRelease =
   process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA;
 
@@ -12,7 +12,7 @@ Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Add optional integrations for additional features
-  integrations: [Sentry.replayIntegration()],
+  integrations: [Sentry.replayIntegration(), Sentry.feedbackIntegration()],
 
   // Define how likely traces are sampled. In production we keep this low to control cost.
   tracesSampleRate,
@@ -40,3 +40,7 @@ Sentry.init({
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+
+if (sentryRelease) {
+  Sentry.setTag("release", sentryRelease);
+}
