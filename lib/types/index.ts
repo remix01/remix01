@@ -72,7 +72,7 @@ export type ObrtnikProfileDisplay = {
   response_time_hours: number | null
   is_available: boolean
   created_at: string
-  subscription_tier: 'start' | 'pro' | null
+  subscription_tier: 'start' | 'pro' | 'elite' | null
   stripe_customer_id: string | null
   stripe_account_id: string | null
   tagline: string | null
