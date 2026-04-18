@@ -16,7 +16,8 @@
     "test:escrow": "jest --config jest.config.escrow.cjs",
     "test:curl": "bash run-tests.sh",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
-    "openapi:check": "pnpm openapi:generate && git diff --exit-code -- docs/openapi.json"
+    "openapi:check": "pnpm openapi:generate && git diff --exit-code -- docs/openapi.json",
+    "sentry:healthcheck": "node scripts/sentry-healthcheck.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

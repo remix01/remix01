@@ -63,6 +63,20 @@ Without these env vars in Vercel, builds/events may partially degrade (non-block
 - Release health tagging is explicit (`release` option + `Sentry.setTag("release", ...)`).
 - Client integrations now include Sentry Feedback integration in addition to Replay.
 
+
+## MCP architecture decision gate
+- **Option A (Not Applicable / Won't Fix):** if this Next.js app will not host an MCP server process, close MCP-specific Sentry monitoring as out-of-scope.
+- **Option B (Implement MCP runtime):** add `@modelcontextprotocol/sdk`, create `McpServer` runtime, and wrap it with `Sentry.wrapMcpServerWithSentry(...)` in the same server bootstrap file.
+- Current repository state aligns with **Option A for now** (no in-process MCP runtime detected).
+
+## CI healthcheck implementation
+- Added script: `scripts/sentry-healthcheck.mjs`.
+- Script behavior:
+  1. Calls `/api/sentry-example-api` and asserts 5xx response (error path triggered).
+  2. If `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` exist, polls Sentry Issues API until `SentryExampleAPIError` appears (or timeout).
+  3. Supports strict mode (`SENTRY_HEALTHCHECK_STRICT=1`) to fail CI when Sentry API credentials are missing.
+- Suggested CI command: `pnpm sentry:healthcheck` after deployment smoke checks.
+
 ## Practical recommendations
 1. If this app should host an MCP server process, add runtime dependency `@modelcontextprotocol/sdk` and wrap that server instance with `Sentry.wrapMcpServerWithSentry(...)`.
 2. Keep DSN in env variables (current approach), avoid hardcoding DSN in code snippets/docs.
