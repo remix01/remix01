@@ -17,6 +17,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
+export const dynamic = 'force-dynamic'
+
 export default function Page() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,16 +34,17 @@ export default function Page() {
 
     try {
       const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       })
       if (error) throw error
+      if (!authData.user?.id) throw new Error('Prijava ni uspela. Poskusite znova.')
 
       // Verify user has an obrtnik profile
       const { data: obrtnikProfile } = await supabase
         .from('obrtnik_profiles')
         .select('id')
-        .eq('id', authData.user?.id)
+        .eq('id', authData.user.id)
         .maybeSingle()
 
       if (!obrtnikProfile) {
@@ -49,7 +52,12 @@ export default function Page() {
         throw new Error('Ta račun nima obrtniških pravic. Uporabite prijavo na /prijava.')
       }
 
-      router.push('/partner-dashboard')
+      const redirectTo =
+        typeof window !== 'undefined'
+          ? new URL(window.location.href).searchParams.get('redirectTo')
+          : null
+      const safeRedirect = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/partner-dashboard'
+      router.push(safeRedirect)
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Napaka pri prijavi')
     } finally {
