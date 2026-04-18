@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowRight, MapPin, Banknote, Clock } from 'lucide-react'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
+import { PartnerSidebar } from '@/components/partner/sidebar'
+import { redirect } from 'next/navigation'
 
 export default async function PovprasevanjePage() {
   const cookieStore = await cookies()
@@ -28,12 +30,15 @@ export default async function PovprasevanjePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+  if (!user) {
+    redirect('/partner-auth/login?redirectTo=/partner-dashboard/povprasevanja')
+  }
 
   // location_city je na povprasevanja tabeli direktno — NE na profiles
   const { data: partner } = await supabase
     .from('obrtnik_profiles')
-    .select('subscription_tier')
-    .eq('id', user?.id)
+    .select('subscription_tier, business_name, avg_rating, is_verified')
+    .eq('id', user.id)
     .maybeSingle()
 
   const { data: povprasevanja, error } = await supabase
@@ -89,6 +94,14 @@ export default async function PovprasevanjePage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <PartnerSidebar
+        partner={{
+          business_name: partner?.business_name || 'Moj portal',
+          subscription_tier: partner?.subscription_tier === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start',
+          avg_rating: partner?.avg_rating || 0,
+          is_verified: !!partner?.is_verified,
+        }}
+      />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-4 md:p-6 lg:p-8">
           <div className="mb-6">
