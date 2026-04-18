@@ -68,11 +68,25 @@ export function OfferForm({
       return
     }
 
+    const parsedPrice = parseFloat(formData.price)
+    const parsedDuration = parseInt(formData.duration)
+    if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      setError('Cena mora biti večja od 0.')
+      setLoading(false)
+      return
+    }
+
+    if (Number.isNaN(parsedDuration) || parsedDuration <= 0) {
+      setError('Trajanje mora biti vsaj 1 dan.')
+      setLoading(false)
+      return
+    }
+
     try {
       const composedMessage = [
         `Naslov: ${formData.title}`,
         `Kategorija: ${formData.category || 'Ni določeno'}`,
-        `Trajanje: ${formData.duration} dni`,
+        `Trajanje: ${parsedDuration} dni`,
         '',
         formData.description,
         formData.notes ? `\nOpombe: ${formData.notes}` : '',
@@ -82,7 +96,7 @@ export function OfferForm({
         povprasevanje_id: formData.povprasevanje_id,
         obrtnik_id: partnerId,
         message: composedMessage,
-        price_estimate: parseFloat(formData.price),
+        price_estimate: parsedPrice,
         price_type: 'ocena',
         status: 'poslana',
       })
@@ -136,11 +150,17 @@ export function OfferForm({
               <SelectValue placeholder="Izberite povpraševanje" />
             </SelectTrigger>
             <SelectContent>
-              {availableInquiries.map((inq) => (
-                <SelectItem key={inq.id} value={inq.id}>
-                  {inq.title}
+              {availableInquiries.length === 0 ? (
+                <SelectItem value="__none" disabled>
+                  Trenutno ni odprtih povpraševanj
                 </SelectItem>
-              ))}
+              ) : (
+                availableInquiries.map((inq) => (
+                  <SelectItem key={inq.id} value={inq.id}>
+                    {inq.title}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -196,6 +216,7 @@ export function OfferForm({
             type="number"
             placeholder="0.00"
             step="0.01"
+            min="0.01"
             value={formData.price}
             onChange={handleChange}
             required
@@ -209,6 +230,7 @@ export function OfferForm({
             name="duration"
             type="number"
             placeholder="7"
+            min="1"
             value={formData.duration}
             onChange={handleChange}
             required
