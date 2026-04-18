@@ -11,6 +11,7 @@ import { Testimonials } from '@/components/home/Testimonials'
 import { FinalCTA } from '@/components/home/FinalCTA'
 import { AIConciergeLazy } from '@/components/home/AIConciergeLazy'
 import type { HomeActivityItem, HomeStats, HomeTestimonial } from '@/components/home/types'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 
 export const revalidate = 180
 export const metadata: Metadata = {
@@ -47,9 +48,14 @@ const faqSchema = {
   ],
 }
 
-async function getHomeData(): Promise<{ stats: HomeStats; testimonials: HomeTestimonial[]; activity: HomeActivityItem[] }> {
+async function getHomeData(): Promise<{
+  stats: HomeStats
+  testimonials: HomeTestimonial[]
+  activity: HomeActivityItem[]
+  featuredCategories: Array<{ label: string; slug: string }>
+}> {
   try {
-    const [activeCraftsmenQuery, reviewsQuery, activityQuery] = await Promise.all([
+    const [activeCraftsmenQuery, reviewsQuery, activityQuery, categoriesQuery] = await Promise.all([
       supabaseAdmin
         .from('craftworker_profile')
         .select('id', { count: 'exact', head: true })
@@ -63,9 +69,10 @@ async function getHomeData(): Promise<{ stats: HomeStats; testimonials: HomeTest
         .limit(6),
       supabaseAdmin
         .from('povprasevanja')
-        .select('id,lokacija,kategorija,created_at')
+        .select('id,location_city,kategorija,created_at')
         .order('created_at', { ascending: false })
         .limit(8),
+      getActiveCategoriesPublic(),
     ])
 
     const stats: HomeStats = {
@@ -93,15 +100,20 @@ async function getHomeData(): Promise<{ stats: HomeStats; testimonials: HomeTest
 
     const activity: HomeActivityItem[] = (activityQuery.data || []).map((item: any) => ({
       id: item.id,
-      city: item.lokacija || 'neznano mesto',
+      city: item.location_city || 'neznano mesto',
       category: item.kategorija || 'splošno storitev',
       createdAt: item.created_at,
     }))
+
+    const featuredCategories = categoriesQuery
+      .slice(0, 6)
+      .map((category) => ({ label: category.name, slug: category.slug }))
 
     return {
       stats,
       testimonials: testimonials.length ? testimonials : fallbackTestimonials,
       activity,
+      featuredCategories,
     }
   } catch (error) {
     console.error('[homepage] Failed to load server data:', error)
@@ -111,12 +123,13 @@ async function getHomeData(): Promise<{ stats: HomeStats; testimonials: HomeTest
         { id: '1', name: 'Matej N.', avatar: 'MN', comment: 'Odličen odziv in transparentna komunikacija.', rating: 5 },
       ],
       activity: [],
+      featuredCategories: [],
     }
   }
 }
 
 export default async function Page() {
-  const { stats, testimonials, activity } = await getHomeData()
+  const { stats, testimonials, activity, featuredCategories } = await getHomeData()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -127,7 +140,7 @@ export default async function Page() {
         <HeroSection stats={stats} />
         <LiveActivityTicker initialItems={activity} />
         <HowItWorksTabs />
-        <CategoryCityGrid />
+        <CategoryCityGrid categories={featuredCategories} />
         <Testimonials testimonials={testimonials} />
         <FinalCTA />
       </main>

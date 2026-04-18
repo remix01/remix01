@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
-import { getCategoryBySlug, getActiveCategoriesPublic } from '@/lib/dal/categories'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
-import { getCityBySlug, SLOVENIAN_CITIES } from '@/lib/seo/locations'
+import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
 import { ObrtnikCard } from '@/components/obrtnik-card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -14,6 +14,7 @@ import { RelatedCities } from '@/components/seo/related-cities'
 import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { fetchWithRetry } from '@/lib/fetchWithRetry'
+import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
 
 interface Props {
   params: Promise<{ category: string; city: string }>
@@ -52,14 +53,20 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
+  const normalized = normalizeDirectoryParams(params.category, params.city)
+  const citySlug = normalized.city ?? ''
 
   // Exclude static paths and file extensions
-  if (EXCLUDED_PATHS.includes(params.category) || params.category.includes('.') || params.city.includes('.')) {
+  if (
+    EXCLUDED_PATHS.includes(normalized.category) ||
+    normalized.category.includes('.') ||
+    citySlug.includes('.')
+  ) {
     return { title: 'LiftGO' }
   }
 
-  const category = await getCategoryBySlug(params.category)
-  const city = getCityBySlug(params.city)
+  const category = await resolveCategorySlugOrFallback(normalized.category)
+  const city = resolveCitySlugOrFallback(citySlug)
 
   if (!category || !city) {
     return { title: 'LiftGO' }
@@ -114,15 +121,17 @@ async function fetchDirectoryData(category: string, city: string) {
 
 export default async function CategoryCityPage(props: Props) {
   const params = await props.params
-  const pathname = `/${params.category}/${params.city}`
+  const normalized = normalizeDirectoryParams(params.category, params.city)
+  const citySlug = normalized.city ?? ''
+  const pathname = `/${normalized.category}/${citySlug}`
 
   // Exclude static files and reserved paths
-  if (EXCLUDED_PATHS.includes(params.category) || params.city.includes('.')) {
+  if (EXCLUDED_PATHS.includes(normalized.category) || citySlug.includes('.')) {
     notFound()
   }
 
-  const category = await getCategoryBySlug(params.category)
-  const city = getCityBySlug(params.city)
+  const category = await resolveCategorySlugOrFallback(normalized.category)
+  const city = resolveCitySlugOrFallback(citySlug)
 
   if (!category || !city) {
     console.info('[category-city-page] not_found', {
@@ -136,7 +145,7 @@ export default async function CategoryCityPage(props: Props) {
     notFound()
   }
 
-  const externalResult = await fetchDirectoryData(params.category, params.city)
+  const externalResult = await fetchDirectoryData(normalized.category, citySlug)
 
   if (!externalResult.ok && externalResult.isMissing) {
     console.info('[category-city-page] not_found', {
@@ -192,10 +201,10 @@ export default async function CategoryCityPage(props: Props) {
     region: process.env.VERCEL_REGION,
   })
 
-  const nearbyCities = getNearbyCities(city.region, params.city)
+  const nearbyCities = getNearbyCities(city.region, citySlug)
 
   // Get pricing for schema
-  const pricing = getPricingForCategory(params.category)
+  const pricing = getPricingForCategory(normalized.category)
 
   // Generate schema markup
   const businessSchema = generateLocalBusinessSchema({
@@ -228,8 +237,8 @@ export default async function CategoryCityPage(props: Props) {
 
       <Breadcrumb items={[
         { name: 'Domov', href: '/' },
-        { name: category.name, href: '/' + params.category },
-        { name: city.name, href: '/' + params.category + '/' + params.city }
+        { name: category.name, href: '/' + normalized.category },
+        { name: city.name, href: '/' + normalized.category + '/' + citySlug }
       ]} />
 
       <main className="min-h-screen">
@@ -297,7 +306,7 @@ export default async function CategoryCityPage(props: Props) {
                 {nearbyCities.map(nearbyCity => (
                   <Link
                     key={nearbyCity.slug}
-                    href={`/${params.category}/${nearbyCity.slug}`}
+                    href={`/${normalized.category}/${nearbyCity.slug}`}
                     className="p-4 border rounded-lg hover:shadow-md transition-shadow text-center"
                   >
                     <p className="font-medium text-sm">
@@ -313,21 +322,21 @@ export default async function CategoryCityPage(props: Props) {
         {/* FAQ Section */}
         <FAQSection
           categoryName={category.name}
-          categorySlug={params.category}
+          categorySlug={normalized.category}
           cityName={city.name}
         />
 
         {/* Related Cities */}
         <RelatedCities
-          categorySlug={params.category}
+          categorySlug={normalized.category}
           categoryName={category.name}
-          currentCitySlug={params.city}
+          currentCitySlug={citySlug}
         />
 
         {/* Related Categories */}
         <RelatedCategories
-          currentCategorySlug={params.category}
-          citySlug={params.city}
+          currentCategorySlug={normalized.category}
+          citySlug={citySlug}
         />
       </main>
     </>
