@@ -65,6 +65,32 @@ function tierFromPriceId(priceId: string): 'start' | 'pro' | 'elite' {
   return 'start'
 }
 
+async function resolveTierFromPaymentIntent(
+  pi: Stripe.PaymentIntent
+): Promise<'start' | 'pro' | 'elite' | null> {
+  const invoiceRef = (
+    pi as Stripe.PaymentIntent & { invoice?: string | { id: string } | null }
+  ).invoice
+
+  if (invoiceRef) {
+    try {
+      const invoiceId = typeof invoiceRef === 'string' ? invoiceRef : invoiceRef.id
+      const invoice = await stripeProxy.invoices.retrieve(invoiceId, {
+        expand: ['lines.data.price'],
+      })
+      const firstLine = invoice.lines?.data?.[0] as Stripe.InvoiceLineItem & {
+        price?: { id?: string } | null
+      }
+      const priceId = firstLine?.price?.id
+      if (priceId) return tierFromPriceId(priceId)
+    } catch (error) {
+      console.error('[WEBHOOK] Failed to resolve invoice price for payment_intent:', pi.id, error)
+    }
+  }
+
+  return normalizeTier(pi.metadata?.subscription_tier || pi.metadata?.package_tier)
+}
+
 function normalizeTier(rawTier: string | null | undefined): 'start' | 'pro' | 'elite' | null {
   if (!rawTier) return null
   const normalized = rawTier.toLowerCase()
@@ -72,23 +98,32 @@ function normalizeTier(rawTier: string | null | undefined): 'start' | 'pro' | 'e
   return null
 }
 
-// Update subscription tier in profiles table (single source of truth)
+async function resolveProfileId(userId: string | null, customerId: string): Promise<string | null> {
+  if (userId) return userId
+
+  const { data: profileByCustomer } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle()
+  if (profileByCustomer?.id) return profileByCustomer.id
+
+  const { data: obrtnikByCustomer } = await supabaseAdmin
+    .from('obrtnik_profiles')
+    .select('id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle()
+  return obrtnikByCustomer?.id ?? null
+}
+
+// Update subscription tier in profiles + obrtnik_profiles for consistency
 async function updateSubscriptionTier(
   userId: string | null,
   customerId: string,
   tier: 'start' | 'pro' | 'elite',
   stripeSubscriptionId?: string
 ) {
-  let profileId = userId
-
-  if (!profileId) {
-    const { data } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('stripe_customer_id', customerId)
-      .maybeSingle()
-    profileId = data?.id ?? null
-  }
+  const profileId = await resolveProfileId(userId, customerId)
 
   if (!profileId) {
     console.error('[WEBHOOK] Ne morem najti profila za customerId:', customerId)
@@ -167,7 +202,7 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent
-        const paymentTier = normalizeTier(pi.metadata?.subscription_tier || pi.metadata?.package_tier)
+        const paymentTier = await resolveTierFromPaymentIntent(pi)
         const paymentUserId = pi.metadata?.user_id || pi.metadata?.obrtnik_id || null
         const customerId = typeof pi.customer === 'string' ? pi.customer : null
 
