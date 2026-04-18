@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { ArrowLeft, MapPin, Clock, Banknote, Tag } from 'lucide-react'
 import Link from 'next/link'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
+import { PartnerSidebar } from '@/components/partner/sidebar'
 
 interface Povprasevanje {
   id: string
@@ -36,6 +37,12 @@ export default function PovprasevanjeDetailPage() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paket, setPaket] = useState<'start' | 'pro' | 'elite'>('start')
+  const [partnerMeta, setPartnerMeta] = useState({
+    business_name: 'Moj portal',
+    subscription_tier: 'start' as 'start' | 'pro' | 'elite',
+    avg_rating: 0,
+    is_verified: false,
+  })
 
   const [message, setMessage] = useState('')
   const [priceEstimate, setPriceEstimate] = useState('')
@@ -71,12 +78,34 @@ export default function PovprasevanjeDetailPage() {
 
       const { data: partnerData } = await supabase
         .from('obrtnik_profiles')
-        .select('subscription_tier')
+        .select('subscription_tier, business_name, avg_rating, is_verified')
         .eq('id', user.id)
         .maybeSingle()
 
-      if (partnerData?.subscription_tier === 'elite') setPaket('elite')
-      else if (partnerData?.subscription_tier === 'pro') setPaket('pro')
+      if (partnerData?.subscription_tier === 'elite') {
+        setPaket('elite')
+        setPartnerMeta({
+          business_name: partnerData.business_name || 'Moj portal',
+          subscription_tier: 'elite',
+          avg_rating: partnerData.avg_rating || 0,
+          is_verified: !!partnerData.is_verified,
+        })
+      } else if (partnerData?.subscription_tier === 'pro') {
+        setPaket('pro')
+        setPartnerMeta({
+          business_name: partnerData.business_name || 'Moj portal',
+          subscription_tier: 'pro',
+          avg_rating: partnerData.avg_rating || 0,
+          is_verified: !!partnerData.is_verified,
+        })
+      } else {
+        setPartnerMeta({
+          business_name: partnerData?.business_name || 'Moj portal',
+          subscription_tier: 'start',
+          avg_rating: partnerData?.avg_rating || 0,
+          is_verified: !!partnerData?.is_verified,
+        })
+      }
 
       const { data, error } = await supabase
         .from('povprasevanja')
@@ -114,6 +143,11 @@ export default function PovprasevanjeDetailPage() {
       setError('Sporočilo je obvezno.')
       return
     }
+    const parsedPrice = priceEstimate ? parseFloat(priceEstimate) : null
+    if (parsedPrice !== null && (Number.isNaN(parsedPrice) || parsedPrice < 0)) {
+      setError('Cena mora biti pozitivno število.')
+      return
+    }
 
     setSubmitting(true)
     setError(null)
@@ -130,7 +164,7 @@ export default function PovprasevanjeDetailPage() {
         povprasevanje_id: id,
         obrtnik_id: user.id,
         message: message.trim(),
-        price_estimate: priceEstimate ? parseFloat(priceEstimate) : null,
+        price_estimate: parsedPrice,
         price_type: 'fiksna',
         available_date: availableDate || null,
         status: 'poslana',
@@ -227,6 +261,7 @@ export default function PovprasevanjeDetailPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <PartnerSidebar partner={partnerMeta} />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto">
           {/* Back */}
