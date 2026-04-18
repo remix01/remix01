@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { confirmSchedulingRequest } from '@/lib/agent/scheduling/confirmAppointment'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -139,30 +140,15 @@ Predlagaj 3 konkretne termine v naslednjih 14 dneh. Vrni JSON:
   }
 }
 
-// POST /api/agent/scheduling?action=confirm — confirm a slot and create appointment
+// Legacy confirm endpoint kept for backward compatibility.
+// Prefer REST endpoint: POST /api/agent/scheduling/confirm
 export async function PUT(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
 
-    const { ponudbaId, scheduledStart, scheduledEnd } = await req.json()
-    if (!ponudbaId || !scheduledStart || !scheduledEnd) {
-      return NextResponse.json({ error: 'Manjkajo obvezni parametri.' }, { status: 400 })
-    }
-
-    // Delegate to existing calendar appointment API
-    const calRes = await fetch('/api/calendar/appointment', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: req.headers.get('cookie') || '',
-      },
-      body: JSON.stringify({ ponudbaId, scheduledStart, scheduledEnd }),
-    })
-
-    const data = await calRes.json()
-    return NextResponse.json(data, { status: calRes.status })
+    return confirmSchedulingRequest(req)
   } catch (error) {
     console.error('[agent/scheduling PUT] error:', error)
     return NextResponse.json({ error: 'Napaka pri potrditvi termina.' }, { status: 500 })

@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { TokenService } from '@/lib/push/token-service'
-import { z } from 'zod'
-
-const registerSchema = z.object({
-  token: z.string().min(1, 'Token je obvezen'),
-  platform: z.enum(['ios', 'android', 'web'], {
-    errorMap: () => ({ message: 'Platforma mora biti ios, android ali web' }),
-  }),
-  appVersion: z.string().optional(),
-  deviceName: z.string().optional(),
-})
+import { deviceRegisterBodySchema } from '@/lib/api/schemas/v1'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // Validate request body
     const body = await request.json()
-    const validation = registerSchema.safeParse(body)
+    const validation = deviceRegisterBodySchema.safeParse(body)
 
     if (!validation.success) {
       return NextResponse.json(

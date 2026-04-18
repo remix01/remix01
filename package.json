@@ -14,7 +14,9 @@
     "test:e2e": "jest --config jest.config.escrow.cjs --testPathPattern='escrow.test'",
     "test:stripe": "jest --config jest.config.escrow.cjs --testPathPattern='stripe.integration'",
     "test:escrow": "jest --config jest.config.escrow.cjs",
-    "test:curl": "bash run-tests.sh"
+    "test:curl": "bash run-tests.sh",
+    "openapi:generate": "tsx scripts/generate-openapi.ts",
+    "openapi:check": "pnpm openapi:generate && git diff --exit-code -- docs/openapi.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
