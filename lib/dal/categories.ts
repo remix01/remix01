@@ -10,9 +10,7 @@ import { identifySystemHealth, trackInternalMetric } from '@/lib/analytics/segme
 let hasLoggedPublicCategoriesFetchFailure = false
 
 // Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
-const categoriesGlobalState = globalThis as typeof globalThis & {
-  __hasLoggedPublicCategoriesFetchFailure?: boolean
-}
+let hasLoggedPublicCategoriesFetchFailure = false
 
 /**
  * Get public Supabase client (no cookies, uses ANON key)
@@ -39,9 +37,9 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    if (!categoriesGlobalState.__hasLoggedPublicCategoriesFetchFailure) {
+    if (!hasLoggedPublicCategoriesFetchFailure) {
       console.error('[v0] Error fetching categories (public):', error)
-      categoriesGlobalState.__hasLoggedPublicCategoriesFetchFailure = true
+      hasLoggedPublicCategoriesFetchFailure = true
     }
     return []
   }

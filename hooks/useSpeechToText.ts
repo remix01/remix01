@@ -46,7 +46,6 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
 
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const transcriptRef = useRef('')
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -85,11 +84,7 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
 
       if (normalizedInterim) setInterimTranscript(normalizedInterim)
       if (normalizedFinal) {
-        setTranscript((prev) => {
-          const nextTranscript = `${prev} ${normalizedFinal}`.trim()
-          transcriptRef.current = nextTranscript
-          return nextTranscript
-        })
+        setTranscript((prev) => `${prev} ${normalizedFinal}`.trim())
       }
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
@@ -114,10 +109,9 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
       }
       setIsListening(false)
       setInterimTranscript('')
-      const text = transcriptRef.current.trim()
+      const text = transcript.trim()
       if (text) {
         onFinalTranscript(text)
-        transcriptRef.current = ''
         setTranscript('')
       }
     }
@@ -129,11 +123,10 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
       recognition.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, onFinalTranscript, onSpeechEnd, silenceMs])
+  }, [language, onFinalTranscript, onSpeechEnd, silenceMs, transcript])
 
   const start = () => {
     setError(null)
-    transcriptRef.current = ''
     setTranscript('')
     setInterimTranscript('')
     try {
