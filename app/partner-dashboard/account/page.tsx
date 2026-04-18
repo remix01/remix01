@@ -149,9 +149,23 @@ export default function AccountPage() {
         throw new Error('Ime podjetja je obvezno.')
       }
 
+      const normalizeOptionalUrl = (raw: string, label: string) => {
+        const trimmed = raw.trim()
+        if (!trimmed) return null
+        const prefixed = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+        try {
+          return new URL(prefixed).toString()
+        } catch {
+          throw new Error(`${label} ni veljaven URL naslov.`)
+        }
+      }
+
       const hourlyRate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null
       const yearsExperience = formData.years_experience ? parseInt(formData.years_experience) : null
       const serviceRadiusKm = formData.service_radius_km ? parseInt(formData.service_radius_km) : null
+      const websiteUrl = normalizeOptionalUrl(formData.website_url, 'Spletna stran')
+      const facebookUrl = normalizeOptionalUrl(formData.facebook_url, 'Facebook')
+      const instagramUrl = normalizeOptionalUrl(formData.instagram_url, 'Instagram')
 
       if (hourlyRate !== null && (Number.isNaN(hourlyRate) || hourlyRate < 0)) {
         throw new Error('Urna postavka mora biti pozitivno število.')
@@ -173,9 +187,9 @@ export default function AccountPage() {
           hourly_rate: hourlyRate,
           years_experience: yearsExperience,
           service_radius_km: serviceRadiusKm,
-          website_url: formData.website_url.trim() || null,
-          facebook_url: formData.facebook_url.trim() || null,
-          instagram_url: formData.instagram_url.trim() || null,
+          website_url: websiteUrl,
+          facebook_url: facebookUrl,
+          instagram_url: instagramUrl,
         })
         .eq('id', user.id)
 
@@ -185,8 +199,8 @@ export default function AccountPage() {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          phone: formData.phone || null,
-          location_city: formData.location_city || null,
+          phone: formData.phone.trim() || null,
+          location_city: formData.location_city.trim() || null,
         })
         .eq('id', user.id)
 
@@ -203,9 +217,9 @@ export default function AccountPage() {
         hourly_rate: hourlyRate,
         years_experience: yearsExperience,
         service_radius_km: serviceRadiusKm,
-        website_url: formData.website_url.trim() || null,
-        facebook_url: formData.facebook_url.trim() || null,
-        instagram_url: formData.instagram_url.trim() || null,
+        website_url: websiteUrl,
+        facebook_url: facebookUrl,
+        instagram_url: instagramUrl,
       } : null)
     } catch (err: any) {
       console.error('Error saving profile:', err)
@@ -354,6 +368,8 @@ export default function AccountPage() {
                       name="hourly_rate"
                       type="number"
                       step="0.01"
+                      min="0"
+                      inputMode="decimal"
                       placeholder="0.00"
                       value={formData.hourly_rate}
                       onChange={handleInputChange}
@@ -366,6 +382,8 @@ export default function AccountPage() {
                       id="years_experience"
                       name="years_experience"
                       type="number"
+                      min="0"
+                      inputMode="numeric"
                       placeholder="0"
                       value={formData.years_experience}
                       onChange={handleInputChange}
@@ -459,7 +477,7 @@ export default function AccountPage() {
               <CardDescription>Upravljajte vašo naročnino in paket</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Trenutni paket</p>
                   <p className="text-xl font-bold mt-1">

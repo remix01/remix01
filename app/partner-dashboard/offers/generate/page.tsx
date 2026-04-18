@@ -55,6 +55,8 @@ export default function OfferGeneratorPage() {
   const [inquiries, setInquiries] = useState<any[]>([])
   const [mediaAnalysis, setMediaAnalysis] = useState('')
   const [mediaLoading, setMediaLoading] = useState(false)
+  const [sendLoading, setSendLoading] = useState(false)
+  const [sendSuccess, setSendSuccess] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     serviceType: '',
@@ -96,11 +98,11 @@ export default function OfferGeneratorPage() {
         setPaket(paketData)
 
         if (paketData.paket === 'pro' || paketData.paket === 'elite') {
-          // Load recent ponudbe as context for offer generation
+          // Load open inquiries for quick sending
           const { data: inquiriesData } = await supabase
-            .from('ponudbe')
-            .select('id, price_estimate, status, created_at, povprasevanje_id')
-            .eq('obrtnik_id', partnerData.id)
+            .from('povprasevanja')
+            .select('id, title')
+            .eq('status', 'odprto')
             .order('created_at', { ascending: false })
             .limit(20)
 
@@ -124,8 +126,18 @@ export default function OfferGeneratorPage() {
     if (!formData.serviceType) newErrors.serviceType = 'Izberite vrsto storitve'
     if (!formData.location.trim()) newErrors.location = 'Vnesite lokacijo'
     if (formData.description.length < 50) newErrors.description = 'Opis mora imeti najmanj 50 znakov'
-    if (!formData.estimatedHours) newErrors.estimatedHours = 'Vnesite ocenjene ure'
-    if (!formData.hourlyRate) newErrors.hourlyRate = 'Vnesite urno postavko'
+    const estimatedHours = parseFloat(formData.estimatedHours)
+    const hourlyRate = parseFloat(formData.hourlyRate)
+    const materials = formData.materialsEstimate ? parseFloat(formData.materialsEstimate) : 0
+    if (!formData.estimatedHours || Number.isNaN(estimatedHours) || estimatedHours <= 0) {
+      newErrors.estimatedHours = 'Vnesite veljavne ocenjene ure'
+    }
+    if (!formData.hourlyRate || Number.isNaN(hourlyRate) || hourlyRate <= 0) {
+      newErrors.hourlyRate = 'Vnesite veljavno urno postavko'
+    }
+    if (formData.materialsEstimate && (Number.isNaN(materials) || materials < 0)) {
+      newErrors.materialsEstimate = 'Ocena materialov ne more biti negativna'
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -187,8 +199,35 @@ export default function OfferGeneratorPage() {
 
   const handleSendToCustomer = async () => {
     if (!generatedOffer || !formData.selectedInquiry) return
-    // TODO: Send offer to selected inquiry
-    alert('Ponudba bo poslana stranki')
+    if (!partner?.id) return
+
+    setSendLoading(true)
+    setErrors((prev) => ({ ...prev, send: '' }))
+    setSendSuccess(null)
+    try {
+      const totalPrice = (generatedOffer.estimatedHours * generatedOffer.hourlyRate) + generatedOffer.materialsEstimate
+      const { error } = await supabase.from('ponudbe').insert({
+        povprasevanje_id: formData.selectedInquiry,
+        obrtnik_id: partner.id,
+        message: generatedOffer.offerText,
+        price_estimate: totalPrice,
+        price_type: 'ocena',
+        status: 'poslana',
+      })
+
+      if (error) throw error
+
+      setSendSuccess('Ponudba je bila uspešno poslana stranki.')
+      setFormData((prev) => ({ ...prev, selectedInquiry: '' }))
+    } catch (error) {
+      console.error('[v0] Error sending offer:', error)
+      setErrors((prev) => ({
+        ...prev,
+        send: error instanceof Error ? error.message : 'Napaka pri pošiljanju ponudbe',
+      }))
+    } finally {
+      setSendLoading(false)
+    }
   }
 
   const handleAnalyzeMedia = async () => {
@@ -255,7 +294,7 @@ export default function OfferGeneratorPage() {
     <div className="flex h-screen bg-background">
       <PartnerSidebar partner={partner} />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-6 lg:p-8">
+        <div className="p-4 md:p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Generator Ponudb</h1>
             <p className="text-muted-foreground">
@@ -315,15 +354,16 @@ export default function OfferGeneratorPage() {
                     {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <Label htmlFor="estimatedHours">Ocenjene ure *</Label>
-                      <Input
-                        id="estimatedHours"
-                        type="number"
-                        step="0.5"
-                        placeholder="8"
-                        value={formData.estimatedHours}
+                    <Input
+                      id="estimatedHours"
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      placeholder="8"
+                      value={formData.estimatedHours}
                         onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: e.target.value }))}
                         className={errors.estimatedHours ? 'border-red-500' : ''}
                       />
@@ -332,12 +372,13 @@ export default function OfferGeneratorPage() {
 
                     <div>
                       <Label htmlFor="hourlyRate">Urna postavka (EUR) *</Label>
-                      <Input
-                        id="hourlyRate"
-                        type="number"
-                        step="0.01"
-                        placeholder="50"
-                        value={formData.hourlyRate}
+                    <Input
+                      id="hourlyRate"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="50"
+                      value={formData.hourlyRate}
                         onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: e.target.value }))}
                         className={errors.hourlyRate ? 'border-red-500' : ''}
                       />
@@ -351,10 +392,12 @@ export default function OfferGeneratorPage() {
                       id="materialsEstimate"
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="0"
                       value={formData.materialsEstimate}
                       onChange={(e) => setFormData(prev => ({ ...prev, materialsEstimate: e.target.value }))}
                     />
+                    {errors.materialsEstimate && <p className="text-red-500 text-sm mt-1">{errors.materialsEstimate}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -388,7 +431,7 @@ export default function OfferGeneratorPage() {
             {generatedOffer && (
               <div>
                 <Card className="p-6 bg-gray-50 border border-gray-200">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-xl font-bold">Predogled ponudbe</h2>
                     <div className="flex gap-2">
                       <Button
@@ -448,19 +491,21 @@ export default function OfferGeneratorPage() {
                               <SelectContent>
                                 {inquiries.map(inq => (
                                   <SelectItem key={inq.id} value={inq.id}>
-                                    Povpraševanje #{inq.povprasevanje_id || inq.id}
+                                    {inq.title || `Povpraševanje #${inq.id}`}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                             <Button
                               onClick={handleSendToCustomer}
-                              disabled={!formData.selectedInquiry}
+                              disabled={!formData.selectedInquiry || sendLoading}
                               className="w-full gap-2"
                             >
                               <Send className="h-4 w-4" />
-                              Pošlji stranki
+                              {sendLoading ? 'Pošiljam...' : 'Pošlji stranki'}
                             </Button>
+                            {errors.send && <p className="text-sm text-red-500">{errors.send}</p>}
+                            {sendSuccess && <p className="text-sm text-green-600">{sendSuccess}</p>}
                           </div>
                         )}
                       </div>
