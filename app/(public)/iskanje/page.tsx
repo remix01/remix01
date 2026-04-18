@@ -219,8 +219,18 @@ export default function SearchPage() {
 
                     {/* Subscription tier */}
                     <div className="mt-auto flex items-center justify-between">
-                      <Badge className={craftsperson.subscription_tier === 'pro' ? 'bg-amber-100 text-amber-700' : 'bg-muted'}>
-                        {craftsperson.subscription_tier === 'pro' ? 'PRO' : 'START'}
+                      <Badge className={
+                        craftsperson.subscription_tier === 'elite'
+                          ? 'bg-violet-100 text-violet-700'
+                          : craftsperson.subscription_tier === 'pro'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-muted'
+                      }>
+                        {craftsperson.subscription_tier === 'elite'
+                          ? 'ELITE'
+                          : craftsperson.subscription_tier === 'pro'
+                            ? 'PRO'
+                            : 'START'}
                       </Badge>
                       <Button size="sm" variant="outline" className="min-h-[44px]">
                         Poglej profil

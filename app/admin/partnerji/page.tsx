@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { PartnerjiTable } from '@/components/admin/PartnerjiTable'
 import { PendingPartnerCard } from '@/components/admin/PendingPartnerCard'
 import { DodajPartnerjaModal } from '@/components/admin/DodajPartnerjaModal'
-import { getPartnerji } from '../actions'
+import { getAktivneKategorije, getPartnerji } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,9 +24,10 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
   const statusFilter = status
   const page = Number(pageParam) || 1
 
-  const [{ partnerji, total, pages }, pendingData] = await Promise.all([
+  const [{ partnerji, total, pages }, pendingData, categories] = await Promise.all([
     getPartnerji(search, statusFilter, 'createdAt', page, 25),
     getPartnerji(undefined, 'PENDING', 'createdAt', 1, 10),
+    getAktivneKategorije(),
   ])
 
   const pendingPartnerji = pendingData.partnerji
@@ -39,7 +40,7 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
           <p className="text-muted-foreground">Upravljanje z vsemi partnerji</p>
         </div>
         <div className="flex gap-2">
-          <DodajPartnerjaModal />
+          <DodajPartnerjaModal categories={categories} />
           <Button variant="outline" className="gap-2">
             <Download className="h-4 w-4" />
             Izvozi CSV

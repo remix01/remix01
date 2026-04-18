@@ -59,17 +59,24 @@ async function syncConnectedAccountStatus(connectedAccountId: string, stripeEven
 }
 
 // Določi subscription tier iz Stripe price ID — zanesljivo, ne iz metadata
-function tierFromPriceId(priceId: string): 'pro' | 'start' {
+function tierFromPriceId(priceId: string): 'start' | 'pro' | 'elite' {
   if (priceId === STRIPE_PRODUCTS.PRO.priceId) return 'pro'
-  if (priceId === STRIPE_PRODUCTS.ELITE.priceId) return 'pro'
+  if (priceId === STRIPE_PRODUCTS.ELITE.priceId) return 'elite'
   return 'start'
+}
+
+function normalizeTier(rawTier: string | null | undefined): 'start' | 'pro' | 'elite' | null {
+  if (!rawTier) return null
+  const normalized = rawTier.toLowerCase()
+  if (normalized === 'start' || normalized === 'pro' || normalized === 'elite') return normalized
+  return null
 }
 
 // Update subscription tier in profiles table (single source of truth)
 async function updateSubscriptionTier(
   userId: string | null,
   customerId: string,
-  tier: 'pro' | 'start',
+  tier: 'start' | 'pro' | 'elite',
   stripeSubscriptionId?: string
 ) {
   let profileId = userId
@@ -88,7 +95,6 @@ async function updateSubscriptionTier(
     return
   }
 
-  // Update only profiles table (single source of truth)
   const { error } = await supabaseAdmin
     .from('profiles')
     .update({
@@ -101,6 +107,18 @@ async function updateSubscriptionTier(
   if (error) {
     console.error('[WEBHOOK] Failed to update subscription:', error)
     return
+  }
+
+  const { error: obrtnikError } = await supabaseAdmin
+    .from('obrtnik_profiles')
+    .update({
+      stripe_customer_id: customerId,
+      subscription_tier: tier,
+    })
+    .eq('id', profileId)
+
+  if (obrtnikError) {
+    console.error('[WEBHOOK] Failed to mirror subscription to obrtnik_profiles:', obrtnikError)
   }
 
   console.log(`[WEBHOOK] Subscription updated: user=${profileId}, tier=${tier}, subscription=${stripeSubscriptionId || 'N/A'}`)
@@ -137,7 +155,7 @@ export async function POST(request: NextRequest) {
         const customerId = session.customer as string
         const subscriptionId = session.subscription as string
         if (!customerId) break
-        let tier: 'pro' | 'start' = 'start'
+        let tier: 'start' | 'pro' | 'elite' = 'start'
         if (subscriptionId) {
           const subscription = await stripeProxy.subscriptions.retrieve(subscriptionId)
           const priceId = subscription.items.data[0]?.price.id ?? ''
@@ -149,16 +167,28 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent
-        const escrow = await getEscrowByPaymentIntent(pi.id)
-        await updateEscrowStatus({
-          transactionId: escrow.id,
-          newStatus: 'paid',
-          actor: 'system',
-          actorId: 'stripe-webhook',
-          stripeEventId: event.id,
-          extraFields: { paid_at: new Date().toISOString() },
-          metadata: { stripeEventType: event.type, piStatus: pi.status },
-        })
+        const paymentTier = normalizeTier(pi.metadata?.subscription_tier || pi.metadata?.package_tier)
+        const paymentUserId = pi.metadata?.user_id || pi.metadata?.obrtnik_id || null
+        const customerId = typeof pi.customer === 'string' ? pi.customer : null
+
+        if (paymentTier && customerId) {
+          await updateSubscriptionTier(paymentUserId, customerId, paymentTier)
+        }
+
+        try {
+          const escrow = await getEscrowByPaymentIntent(pi.id)
+          await updateEscrowStatus({
+            transactionId: escrow.id,
+            newStatus: 'paid',
+            actor: 'system',
+            actorId: 'stripe-webhook',
+            stripeEventId: event.id,
+            extraFields: { paid_at: new Date().toISOString() },
+            metadata: { stripeEventType: event.type, piStatus: pi.status },
+          })
+        } catch {
+          console.log('[WEBHOOK] payment_intent.succeeded without escrow row:', pi.id)
+        }
         break
       }
 

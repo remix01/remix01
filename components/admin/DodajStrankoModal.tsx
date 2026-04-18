@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { UserPlus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,10 +18,11 @@ import {
 import { dodajStranko } from '@/app/admin/actions'
 
 export function DodajStrankoModal() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ ime: '', priimek: '', email: '', telefon: '' })
+  const [form, setForm] = useState({ ime: '', priimek: '', email: '', telefon: '', lokacija: '' })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,11 +35,12 @@ export function DodajStrankoModal() {
         ime: form.ime,
         priimek: form.priimek,
         telefon: form.telefon || undefined,
+        lokacija: form.lokacija || undefined,
       })
       if (result.success) {
         setOpen(false)
-        setForm({ ime: '', priimek: '', email: '', telefon: '' })
-        window.location.reload()
+        setForm({ ime: '', priimek: '', email: '', telefon: '', lokacija: '' })
+        router.refresh()
       } else {
         setError(result.error || 'Napaka pri dodajanju')
       }
@@ -102,6 +105,15 @@ export function DodajStrankoModal() {
               placeholder="+386 41 123 456"
               value={form.telefon}
               onChange={e => setForm(f => ({ ...f, telefon: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="lokacija">Mesto</Label>
+            <Input
+              id="lokacija"
+              placeholder="Ljubljana"
+              value={form.lokacija}
+              onChange={e => setForm(f => ({ ...f, lokacija: e.target.value }))}
             />
           </div>
           {error && (
