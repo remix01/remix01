@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { LayoutGrid, FileText, MessageSquare, User, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 interface SidebarProps {
   mobile?: boolean
@@ -37,15 +38,23 @@ export function Sidebar({ mobile }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/')
+    setIsLoggingOut(true)
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      await supabase.auth.signOut()
+      router.replace('/prijava')
+      router.refresh()
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
 
   if (mobile) {
     return (
-      <div className="flex items-center justify-around px-4 py-3">
+      <div className="flex items-center justify-between gap-1 overflow-x-auto px-2 py-2">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -53,7 +62,7 @@ export function Sidebar({ mobile }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
+              className={`min-w-16 shrink-0 flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors ${
                 isActive
                   ? 'text-blue-600 bg-blue-50'
                   : 'text-slate-600 hover:text-slate-900'
@@ -66,10 +75,11 @@ export function Sidebar({ mobile }: SidebarProps) {
         })}
         <button
           onClick={handleLogout}
-          className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
+          disabled={isLoggingOut}
+          className="min-w-16 shrink-0 flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50"
         >
           <LogOut className="w-5 h-5" />
-          <span className="text-xs font-medium">Odjava</span>
+          <span className="text-xs font-medium">{isLoggingOut ? '...' : 'Odjava'}</span>
         </button>
       </div>
     )
@@ -109,10 +119,11 @@ export function Sidebar({ mobile }: SidebarProps) {
       {/* Logout */}
       <button
         onClick={handleLogout}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors font-medium mt-auto"
+        disabled={isLoggingOut}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors font-medium mt-auto disabled:opacity-50"
       >
         <LogOut className="w-5 h-5" />
-        Odjava
+        {isLoggingOut ? 'Odjavljam...' : 'Odjava'}
       </button>
     </div>
   )

@@ -16,15 +16,17 @@ export function NarocnikSidebar({ fullName, onNavigate }: NarocnikSidebarProps) 
   const supabase = createClient()
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error('Logout error:', error)
-      return
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Logout error:', error)
+      }
+    } finally {
+      onNavigate?.()
+      router.replace('/prijava')
+      router.refresh()
     }
-
-    onNavigate?.()
-    router.replace('/prijava')
-    router.refresh()
   }
 
   const navLinks = [
@@ -34,10 +36,11 @@ export function NarocnikSidebar({ fullName, onNavigate }: NarocnikSidebarProps) 
     { href: '/sporocila', icon: '💬', label: 'Sporočila' },
     { href: '/obvestila', icon: '🔔', label: 'Obvestila' },
     { href: '/moj-dom', icon: '🏡', label: 'Moj dom' },
+    { href: '/narocnina', icon: '💎', label: 'Naročnina' },
     { href: '/profil', icon: '👤', label: 'Profil' },
   ]
 
-  const isActive = (href: string) => pathname === href
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`)
 
   return (
     <div className="flex h-full flex-col bg-[#001a33] p-6 text-white">

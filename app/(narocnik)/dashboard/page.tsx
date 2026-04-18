@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getNarocnikPovprasevanja, countNarocnikPovprasevanjaByStatus } from '@/lib/dal/povprasevanja'
+import { getNarocnikPovprasevanja } from '@/lib/dal/povprasevanja'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import type { Povprasevanje } from '@/types/marketplace'
 
 export const metadata = {
   title: 'Dashboard | LiftGO',
@@ -24,10 +23,14 @@ export default async function DashboardPage() {
   // Fetch user profile to get full name
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('full_name, role')
+    .select('full_name, role, subscription_tier')
     .eq('id', user.id)
     .maybeSingle()
-  const profile = profileData as { full_name: string | null; role: string | null } | null
+  const profile = profileData as {
+    full_name: string | null
+    role: string | null
+    subscription_tier: 'start' | 'pro' | 'elite' | null
+  } | null
 
   if (!profile || profile.role !== 'narocnik') {
     redirect('/partner-dashboard')
@@ -108,6 +111,9 @@ export default async function DashboardPage() {
     }
   }
 
+  const subscriptionTier = profile.subscription_tier || 'start'
+  const subscriptionLabel = subscriptionTier === 'elite' ? 'ELITE' : subscriptionTier.toUpperCase()
+
   return (
     <main className="p-4 md:p-8">
       {/* Welcome Section */}
@@ -141,6 +147,34 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Subscription */}
+      <Card className="mb-8 border-primary/20 bg-primary/5">
+        <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">Naročniški paket</p>
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant={subscriptionTier === 'start' ? 'secondary' : 'default'}>
+                {subscriptionLabel}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {subscriptionTier === 'start'
+                  ? '5 AI sporočil/dan'
+                  : subscriptionTier === 'pro'
+                    ? '100 AI sporočil/dan'
+                    : 'Neomejeno AI sporočil'}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/narocnina">
+              <Button variant={subscriptionTier === 'start' ? 'default' : 'outline'}>
+                {subscriptionTier === 'start' ? 'Nadgradi paket' : 'Upravljaj paket'}
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent Requests Section */}
       <div className="mb-8">

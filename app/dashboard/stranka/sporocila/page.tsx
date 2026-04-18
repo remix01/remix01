@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ConversationList } from '@/components/messages/ConversationList'
 import { ChatPanel } from '@/components/messages/ChatPanel'
@@ -10,6 +10,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function StankaSporocila() {
+  const router = useRouter()
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedPovprasevanje, setSelectedPovprasevanje] = useState<string | null>(null)
   const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
@@ -23,12 +24,13 @@ export default function StankaSporocila() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        redirect('/prijava')
+        router.replace('/prijava')
+        return
       }
       setCurrentUser(user)
     }
     checkAuth()
-  }, [supabase])
+  }, [supabase, router])
 
   const { sporocila, sendMessage, isLoading } = useRealtimeSporocila(
     selectedPovprasevanje || '',
@@ -43,7 +45,7 @@ export default function StankaSporocila() {
     // Fetch povprasevanje info
     const { data } = await supabase
       .from('povprasevanja')
-      .select('naslov')
+      .select('title, naslov')
       .eq('id', povprasevanjeId)
       .single()
 
@@ -87,7 +89,7 @@ export default function StankaSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title || povprasevanjeInfo?.naslov}
             />
           </div>
         ) : (
@@ -118,7 +120,7 @@ export default function StankaSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title || povprasevanjeInfo?.naslov}
             />
           ) : (
             <div className="bg-white rounded-lg border flex items-center justify-center h-full">
@@ -130,4 +132,3 @@ export default function StankaSporocila() {
     </div>
   )
 }
-
