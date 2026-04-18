@@ -336,6 +336,89 @@ export async function getAdminPovprasevanja(
   }
 }
 
+export async function getAdminOffers(
+  search = '',
+  statusFilter = 'vse',
+  page = 1,
+  pageSize = 20
+) {
+  await ensureAdminAccess()
+  const offset = (page - 1) * pageSize
+
+  let query = supabaseAdmin
+    .from('ponudbe')
+    .select('id, status, created_at, povprasevanje_id, obrtnik_id, cena, price_estimate, message', { count: 'exact' })
+
+  if (statusFilter !== 'vse') {
+    query = query.eq('status', statusFilter)
+  }
+
+  if (search) {
+    query = query.or(`message.ilike.%${search}%`)
+  }
+
+  const { data: rows, count } = await query
+    .order('created_at', { ascending: false })
+    .range(offset, offset + pageSize - 1)
+
+  const povprasevanjeIds = [...new Set((rows || []).map((row: any) => row.povprasevanje_id).filter(Boolean))]
+  const obrtnikIds = [...new Set((rows || []).map((row: any) => row.obrtnik_id).filter(Boolean))]
+
+  const [{ data: inquiries }, { data: craftworkers }] = await Promise.all([
+    povprasevanjeIds.length
+      ? supabaseAdmin
+        .from('povprasevanja')
+        .select('id, title, location_city')
+        .in('id', povprasevanjeIds)
+      : Promise.resolve({ data: [] as any[] }),
+    obrtnikIds.length
+      ? supabaseAdmin
+        .from('obrtnik_profiles')
+        .select('id, business_name')
+        .in('id', obrtnikIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
+
+  const inquiryMap = Object.fromEntries((inquiries || []).map((row: any) => [row.id, row]))
+  const craftworkerMap = Object.fromEntries((craftworkers || []).map((row: any) => [row.id, row]))
+
+  const items = (rows || [])
+    .map((row: any) => {
+      const inquiry = inquiryMap[row.povprasevanje_id]
+      const craftworker = craftworkerMap[row.obrtnik_id]
+      const amount = row.price_estimate ?? row.cena ?? null
+
+      return {
+        id: row.id,
+        status: row.status || '—',
+        created_at: row.created_at,
+        amount,
+        message: row.message || '',
+        inquiry_id: row.povprasevanje_id,
+        inquiry_title: inquiry?.title || '—',
+        inquiry_city: inquiry?.location_city || '—',
+        partner_id: row.obrtnik_id,
+        partner_name: craftworker?.business_name || '—',
+      }
+    })
+    .filter((item) => {
+      if (!search) return true
+      const q = search.toLowerCase()
+      return (
+        item.id.toLowerCase().includes(q) ||
+        item.inquiry_title.toLowerCase().includes(q) ||
+        item.partner_name.toLowerCase().includes(q) ||
+        item.message.toLowerCase().includes(q)
+      )
+    })
+
+  return {
+    items,
+    total: count || 0,
+    pageSize,
+  }
+}
+
 export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPENDIRAN') {
   await ensureAdminAccess()
   await supabaseAdmin

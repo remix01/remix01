@@ -65,7 +65,7 @@ export default function AnalyticsDashboard() {
         })
 
         if (response.status === 401 || response.status === 403) {
-          router.push('/partner-auth/login')
+          router.push('/prijava?redirectTo=/admin/analytics')
           return
         }
 

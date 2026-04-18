@@ -38,6 +38,7 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
   const [obrtniki, setObrtniki] = useState<Obrtnik[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Povprasevanje>>({})
 
   const getAuthHeaders = async (): Promise<HeadersInit> => {
@@ -58,11 +59,13 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
   useEffect(() => {
     if (!id || id === 'undefined') {
       setLoading(false)
+      setError('Neveljaven ID povpraševanja.')
       return
     }
 
     const fetchData = async () => {
       try {
+        setError(null)
         const authHeaders = await getAuthHeaders()
 
         // Fetch povprasevanje
@@ -91,6 +94,7 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
         setObrtniki(contractors)
       } catch (error) {
         console.error('[v0] Error fetching data:', error)
+        setError(error instanceof Error ? error.message : 'Napaka pri nalaganju podatkov.')
       } finally {
         setLoading(false)
       }
@@ -127,10 +131,10 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
   }
 
   if (loading) return <div className="p-4">Nalagam...</div>
-  if (!povprasevanje) return <div className="p-4">Povpraševanje ni najdeno</div>
+  if (!povprasevanje) return <div className="p-4">{error || 'Povpraševanje ni najdeno'}</div>
 
   return (
-    <div className="min-h-screen bg-bg-muted p-6">
+    <div className="min-h-screen bg-bg-muted p-4 md:p-6">
       <div className="mx-auto max-w-4xl">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
@@ -144,7 +148,12 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
         </div>
 
         {/* Form */}
-        <div className="space-y-6 rounded-lg bg-white p-6 shadow-sm">
+        <div className="space-y-6 rounded-lg bg-white p-4 md:p-6 shadow-sm">
+          {error && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              Error fetching data: {error}
+            </div>
+          )}
           {/* Customer Info */}
           <div>
             <h2 className="mb-4 text-lg font-semibold text-text-foreground">Podatki stranke</h2>
@@ -250,7 +259,7 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-foreground">Termin</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     type="date"
                     value={formData.termin_datum || ''}
@@ -271,7 +280,7 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
           {/* Price Estimate */}
           <div>
             <h2 className="mb-4 text-lg font-semibold text-text-foreground">Ocena cene</h2>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="number"
                 placeholder="Min"

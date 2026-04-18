@@ -44,31 +44,52 @@ async function checkSuperAdminPermission() {
 
 export async function createZaposleni(input: CreateZaposleniInput) {
   try {
-    await checkSuperAdminPermission();
+    const superAdmin = await checkSuperAdminPermission();
 
+    const normalizedEmail = input.email.trim().toLowerCase()
     const { data: existingZaposleni } = await supabaseAdmin
-      .from('zaposleni')
+      .from('admin_users')
       .select('id')
-      .eq('email', input.email)
-      .single()
+      .eq('email', normalizedEmail)
+      .maybeSingle()
 
     if (existingZaposleni) {
-      return { success: false, error: 'Email already exists' };
+      return { success: false, error: 'Admin z istim email naslovom že obstaja.' };
+    }
+
+    const tempPassword = `LiftGO-${Math.random().toString(36).slice(2)}#A1`
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: normalizedEmail,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        first_name: input.ime,
+        last_name: input.priimek,
+      },
+    })
+
+    if (authError || !authUser.user?.id) {
+      throw new Error(authError?.message || 'Ustvarjanje auth računa ni uspelo.');
     }
 
     const { data: zaposleni, error } = await supabaseAdmin
-      .from('zaposleni')
+      .from('admin_users')
       .insert([{
-        email: input.email,
-        ime: input.ime,
-        priimek: input.priimek,
+        auth_user_id: authUser.user.id,
+        email: normalizedEmail,
+        ime: input.ime.trim(),
+        priimek: input.priimek.trim(),
         vloga: input.vloga,
         aktiven: true,
+        created_by: superAdmin.id,
       }])
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id)
+      throw error
+    }
 
     revalidatePath('/admin/zaposleni');
     return { success: true, data: zaposleni };
@@ -91,7 +112,7 @@ export async function updateZaposleni(input: UpdateZaposleniInput) {
     if (input.aktiven !== undefined) updateData.aktiven = input.aktiven
 
     const { data: zaposleni, error } = await supabaseAdmin
-      .from('zaposleni')
+      .from('admin_users')
       .update(updateData)
       .eq('id', input.id)
       .select()
@@ -113,12 +134,26 @@ export async function deleteZaposleni(id: string) {
   try {
     await checkSuperAdminPermission();
 
+    const { data: existing } = await supabaseAdmin
+      .from('admin_users')
+      .select('id, auth_user_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) {
+      return { success: false, error: 'Zaposleni ne obstaja.' }
+    }
+
     const { error } = await supabaseAdmin
-      .from('zaposleni')
+      .from('admin_users')
       .delete()
       .eq('id', id)
 
     if (error) throw error
+
+    if (existing.auth_user_id) {
+      await supabaseAdmin.auth.admin.deleteUser(existing.auth_user_id)
+    }
 
     revalidatePath('/admin/zaposleni');
     return { success: true };
@@ -147,9 +182,9 @@ export async function getZaposleniList() {
     if (!admin) throw new Error('Not an admin');
 
     const { data: zaposlenci, error } = await supabaseAdmin
-      .from('zaposleni')
+      .from('admin_users')
       .select('*')
-      .order('id', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (error) throw error
 
@@ -179,7 +214,7 @@ export async function getZaposleniById(id: string) {
     if (!admin) throw new Error('Not an admin');
 
     const { data: zaposleni, error } = await supabaseAdmin
-      .from('zaposleni')
+      .from('admin_users')
       .select('*')
       .eq('id', id)
       .single()

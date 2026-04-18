@@ -24,12 +24,24 @@ export async function verifyAdmin(request: Request) {
   if (!token) return null
   const { data: { user } } = await supabaseAdmin.auth.getUser(token)
   if (!user) return null
-  const { data: admin } = await supabaseAdmin
+  const { data: adminByAuthUserId } = await supabaseAdmin
+    .from('admin_users')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .eq('aktiven', true)
+    .maybeSingle()
+
+  if (adminByAuthUserId) return adminByAuthUserId
+
+  // Backward compatibility for legacy schemas where admin_users uses user_id.
+  const { data: adminByLegacyUserId } = await supabaseAdmin
     .from('admin_users')
     .select('*')
     .eq('user_id', user.id)
+    .eq('aktiven', true)
     .maybeSingle()
-  return admin
+
+  return adminByLegacyUserId
 }
 
 // Helper: log admin action
