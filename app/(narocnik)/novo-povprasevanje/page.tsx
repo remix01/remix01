@@ -115,13 +115,27 @@ export default function NovoPoVprasevanjePage() {
   // Validation functions
   const isStep1Valid = selectedCategory !== null || customCategoryName.trim().length >= 2
   const isStep2Valid = title.trim().length > 0 && description.length >= 20
-  const isStep3Valid = locationCity.trim().length > 0
+  const isDateRangeValid =
+    !preferredDateFrom || !preferredDateTo || new Date(preferredDateFrom) <= new Date(preferredDateTo)
+  const isStep3Valid = locationCity.trim().length > 0 && isDateRangeValid
+  const isBudgetRangeValid =
+    budgetUndetermined ||
+    (typeof budgetMin === 'number' &&
+      typeof budgetMax === 'number' &&
+      budgetMin >= 0 &&
+      budgetMax >= 0 &&
+      budgetMin <= budgetMax)
 
   // Handle next step
   const handleNext = () => {
     if (step === 1 && !isStep1Valid) return
     if (step === 2 && !isStep2Valid) return
-    if (step === 3 && !isStep3Valid) return
+    if (step === 3 && !isStep3Valid) {
+      if (!isDateRangeValid) {
+        setError('Datum začetka mora biti enak ali pred datumom konca.')
+      }
+      return
+    }
     if (step < 4) {
       setStep(step + 1)
       setError(null)
@@ -144,6 +158,12 @@ export default function NovoPoVprasevanjePage() {
     setError(null)
 
     try {
+      if (!isBudgetRangeValid) {
+        setError('Proračun ni veljaven. Min. proračun ne sme biti višji od max. proračuna.')
+        setLoading(false)
+        return
+      }
+
       const payload = {
         category_id: selectedCategory?.id,
         title,
@@ -179,6 +199,7 @@ export default function NovoPoVprasevanjePage() {
 
       // Success - redirect to povprasevanja page
       router.push(`/povprasevanja/${result.id}`)
+      router.refresh()
     } catch (err: any) {
       console.error('[v0] Error submitting povprasevanje:', err)
       setError(err.message || 'Napaka pri oddaji. Poskusite znova.')
@@ -501,7 +522,7 @@ export default function NovoPoVprasevanjePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="dateFrom" className="text-sm font-medium mb-2 block">
-                  Želeni za��etek
+                  Želeni začetek
                 </Label>
                 <Input
                   id="dateFrom"
@@ -525,6 +546,11 @@ export default function NovoPoVprasevanjePage() {
                 />
               </div>
             </div>
+            {!isDateRangeValid && (
+              <p className="text-sm text-red-600">
+                Datum začetka mora biti enak ali pred datumom konca.
+              </p>
+            )}
 
             <div className="flex justify-between gap-2 mt-8">
               <Button onClick={handlePrevious} variant="outline" className="min-h-[48px]">
@@ -630,6 +656,11 @@ export default function NovoPoVprasevanjePage() {
                     </div>
                   </div>
                 )}
+                {!isBudgetRangeValid && (
+                  <p className="text-sm text-red-600">
+                    Vnesite veljaven proračun (min ≤ max in oba zneska sta obvezna).
+                  </p>
+                )}
               </div>
             </Card>
 
@@ -656,7 +687,7 @@ export default function NovoPoVprasevanjePage() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || !isBudgetRangeValid}
                 className="bg-teal-600 hover:bg-teal-700 min-h-[48px]"
               >
                 {loading ? (

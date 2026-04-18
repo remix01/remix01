@@ -97,7 +97,7 @@ export function AIUsageWidget() {
             <p className="text-xs text-red-600 font-medium">
               Dnevni limit dosežen.{' '}
               {tier === 'start' && (
-                <a href="/obrtnik/narocnina" className="underline hover:text-red-800">
+                <a href="/narocnina" className="underline hover:text-red-800">
                   Nadgradite na PRO
                 </a>
               )}
@@ -107,7 +107,7 @@ export function AIUsageWidget() {
             <div className="pt-2 border-t border-gray-100 mt-1">
               <p className="text-xs text-gray-500">
                 START: 5 sporočil/dan • PRO: 100/dan + AI Generator, Materiali, Video{' '}
-                <a href="/obrtnik/narocnina" className="underline text-blue-600 hover:text-blue-800">
+                <a href="/narocnina" className="underline text-blue-600 hover:text-blue-800">
                   Primerjaj →
                 </a>
               </p>

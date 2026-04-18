@@ -12,18 +12,19 @@ export function NarocnikBottomNav() {
     { href: '/povprasevanja', icon: '📋', label: 'Povpraševanja' },
     { href: '/sporocila', icon: '💬', label: 'Sporočila' },
     { href: '/moj-dom', icon: '🏡', label: 'Moj dom' },
+    { href: '/narocnina', icon: '💎', label: 'Paket' },
     { href: '/profil', icon: '👤', label: 'Profil' },
   ]
 
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
 
   return (
-    <div className="flex justify-around items-center h-20 px-4">
+    <div className="flex h-20 items-center gap-1 overflow-x-auto px-2">
       {navLinks.map((link) => (
         <Link
           key={link.href}
           href={link.href}
-          className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
+          className={`min-w-16 shrink-0 flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors ${
             isActive(link.href)
               ? 'text-primary'
               : 'text-muted-foreground'
