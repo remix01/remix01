@@ -205,6 +205,17 @@ export default function OfferGeneratorPage() {
     setErrors((prev) => ({ ...prev, send: '' }))
     setSendSuccess(null)
     try {
+      const { data: existingOffer } = await supabase
+        .from('ponudbe')
+        .select('id')
+        .eq('povprasevanje_id', formData.selectedInquiry)
+        .eq('obrtnik_id', partner.id)
+        .maybeSingle()
+
+      if (existingOffer) {
+        throw new Error('Za izbrano povpraševanje ste že poslali ponudbo.')
+      }
+
       const totalPrice = (generatedOffer.estimatedHours * generatedOffer.hourlyRate) + generatedOffer.materialsEstimate
       const { error } = await supabase.from('ponudbe').insert({
         povprasevanje_id: formData.selectedInquiry,
