@@ -5,7 +5,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-const tracesSampleRate = process.env.NODE_ENV === "production" ? 0.1 : 1;
+const tracesSampleRate = process.env.NODE_ENV === "production" ? 0.05 : 1;
 const sentryRelease = process.env.SENTRY_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA;
 
 Sentry.init({
@@ -28,3 +28,7 @@ Sentry.init({
     },
   },
 });
+
+if (sentryRelease) {
+  Sentry.setTag("release", sentryRelease);
+}
