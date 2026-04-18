@@ -26,6 +26,15 @@
         "SUPABASE_ANON_KEY": "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
       }
     },
+    "posthog": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@posthog/wizard",
+        "mcp",
+        "add"
+      ]
+    },
     "postgres": {
       "command": "npx",
       "args": [
