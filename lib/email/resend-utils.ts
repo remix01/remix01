@@ -167,7 +167,10 @@ export async function sendEmail({
       })
 
       if (response.error) {
-        throw new Error(`[Resend] ${response.error.message}`)
+        const error = new Error(`[Resend] ${response.error.message}`) as any
+        // Preserve status code for retry logic
+        error.statusCode = (response.error as any).statusCode || 500
+        throw error
       }
 
       return response.data
@@ -293,7 +296,10 @@ export async function sendBatchEmails({
       const response = await resend.batch.send(emailData)
 
       if (response.error) {
-        throw new Error(`[Resend Batch] ${response.error.message}`)
+        const error = new Error(`[Resend Batch] ${response.error.message}`) as any
+        // Preserve status code for retry logic
+        error.statusCode = (response.error as any).statusCode || 500
+        throw error
       }
 
       return response.data
