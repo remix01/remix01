@@ -2,31 +2,119 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
 
-export async function POST(request: NextRequest) {
+type PublicInquiryBody = {
+  storitev?: unknown
+  lokacija?: unknown
+  opis?: unknown
+  stranka_email?: unknown
+  stranka_telefon?: unknown
+  stranka_ime?: unknown
+}
+
+function toOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : null
+}
+
+async function parseJsonBody(request: NextRequest): Promise<PublicInquiryBody | null> {
   try {
-    const body = await request.json()
-    const { storitev, lokacija, opis, stranka_email, stranka_telefon, stranka_ime } = body
+    const rawBody = await request.text()
+    if (!rawBody?.trim()) return null
+    return JSON.parse(rawBody)
+  } catch (error) {
+    if (error instanceof SyntaxError) return null
+    throw error
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const requestId = request.headers.get('x-vercel-id') || crypto.randomUUID()
+
+  try {
+    const body = await parseJsonBody(request)
+    if (!body) {
+      return NextResponse.json(
+        { error: 'Neveljavno JSON telo zahtevka' },
+        { status: 400 }
+      )
+    }
+
+    const storitev = toOptionalString(body.storitev)
+    const lokacija = toOptionalString(body.lokacija)
+    const opis = toOptionalString(body.opis)
+    const stranka_email = toOptionalString(body.stranka_email)
+    const stranka_telefon = toOptionalString(body.stranka_telefon)
+    const stranka_ime = toOptionalString(body.stranka_ime)
 
     if (!storitev || !lokacija) {
       return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
     }
 
-    const { data, error } = await supabaseAdmin
+    // Primary schema (current app usage)
+    const modernInsertData: Record<string, string | null> = {
+      title: storitev,
+      description: opis,
+      location_city: lokacija,
+      status: 'odprto',
+      narocnik_id: null,
+    }
+
+    if (stranka_email) modernInsertData.stranka_email = stranka_email
+    if (stranka_telefon) modernInsertData.stranka_telefon = stranka_telefon
+    if (stranka_ime) modernInsertData.stranka_ime = stranka_ime
+
+    let { data, error } = await supabaseAdmin
       .from('povprasevanja')
-      .insert({
-        title: storitev,
-        description: opis || '',
-        location_city: lokacija,
-        status: 'odprto',
-        narocnik_id: null,
-        stranka_email: stranka_email || null,
-        stranka_telefon: stranka_telefon || null,
-      })
+      .insert(modernInsertData)
       .select('id')
       .single()
 
+    const shouldRetryWithLegacySchema =
+      !!error &&
+      ((error.code === 'PGRST204' &&
+        (error.message?.includes('title') ||
+          error.message?.includes('description') ||
+          error.message?.includes('location_city') ||
+          error.message?.includes('narocnik_id'))) ||
+        error.code === '23514')
+
+    if (shouldRetryWithLegacySchema) {
+      console.warn('[public] Retrying insert with legacy schema payload', {
+        requestId,
+        code: error?.code,
+        message: error?.message,
+      })
+
+      // Legacy schema compatibility (as defined in supabase/schema.sql)
+      const legacyInsertData: Record<string, string> = {
+        storitev,
+        lokacija,
+        opis: opis || '',
+        status: 'novo',
+        stranka_ime: stranka_ime || 'Neznana stranka',
+      }
+
+      if (stranka_email) legacyInsertData.stranka_email = stranka_email
+      if (stranka_telefon) legacyInsertData.stranka_telefon = stranka_telefon
+
+      const retryResult = await supabaseAdmin
+        .from('povprasevanja')
+        .insert(legacyInsertData)
+        .select('id')
+        .single()
+
+      data = retryResult.data
+      error = retryResult.error
+    }
+
     if (error) {
-      console.error('[public] DB error:', error)
+      console.error('[public] DB error:', {
+        requestId,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      })
       return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
     }
 
@@ -48,14 +136,13 @@ export async function POST(request: NextRequest) {
               <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
               <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="https://liftgo.net" style="color:#0d9488;">liftgo.net</a></p>
             </div>
-          `
+          `,
         })
       } catch (emailError) {
-        console.error('[public] Email error:', emailError)
+        console.error('[public] Email error:', { requestId, error: emailError })
       }
     }
 
-    // Notify admin
     if (process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL) {
       try {
         const resend = new Resend(process.env.RESEND_API_KEY)
@@ -70,17 +157,25 @@ export async function POST(request: NextRequest) {
             <p><strong>Email:</strong> ${stranka_email || 'N/A'}</p>
             <p><strong>Telefon:</strong> ${stranka_telefon || 'N/A'}</p>
             <a href="https://liftgo.net/admin/povprasevanja">Poglej v admin →</a>
-          `
+          `,
         })
-      } catch (e) { 
-        console.error('[admin notify]', e)
+      } catch (emailError) {
+        console.error('[public] Admin notify error:', { requestId, error: emailError })
       }
     }
 
-    return NextResponse.json({ success: true, id: data.id })
+    if (!data) {
+      console.error('[public] Insert succeeded without row data', { requestId })
+      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
+    }
 
+    return NextResponse.json({ success: true, id: data.id })
   } catch (err) {
-    console.error('[public] Unexpected error:', err)
+    console.error('[public] Unexpected error:', { requestId, error: err })
     return NextResponse.json({ error: 'Napaka strežnika' }, { status: 500 })
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204 })
 }
