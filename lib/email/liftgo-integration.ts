@@ -326,7 +326,10 @@ export async function sendDailyReviewReminders(
   )
 
   if (!result.success) {
-    console.error('[LiftGO Email] Failed to send review reminders:', result.error)
+    console.error(
+      '[LiftGO Email] Failed to send review reminders:',
+      'error' in result ? result.error : 'Unknown error'
+    )
   }
 
   return result
@@ -353,7 +356,10 @@ export async function sendWeeklyProviderDigests(
   )
 
   if (!result.success) {
-    console.error('[LiftGO Email] Failed to send digests:', result.error)
+    console.error(
+      '[LiftGO Email] Failed to send digests:',
+      'error' in result ? result.error : 'Unknown error'
+    )
   }
 
   return result

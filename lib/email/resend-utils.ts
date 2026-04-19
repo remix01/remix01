@@ -12,7 +12,16 @@ import { v4 as uuidv4 } from 'uuid'
  * - Support for both single and batch emails
  */
 
-const resend = new Resend(env.RESEND_API_KEY)
+function getResendClient(): Resend {
+  return new Resend(env.RESEND_API_KEY)
+}
+
+function getEmailRenderPayload(html?: string, text?: string): { html?: string; text?: string } {
+  if (html && text) return { html, text }
+  if (html) return { html }
+  if (text) return { text }
+  throw new Error('Either html or text content is required')
+}
 
 /**
  * Configuration for email sending
@@ -98,6 +107,7 @@ export function generateBatchIdempotencyKey(
  * Send a single email with idempotency key, retries, and error handling
  */
 export async function sendEmail({
+  from,
   to,
   subject,
   html,
@@ -113,6 +123,7 @@ export async function sendEmail({
   eventType,
   entityId,
 }: {
+  from?: string
   to: string | string[]
   subject: string
   html?: string
@@ -134,9 +145,7 @@ export async function sendEmail({
       return { success: false, error: 'Email service not configured' }
     }
 
-    if (!html && !text) {
-      throw new Error('Either html or text content is required')
-    }
+    const renderPayload = getEmailRenderPayload(html, text)
 
     // Generate idempotency key if not provided
     let key = idempotencyKey
@@ -149,14 +158,36 @@ export async function sendEmail({
     if (toArray.length > 50) {
       throw new Error(`To list exceeds 50 recipients: ${toArray.length}`)
     }
+    for (const address of toArray) {
+      if (!isValidEmail(address)) {
+        throw new Error(`Invalid to email address: ${address}`)
+      }
+    }
+
+    if (cc) {
+      for (const address of cc) {
+        if (!isValidEmail(address)) {
+          throw new Error(`Invalid cc email address: ${address}`)
+        }
+      }
+    }
+
+    if (bcc) {
+      for (const address of bcc) {
+        if (!isValidEmail(address)) {
+          throw new Error(`Invalid bcc email address: ${address}`)
+        }
+      }
+    }
+
+    const resend = getResendClient()
 
     const data = await retryWithBackoff(async () => {
       const response = await resend.emails.send({
-        from: `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`,
+        from: from || `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`,
         to: toArray,
         subject,
-        html,
-        text,
+        ...renderPayload,
         cc,
         bcc,
         replyTo,
@@ -164,7 +195,7 @@ export async function sendEmail({
         attachments,
         tags,
         headers,
-      })
+      } as any, key ? { idempotencyKey: key } : undefined)
 
       if (response.error) {
         const error = new Error(`[Resend] ${response.error.message}`) as any
@@ -279,21 +310,28 @@ export async function sendBatchEmails({
       )
     }
 
-    const emailData = emails.map((email) => ({
-      from: `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`,
-      to: Array.isArray(email.to) ? email.to : [email.to],
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-      cc: email.cc,
-      bcc: email.bcc,
-      replyTo: email.replyTo,
-      tags: email.tags,
-      headers: email.headers,
-    }))
+    const emailData = emails.map((email) => {
+      const renderPayload = getEmailRenderPayload(email.html, email.text)
+      return {
+        from: `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`,
+        to: Array.isArray(email.to) ? email.to : [email.to],
+        subject: email.subject,
+        ...renderPayload,
+        cc: email.cc,
+        bcc: email.bcc,
+        replyTo: email.replyTo,
+        tags: email.tags,
+        headers: email.headers,
+      }
+    })
+
+    const resend = getResendClient()
 
     const data = await retryWithBackoff(async () => {
-      const response = await resend.batch.send(emailData)
+      const response = await resend.batch.send(
+        emailData as any,
+        key ? { idempotencyKey: key } : undefined
+      )
 
       if (response.error) {
         const error = new Error(`[Resend Batch] ${response.error.message}`) as any
@@ -305,7 +343,7 @@ export async function sendBatchEmails({
       return response.data
     })
 
-    const messageIds = data?.map((item: any) => item.id) || []
+    const messageIds = data?.data?.map((item: { id: string }) => item.id) || []
 
     console.log('[sendBatchEmails] Success', {
       batchSize: emails.length,
@@ -343,21 +381,34 @@ function isValidEmail(email: string): boolean {
  * Helper to send templated emails (combines template with sending logic)
  */
 export async function sendTemplatedEmail({
+  from,
   to,
   template,
   eventType,
   entityId,
   cc,
   bcc,
+  replyTo,
+  scheduledAt,
+  attachments,
+  tags,
+  headers,
 }: {
+  from?: string
   to: string | string[]
   template: { subject: string; html: string; text?: string }
   eventType?: string
   entityId?: string
   cc?: string[]
   bcc?: string[]
+  replyTo?: string | string[]
+  scheduledAt?: string
+  attachments?: Array<{ filename: string; content: Buffer | string }>
+  tags?: Array<{ name: string; value: string }>
+  headers?: Record<string, string>
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   return sendEmail({
+    from,
     to,
     subject: template.subject,
     html: template.html,
@@ -366,5 +417,10 @@ export async function sendTemplatedEmail({
     entityId,
     cc,
     bcc,
+    replyTo,
+    scheduledAt,
+    attachments,
+    tags,
+    headers,
   })
 }
