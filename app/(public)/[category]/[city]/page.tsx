@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
@@ -101,6 +100,14 @@ function getNearbyCities(region: string, currentCity: string) {
   ).slice(0, 5)
 }
 
+function humanizeSlug(slug: string): string {
+  return slug
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 async function fetchDirectoryData(category: string, city: string) {
   const pathname = `/${category}/${city}`
   const endpoint = `/pro/${encodeURIComponent(category)}/${encodeURIComponent(city)}`
@@ -164,50 +171,60 @@ export default async function CategoryCityPage(props: Props) {
 
   // Exclude static files and reserved paths
   if (EXCLUDED_PATHS.includes(normalized.category) || citySlug.includes('.')) {
-    notFound()
+    return null
   }
 
-  const category = await resolveCategorySlugOrFallback(normalized.category)
-  const city = resolveCitySlugOrFallback(citySlug)
+  const resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
+  const resolvedCity = resolveCitySlugOrFallback(citySlug)
+  const category = resolvedCategory || {
+    id: `fallback:${normalized.category}`,
+    name: humanizeSlug(normalized.category),
+    slug: normalized.category,
+  }
+  const city = resolvedCity || {
+    name: humanizeSlug(citySlug),
+    slug: citySlug,
+    region: 'Slovenija',
+  }
 
-  if (!category || !city) {
-    console.info('[category-city-page] not_found', {
+  if (!resolvedCategory || !resolvedCity) {
+    console.info('[category-city-page] fallback_route_render', {
       pathname,
       params,
-      found: false,
-      reason_not_found: 'category_or_city_missing',
+      found: true,
+      reason_not_found: 'category_or_city_missing_fallback',
       deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
       region: process.env.VERCEL_REGION,
     })
-    notFound()
   }
 
   const externalResult = await fetchDirectoryData(normalized.category, citySlug)
 
   if (!externalResult.ok && externalResult.isMissing) {
-    console.info('[category-city-page] not_found', {
+    console.info('[category-city-page] external_missing_continue', {
       pathname,
       params,
-      found: false,
+      found: true,
       reason_not_found: externalResult.reason,
       status: externalResult.status,
       fetchDurationMs: externalResult.durationMs,
       deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
       region: process.env.VERCEL_REGION,
     })
-    notFound()
   }
 
   let obrtniki = [] as Awaited<ReturnType<typeof listObrtniki>>
   let dataWarning: string | null = null
 
   try {
-    obrtniki = await listObrtniki({
-      category_id: category.id,
-      location_city: city.name,
-      is_available: true,
-      limit: 12
-    })
+    if (resolvedCategory) {
+      obrtniki = await listObrtniki({
+        category_id: category.id,
+        location_city: city.name,
+        is_available: true,
+        limit: 12
+      })
+    }
   } catch (error) {
     dataWarning = 'Podatki o mojstrih so začasno nedosegljivi. Poskusite osvežiti stran čez nekaj trenutkov.'
     console.warn('[category-city-page] obrtniki_fetch_failed', {

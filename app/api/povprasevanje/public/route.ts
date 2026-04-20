@@ -92,6 +92,63 @@ async function resolveCategoryIdFromService(serviceName: string): Promise<string
   return createdCategory.id
 }
 
+async function resolveLocationName(locationName: string): Promise<string> {
+  const trimmedLocation = locationName.trim()
+  if (!trimmedLocation) return locationName
+
+  const { data: existingLocation, error: existingLocationError } = await supabaseAdmin
+    .from('locations')
+    .select('name')
+    .ilike('name', trimmedLocation)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (!existingLocationError && existingLocation?.name) {
+    return existingLocation.name
+  }
+
+  if (existingLocationError && (existingLocationError.code === '42P01' || existingLocationError.code === 'PGRST205')) {
+    return trimmedLocation
+  }
+
+  const baseSlug = slugify(trimmedLocation)
+  let slug = baseSlug
+  let counter = 1
+
+  while (true) {
+    const { data: slugMatch, error: slugMatchError } = await supabaseAdmin
+      .from('locations')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle()
+
+    if (slugMatchError && (slugMatchError.code === '42P01' || slugMatchError.code === 'PGRST205')) {
+      return trimmedLocation
+    }
+
+    if (!slugMatch) break
+    slug = `${baseSlug}-${counter}`
+    counter++
+  }
+
+  const { data: createdLocation, error: createdLocationError } = await supabaseAdmin
+    .from('locations')
+    .insert({
+      name: trimmedLocation,
+      slug,
+      is_active: true,
+      is_auto_created: true,
+    })
+    .select('name')
+    .single()
+
+  if (!createdLocationError && createdLocation?.name) {
+    return createdLocation.name
+  }
+
+  return trimmedLocation
+}
+
 async function hasRecentDuplicateInquiry(input: {
   storitev: string
   lokacija: string
@@ -184,12 +241,13 @@ export async function POST(request: NextRequest) {
     }
 
     const category_id = await resolveCategoryIdFromService(storitev)
+    const normalizedLocation = await resolveLocationName(lokacija)
 
     // Primary schema (current app usage)
     const modernInsertData: Record<string, string | null> = {
       title: storitev,
       description: opis,
-      location_city: lokacija,
+      location_city: normalizedLocation,
       status: 'odprto',
       narocnik_id: null,
       category_id,

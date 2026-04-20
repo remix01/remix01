@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
@@ -72,27 +71,38 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   }
 }
 
+function humanizeSlug(slug: string): string {
+  return slug
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export default async function CategoryPage(props: Props) {
   const params = await props.params
   const normalized = normalizeDirectoryParams(params.category)
   
   // Exclude static files and reserved paths
   if (EXCLUDED_PATHS.includes(normalized.category) || normalized.category.includes('.')) {
-    notFound()
+    return null
   }
   
-  const category = await resolveCategorySlugOrFallback(normalized.category)
-
-  if (!category) {
-    notFound()
+  const resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
+  const category = resolvedCategory || {
+    id: `fallback:${normalized.category}`,
+    name: humanizeSlug(normalized.category),
+    slug: normalized.category,
   }
 
   // Fetch verified obrtniki for this category
-  const obrtniki = await listObrtniki({
-    category_id: category.id,
-    is_available: true,
-    limit: 12
-  })
+  const obrtniki = resolvedCategory
+    ? await listObrtniki({
+        category_id: category.id,
+        is_available: true,
+        limit: 12
+      })
+    : []
 
   // Get pricing for schema
   const pricing = getPricingForCategory(normalized.category)

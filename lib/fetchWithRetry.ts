@@ -115,7 +115,7 @@ export async function fetchWithRetry<T>(url: string, options: FetchRetryOptions 
 
       const maybeJson = await response.json().catch(() => null)
       const { errorCode, errorMessage } = parseErrorPayload(maybeJson)
-      const isMissing = response.status === 404 && (errorCode === 'RESOURCE_NOT_FOUND' || errorCode === 'CITY_OR_CATEGORY_NOT_FOUND')
+      const isMissing = response.status === 404
       const isTransient = isTransientStatus(response.status)
 
       lastFailure = {
@@ -131,7 +131,7 @@ export async function fetchWithRetry<T>(url: string, options: FetchRetryOptions 
         errorMessage,
       }
 
-      console.warn('[dynamic-route-fetch] failure', {
+      const failureLog = {
         requestLabel: options.requestLabel,
         url,
         status: response.status,
@@ -140,7 +140,12 @@ export async function fetchWithRetry<T>(url: string, options: FetchRetryOptions 
         cacheStatus,
         reason: lastFailure.reason,
         errorCode,
-      })
+      }
+      if (isMissing) {
+        console.info('[dynamic-route-fetch] missing', failureLog)
+      } else {
+        console.warn('[dynamic-route-fetch] failure', failureLog)
+      }
 
       if (!isTransient || attempt > retries) {
         return lastFailure
