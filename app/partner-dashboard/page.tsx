@@ -38,7 +38,25 @@ function PartnerDashboardInner() {
       .select('*')
       .eq('obrtnik_id', partnerId)
       .order('created_at', { ascending: false })
-    if (offersData) setOffers(offersData)
+    if (offersData) {
+      setOffers(offersData)
+      setCompletionStatus((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              hasOffers: offersData.length > 0,
+              completionPercentage: prev.hasOffers === (offersData.length > 0)
+                ? prev.completionPercentage
+                : (([
+                    prev.hasDescription,
+                    prev.hasHourlyRate,
+                    prev.hasPhone,
+                    offersData.length > 0,
+                  ].filter(Boolean).length / 4) * 100),
+            }
+          : prev
+      )
+    }
   }
 
   useEffect(() => {
@@ -290,7 +308,7 @@ function PartnerDashboardInner() {
             <TabsContent value="offers" className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Vaše ponudbe</h2>
-                <OffersList offers={offers} partnerId={partner.id} onUpdate={() => handleOfferCreated(partner.id)} />
+                <OffersList offers={offers} onUpdate={() => handleOfferCreated(partner.id)} />
               </Card>
             </TabsContent>
 
