@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { env } from '@/lib/env'
+import { env, hasEmbeddings } from '@/lib/env'
 import { backfillEmbeddings, type EmbeddingTarget } from '@/lib/ai/rag'
 
 // Verify cron secret to prevent unauthorized access
@@ -29,7 +29,19 @@ export async function GET(request: NextRequest) {
   }
 
   const startTime = Date.now()
-  const results: Record<string, { processed: number; errors: number }> = {}
+  const results: Record<
+    string,
+    { processed: number; errors: number; quotaErrors: number; providerConfigErrors: number }
+  > = {}
+
+  if (!hasEmbeddings()) {
+    return NextResponse.json({
+      success: false,
+      skipped: true,
+      reason: 'No embedding provider configured (OPENAI_API_KEY, VOYAGE_API_KEY, GEMINI_API_KEY)',
+      timestamp: new Date().toISOString(),
+    }, { status: 500 })
+  }
 
   // Tables and their text columns for embedding
   const targets: Array<{ table: EmbeddingTarget; textColumn: string; batchSize: number }> = [
@@ -45,28 +57,36 @@ export async function GET(request: NextRequest) {
       results[target.table] = result
     } catch (error) {
       console.error(`Backfill error for ${target.table}:`, error)
-      results[target.table] = { processed: 0, errors: -1 }
+      results[target.table] = { processed: 0, errors: 1, quotaErrors: 0, providerConfigErrors: 0 }
     }
   }
 
   const totalProcessed = Object.values(results).reduce((sum, r) => sum + r.processed, 0)
   const totalErrors = Object.values(results).reduce((sum, r) => sum + Math.max(0, r.errors), 0)
+  const totalQuotaErrors = Object.values(results).reduce((sum, r) => sum + r.quotaErrors, 0)
+  const totalProviderConfigErrors = Object.values(results).reduce(
+    (sum, r) => sum + r.providerConfigErrors,
+    0
+  )
   const durationMs = Date.now() - startTime
+  const statusCode = totalProviderConfigErrors > 0 ? 500 : totalQuotaErrors > 0 ? 429 : 200
 
   console.log(
     `[Cron] Embedding backfill complete: ${totalProcessed} processed, ${totalErrors} errors in ${durationMs}ms`
   )
 
   return NextResponse.json({
-    success: true,
+    success: statusCode === 200,
     results,
     summary: {
       totalProcessed,
       totalErrors,
+      totalQuotaErrors,
+      totalProviderConfigErrors,
       durationMs,
     },
     timestamp: new Date().toISOString(),
-  })
+  }, { status: statusCode })
 }
 
 // Also support POST for QStash

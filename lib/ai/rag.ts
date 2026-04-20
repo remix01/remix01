@@ -24,6 +24,20 @@ const OPENAI_QUOTA_COOLDOWN_MS = 60 * 60 * 1000 // 1 hour
 let openAIQuotaBlockedUntil = 0
 let hasLoggedOpenAIQuotaCooldown = false
 
+class EmbeddingProviderUnavailableError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'EmbeddingProviderUnavailableError'
+  }
+}
+
+class EmbeddingQuotaExceededError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'EmbeddingQuotaExceededError'
+  }
+}
+
 function isOpenAIQuotaError(payload: unknown): boolean {
   if (!payload || typeof payload !== 'object') return false
   const error = (payload as { error?: { code?: string; type?: string } }).error
@@ -76,9 +90,15 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     throw new Error('Cannot generate embedding for empty text')
   }
 
+  let hasConfiguredProvider = false
+  let hasQuotaFailure = false
+  const providerErrors: string[] = []
+
   // Try OpenAI embeddings (primary - best quality)
   if (hasOpenAI()) {
+    hasConfiguredProvider = true
     if (Date.now() < openAIQuotaBlockedUntil) {
+      hasQuotaFailure = true
       if (!hasLoggedOpenAIQuotaCooldown) {
         console.info(
           '[RAG] Skipping OpenAI embeddings during quota cooldown window; trying fallback providers.'
@@ -113,15 +133,18 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         }
 
         if (isOpenAIQuotaError(errorPayload)) {
+          hasQuotaFailure = true
           openAIQuotaBlockedUntil = Date.now() + OPENAI_QUOTA_COOLDOWN_MS
           hasLoggedOpenAIQuotaCooldown = false
           console.warn(
             `[RAG] OpenAI embeddings quota exceeded. Cooling down for ${Math.round(OPENAI_QUOTA_COOLDOWN_MS / 60000)} minutes before retrying.`
           )
         } else {
+          providerErrors.push('openai_request_failed')
           console.warn('OpenAI embedding failed:', errorPayload)
         }
       } catch (error) {
+        providerErrors.push('openai_network_error')
         console.warn('OpenAI embedding error:', error)
       }
     }
@@ -129,6 +152,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
   // Try Voyage embeddings (secondary)
   if (hasVoyageAPI()) {
+    hasConfiguredProvider = true
     try {
       const response = await fetch('https://api.voyageai.com/v1/embeddings', {
         method: 'POST',
@@ -146,13 +170,18 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         const data = await response.json()
         return data.data[0].embedding
       }
+      const errorPayload = await response.text()
+      providerErrors.push(`voyage_request_failed:${response.status}`)
+      console.warn('Voyage embedding failed:', errorPayload)
     } catch (error) {
+      providerErrors.push('voyage_network_error')
       console.warn('Voyage embedding error:', error)
     }
   }
 
   // Try Gemini embeddings (fallback)
   if (hasGemini()) {
+    hasConfiguredProvider = true
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${env.GEMINI_API_KEY}`,
@@ -175,12 +204,29 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         }
         return embedding.slice(0, EMBEDDING_DIMENSIONS)
       }
+      const errorPayload = await response.text()
+      providerErrors.push(`gemini_request_failed:${response.status}`)
+      console.warn('Gemini embedding failed:', errorPayload)
     } catch (error) {
+      providerErrors.push('gemini_network_error')
       console.warn('Gemini embedding error:', error)
     }
   }
 
-  throw new Error('No embedding API available. Configure OPENAI_API_KEY, VOYAGE_API_KEY, or GEMINI_API_KEY.')
+  if (!hasConfiguredProvider) {
+    throw new EmbeddingProviderUnavailableError(
+      'No embedding API available. Configure OPENAI_API_KEY, VOYAGE_API_KEY, or GEMINI_API_KEY.'
+    )
+  }
+
+  if (hasQuotaFailure && providerErrors.length === 0) {
+    throw new EmbeddingQuotaExceededError(
+      'All configured embedding providers are rate-limited or in cooldown.'
+    )
+  }
+
+  const details = providerErrors.length > 0 ? ` (${providerErrors.join(', ')})` : ''
+  throw new Error(`Embedding generation failed for all configured providers${details}.`)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -217,9 +263,16 @@ export async function backfillEmbeddings(
   table: EmbeddingTarget,
   textColumn: string,
   batchSize = 50
-): Promise<{ processed: number; errors: number }> {
+): Promise<{
+  processed: number
+  errors: number
+  quotaErrors: number
+  providerConfigErrors: number
+}> {
   let processed = 0
   let errors = 0
+  let quotaErrors = 0
+  let providerConfigErrors = 0
 
   // Get records without embeddings
   const { data, error } = await supabaseAdmin
@@ -243,13 +296,19 @@ export async function backfillEmbeddings(
     } catch (err) {
       console.error(`Failed to embed ${table}/${record.id}:`, err)
       errors++
+      if (err instanceof EmbeddingQuotaExceededError) {
+        quotaErrors++
+      }
+      if (err instanceof EmbeddingProviderUnavailableError) {
+        providerConfigErrors++
+      }
     }
 
     // Rate limiting - avoid hitting API limits
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 
-  return { processed, errors }
+  return { processed, errors, quotaErrors, providerConfigErrors }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

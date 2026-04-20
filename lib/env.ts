@@ -120,7 +120,7 @@ export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
 // AI Provider Priority Lists
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type AIProvider = 'anthropic' | 'openai' | 'gemini' | 'perplexity'
+export type AIProvider = 'anthropic' | 'openai' | 'voyage' | 'gemini' | 'perplexity'
 
 /**
  * Get list of available AI providers in priority order
@@ -129,6 +129,7 @@ export function getAvailableAIProviders(): AIProvider[] {
   const providers: AIProvider[] = []
   if (hasAnthropicAI()) providers.push('anthropic')
   if (hasOpenAI()) providers.push('openai')
+  if (hasVoyageAPI()) providers.push('voyage')
   if (hasGemini()) providers.push('gemini')
   if (hasPerplexity()) providers.push('perplexity')
   return providers
@@ -149,8 +150,9 @@ export function getBestProviderFor(
       return null
 
     case 'embedding':
-      // OpenAI > Gemini for embeddings (Anthropic doesn't have embeddings)
+      // OpenAI > Voyage > Gemini for embeddings (Anthropic doesn't have embeddings)
       if (hasOpenAI()) return 'openai'
+      if (hasVoyageAPI()) return 'voyage'
       if (hasGemini()) return 'gemini'
       return null
 
