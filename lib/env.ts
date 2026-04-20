@@ -32,6 +32,10 @@ export const env = {
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? '',
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY ?? '',
   LANGFUSE_HOST: process.env.LANGFUSE_HOST ?? '',
+  LANGSMITH_TRACING: process.env.LANGSMITH_TRACING ?? 'false',
+  LANGSMITH_ENDPOINT: process.env.LANGSMITH_ENDPOINT ?? '',
+  LANGSMITH_API_KEY: process.env.LANGSMITH_API_KEY ?? '',
+  LANGSMITH_PROJECT: process.env.LANGSMITH_PROJECT ?? '',
   SENTRY_DSN: process.env.SENTRY_DSN ?? '',
   SENTRY_RELEASE: process.env.SENTRY_RELEASE ?? '',
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
@@ -113,6 +117,8 @@ export const hasEmbeddings = () => hasOpenAI() || hasVoyageAPI() || hasGemini()
 
 // Observability
 export const hasLangfuse = () => !!env.LANGFUSE_SECRET_KEY
+export const hasLangSmith = () =>
+  env.LANGSMITH_TRACING === 'true' && !!env.LANGSMITH_ENDPOINT && !!env.LANGSMITH_API_KEY
 export const hasSentry = () => !!(env.SENTRY_DSN || env.NEXT_PUBLIC_SENTRY_DSN)
 export const hasPostHog = () => !!env.NEXT_PUBLIC_POSTHOG_KEY
 export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
