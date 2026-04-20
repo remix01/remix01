@@ -121,7 +121,7 @@ export const partnerService = {
     // Newer schema fallback where contractor data is stored in obrtnik_profiles.
     let profileQuery = supabaseAdmin
       .from('obrtnik_profiles')
-      .select('id,full_name,business_name,phone,avg_rating,is_verified,service_areas,specialties')
+      .select('id,business_name,phone,avg_rating,is_verified,service_areas,specialties,profiles!inner(full_name)')
       .order('avg_rating', { ascending: false })
 
     if (!options?.includeUnverified) {
@@ -139,7 +139,8 @@ export const partnerService = {
     const { data: profileData, error: profileError } = await profileQuery
     if (!profileError) {
       return (profileData || []).map((row: any) => {
-        const [ime = '', ...rest] = (row.full_name || '').trim().split(' ')
+        const fullName = row.profiles?.full_name || ''
+        const [ime = '', ...rest] = fullName.trim().split(' ')
         return {
           id: row.id,
           ime,
