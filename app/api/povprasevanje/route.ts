@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getOrCreateCategory } from '@/lib/dal/categories'
+import { getOrCreateLocation } from '@/lib/dal/locations'
+import { geocodeLocation } from '@/lib/google/geocoding'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
 import { NextResponse } from 'next/server'
@@ -52,14 +54,21 @@ export async function POST(req: Request) {
 
     // Handle category auto-creation if categoryName provided
     let finalCategoryId = category_id
-    if (categoryName && !finalCategoryId) {
+    const requestedCategoryName =
+      (typeof categoryName === 'string' && categoryName.trim().length > 0
+        ? categoryName
+        : typeof title === 'string'
+          ? title
+          : null)
+
+    if (requestedCategoryName && !finalCategoryId) {
       try {
-        finalCategoryId = await getOrCreateCategory(categoryName, user.id)
+        finalCategoryId = await getOrCreateCategory(requestedCategoryName, user.id)
       } catch (catError) {
         console.error('[v0] Error creating category:', catError)
         console.warn('[monitor] CATEGORY_AUTO_CREATE_FAILED', {
           userId: user.id,
-          categoryName,
+          categoryName: requestedCategoryName,
           endpoint: 'POST /api/povprasevanje',
           timestamp: new Date().toISOString(),
         })
@@ -75,12 +84,26 @@ export async function POST(req: Request) {
       }
     }
 
+    // Normalize with Google Geocoding (when configured) and auto-register city in locations lookup table.
+    const geocoded = await geocodeLocation(String(locationCity))
+    let finalLocationCity = geocoded?.city || locationCity
+    try {
+      finalLocationCity = await getOrCreateLocation(String(finalLocationCity))
+    } catch (locationError) {
+      console.warn('[monitor] LOCATION_AUTO_CREATE_FAILED', {
+        userId: user.id,
+        locationCity: finalLocationCity,
+        endpoint: 'POST /api/povprasevanje',
+        error: locationError instanceof Error ? locationError.message : String(locationError),
+      })
+    }
+
     // CRITICAL FIX: Always set narocnik_id from authenticated user
     // Never trust narocnik_id from request body
     const insertData = {
       narocnik_id: user.id,
       title,
-      location_city: locationCity,
+      location_city: finalLocationCity,
       description: description || null,
       stranka_ime: stranka_ime || null,
       stranka_email: stranka_email || null,
@@ -137,11 +160,11 @@ export async function POST(req: Request) {
     // Send async notifications (fire and forget)
     try {
       // Send push notifications to craftsmen in this category
-      if (finalCategoryId && title && locationCity) {
+      if (finalCategoryId && title && finalLocationCity) {
         sendPushToObrtnikiByCategory({
           categoryId: finalCategoryId,
           title: 'Novo povpraševanje v vaši kategoriji',
-          message: `${title} — ${locationCity}`,
+          message: `${title} — ${finalLocationCity}`,
           link: '/obrtnik/povprasevanja'
         }).catch(err => console.error('[v0] Error sending push:', err))
       }

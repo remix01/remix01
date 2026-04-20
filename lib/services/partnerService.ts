@@ -121,7 +121,7 @@ export const partnerService = {
     // Newer schema fallback where contractor data is stored in obrtnik_profiles.
     let profileQuery = supabaseAdmin
       .from('obrtnik_profiles')
-      .select('id,business_name,phone,avg_rating,is_verified,service_areas,specialties,profiles!inner(full_name)')
+      .select('id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),service_areas(city,is_active)')
       .order('avg_rating', { ascending: false })
 
     if (!options?.includeUnverified) {
@@ -132,15 +132,17 @@ export const partnerService = {
       profileQuery = profileQuery.contains('specialties', [options.storitev])
     }
 
-    if (options?.lokacija) {
-      profileQuery = profileQuery.overlaps('service_areas', [options.lokacija])
-    }
-
     const { data: profileData, error: profileError } = await profileQuery
     if (!profileError) {
-      return (profileData || []).map((row: any) => {
+      const mapped = (profileData || []).map((row: any) => {
         const fullName = row.profiles?.full_name || ''
         const [ime = '', ...rest] = fullName.trim().split(' ')
+        const lokacije = Array.isArray(row.service_areas)
+          ? row.service_areas
+              .filter((area: any) => area?.is_active !== false)
+              .map((area: any) => area?.city)
+              .filter((city: unknown): city is string => typeof city === 'string' && city.length > 0)
+          : []
         return {
           id: row.id,
           ime,
@@ -149,7 +151,7 @@ export const partnerService = {
           email: null,
           telefon: row.phone ?? null,
           specialnosti: row.specialties ?? [],
-          lokacije: row.service_areas ?? [],
+          lokacije,
           cena_min: null,
           cena_max: null,
           ocena: Number(row.avg_rating ?? 0),
@@ -159,6 +161,15 @@ export const partnerService = {
           status: row.is_verified ? 'verified' : 'pending',
         }
       })
+
+      if (options?.lokacija) {
+        const targetLokacija = options.lokacija.trim().toLowerCase()
+        return mapped.filter((item) =>
+          (item.lokacije || []).some((city: string) => city.trim().toLowerCase() === targetLokacija)
+        )
+      }
+
+      return mapped
     }
 
     throw new ServiceError(profileError.message, 'DB_ERROR', 500)
