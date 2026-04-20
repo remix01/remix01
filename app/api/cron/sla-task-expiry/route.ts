@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/client'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 // Verify cron secret (optional but recommended)
 function verifyCronSecret(req: NextRequest): boolean {
@@ -39,11 +39,6 @@ export async function GET(req: NextRequest) {
 
     console.log('[v0] SLA task expiry cron job started')
 
-    const supabase = createClient()
-    if (!supabase) {
-      throw new Error('Supabase client not initialized')
-    }
-
     // Find all tasks that:
     // 1. Are in a non-terminal state (not already expired, completed, or cancelled)
     // 2. Have an SLA deadline
@@ -52,7 +47,7 @@ export async function GET(req: NextRequest) {
 
     console.log('[v0] Querying for overdue tasks...')
 
-    const { data: overdueTasks, error: queryError } = await supabase
+    const { data: overdueTasks, error: queryError } = await supabaseAdmin
       .from('tasks')
       .select('id, title, worker_id, sla_deadline, status')
       .in('status', ['published', 'claimed', 'accepted', 'in_progress'])
@@ -86,7 +81,7 @@ export async function GET(req: NextRequest) {
       try {
         console.log(`[v0] Expiring task: ${task.id}`)
 
-        const { data, error: expireError } = await supabase.rpc('expire_task', {
+        const { error: expireError } = await supabaseAdmin.rpc('expire_task', {
           task_id: task.id,
           reason: 'SLA deadline passed - automated expiry',
         })
@@ -99,7 +94,7 @@ export async function GET(req: NextRequest) {
           expiredIds.push(task.id)
 
           // Log audit event
-          await logAuditEvent(supabase, task.id, 'SLA expiry by cron job')
+          await logAuditEvent(task.id, 'SLA expiry by cron job')
         }
       } catch (err) {
         console.error(`[v0] Error expiring task ${task.id}:`, err)
@@ -137,12 +132,11 @@ export async function GET(req: NextRequest) {
  * Log audit event for task expiry
  */
 async function logAuditEvent(
-  supabase: any,
   taskId: string,
   reason: string
 ) {
   try {
-    const { error } = await supabase.from('audit_logs').insert({
+    const { error } = await supabaseAdmin.from('audit_logs').insert({
       table_name: 'tasks',
       record_id: taskId,
       action: 'UPDATE',

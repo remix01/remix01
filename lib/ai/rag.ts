@@ -38,6 +38,18 @@ class EmbeddingQuotaExceededError extends Error {
   }
 }
 
+function normalizeEmbeddingDimensions(embedding: number[]): number[] {
+  if (embedding.length === EMBEDDING_DIMENSIONS) {
+    return embedding
+  }
+
+  if (embedding.length > EMBEDDING_DIMENSIONS) {
+    return embedding.slice(0, EMBEDDING_DIMENSIONS)
+  }
+
+  return [...embedding, ...new Array(EMBEDDING_DIMENSIONS - embedding.length).fill(0)]
+}
+
 function isOpenAIQuotaError(payload: unknown): boolean {
   if (!payload || typeof payload !== 'object') return false
   const error = (payload as { error?: { code?: string; type?: string } }).error
@@ -123,7 +135,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
         if (response.ok) {
           const data = await response.json()
-          return data.data[0].embedding
+          return normalizeEmbeddingDimensions(data.data[0].embedding as number[])
         }
         let errorPayload: unknown = null
         try {
@@ -168,7 +180,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
       if (response.ok) {
         const data = await response.json()
-        return data.data[0].embedding
+        return normalizeEmbeddingDimensions(data.data[0].embedding as number[])
       }
       const errorPayload = await response.text()
       providerErrors.push(`voyage_request_failed:${response.status}`)
@@ -198,11 +210,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       if (response.ok) {
         const data = await response.json()
         const embedding = data.embedding.values as number[]
-        // Gemini returns 768 dimensions - pad to 1536 for compatibility
-        if (embedding.length < EMBEDDING_DIMENSIONS) {
-          return [...embedding, ...new Array(EMBEDDING_DIMENSIONS - embedding.length).fill(0)]
-        }
-        return embedding.slice(0, EMBEDDING_DIMENSIONS)
+        return normalizeEmbeddingDimensions(embedding)
       }
       const errorPayload = await response.text()
       providerErrors.push(`gemini_request_failed:${response.status}`)

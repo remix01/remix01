@@ -15,6 +15,7 @@ import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { fetchWithRetry } from '@/lib/fetchWithRetry'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
+import { env } from '@/lib/env'
 
 interface Props {
   params: Promise<{ category: string; city: string }>
@@ -102,21 +103,57 @@ function getNearbyCities(region: string, currentCity: string) {
 
 async function fetchDirectoryData(category: string, city: string) {
   const pathname = `/${category}/${city}`
-  const apiUrl = `https://api.liftgo.net/pro/${encodeURIComponent(category)}/${encodeURIComponent(city)}`
+  const endpoint = `/pro/${encodeURIComponent(category)}/${encodeURIComponent(city)}`
+  const baseCandidates = Array.from(new Set([
+    process.env.DIRECTORY_API_BASE_URL,
+    env.NEXT_PUBLIC_APP_URL,
+    'https://liftgo.net',
+    'https://api.liftgo.net',
+  ]
+    .filter((value): value is string => !!value)
+    .map(value => value.replace(/\/$/, ''))))
 
-  const result = await fetchWithRetry<{
+  let lastResult: Awaited<ReturnType<typeof fetchWithRetry<{
     providers?: Array<Record<string, unknown>>
     category?: string
     city?: string
-  }>(apiUrl, {
-    retries: 2,
-    timeoutMs: 2500,
-    initialDelayMs: 250,
-    next: { revalidate },
-    requestLabel: pathname,
-  })
+  }>>> | null = null
 
-  return result
+  for (const baseUrl of baseCandidates) {
+    const apiUrl = `${baseUrl}${endpoint}`
+    const result = await fetchWithRetry<{
+      providers?: Array<Record<string, unknown>>
+      category?: string
+      city?: string
+    }>(apiUrl, {
+      retries: 2,
+      timeoutMs: 2500,
+      initialDelayMs: 250,
+      next: { revalidate },
+      requestLabel: `${pathname}@${baseUrl}`,
+    })
+
+    if (result.ok) {
+      return result
+    }
+
+    lastResult = result
+    const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout'
+    if (!canTryNextBase) {
+      return result
+    }
+  }
+
+  return lastResult ?? {
+    ok: false,
+    status: null,
+    attempt: 0,
+    durationMs: 0,
+    isMissing: false,
+    isTransient: true,
+    reason: 'unknown_error',
+    cacheStatus: null,
+  }
 }
 
 export default async function CategoryCityPage(props: Props) {
