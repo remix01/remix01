@@ -71,6 +71,7 @@ export const env = {
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net',
   NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID ?? '',
   CRON_SECRET: process.env.CRON_SECRET ?? '',
+  EMBEDDING_BACKFILL_MAX_PER_RUN: process.env.EMBEDDING_BACKFILL_MAX_PER_RUN ?? '10',
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 } as const
 
