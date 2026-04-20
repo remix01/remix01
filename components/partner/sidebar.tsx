@@ -4,14 +4,15 @@ import { useState, type ComponentType } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell } from 'lucide-react'
+import { LogOut, BarChart3, FileText, Home, User, TrendingUp, Zap, Bell, Menu } from 'lucide-react'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 
 interface PartnerSidebarProps {
   partner: {
-    business_name: string
-    subscription_tier: 'start' | 'pro' | 'elite'
-    avg_rating: number
-    is_verified: boolean
+    business_name?: string | null
+    subscription_tier?: 'start' | 'pro' | 'elite' | null
+    avg_rating?: number | null
+    is_verified?: boolean | null
   }
 }
 
@@ -27,7 +28,11 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
 
-  const isProOrElite = partner.subscription_tier === 'pro' || partner.subscription_tier === 'elite'
+  const normalizedTier = partner.subscription_tier ?? 'start'
+  const isProOrElite = normalizedTier === 'pro' || normalizedTier === 'elite'
+  const partnerName = partner.business_name || 'Moj portal'
+  const partnerRating = typeof partner.avg_rating === 'number' ? partner.avg_rating.toFixed(1) : '0.0'
+  const partnerVerified = Boolean(partner.is_verified)
 
   const navItems: PartnerNavItem[] = [
     { href: '/partner-dashboard', icon: Home, label: 'Domov' },
@@ -69,25 +74,69 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
               <span className="text-sm font-bold text-primary-foreground">L</span>
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{partner.business_name || 'Moj portal'}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{partnerName}</p>
               <p className="text-xs text-muted-foreground">
-                {partner.subscription_tier === 'elite'
+                {normalizedTier === 'elite'
                   ? 'ELITE'
-                  : partner.subscription_tier === 'pro'
+                  : normalizedTier === 'pro'
                     ? 'PRO'
                     : 'START'}
               </p>
             </div>
           </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isLoading}
-            className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-medium text-destructive disabled:opacity-50"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            {isLoading ? 'Odjavljam...' : 'Odjava'}
-          </button>
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-medium"
+                aria-label="Odpri navigacijo"
+              >
+                <Menu className="h-4 w-4" />
+                Meni
+              </button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[85vw] max-w-sm p-0">
+              <div className="flex h-full flex-col">
+                <div className="border-b p-5">
+                  <p className="text-base font-semibold">{partnerName}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {partnerVerified ? '✓ Verificiran' : 'Neverificiran'} · {partnerRating} ⭐
+                  </p>
+                  <p className="mt-2 text-xs font-medium text-primary uppercase">{normalizedTier} plan</p>
+                </div>
+
+                <nav className="flex-1 space-y-1 p-4">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
+                        isActive(item.href)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
+
+                <div className="border-t p-4">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={isLoading}
+                    className="flex w-full items-center justify-center gap-2 rounded-md border border-destructive/40 px-3 py-2 text-sm font-medium text-destructive disabled:opacity-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {isLoading ? 'Odjavljam...' : 'Odjava'}
+                  </button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
@@ -102,14 +151,14 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
         </div>
 
         <div className="mb-8 rounded-lg border bg-background p-4">
-          <p className="text-sm font-semibold text-foreground">{partner.business_name}</p>
+          <p className="text-sm font-semibold text-foreground">{partnerName}</p>
           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-            {partner.is_verified && '✓'} {partner.avg_rating.toFixed(1)} ⭐
+            {partnerVerified && '✓'} {partnerRating} ⭐
           </p>
           <p className="mt-2 text-xs font-medium text-primary">
-            {partner.subscription_tier === 'elite'
+            {normalizedTier === 'elite'
               ? 'ELITE plan'
-              : partner.subscription_tier === 'pro'
+              : normalizedTier === 'pro'
                 ? 'PRO plan'
                 : 'START plan'}
           </p>
@@ -135,8 +184,8 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
         <div className="border-t pt-6">
           <div className="mb-4 rounded-lg bg-background p-4">
             <p className="text-xs font-semibold text-muted-foreground">PODJETJE</p>
-            <p className="font-semibold text-foreground">{partner.business_name}</p>
-            <p className="text-xs text-muted-foreground">{partner.avg_rating.toFixed(1)} ⭐</p>
+            <p className="font-semibold text-foreground">{partnerName}</p>
+            <p className="text-xs text-muted-foreground">{partnerRating} ⭐</p>
           </div>
           <button
             type="button"

@@ -29,6 +29,7 @@ function PartnerDashboardInner() {
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -38,62 +39,86 @@ function PartnerDashboardInner() {
       .select('*')
       .eq('obrtnik_id', partnerId)
       .order('created_at', { ascending: false })
-    if (offersData) setOffers(offersData)
+    if (offersData) {
+      setOffers(offersData)
+      setCompletionStatus((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              hasOffers: offersData.length > 0,
+              completionPercentage: prev.hasOffers === (offersData.length > 0)
+                ? prev.completionPercentage
+                : (([
+                    prev.hasDescription,
+                    prev.hasHourlyRate,
+                    prev.hasPhone,
+                    offersData.length > 0,
+                  ].filter(Boolean).length / 4) * 100),
+            }
+          : prev
+      )
+    }
   }
 
   useEffect(() => {
-    const getPartner = async () => {
+    const loadDashboard = async () => {
+      setLoadError(null)
       const sb = createClient()
-      const {
-        data: { user },
-      } = await sb.auth.getUser()
+      try {
+        const {
+          data: { user },
+        } = await sb.auth.getUser()
 
-      if (!user) {
-        router.push('/partner-auth/login')
-        return
-      }
-
-      const { data: partnerData } = await sb
-        .from('obrtnik_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (partnerData) {
-        setPartner(partnerData)
-
-        // Check completion status
-        const status = await getCompletionStatus(partnerData.id)
-        if (status) {
-          setCompletionStatus(status)
+        if (!user) {
+          router.push('/partner-auth/login')
+          return
         }
 
-        // Fetch offers
-        const { data: offersData } = await sb
-          .from('ponudbe')
+        const { data: partnerData } = await sb
+          .from('obrtnik_profiles')
           .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .order('created_at', { ascending: false })
+          .eq('id', user.id)
+          .maybeSingle()
 
-        if (offersData) {
-          setOffers(offersData)
+        if (partnerData) {
+          setPartner(partnerData)
+
+          // Check completion status
+          const status = await getCompletionStatus(partnerData.id)
+          if (status) {
+            setCompletionStatus(status)
+          }
+
+          // Fetch offers
+          const { data: offersData } = await sb
+            .from('ponudbe')
+            .select('*')
+            .eq('obrtnik_id', partnerData.id)
+            .order('created_at', { ascending: false })
+
+          if (offersData) {
+            setOffers(offersData)
+          }
+
+          // Fetch open requests count
+          const { count: openCount } = await sb
+            .from('povprasevanja')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'odprto')
+
+          if (openCount !== null) {
+            setOpenRequestsCount(openCount)
+          }
         }
-
-        // Fetch open requests count
-        const { count: openCount } = await sb
-          .from('povprasevanja')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'odprto')
-
-        if (openCount !== null) {
-          setOpenRequestsCount(openCount)
-        }
+      } catch (err) {
+        console.error('Partner dashboard load failed:', err)
+        setLoadError('Prišlo je do napake pri nalaganju nadzorne plošče.')
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
-    getPartner()
+    loadDashboard()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -172,6 +197,18 @@ function PartnerDashboardInner() {
       <PartnerSidebar partner={partner} />
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-4 md:p-6 lg:p-8">
+          {loadError && (
+            <Card className="mb-6 border-red-200 bg-red-50 p-4">
+              <p className="text-sm font-medium text-red-700">{loadError}</p>
+              <Button
+                variant="outline"
+                className="mt-3"
+                onClick={() => window.location.reload()}
+              >
+                Osveži stran
+              </Button>
+            </Card>
+          )}
           {/* Header with business name and subscription badge */}
           <div className="mb-8 flex items-start justify-between">
             <div>
@@ -290,7 +327,7 @@ function PartnerDashboardInner() {
             <TabsContent value="offers" className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Vaše ponudbe</h2>
-                <OffersList offers={offers} partnerId={partner.id} onUpdate={() => handleOfferCreated(partner.id)} />
+                <OffersList offers={offers} onUpdate={() => handleOfferCreated(partner.id)} />
               </Card>
             </TabsContent>
 
