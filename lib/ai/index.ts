@@ -55,3 +55,15 @@ export {
   type VisionOptions,
   type VisionResult,
 } from './providers'
+
+
+// LangChain + LangSmith integration helpers
+export {
+  configureLangSmithTracing,
+  getLangSmithStatus,
+  createLangChainChatModel,
+} from './langsmith'
+
+
+// LangGraph integration helpers
+export { runLangGraphChat, type LangGraphRunInput, type LangGraphRunResult } from './langgraph'
