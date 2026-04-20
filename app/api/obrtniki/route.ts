@@ -20,6 +20,9 @@ export async function GET(req: Request) {
   const adminReq = searchParams.get('admin') === 'true'
 
   const admin = adminReq ? await verifyAdmin(req) : null
+  if (adminReq && !admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   try {
     const data = await partnerService.getObrtniki({

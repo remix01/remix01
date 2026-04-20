@@ -39,6 +39,7 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [contractorsError, setContractorsError] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Povprasevanje>>({})
 
   const getAuthHeaders = async (): Promise<HeadersInit> => {
@@ -81,17 +82,18 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
         setPovprasevanje(data)
         setFormData(data)
 
-        // Fetch contractors
+        // Fetch contractors (non-blocking for the inquiry detail page)
         const contractorResponse = await fetch('/api/obrtniki?admin=true', {
           headers: authHeaders,
         })
 
         if (!contractorResponse.ok) {
-          throw new Error(`Seznama obrtnikov ni mogoče naložiti (${contractorResponse.status}).`)
+          setContractorsError(`Seznama obrtnikov ni mogoče naložiti (${contractorResponse.status}).`)
+        } else {
+          const contractors = await contractorResponse.json()
+          setObrtniki(contractors)
+          setContractorsError(null)
         }
-
-        const contractors = await contractorResponse.json()
-        setObrtniki(contractors)
       } catch (error) {
         console.error('[v0] Error fetching data:', error)
         setError(error instanceof Error ? error.message : 'Napaka pri nalaganju podatkov.')
@@ -152,6 +154,11 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
           {error && (
             <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               Error fetching data: {error}
+            </div>
+          )}
+          {contractorsError && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800">
+              {contractorsError}
             </div>
           )}
           {/* Customer Info */}
@@ -236,7 +243,7 @@ export default function PovprasevanjeDetailPage({ params }: { params: Promise<{ 
                   <option value="">Izberi obrtnika</option>
                   {obrtniki.map(o => (
                     <option key={o.id} value={o.id}>
-                      {o.ime} {o.priimek} ({o.ocena.toFixed(1)})
+                      {o.ime} {o.priimek} ({Number(o.ocena ?? 0).toFixed(1)})
                     </option>
                   ))}
                 </select>

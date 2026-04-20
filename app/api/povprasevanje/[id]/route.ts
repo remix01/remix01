@@ -47,13 +47,13 @@ export async function PATCH(
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const updates: Record<string, unknown> = {}
-  if (status)         updates.status = status
-  if (obrtnik_id)     updates.obrtnik_id = obrtnik_id
+  if (status !== undefined) updates.status = status
+  if (obrtnik_id !== undefined) updates.obrtnik_id = obrtnik_id || null
   if (admin_opomba !== undefined) updates.admin_opomba = admin_opomba
-  if (termin_datum)   updates.termin_datum = termin_datum
-  if (termin_ura)     updates.termin_ura = termin_ura
-  if (cena_ocena_min) updates.cena_ocena_min = cena_ocena_min
-  if (cena_ocena_max) updates.cena_ocena_max = cena_ocena_max
+  if (termin_datum !== undefined) updates.termin_datum = termin_datum
+  if (termin_ura !== undefined) updates.termin_ura = termin_ura
+  if (cena_ocena_min !== undefined) updates.cena_ocena_min = cena_ocena_min
+  if (cena_ocena_max !== undefined) updates.cena_ocena_max = cena_ocena_max
 
   // Auto-set status when assigning obrtnik
   if (obrtnik_id && !status) updates.status = 'dodeljeno'
