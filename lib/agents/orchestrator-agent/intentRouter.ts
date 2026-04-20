@@ -78,6 +78,7 @@ Respond with JSON in this exact format:
 
 Rules:
 - If the user mentions a resource ID (inquiry, offer, escrow), include it in extractedParams
+- For createInquiry, extract: title, description, location (city), categoryName, budget (if provided)
 - If confidence < 0.6, set action to 'clarify' and include a clarification question
 - Always return valid JSON
 `

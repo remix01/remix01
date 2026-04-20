@@ -8,6 +8,8 @@ import { messageBus } from '../base/MessageBus'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { tracer } from '@/lib/observability/tracing'
 import { v4 as uuidv4 } from 'uuid'
+import { geocodeLocation } from '@/lib/google/geocoding'
+import { slugify } from '@/lib/utils/slugify'
 
 export class InquiryAgent extends BaseAgent {
   type: AgentType = 'inquiry'
@@ -97,7 +99,7 @@ export class InquiryAgent extends BaseAgent {
   }
 
   private async createInquiry(
-    payload: { title: string; description: string; budget?: number },
+    payload: { title: string; description: string; budget?: number; location?: string; categoryName?: string },
     userId: string,
     sessionId: string,
     correlationId: string
@@ -105,19 +107,48 @@ export class InquiryAgent extends BaseAgent {
     const startTime = Date.now()
 
     try {
-      // Create inquiry in DB
-      const { data, error } = await supabaseAdmin
+      const categoryId = payload.categoryName
+        ? await this.getOrCreateCategoryFromName(payload.categoryName)
+        : null
+
+      const geocoded = payload.location ? await geocodeLocation(payload.location) : null
+      const locationCity = geocoded?.city || payload.location || null
+
+      // Create inquiry in DB (newer schema-first)
+      let { data, error } = await supabaseAdmin
         .from('povprasevanja')
         .insert({
           created_by: userId,
+          narocnik_id: userId,
           title: payload.title,
           description: payload.description,
+          location_city: locationCity,
+          category_id: categoryId,
           budget_cents: payload.budget ? Math.round(payload.budget * 100) : null,
-          status: 'open',
+          status: 'odprto',
           created_at: new Date().toISOString(),
         })
         .select()
         .single()
+
+      // Fallback to legacy schema if some columns do not exist in current environment.
+      if (error && (error.code === 'PGRST204' || error.code === '42703')) {
+        const retry = await supabaseAdmin
+          .from('povprasevanja')
+          .insert({
+            created_by: userId,
+            title: payload.title,
+            description: payload.description,
+            budget_cents: payload.budget ? Math.round(payload.budget * 100) : null,
+            status: 'open',
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single()
+
+        data = retry.data
+        error = retry.error
+      }
 
       if (error) {
         this.log('create_inquiry_failed', { error: getErrorMessage(error) })
@@ -168,6 +199,55 @@ export class InquiryAgent extends BaseAgent {
         durationMs: Date.now() - startTime,
       }
     }
+  }
+
+  private async getOrCreateCategoryFromName(name: string): Promise<string | null> {
+    const normalized = name.trim()
+    if (!normalized) return null
+
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from('categories')
+      .select('id')
+      .ilike('name', normalized)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (!existingError && existing?.id) return existing.id
+
+    if (existingError && existingError.code !== 'PGRST116') {
+      return null
+    }
+
+    const baseSlug = slugify(normalized)
+    let slug = baseSlug
+    let counter = 1
+
+    while (true) {
+      const { data: slugMatch, error: slugError } = await supabaseAdmin
+        .from('categories')
+        .select('id')
+        .eq('slug', slug)
+        .maybeSingle()
+
+      if (slugError && slugError.code !== 'PGRST116') break
+      if (!slugMatch) break
+      slug = `${baseSlug}-${counter}`
+      counter++
+    }
+
+    const { data: inserted } = await supabaseAdmin
+      .from('categories')
+      .insert({
+        name: normalized,
+        slug,
+        is_active: true,
+        is_auto_created: true,
+        sort_order: 999,
+      })
+      .select('id')
+      .maybeSingle()
+
+    return inserted?.id ?? null
   }
 
   private async listInquiries(userId: string): Promise<AgentResponse> {

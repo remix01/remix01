@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
 import { slugify } from '@/lib/utils/slugify'
 import { publicInquirySchema } from '@/lib/validators/public-inquiry'
+import { geocodeLocation } from '@/lib/google/geocoding'
 
 type PublicInquiryBody = {
   storitev?: unknown
@@ -93,7 +94,8 @@ async function resolveCategoryIdFromService(serviceName: string): Promise<string
 }
 
 async function resolveLocationName(locationName: string): Promise<string> {
-  const trimmedLocation = locationName.trim()
+  const geocoded = await geocodeLocation(locationName)
+  const trimmedLocation = (geocoded?.city || locationName).trim()
   if (!trimmedLocation) return locationName
 
   const { data: existingLocation, error: existingLocationError } = await supabaseAdmin

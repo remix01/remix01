@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getOrCreateCategory } from '@/lib/dal/categories'
 import { getOrCreateLocation } from '@/lib/dal/locations'
+import { geocodeLocation } from '@/lib/google/geocoding'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
 import { NextResponse } from 'next/server'
@@ -83,14 +84,15 @@ export async function POST(req: Request) {
       }
     }
 
-    // Normalize and auto-register city in locations lookup table (if available in current DB).
-    let finalLocationCity = locationCity
+    // Normalize with Google Geocoding (when configured) and auto-register city in locations lookup table.
+    const geocoded = await geocodeLocation(String(locationCity))
+    let finalLocationCity = geocoded?.city || locationCity
     try {
-      finalLocationCity = await getOrCreateLocation(String(locationCity))
+      finalLocationCity = await getOrCreateLocation(String(finalLocationCity))
     } catch (locationError) {
       console.warn('[monitor] LOCATION_AUTO_CREATE_FAILED', {
         userId: user.id,
-        locationCity,
+        locationCity: finalLocationCity,
         endpoint: 'POST /api/povprasevanje',
         error: locationError instanceof Error ? locationError.message : String(locationError),
       })
