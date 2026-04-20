@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { CheckCircle, Star, Phone, Mail, X, Clock, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { publicInquirySchema } from "@/lib/validators/public-inquiry"
 
 const STORITVE = [
   "Gradnja & adaptacije",
@@ -65,6 +66,7 @@ interface HeroFormDialogProps {
 export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [gdprChecked, setGdprChecked] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
@@ -138,16 +140,35 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isLoading || isSubmitting) return
     if (!validate()) return
 
+    const parsed = publicInquirySchema.safeParse({
+      storitev: formData.storitev,
+      lokacija: formData.lokacija,
+      opis: formData.opis,
+      stranka_email: formData.email,
+      stranka_telefon: formData.telefon,
+      stranka_ime: formData.email?.split("@")[0] || "Stranka",
+    })
+
+    if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]
+      setErrors({
+        submit: firstIssue?.message || "Preverite vnesene podatke.",
+      })
+      return
+    }
+
     setIsLoading(true)
+    setIsSubmitting(true)
     setErrors({})
 
     try {
-      const response = await fetch("/api/povprasevanje", {
+      const response = await fetch("/api/povprasevanje/public", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(parsed.data),
       })
 
       const data = await response.json()
@@ -167,6 +188,7 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
       })
     } finally {
       setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -440,7 +462,7 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
               {errors.submit && (
                 <p className="text-sm text-destructive">{errors.submit}</p>
               )}
-              <Button type="submit" size="lg" disabled={isLoading} className="w-full min-h-[48px]">
+              <Button type="submit" size="lg" disabled={isLoading || isSubmitting} className="w-full min-h-[48px]">
                 {isLoading ? "Pošiljam..." : "Oddaj povpraševanje"}
               </Button>
             </form>

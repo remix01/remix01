@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
+import { slugify } from '@/lib/utils/slugify'
+import { publicInquirySchema } from '@/lib/validators/public-inquiry'
 
 type PublicInquiryBody = {
   storitev?: unknown
   lokacija?: unknown
   opis?: unknown
+  email?: unknown
+  telefon?: unknown
+  ime?: unknown
   stranka_email?: unknown
   stranka_telefon?: unknown
   stranka_ime?: unknown
@@ -28,6 +33,108 @@ async function parseJsonBody(request: NextRequest): Promise<PublicInquiryBody | 
   }
 }
 
+async function resolveCategoryIdFromService(serviceName: string): Promise<string | null> {
+  const trimmedService = serviceName.trim()
+  if (!trimmedService) return null
+
+  const { data: existingCategory, error: existingCategoryError } = await supabaseAdmin
+    .from('categories')
+    .select('id')
+    .ilike('name', trimmedService)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (existingCategoryError && existingCategoryError.code !== 'PGRST116') {
+    console.error('[public] Failed to check existing category:', existingCategoryError)
+    return null
+  }
+
+  if (existingCategory) return existingCategory.id
+
+  const baseSlug = slugify(trimmedService)
+  let slug = baseSlug
+  let counter = 1
+
+  while (true) {
+    const { data: slugMatch, error: slugMatchError } = await supabaseAdmin
+      .from('categories')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle()
+
+    if (slugMatchError && slugMatchError.code !== 'PGRST116') {
+      console.error('[public] Failed to validate category slug:', slugMatchError)
+      return null
+    }
+
+    if (!slugMatch) break
+    slug = `${baseSlug}-${counter}`
+    counter++
+  }
+
+  const { data: createdCategory, error: createdCategoryError } = await supabaseAdmin
+    .from('categories')
+    .insert({
+      name: trimmedService,
+      slug,
+      is_active: true,
+      is_auto_created: true,
+      sort_order: 999,
+    })
+    .select('id')
+    .single()
+
+  if (createdCategoryError) {
+    console.error('[public] Failed to create category:', createdCategoryError)
+    return null
+  }
+
+  return createdCategory.id
+}
+
+async function hasRecentDuplicateInquiry(input: {
+  storitev: string
+  lokacija: string
+  stranka_email?: string
+  stranka_telefon?: string
+}): Promise<boolean> {
+  const since = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+
+  if (!input.stranka_email && !input.stranka_telefon) return false
+
+  try {
+    if (input.stranka_email) {
+      const { data, error } = await supabaseAdmin
+        .from('povprasevanja')
+        .select('id')
+        .eq('title', input.storitev)
+        .eq('location_city', input.lokacija)
+        .eq('stranka_email', input.stranka_email)
+        .gte('created_at', since)
+        .limit(1)
+
+      if (!error && data && data.length > 0) return true
+    }
+
+    if (input.stranka_telefon) {
+      const { data, error } = await supabaseAdmin
+        .from('povprasevanja')
+        .select('id')
+        .eq('title', input.storitev)
+        .eq('location_city', input.lokacija)
+        .eq('stranka_telefon', input.stranka_telefon)
+        .gte('created_at', since)
+        .limit(1)
+
+      if (!error && data && data.length > 0) return true
+    }
+  } catch (error) {
+    console.warn('[public] Duplicate check skipped due to query error', error)
+  }
+
+  return false
+}
+
 export async function POST(request: NextRequest) {
   const requestId = request.headers.get('x-vercel-id') || crypto.randomUUID()
 
@@ -40,16 +147,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const storitev = toOptionalString(body.storitev)
-    const lokacija = toOptionalString(body.lokacija)
-    const opis = toOptionalString(body.opis)
-    const stranka_email = toOptionalString(body.stranka_email)
-    const stranka_telefon = toOptionalString(body.stranka_telefon)
-    const stranka_ime = toOptionalString(body.stranka_ime)
+    const parsedInput = publicInquirySchema.safeParse({
+      storitev: toOptionalString(body.storitev),
+      lokacija: toOptionalString(body.lokacija),
+      opis: toOptionalString(body.opis) || '',
+      stranka_email: toOptionalString(body.stranka_email) ?? toOptionalString(body.email) ?? undefined,
+      stranka_telefon: toOptionalString(body.stranka_telefon) ?? toOptionalString(body.telefon) ?? undefined,
+      stranka_ime: toOptionalString(body.stranka_ime) ?? toOptionalString(body.ime) ?? undefined,
+    })
+
+    if (!parsedInput.success) {
+      return NextResponse.json(
+        { error: parsedInput.error.issues[0]?.message || 'Neveljavni vhodni podatki' },
+        { status: 400 }
+      )
+    }
+
+    const { storitev, lokacija, opis, stranka_email, stranka_telefon, stranka_ime } = parsedInput.data
 
     if (!storitev || !lokacija) {
       return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
     }
+
+    const isDuplicate = await hasRecentDuplicateInquiry({
+      storitev,
+      lokacija,
+      stranka_email,
+      stranka_telefon,
+    })
+
+    if (isDuplicate) {
+      return NextResponse.json(
+        { error: 'Podobno povpraševanje je bilo pravkar oddano. Prosimo počakajte trenutek.' },
+        { status: 409 }
+      )
+    }
+
+    const category_id = await resolveCategoryIdFromService(storitev)
 
     // Primary schema (current app usage)
     const modernInsertData: Record<string, string | null> = {
@@ -58,6 +192,7 @@ export async function POST(request: NextRequest) {
       location_city: lokacija,
       status: 'odprto',
       narocnik_id: null,
+      category_id,
     }
 
     if (stranka_email) modernInsertData.stranka_email = stranka_email
@@ -76,7 +211,8 @@ export async function POST(request: NextRequest) {
         (error.message?.includes('title') ||
           error.message?.includes('description') ||
           error.message?.includes('location_city') ||
-          error.message?.includes('narocnik_id'))) ||
+          error.message?.includes('narocnik_id') ||
+          error.message?.includes('category_id'))) ||
         error.code === '23514')
 
     if (shouldRetryWithLegacySchema) {
