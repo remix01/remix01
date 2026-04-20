@@ -43,21 +43,37 @@ export async function GET(request: NextRequest) {
     }, { status: 500 })
   }
 
-  // Tables and their text columns for embedding
+  // Hard limit per cron execution to avoid exhausting embedding quotas in one run.
+  const maxRecordsPerRun = Number(env.EMBEDDING_BACKFILL_MAX_PER_RUN ?? 10)
+  let remainingBudget = Number.isFinite(maxRecordsPerRun) && maxRecordsPerRun > 0
+    ? Math.floor(maxRecordsPerRun)
+    : 10
+
+  // Tables and their text columns for embedding.
+  // perTableLimit is a cap, final processed rows are also constrained by remainingBudget.
   const targets: Array<{ table: EmbeddingTarget; textColumn: string; batchSize: number }> = [
-    { table: 'tasks', textColumn: 'description', batchSize: 20 },
-    { table: 'obrtnik_profiles', textColumn: 'description', batchSize: 10 },
-    { table: 'ponudbe', textColumn: 'message', batchSize: 30 },
-    { table: 'sporocila', textColumn: 'message', batchSize: 50 },
+    { table: 'tasks', textColumn: 'description', batchSize: 5 },
+    { table: 'obrtnik_profiles', textColumn: 'description', batchSize: 3 },
+    { table: 'ponudbe', textColumn: 'message', batchSize: 1 },
+    { table: 'sporocila', textColumn: 'message', batchSize: 1 },
   ]
 
   for (const target of targets) {
+    if (remainingBudget <= 0) {
+      results[target.table] = { processed: 0, errors: 0, quotaErrors: 0, providerConfigErrors: 0 }
+      continue
+    }
+
+    const targetBatchSize = Math.min(target.batchSize, remainingBudget)
+
     try {
-      const result = await backfillEmbeddings(target.table, target.textColumn, target.batchSize)
+      const result = await backfillEmbeddings(target.table, target.textColumn, targetBatchSize)
       results[target.table] = result
+      remainingBudget -= result.processed + result.errors
     } catch (error) {
       console.error(`Backfill error for ${target.table}:`, error)
       results[target.table] = { processed: 0, errors: 1, quotaErrors: 0, providerConfigErrors: 0 }
+      remainingBudget -= 1
     }
   }
 
@@ -79,6 +95,7 @@ export async function GET(request: NextRequest) {
     success: statusCode === 200,
     results,
     summary: {
+      maxRecordsPerRun: maxRecordsPerRun > 0 ? Math.floor(maxRecordsPerRun) : 10,
       totalProcessed,
       totalErrors,
       totalQuotaErrors,
