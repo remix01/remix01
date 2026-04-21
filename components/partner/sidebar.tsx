@@ -18,8 +18,8 @@ import {
   Bot,
   Send,
   MessageSquare,
-  Video,
-  Images,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,13 @@ interface PartnerNavItem {
   href: string
   icon: ComponentType<{ className?: string }>
   label: string
+}
+
+interface PartnerAiAction {
+  id: 'daily-plan' | 'follow-up' | 'pipeline-summary'
+  label: string
+  prompt: string
+  agentType: 'general_chat' | 'offer_writing' | 'job_summary'
 }
 
 export function PartnerSidebar({ partner }: PartnerSidebarProps) {
@@ -71,8 +78,29 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
 
   const quickAiLinks: PartnerNavItem[] = [
     { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM orodja' },
-    { href: '/partner-dashboard/offers/generate', icon: Video, label: 'Video diagnoza' },
-    { href: '/partner-dashboard/povprasevanja', icon: Images, label: 'Album strank' },
+    { href: '/partner-dashboard/insights', icon: BarChart3, label: 'Insights' },
+    { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator ponudb' },
+  ]
+
+  const quickAiActions: PartnerAiAction[] = [
+    {
+      id: 'daily-plan',
+      label: 'Dnevni plan',
+      prompt: 'Sestavi dnevni plan prioritet za partner dashboard na podlagi trenutnih odprtih opravil.',
+      agentType: 'job_summary',
+    },
+    {
+      id: 'follow-up',
+      label: 'Follow-up predlog',
+      prompt: 'Pripravi kratek follow-up message za stranke, ki še niso odgovorile na ponudbo.',
+      agentType: 'offer_writing',
+    },
+    {
+      id: 'pipeline-summary',
+      label: 'Povzetek pipeline',
+      prompt: 'Naredi povzetek pipeline stanja in naslednji najboljši korak za zapiranje novih poslov.',
+      agentType: 'general_chat',
+    },
   ]
 
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
@@ -100,20 +128,85 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
     setAiResponse('')
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        setAiResponse('Seja je potekla. Osvežite stran in se ponovno prijavite.')
+        return
+      }
+
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           message: `Partner support request: ${prompt}`,
-          context: { area: 'partner-dashboard-sidebar' },
+          agentType: 'general_chat',
+          useTools: true,
+          additionalContext: 'Source: partner-dashboard-sidebar',
         }),
       })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        setAiResponse(errorData?.message || 'AI storitev je trenutno nedosegljiva. Poskusite znova.')
+        return
+      }
 
       const data = await response.json()
       setAiResponse(data?.response || data?.message || 'AI trenutno ni vrnil odgovora.')
     } catch (error) {
       console.error('AI sidebar chat error', error)
       setAiResponse('Napaka pri komunikaciji z AI pomočnikom. Poskusite znova.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleAiAction = async (action: PartnerAiAction) => {
+    setPrompt(action.prompt)
+    setAiResponse('')
+    setAiLoading(true)
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        setAiResponse('Seja je potekla. Osvežite stran in se ponovno prijavite.')
+        return
+      }
+
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          message: action.prompt,
+          agentType: action.agentType,
+          useTools: true,
+          additionalContext: `Action: ${action.id}; Source: partner-dashboard-ai-sidebar`,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        setAiResponse(errorData?.message || 'AI storitev je trenutno nedosegljiva. Poskusite znova.')
+        return
+      }
+
+      const data = await response.json()
+      setAiResponse(data?.response || 'AI trenutno ni vrnil odgovora.')
+    } catch (error) {
+      console.error('AI quick action error', error)
+      setAiResponse('Napaka pri AI hitri akciji. Poskusite znova.')
     } finally {
       setAiLoading(false)
     }
@@ -141,7 +234,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
 
   return (
     <>
-      <div className="sticky top-0 z-30 border-b bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
+      <div className="sticky top-0 z-30 border-b bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
@@ -150,7 +243,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
                   <Menu className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-80 p-0">
+              <SheetContent side="left" className="w-[88vw] max-w-sm p-0">
                 <div className="flex h-full flex-col bg-muted/50 p-5">
                   <SheetHeader className="mb-4 text-left">
                     <SheetTitle>Navigacija</SheetTitle>
@@ -167,12 +260,12 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
             </Sheet>
 
             <Link href="/partner-dashboard" className="flex min-w-0 items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
                 <span className="text-sm font-bold text-primary-foreground">L</span>
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{partner.business_name || 'Moj portal'}</p>
-                <p className="text-xs text-muted-foreground">{partner.subscription_tier.toUpperCase()}</p>
+                <p className="hidden text-xs text-muted-foreground sm:block">{partner.subscription_tier.toUpperCase()}</p>
               </div>
             </Link>
           </div>
@@ -187,15 +280,16 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
             >
               <Bot className="h-4 w-4" />
             </Button>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleLogout}
               disabled={isLoading}
-              className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-medium text-destructive disabled:opacity-50"
+              className="h-9 gap-2 px-2 text-destructive sm:px-3"
             >
               <LogOut className="h-3.5 w-3.5" />
-              {isLoading ? 'Odjavljam...' : 'Odjava'}
-            </button>
+              <span className="hidden sm:inline">{isLoading ? 'Odjavljam...' : 'Odjava'}</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -281,6 +375,25 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
               </div>
             </div>
 
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-semibold text-muted-foreground">AI AKCIJE</p>
+              <div className="mt-2 grid gap-2">
+                {quickAiActions.map((action) => (
+                  <Button
+                    key={action.id}
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => handleAiAction(action)}
+                    disabled={aiLoading}
+                  >
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    {action.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleAiSubmit} className="space-y-2">
               <label className="text-sm font-medium" htmlFor="ai-sidebar-prompt">
                 Vprašajte AI (CRM, ponudbe, komunikacija)
@@ -293,7 +406,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
                 className="min-h-28 w-full rounded-md border p-2 text-sm"
               />
               <Button type="submit" disabled={aiLoading || !prompt.trim()} className="w-full gap-2">
-                <Send className="h-4 w-4" />
+                {aiLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 {aiLoading ? 'AI razmišlja...' : 'Pošlji AI pomočniku'}
               </Button>
             </form>
