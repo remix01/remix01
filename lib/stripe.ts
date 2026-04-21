@@ -87,18 +87,23 @@ export function constructStripeEvent(
   payload: string | Buffer,
   sig: string
 ): Stripe.Event {
-  // Vedno poskusi regular secret najprej
-  try {
-    return stripe.webhooks.constructEvent(payload, sig, env.STRIPE_WEBHOOK_SECRET)
-  } catch (regularErr) {
-    // Če je konfiguriran Connect secret, poskusi z njim (za Connect/v2 evente)
-    if (env.STRIPE_CONNECT_WEBHOOK_SECRET) {
-      return stripe.webhooks.constructEvent(
-        payload,
-        sig,
-        env.STRIPE_CONNECT_WEBHOOK_SECRET
-      )
+  const configuredSecrets = [
+    env.STRIPE_WEBHOOK_SECRET,
+    env.STRIPE_CONNECT_WEBHOOK_SECRET,
+    ...env.STRIPE_WEBHOOK_SECRETS.split(','),
+  ]
+    .map((secret) => secret.trim())
+    .filter(Boolean)
+
+  let lastError: unknown = new Error('[Stripe] No webhook signing secret configured')
+
+  for (const secret of Array.from(new Set(configuredSecrets))) {
+    try {
+      return stripe.webhooks.constructEvent(payload, sig, secret)
+    } catch (err) {
+      lastError = err
     }
-    throw regularErr
   }
+
+  throw lastError
 }

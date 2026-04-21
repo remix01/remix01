@@ -83,10 +83,7 @@ export async function GET(req: NextRequest) {
       try {
         console.log(`[v0] Expiring task: ${task.id}`)
 
-        const { error: expireError } = await supabaseAdmin.rpc('expire_task', {
-          task_id: task.id,
-          reason: 'SLA deadline passed - automated expiry',
-        })
+        const { error: expireError } = await expireTask(task.id)
 
         if (expireError) {
           console.error(`[v0] Failed to expire task ${task.id}:`, expireError)
@@ -157,6 +154,24 @@ async function logAuditEvent(
     console.error('[v0] Error logging audit event:', err)
     // Don't throw - audit logging failure shouldn't stop expiry
   }
+}
+
+async function expireTask(taskId: string) {
+  const firstTry = await supabaseAdmin.rpc('expire_task', {
+    task_id: taskId,
+    reason: 'SLA deadline passed - automated expiry',
+  })
+
+  if (
+    firstTry.error &&
+    (firstTry.error.message?.includes('function') ||
+      firstTry.error.message?.includes('does not exist') ||
+      firstTry.error.message?.includes('No function matches'))
+  ) {
+    return supabaseAdmin.rpc('expire_task', { task_id: taskId })
+  }
+
+  return firstTry
 }
 
 // Also export POST for testing
