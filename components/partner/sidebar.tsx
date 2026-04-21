@@ -108,15 +108,30 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
   const handleLogout = async () => {
     setIsLoading(true)
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      const { error } = await supabase.auth.signOut()
-      if (error) console.error('Logout error:', error)
-      router.replace('/partner-auth/login')
-      router.refresh()
+      const [logoutResponse, signOutResult] = await Promise.allSettled([
+        fetch('/api/auth/logout', { method: 'POST' }),
+        supabase.auth.signOut(),
+      ])
+
+      if (logoutResponse.status === 'rejected') {
+        console.error('Logout API error:', logoutResponse.reason)
+      }
+
+      if (signOutResult.status === 'fulfilled' && signOutResult.value.error) {
+        console.error('Logout client error:', signOutResult.value.error)
+      }
+
+      if (signOutResult.status === 'rejected') {
+        console.error('Logout client error:', signOutResult.reason)
+      }
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
+      setIsMobileMenuOpen(false)
+      setIsAiSidebarOpen(false)
       setIsLoading(false)
+      router.replace('/partner-auth/login')
+      router.refresh()
     }
   }
 

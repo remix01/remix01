@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -24,6 +24,32 @@ export function RegistracijaForm() {
   const [locationCity, setLocationCity] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [isOAuthUser, setIsOAuthUser] = useState(false)
+
+  useEffect(() => {
+    const preloadOAuthUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      setIsOAuthUser(true)
+      setEmail(user.email || '')
+
+      const oauthName =
+        (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name) ||
+        (typeof user.user_metadata?.name === 'string' && user.user_metadata.name) ||
+        ''
+
+      if (oauthName) {
+        setFullName(oauthName)
+      }
+    }
+
+    void preloadOAuthUser()
+  }, [supabase])
 
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
@@ -34,11 +60,11 @@ export function RegistracijaForm() {
       setError('Email je obvezan.')
       return false
     }
-    if (!password.trim()) {
+    if (!isOAuthUser && !password.trim()) {
       setError('Geslo je obvezno.')
       return false
     }
-    if (password.length < 8) {
+    if (!isOAuthUser && password.length < 8) {
       setError('Geslo mora biti najmanj 8 znakov.')
       return false
     }
@@ -60,34 +86,45 @@ export function RegistracijaForm() {
     setLoading(true)
 
     try {
-      // Sign up with email and password
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      })
+      const {
+        data: { user: existingUser },
+      } = await supabase.auth.getUser()
 
-      if (signUpError) {
-        setError(signUpError.message || 'Napaka pri registraciji. Poskusite znova.')
-        setLoading(false)
-        return
-      }
+      let authUserId = existingUser?.id || null
+      let profileEmail = existingUser?.email || email
 
-      if (!data.user) {
-        setError('Napaka pri registraciji. Poskusite znova.')
-        setLoading(false)
-        return
+      if (!authUserId) {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        })
+
+        if (signUpError) {
+          setError(signUpError.message || 'Napaka pri registraciji. Poskusite znova.')
+          setLoading(false)
+          return
+        }
+
+        if (!data.user) {
+          setError('Napaka pri registraciji. Poskusite znova.')
+          setLoading(false)
+          return
+        }
+
+        authUserId = data.user.id
+        profileEmail = data.user.email || email
       }
 
       // 1. Ustvari profile record
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: data.user.id,
+        .upsert({
+          id: authUserId,
           role: selectedRole,
           full_name: fullName,
           phone: phone || null,
           location_city: locationCity,
-          email: email,
+          email: profileEmail,
         })
 
       if (profileError) {
@@ -100,8 +137,8 @@ export function RegistracijaForm() {
       if (selectedRole === 'obrtnik') {
         const { error: obrtnikError } = await supabase
           .from('obrtnik_profiles')
-          .insert({
-            id: data.user.id,
+          .upsert({
+            id: authUserId,
             business_name: fullName,
             is_verified: false,
             verification_status: 'pending',
@@ -129,6 +166,28 @@ export function RegistracijaForm() {
       setError('Napaka pri registraciji. Poskusite znova.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGoogleRegister = async () => {
+    setError('')
+    setGoogleLoading(true)
+
+    try {
+      const { error: googleError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+        },
+      })
+
+      if (googleError) {
+        setError('Google registracija trenutno ni na voljo. Poskusite znova.')
+        setGoogleLoading(false)
+      }
+    } catch {
+      setError('Napaka pri Google registraciji. Poskusite znova.')
+      setGoogleLoading(false)
     }
   }
 
@@ -205,19 +264,25 @@ export function RegistracijaForm() {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="password">Geslo (min. 8 znakov)</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
-            required
-            disabled={loading}
-          />
-        </div>
+        {!isOAuthUser ? (
+          <div className="space-y-2">
+            <Label htmlFor="password">Geslo (min. 8 znakov)</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={8}
+              required
+              disabled={loading}
+            />
+          </div>
+        ) : (
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            Google račun je že potrjen. Za dokončanje registracije dopolnite profil.
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="phone">Telefon</Label>
@@ -256,6 +321,15 @@ export function RegistracijaForm() {
           disabled={loading}
         >
           {loading ? 'Registriram se...' : 'Ustvari račun'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleRegister}
+          disabled={loading || googleLoading}
+        >
+          {googleLoading ? 'Preusmerjam na Google...' : 'Registracija z Google računom'}
         </Button>
       </form>
 
