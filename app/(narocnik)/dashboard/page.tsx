@@ -12,13 +12,6 @@ export const metadata = {
 }
 
 export default async function DashboardPage() {
-  const normalizeRole = (role: string | null | undefined): 'narocnik' | 'obrtnik' | null => {
-    if (!role) return null
-    if (role === 'obrtnik' || role === 'partner') return 'obrtnik'
-    if (role === 'narocnik' || role === 'stranka') return 'narocnik'
-    return null
-  }
-
   const supabase = await createClient()
   
   // Get current user
@@ -45,10 +38,9 @@ export default async function DashboardPage() {
     role: string | null
     subscription_tier: 'start' | 'pro' | 'elite' | null
   } | null
-  const normalizedRole = normalizeRole(profile?.role)
 
-  if (!profile || normalizedRole !== 'narocnik') {
-    redirect(normalizedRole === 'obrtnik' ? '/partner-dashboard' : '/registracija')
+  if (!profile || profile.role !== 'narocnik') {
+    redirect(profile?.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
   }
 
   // Fetch povprasevanja
