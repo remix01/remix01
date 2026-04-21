@@ -27,6 +27,13 @@ function PrijavaContent() {
   const [obrtnikError, setObrtnikError] = useState('')
   const [obrtnikLoading, setObrtnikLoading] = useState(false)
 
+  const normalizeRole = (role: string | null | undefined): 'narocnik' | 'obrtnik' | null => {
+    if (!role) return null
+    if (role === 'obrtnik' || role === 'partner') return 'obrtnik'
+    if (role === 'narocnik' || role === 'stranka') return 'narocnik'
+    return null
+  }
+
   const routeAuthenticatedUser = async (userId: string) => {
     const supabase = createClient()
 
@@ -60,13 +67,16 @@ function PrijavaContent() {
       .maybeSingle()
 
     const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
+    const normalizedRole = normalizeRole(profile?.role)
 
-    if (!profile) {
-      router.push('/registracija')
+    if (normalizedRole === 'obrtnik') {
+      router.push('/partner-dashboard')
       return
     }
 
-    router.push(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+    // Fallback to customer dashboard to avoid false redirects to registration
+    // for legacy roles (`stranka`) or temporarily missing profile reads.
+    router.push('/dashboard')
   }
 
   const handleGoogleLogin = async () => {
