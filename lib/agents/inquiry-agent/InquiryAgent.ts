@@ -140,7 +140,7 @@ export class InquiryAgent extends BaseAgent {
             title: payload.title,
             description: payload.description,
             budget_cents: payload.budget ? Math.round(payload.budget * 100) : null,
-            status: 'open',
+            status: 'odprto',
             created_at: new Date().toISOString(),
           })
           .select()

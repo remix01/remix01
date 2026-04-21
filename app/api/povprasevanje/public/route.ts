@@ -228,9 +228,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
     }
 
+    const normalizedLocation = await resolveLocationName(lokacija)
+
     const isDuplicate = await hasRecentDuplicateInquiry({
       storitev,
-      lokacija,
+      lokacija: normalizedLocation,
       stranka_email,
       stranka_telefon,
     })
@@ -243,7 +245,6 @@ export async function POST(request: NextRequest) {
     }
 
     const category_id = await resolveCategoryIdFromService(storitev)
-    const normalizedLocation = await resolveLocationName(lokacija)
 
     // Primary schema (current app usage)
     const modernInsertData: Record<string, string | null> = {
@@ -285,7 +286,7 @@ export async function POST(request: NextRequest) {
       // Legacy schema compatibility (as defined in supabase/schema.sql)
       const legacyInsertData: Record<string, string> = {
         storitev,
-        lokacija,
+        lokacija: normalizedLocation,
         opis: opis || '',
         status: 'novo',
         stranka_ime: stranka_ime || 'Neznana stranka',
