@@ -135,10 +135,14 @@ export const partnerService = {
     const profileSelectVariants = [
       'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),service_areas(city,is_active),obrtnik_categories(category:categories(name))',
       'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),obrtnik_categories(category:categories(name))',
+      'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),service_areas(city,is_active)',
+      'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name)',
       'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name),service_areas(city,is_active),obrtnik_categories(category:categories(name))',
       'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name),obrtnik_categories(category:categories(name))',
-      'id,business_name,phone,avg_rating,is_verified,profiles!inner(full_name),service_areas(city,is_active)',
-      'id,business_name,phone,avg_rating,is_verified,profiles!inner(full_name)',
+      'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name),service_areas(city,is_active)',
+      'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name)',
+      'id,business_name,phone,avg_rating,is_verified,profiles!inner(full_name),service_areas(city,is_active),obrtnik_categories(category:categories(name))',
+      'id,business_name,phone,avg_rating,is_verified,profiles!inner(full_name),obrtnik_categories(category:categories(name))',
     ]
 
     let activeProfilesResult: Awaited<ReturnType<typeof runProfilesQuery>> | null = null
@@ -167,11 +171,15 @@ export const partnerService = {
               .map((entry: any) => entry?.category?.name)
               .filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
           : []
-        const rowSpecialnosti = Array.isArray(row.specialties)
+        const rawSpecialnosti = Array.isArray(row.specialties)
           ? row.specialties
           : Array.isArray(row.specialnosti)
             ? row.specialnosti
             : categorySpecialnosti
+        const rowSpecialnosti = rawSpecialnosti
+          .filter((value: unknown): value is string => typeof value === 'string')
+          .map((value: string) => value.trim())
+          .filter((value: string) => value.length > 0)
         const lokacije = Array.isArray(row.service_areas)
           ? row.service_areas
               .filter((area: any) => area?.is_active !== false)
