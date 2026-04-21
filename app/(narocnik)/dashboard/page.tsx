@@ -21,19 +21,26 @@ export default async function DashboardPage() {
   }
 
   // Fetch user profile to get full name
-  const { data: profileData } = await supabase
+  const { data: profileDataById } = await supabase
     .from('profiles')
     .select('full_name, role, subscription_tier')
     .eq('id', user.id)
     .maybeSingle()
-  const profile = profileData as {
+
+  const { data: profileDataByAuthUserId } = await supabase
+    .from('profiles')
+    .select('full_name, role, subscription_tier')
+    .eq('auth_user_id', user.id)
+    .maybeSingle()
+
+  const profile = (profileDataById ?? profileDataByAuthUserId) as {
     full_name: string | null
     role: string | null
     subscription_tier: 'start' | 'pro' | 'elite' | null
   } | null
 
   if (!profile || profile.role !== 'narocnik') {
-    redirect('/partner-dashboard')
+    redirect(profile?.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
   }
 
   // Fetch povprasevanja
