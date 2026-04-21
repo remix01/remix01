@@ -23,6 +23,14 @@ const __dir = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.join(__dir, '..')
 const projectId = 'whabaeatixtymbccwigu'
 
+function getCurrentBranch() {
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf-8' }).trim()
+  } catch {
+    return 'HEAD'
+  }
+}
+
 console.log('🚀 LiftGO Migration Helper\n')
 
 const steps = [
@@ -90,13 +98,14 @@ const steps = [
     title: 'Push changes',
     action: () => {
       try {
-        console.log('   🚀 Pushing to origin claude/fix-dashboard-issues-esWdN...')
-        execSync('git push -u origin claude/fix-dashboard-issues-esWdN', { cwd: projectRoot })
+        const branch = getCurrentBranch()
+        console.log(`   🚀 Pushing to origin ${branch}...`)
+        execSync(`git push -u origin ${branch}`, { cwd: projectRoot })
         console.log('   ✅ Changes pushed')
         return true
       } catch (error) {
         console.warn('   ⚠️  Push might have failed')
-        console.warn('   💡 Try manually: git push -u origin claude/fix-dashboard-issues-esWdN')
+        console.warn('   💡 Try manually: git push -u origin <your-branch>')
         return true
       }
     }
