@@ -49,7 +49,7 @@ function StripeReturnContent() {
       const response = await fetch('/api/stripe/connect/create-onboarding-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: 'existing' })
+        body: JSON.stringify({ accountId: stripeStatus?.accountId })
       })
 
       if (!response.ok) throw new Error('Failed to create link')

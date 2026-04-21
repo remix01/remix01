@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const requestSchema = z.object({
-  accountId: z.string(),
+  accountId: z.string().optional(),
 })
 
 export async function POST(request: Request) {
@@ -46,11 +46,12 @@ export async function POST(request: Request) {
       )
     }
 
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
     const validatedData = requestSchema.parse(body)
+    const accountId = validatedData.accountId ?? craftworkerProfile.stripe_account_id
 
     // Verify the account ID matches the user's account
-    if (validatedData.accountId !== craftworkerProfile.stripe_account_id) {
+    if (accountId !== craftworkerProfile.stripe_account_id) {
       return NextResponse.json(
         { error: 'Account ID mismatch' },
         { status: 403 }
@@ -58,17 +59,20 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = env.NEXT_PUBLIC_APP_URL
+    const account = await stripe.accounts.retrieve(accountId)
+    const onboardingLinkType = account.details_submitted ? 'account_update' : 'account_onboarding'
 
     // Create account link
     const accountLink = await stripe.accountLinks.create({
-      account: validatedData.accountId,
+      account: accountId,
       refresh_url: `${baseUrl}/dashboard/stripe-return?refresh=true`,
       return_url: `${baseUrl}/dashboard/stripe-return?success=true`,
-      type: 'account_onboarding',
+      type: onboardingLinkType,
     })
 
     return NextResponse.json({
-      url: accountLink.url
+      url: accountLink.url,
+      type: onboardingLinkType,
     })
 
   } catch (error) {
