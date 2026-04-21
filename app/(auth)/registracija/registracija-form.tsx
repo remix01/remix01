@@ -24,6 +24,7 @@ export function RegistracijaForm() {
   const [locationCity, setLocationCity] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
@@ -129,6 +130,28 @@ export function RegistracijaForm() {
       setError('Napaka pri registraciji. Poskusite znova.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGoogleRegister = async () => {
+    setError('')
+    setGoogleLoading(true)
+
+    try {
+      const { error: googleError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+        },
+      })
+
+      if (googleError) {
+        setError('Google registracija trenutno ni na voljo. Poskusite znova.')
+        setGoogleLoading(false)
+      }
+    } catch {
+      setError('Napaka pri Google registraciji. Poskusite znova.')
+      setGoogleLoading(false)
     }
   }
 
@@ -256,6 +279,15 @@ export function RegistracijaForm() {
           disabled={loading}
         >
           {loading ? 'Registriram se...' : 'Ustvari račun'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleRegister}
+          disabled={loading || googleLoading}
+        >
+          {googleLoading ? 'Preusmerjam na Google...' : 'Registracija z Google računom'}
         </Button>
       </form>
 
