@@ -47,10 +47,12 @@ export async function updateSession(request: NextRequest) {
     if (error?.code === 'refresh_token_not_found' ||
         error?.message?.includes('Refresh Token Not Found') ||
         error?.message?.includes('Invalid Refresh Token')) {
-      // Clear invalid session and redirect to login
-      const response = NextResponse.redirect(
-        new URL('/partner-auth/login', request.url)
-      )
+      // Clear invalid session and redirect to the correct login screen
+      const isPartnerArea =
+        request.nextUrl.pathname.startsWith('/partner-dashboard') ||
+        request.nextUrl.pathname.startsWith('/obrtnik')
+      const loginPath = isPartnerArea ? '/partner-auth/login' : '/prijava'
+      const response = NextResponse.redirect(new URL(loginPath, request.url))
       response.cookies.delete('sb-access-token')
       response.cookies.delete('sb-refresh-token')
       return response

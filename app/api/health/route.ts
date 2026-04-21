@@ -42,7 +42,7 @@ export async function GET() {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Simple connectivity check - SELECT 1
-    const { error } = await supabase.from('User').select('id').limit(1).single()
+    const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle()
 
     // If no error or just no rows found, database is accessible
     if (!error || error.code === 'PGRST116') {

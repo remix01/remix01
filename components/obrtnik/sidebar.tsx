@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Briefcase, FileText, Star, User } from 'lucide-react'
+import { Home, Briefcase, FileText, BarChart3, User } from 'lucide-react'
 
 interface ObrtknikSidebarProps {
   fullName: string
@@ -12,18 +12,18 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
   const pathname = usePathname()
 
   const navLinks = [
-    { href: '/dashboard', icon: Home, label: 'Dashboard' },
-    { href: '/povprasevanja', icon: FileText, label: 'Povpraševanja' },
+    { href: '/obrtnik/dashboard', icon: Home, label: 'Dashboard' },
+    { href: '/obrtnik/povprasevanja', icon: FileText, label: 'Povpraševanja' },
     { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Moje ponudbe' },
-    { href: '/ocene', icon: Star, label: 'Ocene' },
-    { href: '/profil', icon: User, label: 'Profil' },
+    { href: '/obrtnik/statistike', icon: BarChart3, label: 'Statistika' },
+    { href: '/obrtnik/profil', icon: User, label: 'Profil' },
   ]
 
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Logo */}
       <div className="p-6 border-b">
-        <Link href="/dashboard">
+        <Link href="/obrtnik/dashboard">
           <h1 className="text-2xl font-bold text-primary">LiftGO</h1>
         </Link>
       </div>

@@ -21,11 +21,19 @@ export default async function ObrtknikDashboardPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  const { data: userProfile } = await supabase
+  const { data: userProfileById } = await supabase
     .from('profiles')
     .select('subscription_tier')
     .eq('id', user.id)
     .maybeSingle()
+
+  const { data: userProfileByAuthUserId } = await supabase
+    .from('profiles')
+    .select('subscription_tier')
+    .eq('auth_user_id', user.id)
+    .maybeSingle()
+
+  const userProfile = userProfileById ?? userProfileByAuthUserId
 
   if (!obrtnikProfile) {
     redirect('/partner-auth/login')
@@ -88,7 +96,7 @@ export default async function ObrtknikDashboardPage() {
 
       {/* Open povpraševanja banner */}
       {openPovprasevanjaCount && openPovprasevanjaCount > 0 && (
-        <Link href="/povprasevanja">
+        <Link href="/obrtnik/povprasevanja">
           <Card className="p-4 bg-primary/5 border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer">
             <p className="text-sm font-semibold text-primary">
               🔔 {openPovprasevanjaCount} povpraševanj čaka na vašo ponudbo →
@@ -171,13 +179,13 @@ export default async function ObrtknikDashboardPage() {
             </Card>
           </Link>
 
-          <Link href="/obrtnik/ocene">
+          <Link href="/obrtnik/statistike">
             <Card className="p-6 min-w-[160px] hover:shadow-lg transition-shadow">
               <div className="flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
                   <Star className="w-6 h-6 text-yellow-600" />
                 </div>
-                <p className="text-sm font-medium text-gray-900">Ocene</p>
+                <p className="text-sm font-medium text-gray-900">Statistika</p>
               </div>
             </Card>
           </Link>

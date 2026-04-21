@@ -155,10 +155,10 @@ export interface Notification {
 // ── Admin ─────────────────────────────────────
 export interface AdminUser {
   id: string
-  user_id: string
+  auth_user_id: string
   ime: string
   email: string
-  vloga: 'admin' | 'superadmin'
+  vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
   aktiven: boolean
   created_at: string
 }
