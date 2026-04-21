@@ -195,20 +195,20 @@ function PartnerDashboardInner() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-[100dvh] overflow-hidden bg-background">
       <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+      <main className="min-w-0 flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-4 md:p-6 lg:p-8">
           {/* Header with business name and subscription badge */}
-          <div className="mb-8 flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">{partner?.business_name || 'Moj portal'}</h1>
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold text-foreground sm:text-3xl">{partner?.business_name || 'Moj portal'}</h1>
               <p className="text-muted-foreground mt-1">
                 {partner?.is_verified && '✓ '} Dobrodošli nazaj
               </p>
             </div>
             {partner?.subscription_tier && (
-              <div className="text-sm font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">
+              <div className="w-fit text-sm font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">
                 {partner.subscription_tier === 'elite' ? 'ELITE plan' : partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
               </div>
             )}
