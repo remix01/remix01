@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -19,12 +19,115 @@ function PrijavaContent() {
   const [strankaPassword, setStrankaPassword] = useState('')
   const [strankaError, setStrankaError] = useState('')
   const [strankaLoading, setStrankaLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   // --- Obrtnik state ---
   const [obrtnikEmail, setObrtnikEmail] = useState('')
   const [obrtnikPassword, setObrtnikPassword] = useState('')
   const [obrtnikError, setObrtnikError] = useState('')
   const [obrtnikLoading, setObrtnikLoading] = useState(false)
+
+  const routeAuthenticatedUser = async (userId: string) => {
+    const supabase = createClient()
+
+    const redirectTo = searchParams.get('redirectTo')
+    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
+      router.push(redirectTo)
+      return
+    }
+
+    let adminRes = await fetch('/api/admin/me')
+    if (!adminRes.ok) {
+      await new Promise(resolve => setTimeout(resolve, 300))
+      adminRes = await fetch('/api/admin/me')
+    }
+
+    if (adminRes.ok) {
+      router.push('/admin')
+      return
+    }
+
+    const { data: profileDataById } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const { data: profileDataByAuthUserId } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('auth_user_id', userId)
+      .maybeSingle()
+
+    const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
+
+    if (!profile) {
+      router.push('/registracija')
+      return
+    }
+
+    router.push(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+  }
+
+  const handleGoogleLogin = async () => {
+    setStrankaError('')
+    setGoogleLoading(true)
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+        },
+      })
+
+      if (error) {
+        setStrankaError('Google prijava trenutno ni na voljo. Poskusite znova.')
+        setGoogleLoading(false)
+      }
+    } catch {
+      setStrankaError('Napaka pri Google prijavi. Poskusite znova.')
+      setGoogleLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (searchParams.get('oauth') !== 'google') return
+
+    let active = true
+
+    const handleGoogleCallback = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!session?.user?.id) {
+          return
+        }
+
+        if (!active) return
+        setStrankaLoading(true)
+        await routeAuthenticatedUser(session.user.id)
+      } catch {
+        if (!active) return
+        setStrankaError('Google prijava ni uspela. Poskusite znova.')
+      } finally {
+        if (active) {
+          setStrankaLoading(false)
+          setGoogleLoading(false)
+        }
+      }
+    }
+
+    void handleGoogleCallback()
+
+    return () => {
+      active = false
+    }
+  }, [searchParams])
 
   const handleStrankaSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,53 +146,10 @@ function PrijavaContent() {
         return
       }
 
-      // Wait for session to be established before checking endpoints
-      // This prevents race conditions where cookies aren't set yet
       await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Preveri custom redirect
-      const redirectTo = searchParams.get('redirectTo')
-      if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
-        router.push(redirectTo)
-        return
-      }
-
-      // Preveri admin - retry logic in case session isn't ready
-      let adminRes = await fetch('/api/admin/me')
-      if (!adminRes.ok) {
-        // Retry once after a small delay
-        await new Promise(resolve => setTimeout(resolve, 300))
-        adminRes = await fetch('/api/admin/me')
-      }
-      
-      if (adminRes.ok) {
-        router.push('/admin')
-        return
-      }
-
-      // Preveri profil in preusmeri glede na vlogo
-      const { data: profileDataById } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .maybeSingle()
-
-      const { data: profileDataByAuthUserId } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('auth_user_id', data.user.id)
-        .maybeSingle()
-
-      const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
-
-      if (!profile) {
-        router.push('/registracija')
-        return
-      }
-
-      router.push(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+      await routeAuthenticatedUser(data.user.id)
     } catch {
-      setStrankaError('Napaka pri prijavi. Poskusite znova.')
+      router.push('/registracija')
     } finally {
       setStrankaLoading(false)
     }
@@ -192,6 +252,15 @@ function PrijavaContent() {
 
             <Button type="submit" className="w-full" disabled={strankaLoading}>
               {strankaLoading ? 'Prijavljam se...' : 'Prijava'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleLogin}
+              disabled={strankaLoading || googleLoading}
+            >
+              {googleLoading ? 'Preusmerjam na Google...' : 'Nadaljuj z Google računom'}
             </Button>
           </form>
 
