@@ -63,26 +63,43 @@ export function Navbar() {
           if (adminUser) {
             setDashboardPath('/admin')
           } else {
-            const { data: partner } = await supabase
-              .from('partners')
+            const { data: obrtnikProfile } = await supabase
+              .from('obrtnik_profiles')
               .select('id')
-              .eq('user_id', user.id)
+              .eq('id', user.id)
               .maybeSingle()
-            
-            if (partner) {
+
+            if (obrtnikProfile) {
               setDashboardPath('/partner-dashboard')
             } else {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', user.id)
+              const { data: partner } = await supabase
+                .from('partners')
+                .select('id')
+                .eq('user_id', user.id)
                 .maybeSingle()
-              const profile = profileData as { role: string | null } | null
 
-              if (profile?.role === 'obrtnik') {
-                setDashboardPath('/obrtnik/dashboard')
+              if (partner) {
+                setDashboardPath('/partner-dashboard')
+              } else {
+                const { data: profileById } = await supabase
+                  .from('profiles')
+                  .select('role')
+                  .eq('id', user.id)
+                  .maybeSingle()
+
+                const { data: profileByAuthUserId } = await supabase
+                  .from('profiles')
+                  .select('role')
+                  .eq('auth_user_id', user.id)
+                  .maybeSingle()
+
+                const profile = (profileById ?? profileByAuthUserId) as { role: string | null } | null
+
+                if (profile?.role === 'obrtnik') {
+                  setDashboardPath('/partner-dashboard')
+                }
+                // else ostane /dashboard (default za naročnika)
               }
-              // else ostane /dashboard (default za naročnika)
             }
           }
         }
