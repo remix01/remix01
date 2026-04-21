@@ -33,11 +33,16 @@ export function useAuth() {
         return
       }
 
-      const [profileRes, adminRes] = await Promise.all([
+      const [profileByIdRes, profileByAuthUserIdRes, adminRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('role')
           .eq('id', currentSession.user.id)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('role')
+          .eq('auth_user_id', currentSession.user.id)
           .maybeSingle(),
         supabase
           .from('admin_users')
@@ -47,7 +52,10 @@ export function useAuth() {
           .maybeSingle(),
       ])
 
-      const profileRole = (profileRes.data as { role?: string } | null)?.role ?? null
+      const profile =
+        (profileByIdRes.data as { role?: string } | null) ??
+        (profileByAuthUserIdRes.data as { role?: string } | null)
+      const profileRole = profile?.role ?? null
       const isAdmin = Boolean(adminRes.data)
 
       if (active) {

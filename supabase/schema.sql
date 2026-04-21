@@ -129,10 +129,12 @@ returns trigger as $$
 begin new.updated_at = now(); return new; end;
 $$ language plpgsql;
 
-create trigger if not exists obrtniki_updated_at 
+drop trigger if exists obrtniki_updated_at on obrtniki;
+create trigger obrtniki_updated_at 
   before update on obrtniki
   for each row execute function update_updated_at();
 
-create trigger if not exists povprasevanja_updated_at 
+drop trigger if exists povprasevanja_updated_at on povprasevanja;
+create trigger povprasevanja_updated_at 
   before update on povprasevanja
   for each row execute function update_updated_at();

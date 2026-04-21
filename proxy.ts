@@ -194,8 +194,8 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(loginUrl)
       }
       
-      // ✅ Admin is verified — skip all other checks and allow request
-      return NextResponse.next()
+      // ✅ Admin is verified — keep supabaseResponse so auth cookies stay in sync
+      return supabaseResponse
     } catch (e) {
       console.error('[v0] Admin check error:', e instanceof Error ? e.message : String(e))
       return NextResponse.redirect(

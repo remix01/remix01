@@ -28,11 +28,20 @@ export default async function NarocnikLayout({
   }
 
   // Fetch profile with error handling
-  const { data: profileData, error: profileError } = await supabase
+  const { data: profileDataById, error: profileByIdError } = await supabase
     .from('profiles')
     .select('role, full_name')
     .eq('id', user.id)
     .maybeSingle()
+
+  const { data: profileDataByAuthUserId, error: profileByAuthUserIdError } = await supabase
+    .from('profiles')
+    .select('role, full_name')
+    .eq('auth_user_id', user.id)
+    .maybeSingle()
+
+  const profileData = profileDataById ?? profileDataByAuthUserId
+  const profileError = profileByIdError ?? profileByAuthUserIdError
   const profile = profileData as { role: string | null; full_name: string | null } | null
 
   // If profile doesn't exist or user is not narocnik, redirect appropriately
@@ -43,7 +52,7 @@ export default async function NarocnikLayout({
 
   if (profile.role !== 'narocnik') {
     console.log(`[v0] Narocnik layout: User has role ${profile.role}, not narocnik, redirecting`)
-    redirect(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+    redirect(profile.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
   }
 
   return (

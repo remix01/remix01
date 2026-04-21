@@ -131,11 +131,20 @@ function PartnerDashboardInner() {
         .eq('id', partnerId)
         .maybeSingle()
 
-      const { data: userProfile, error: userError } = await supabase
+      const { data: userProfileById, error: userByIdError } = await supabase
         .from('profiles')
         .select('phone')
         .eq('id', partnerId)
         .maybeSingle()
+
+      const { data: userProfileByAuthUserId, error: userByAuthUserIdError } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('auth_user_id', partnerId)
+        .maybeSingle()
+
+      const userProfile = userProfileById ?? userProfileByAuthUserId
+      const userError = userByIdError ?? userByAuthUserIdError
 
       const { count: offersCount, error: offersError } = await supabase
         .from('ponudbe')
