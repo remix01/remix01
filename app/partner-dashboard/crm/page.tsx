@@ -8,7 +8,8 @@ import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, DollarSign, TrendingUp, Clock, Users, AlertCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Calendar, DollarSign, TrendingUp, Clock, Users, AlertCircle, Images, Video, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 
 interface CRMStats {
@@ -54,6 +55,10 @@ export default function CRMPage() {
   })
   const [leads, setLeads] = useState<Lead[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [mediaUrl, setMediaUrl] = useState('')
+  const [mediaAlbum, setMediaAlbum] = useState<Array<{ id: string; url: string; addedAt: string }>>([])
+  const [videoDiagnosis, setVideoDiagnosis] = useState('')
+  const [videoDiagnosisLoading, setVideoDiagnosisLoading] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -213,6 +218,46 @@ export default function CRMPage() {
     }
   }
 
+  const handleAddMedia = () => {
+    if (!mediaUrl.trim()) return
+
+    setMediaAlbum((prev) => [
+      {
+        id: crypto.randomUUID(),
+        url: mediaUrl.trim(),
+        addedAt: new Date().toISOString(),
+      },
+      ...prev,
+    ])
+    setMediaUrl('')
+  }
+
+  const handleVideoDiagnosis = async () => {
+    const latestUrl = mediaAlbum[0]?.url
+    if (!latestUrl) return
+
+    setVideoDiagnosisLoading(true)
+    setVideoDiagnosis('')
+    try {
+      const res = await fetch('/api/ai/analyze-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: latestUrl,
+          inquiryText: 'Diagnoza vsebine za CRM naslednji korak in pripravo ponudbe.',
+        }),
+      })
+
+      const data = await res.json()
+      setVideoDiagnosis(data?.analysis || 'AI analiza ni bila vrnjena.')
+    } catch (error) {
+      console.error('[v0] video diagnosis failed', error)
+      setVideoDiagnosis('Analiza ni uspela. Poskusite znova čez nekaj trenutkov.')
+    } finally {
+      setVideoDiagnosisLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -257,6 +302,58 @@ export default function CRMPage() {
               Upravljajte svoje stranke in ponudbe
             </p>
           </div>
+
+          <Card className="mb-8 border-primary/20 bg-primary/5 p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">CRM Media Center (foto album + video diagnoza)</h2>
+            </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Dodajte URL slike ali videa stranke, nato zaženite AI diagnozo za hitrejši odgovor in pripravo ponudbe.
+            </p>
+
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+              <Input
+                placeholder="https://... (slika ali video stranke)"
+                value={mediaUrl}
+                onChange={(e) => setMediaUrl(e.target.value)}
+              />
+              <Button type="button" onClick={handleAddMedia} className="gap-2">
+                <Images className="h-4 w-4" />
+                Dodaj v album
+              </Button>
+              <Button type="button" variant="outline" onClick={handleVideoDiagnosis} disabled={videoDiagnosisLoading || mediaAlbum.length === 0} className="gap-2">
+                <Video className="h-4 w-4" />
+                {videoDiagnosisLoading ? 'Analiziram...' : 'Video diagnoza'}
+              </Button>
+            </div>
+
+            {mediaAlbum.length > 0 && (
+              <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                {mediaAlbum.slice(0, 6).map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border bg-background p-3 text-sm hover:bg-muted"
+                  >
+                    <p className="truncate font-medium">{item.url}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Dodano: {new Date(item.addedAt).toLocaleString()}
+                    </p>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {videoDiagnosis && (
+              <div className="rounded-md border bg-background p-3">
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">AI DIAGNOZA</p>
+                <p className="whitespace-pre-wrap text-sm">{videoDiagnosis}</p>
+              </div>
+            )}
+          </Card>
 
           {/* Stats Bar */}
           <div className="grid gap-4 mb-8 md:grid-cols-5">
