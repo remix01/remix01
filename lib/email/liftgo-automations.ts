@@ -6,8 +6,10 @@
  */
 
 import {
+  sendEmail,
   sendTemplatedEmail,
   sendBatchEmails,
+  generateIdempotencyKey,
   generateBatchIdempotencyKey,
 } from './resend-utils'
 import {
@@ -487,18 +489,30 @@ export async function automationDailyReviewReminders(
   if (emails.length < 2) {
     // Single email
     const review = pendingReviews[0]
-    return sendTemplatedEmail({
+    const today = new Date().toISOString().split('T')[0]
+    const template = reviewRequestTemplate(
+      review.name,
+      review.providerName,
+      review.jobTitle,
+      appUrl
+    )
+
+    return sendEmail({
       to: review.email,
-      template: reviewRequestTemplate(
-        review.name,
-        review.providerName,
-        review.jobTitle,
-        appUrl
-      ),
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
       from: LIFTGO_EMAILS.NOREPLY,
       replyTo: LIFTGO_EMAILS.SUPPORT,
-      eventType: 'review-reminder',
-      entityId: review.email,
+      tags: [
+        { name: 'automation', value: 'review-reminder' },
+        { name: 'batch_type', value: 'daily' },
+        { name: 'sent_date', value: today },
+      ],
+      idempotencyKey: generateIdempotencyKey(
+        'review-reminder',
+        `${review.email}-${today}`
+      ),
     })
   }
 
@@ -584,11 +598,20 @@ export async function automationWeeklyProviderDigest(
   })
 
   if (emails.length < 2) {
-    // Send single email
-    return {
-      success: true,
-      message: 'Sent single provider digest',
-    }
+    const singleDigest = emails[0]
+    const weekStart = new Date()
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
+    const weekId = weekStart.toISOString().split('T')[0]
+    return sendEmail({
+      to: singleDigest.to,
+      subject: singleDigest.subject,
+      html: singleDigest.html,
+      tags: singleDigest.tags,
+      idempotencyKey: generateIdempotencyKey(
+        'weekly-digest',
+        `${providers[0].email}-${weekId}`
+      ),
+    })
   }
 
   const weekStart = new Date()
