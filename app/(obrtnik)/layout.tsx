@@ -49,7 +49,7 @@ export default async function ObrtknikLayout({
       <div className="hidden md:block md:w-64 md:fixed md:h-screen md:border-r z-30">
         <ObrtknikSidebar
           fullName={profile.business_name || 'Obrtnik'}
-          subscriptionTier={userProfile?.subscription_tier}
+          subscriptionTier={userProfile?.subscription_tier ?? undefined}
           unreadMessages={unreadMessages || 0}
         />
       </div>
