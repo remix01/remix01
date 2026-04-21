@@ -37,6 +37,7 @@ export async function GET() {
       return NextResponse.json({
         isComplete: false,
         hasAccount: false,
+        accountId: null,
         needsInfo: false,
         chargesEnabled: false,
         payoutsEnabled: false,
@@ -76,6 +77,7 @@ export async function GET() {
     return NextResponse.json({
       isComplete,
       hasAccount: true,
+      accountId: craftworkerProfile.stripe_account_id,
       needsInfo,
       chargesEnabled: account.charges_enabled ?? false,
       payoutsEnabled: account.payouts_enabled ?? false,
