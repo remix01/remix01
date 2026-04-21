@@ -28,14 +28,34 @@ export async function requireAdmin(allowedRoles?: AdminRole[]): Promise<AdminCon
 
   const jwtRole = String(user.app_metadata?.role || '').toLowerCase()
 
-  const { data: adminUser, error } = await supabaseAdmin
+  const { data: adminByAuthUserId, error: adminByAuthUserIdError } = await supabaseAdmin
     .from('admin_users')
     .select('id, vloga, aktiven')
     .eq('auth_user_id', user.id)
     .eq('aktiven', true)
     .maybeSingle()
 
-  if (error || !adminUser) {
+  if (adminByAuthUserIdError) {
+    throw new Error('FORBIDDEN')
+  }
+
+  let adminUser = adminByAuthUserId
+  if (!adminUser) {
+    const { data: adminByLegacyUserId, error: adminByLegacyUserIdError } = await supabaseAdmin
+      .from('admin_users')
+      .select('id, vloga, aktiven')
+      .eq('user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
+
+    if (adminByLegacyUserIdError) {
+      throw new Error('FORBIDDEN')
+    }
+
+    adminUser = adminByLegacyUserId
+  }
+
+  if (!adminUser) {
     throw new Error('FORBIDDEN')
   }
 

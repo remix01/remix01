@@ -119,24 +119,67 @@ export const partnerService = {
     }
 
     // Newer schema fallback where contractor data is stored in obrtnik_profiles.
-    let profileQuery = supabaseAdmin
-      .from('obrtnik_profiles')
-      .select('id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),service_areas(city,is_active)')
-      .order('avg_rating', { ascending: false })
+    const runProfilesQuery = async (selectColumns: string) => {
+      let profileQuery = supabaseAdmin
+        .from('obrtnik_profiles')
+        .select(selectColumns)
+        .order('avg_rating', { ascending: false })
 
-    if (!options?.includeUnverified) {
-      profileQuery = profileQuery.eq('is_verified', true)
+      if (!options?.includeUnverified) {
+        profileQuery = profileQuery.eq('is_verified', true)
+      }
+
+      return profileQuery
     }
 
-    if (options?.storitev) {
-      profileQuery = profileQuery.contains('specialties', [options.storitev])
+    const profileSelectVariants = [
+      'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),service_areas(city,is_active),obrtnik_categories(category:categories(name))',
+      'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),obrtnik_categories(category:categories(name))',
+      'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name),service_areas(city,is_active)',
+      'id,business_name,phone,avg_rating,is_verified,specialties,profiles!inner(full_name)',
+      'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name),service_areas(city,is_active),obrtnik_categories(category:categories(name))',
+      'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name),obrtnik_categories(category:categories(name))',
+      'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name),service_areas(city,is_active)',
+      'id,business_name,phone,avg_rating,is_verified,specialnosti,profiles!inner(full_name)',
+      'id,business_name,phone,avg_rating,is_verified,profiles!inner(full_name),service_areas(city,is_active),obrtnik_categories(category:categories(name))',
+      'id,business_name,phone,avg_rating,is_verified,profiles!inner(full_name),obrtnik_categories(category:categories(name))',
+    ]
+
+    let activeProfilesResult: Awaited<ReturnType<typeof runProfilesQuery>> | null = null
+    let lastCompatibilityError: any = null
+
+    for (const selectColumns of profileSelectVariants) {
+      const result = await runProfilesQuery(selectColumns)
+      if (!result.error) {
+        activeProfilesResult = result
+        break
+      }
+
+      if (!isSchemaCompatibilityError(result.error)) {
+        throw new ServiceError(result.error.message, 'DB_ERROR', 500)
+      }
+
+      lastCompatibilityError = result.error
     }
 
-    const { data: profileData, error: profileError } = await profileQuery
-    if (!profileError) {
-      const mapped = (profileData || []).map((row: any) => {
+    if (activeProfilesResult && !activeProfilesResult.error) {
+      const mapped = (activeProfilesResult.data || []).map((row: any) => {
         const fullName = row.profiles?.full_name || ''
         const [ime = '', ...rest] = fullName.trim().split(' ')
+        const categorySpecialnosti = Array.isArray(row.obrtnik_categories)
+          ? row.obrtnik_categories
+              .map((entry: any) => entry?.category?.name)
+              .filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
+          : []
+        const rawSpecialnosti = Array.isArray(row.specialties)
+          ? row.specialties
+          : Array.isArray(row.specialnosti)
+            ? row.specialnosti
+            : categorySpecialnosti
+        const rowSpecialnosti = rawSpecialnosti
+          .filter((value: unknown): value is string => typeof value === 'string')
+          .map((value: string) => value.trim())
+          .filter((value: string) => value.length > 0)
         const lokacije = Array.isArray(row.service_areas)
           ? row.service_areas
               .filter((area: any) => area?.is_active !== false)
@@ -150,7 +193,7 @@ export const partnerService = {
           podjetje: row.business_name ?? null,
           email: null,
           telefon: row.phone ?? null,
-          specialnosti: row.specialties ?? [],
+          specialnosti: rowSpecialnosti,
           lokacije,
           cena_min: null,
           cena_max: null,
@@ -162,17 +205,23 @@ export const partnerService = {
         }
       })
 
+      const byStoritev = options?.storitev
+        ? mapped.filter((item) =>
+            (item.specialnosti || []).some((spec: string) => spec.toLowerCase() === options.storitev!.toLowerCase())
+          )
+        : mapped
+
       if (options?.lokacija) {
         const targetLokacija = options.lokacija.trim().toLowerCase()
-        return mapped.filter((item) =>
+        return byStoritev.filter((item) =>
           (item.lokacije || []).some((city: string) => city.trim().toLowerCase() === targetLokacija)
         )
       }
 
-      return mapped
+      return byStoritev
     }
 
-    throw new ServiceError(profileError.message, 'DB_ERROR', 500)
+    throw new ServiceError(lastCompatibilityError?.message || 'Failed to load obrtniki', 'DB_ERROR', 500)
   },
 
   /**
