@@ -251,20 +251,14 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
     <>
       <div className="sticky top-0 z-30 border-b bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex items-center gap-2">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label="Odpri meni"
-                  onClick={() => setIsAiSidebarOpen(false)}
-                >
+                <Button type="button" variant="outline" size="icon" aria-label="Odpri meni">
                   <Menu className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[calc(100vw-2rem)] max-w-[22rem] p-0">
+              <SheetContent side="left" className="w-[88vw] max-w-sm p-0">
                 <div className="flex h-full flex-col bg-muted/50 p-5">
                   <SheetHeader className="mb-4 text-left">
                     <SheetTitle>Navigacija</SheetTitle>
@@ -280,26 +274,23 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
               </SheetContent>
             </Sheet>
 
-            <Link href="/partner-dashboard" className="flex min-w-0 flex-1 items-center gap-2">
+            <Link href="/partner-dashboard" className="flex min-w-0 items-center gap-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
                 <span className="text-sm font-bold text-primary-foreground">L</span>
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{partner.business_name || 'Moj portal'}</p>
                 <p className="hidden text-xs text-muted-foreground sm:block">{partner.subscription_tier.toUpperCase()}</p>
               </div>
             </Link>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => {
-                setIsMobileMenuOpen(false)
-                setIsAiSidebarOpen((prev) => !prev)
-              }}
+              onClick={() => setIsAiSidebarOpen((prev) => !prev)}
               aria-label="Odpri AI pomočnika"
             >
               <Bot className="h-4 w-4" />
@@ -365,20 +356,9 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
         {isAiSidebarOpen ? <X className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
       </button>
 
-      <button
-        type="button"
-        aria-label="Zapri AI pomočnika"
-        onClick={() => setIsAiSidebarOpen(false)}
-        className={`fixed inset-0 z-30 bg-black/40 transition-opacity duration-300 lg:hidden ${
-          isAiSidebarOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-        }`}
-      />
-
       <aside
-        className={`fixed inset-x-0 bottom-0 top-auto z-40 h-[85dvh] w-full transform-gpu rounded-t-2xl border-t bg-background shadow-xl transition-transform duration-300 lg:inset-y-0 lg:right-0 lg:h-full lg:max-w-sm lg:rounded-none lg:border-l lg:border-t-0 ${
-          isAiSidebarOpen
-            ? 'translate-y-0 lg:translate-x-0'
-            : 'translate-y-full lg:translate-x-full lg:translate-y-0'
+        className={`fixed inset-y-0 right-0 z-40 w-full max-w-sm border-l bg-background shadow-xl transition-transform duration-300 ${
+          isAiSidebarOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex h-full flex-col">
