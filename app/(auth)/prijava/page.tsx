@@ -68,12 +68,19 @@ function PrijavaContent() {
       }
 
       // Preveri profil in preusmeri glede na vlogo
-      const { data: profileData } = await supabase
+      const { data: profileDataById } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
-        .single()
-      const profile = profileData as { role: string | null } | null
+        .maybeSingle()
+
+      const { data: profileDataByAuthUserId } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('auth_user_id', data.user.id)
+        .maybeSingle()
+
+      const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
 
       if (!profile) {
         router.push('/registracija')
