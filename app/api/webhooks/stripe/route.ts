@@ -160,7 +160,7 @@ async function updateSubscriptionTier(
 }
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text()
+  const rawBody = Buffer.from(await request.arrayBuffer())
   const sig = request.headers.get('stripe-signature')
 
   if (!sig) {
