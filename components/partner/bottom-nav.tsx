@@ -52,7 +52,7 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-t bg-background px-2 lg:hidden">
-      {getPartnerMobilePrimaryNav.map((link) => (
+      {partnerMobilePrimaryNav.map((link) => (
         <Link
           key={link.href}
           href={link.href}
