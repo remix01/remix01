@@ -16,6 +16,10 @@ interface PovprasevanjeInsertPayload {
   created_at: string
 }
 
+interface ActivityApiResponse {
+  items?: HomeActivityItem[]
+}
+
 export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
   const [items, setItems] = useState<HomeActivityItem[]>(initialItems)
 
@@ -25,6 +29,20 @@ export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
   )
 
   useEffect(() => {
+    const refresh = async () => {
+      const response = await fetch('/api/home/activity', { cache: 'no-store' })
+      if (!response.ok) return
+
+      const data = (await response.json()) as ActivityApiResponse
+      if (Array.isArray(data.items)) {
+        setItems(data.items)
+      }
+    }
+
+    const interval = setInterval(() => {
+      void refresh()
+    }, 12000)
+
     let channel: ReturnType<NonNullable<ReturnType<typeof createClient>>['channel']> | null = null
     const supabase = createClient()
 
@@ -51,6 +69,7 @@ export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
     }
 
     return () => {
+      clearInterval(interval)
       if (channel && supabase) {
         supabase.removeChannel(channel)
       }
