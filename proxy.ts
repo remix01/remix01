@@ -27,9 +27,14 @@ export async function proxy(request: NextRequest) {
     return new NextResponse(null, { status: 404 })
   }
 
-  // Force canonical domain
+  // Force canonical domain — skip for server-to-server API calls
+  // (cron, webhooks, jobs use deployment preview URLs and must not be redirected)
   const host = request.headers.get('host') || ''
-  if (host.includes('vercel.app') && !host.includes('localhost')) {
+  const pathname = request.nextUrl.pathname
+  const isServerToServer = pathname.startsWith('/api/cron/') ||
+    pathname.startsWith('/api/webhooks/') ||
+    pathname.startsWith('/api/jobs/')
+  if (host.includes('vercel.app') && !host.includes('localhost') && !isServerToServer) {
     const url = request.nextUrl.clone()
     url.host = 'liftgo.net'
     url.protocol = 'https'
