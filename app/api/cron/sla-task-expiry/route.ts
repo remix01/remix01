@@ -1,9 +1,9 @@
 /**
  * SLA Task Expiry Cron Job
- * 
+ *
  * Runs periodically to find and expire tasks that have passed their SLA deadline.
  * Intended to be run via Vercel Cron or similar scheduler (every hour recommended).
- * 
+ *
  * Setup in vercel.json:
  * {
  *   "crons": [{
@@ -16,7 +16,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
-// Verify cron secret (optional but recommended)
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
   const cronSecret = process.env.CRON_SECRET
@@ -31,7 +30,6 @@ function verifyCronSecret(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   try {
-    // Verify cron authorization
     if (!verifyCronSecret(req)) {
       console.error('[v0] Unauthorized cron request')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -39,22 +37,14 @@ export async function GET(req: NextRequest) {
 
     console.log('[v0] SLA task expiry cron job started')
 
-    // Find all tasks that:
-    // 1. Are in a non-terminal state (not already expired, completed, or cancelled)
-    // 2. Have an SLA deadline
-    // 3. Have passed their SLA deadline
     const now = new Date().toISOString()
-
-    console.log('[v0] Querying for overdue tasks...')
 
     const { data: overdueTasks, error: queryError } = await supabaseAdmin
       .from('tasks')
-      // Keep the projection minimal: selecting non-existent columns on Supabase
-      // causes PostgREST to fail the whole query with a 500 response upstream.
-      .select('id, sla_deadline, status')
+      .select('id')
       .in('status', ['published', 'claimed', 'accepted', 'in_progress'])
-      .not('sla_deadline', 'is', null)
-      .lt('sla_deadline', now)
+      .not('sla_expires_at', 'is', null)
+      .lt('sla_expires_at', now)
 
     if (queryError) {
       console.error('[v0] Error querying overdue tasks:', queryError)
@@ -73,46 +63,45 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    console.log(`[v0] Found ${overdueTasks.length} overdue tasks to expire`)
+    const overdueIds = overdueTasks.map((t: { id: string }) => t.id)
+    console.log(`[v0] Found ${overdueIds.length} overdue tasks to expire`)
 
-    // Expire each task using the RPC function
-    const expiredIds: string[] = []
-    const failedIds: string[] = []
+    const { error: updateError } = await supabaseAdmin
+      .from('tasks')
+      .update({ status: 'expired' })
+      .in('id', overdueIds)
 
-    for (const task of overdueTasks) {
-      try {
-        console.log(`[v0] Expiring task: ${task.id}`)
+    if (updateError) {
+      console.error('[v0] Failed to expire tasks:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to expire tasks', details: updateError },
+        { status: 500 }
+      )
+    }
 
-        const { error: expireError } = await expireTask(task.id)
+    const { error: eventsError } = await supabaseAdmin
+      .from('task_events')
+      .insert(
+        overdueIds.map((id: string) => ({
+          task_id: id,
+          event_type: 'expired',
+          payload: { reason: 'SLA deadline passed - automated expiry' },
+        }))
+      )
 
-        if (expireError) {
-          console.error(`[v0] Failed to expire task ${task.id}:`, expireError)
-          failedIds.push(task.id)
-        } else {
-          console.log(`[v0] Successfully expired task: ${task.id}`)
-          expiredIds.push(task.id)
-
-          // Log audit event
-          await logAuditEvent(task.id, 'SLA expiry by cron job')
-        }
-      } catch (err) {
-        console.error(`[v0] Error expiring task ${task.id}:`, err)
-        failedIds.push(task.id)
-      }
+    if (eventsError) {
+      // Non-fatal: tasks are already expired
+      console.error('[v0] Failed to log task_events:', eventsError)
     }
 
     const summary = {
       success: true,
-      totalOverdue: overdueTasks.length,
-      expiredCount: expiredIds.length,
-      failedCount: failedIds.length,
-      expiredIds,
-      failedIds: failedIds.length > 0 ? failedIds : undefined,
-      message: `Expired ${expiredIds.length} of ${overdueTasks.length} overdue tasks`,
+      expiredCount: overdueIds.length,
+      expiredIds: overdueIds,
+      message: `Expired ${overdueIds.length} overdue tasks`,
     }
 
     console.log('[v0] SLA task expiry cron job completed:', summary)
-
     return NextResponse.json(summary)
   } catch (error) {
     console.error('[v0] SLA task expiry cron job failed:', error)
@@ -127,54 +116,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/**
- * Log audit event for task expiry
- */
-async function logAuditEvent(
-  taskId: string,
-  reason: string
-) {
-  try {
-    const { error } = await supabaseAdmin.from('audit_logs').insert({
-      table_name: 'tasks',
-      record_id: taskId,
-      action: 'UPDATE',
-      new_data: {
-        status: 'expired',
-        reason,
-      },
-      changed_by: 'system',
-      changed_at: new Date().toISOString(),
-    })
-
-    if (error) {
-      console.error('[v0] Failed to log audit event:', error)
-    }
-  } catch (err) {
-    console.error('[v0] Error logging audit event:', err)
-    // Don't throw - audit logging failure shouldn't stop expiry
-  }
-}
-
-async function expireTask(taskId: string) {
-  const firstTry = await supabaseAdmin.rpc('expire_task', {
-    task_id: taskId,
-    reason: 'SLA deadline passed - automated expiry',
-  })
-
-  if (
-    firstTry.error &&
-    (firstTry.error.message?.includes('function') ||
-      firstTry.error.message?.includes('does not exist') ||
-      firstTry.error.message?.includes('No function matches'))
-  ) {
-    return supabaseAdmin.rpc('expire_task', { task_id: taskId })
-  }
-
-  return firstTry
-}
-
-// Also export POST for testing
 export async function POST(req: NextRequest) {
   return GET(req)
 }
