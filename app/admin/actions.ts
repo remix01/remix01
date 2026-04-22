@@ -237,8 +237,9 @@ export async function getStranka(id: string): Promise<Stranka | null> {
     priimek: fullName.split(' ').slice(1).join(' ') || '',
     email: user.email,
     telefon: user.phone || undefined,
+    lokacija: user.location_city || undefined,
     createdAt: new Date(user.created_at),
-    status: 'AKTIVEN' as const,
+    status: user.is_suspended ? ('SUSPENDIRAN' as const) : ('AKTIVEN' as const),
     narocil: 0,
   }
 }
@@ -435,10 +436,131 @@ export async function deleteStranka(id: string) {
   revalidatePath('/admin/stranke')
 }
 
+export async function updateStranka(
+  id: string,
+  data: { ime?: string; priimek?: string; telefon?: string; lokacija?: string }
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+  const updates: Record<string, string | null> = {}
+  if (data.ime !== undefined || data.priimek !== undefined) {
+    const { data: existing } = await supabaseAdmin.from('profiles').select('full_name').eq('id', id).single()
+    const parts = (existing?.full_name || '').split(' ')
+    const newIme = data.ime ?? parts[0] ?? ''
+    const newPriimek = data.priimek ?? parts.slice(1).join(' ') ?? ''
+    updates.full_name = `${newIme} ${newPriimek}`.trim()
+  }
+  if (data.telefon !== undefined) updates.phone = data.telefon || null
+  if (data.lokacija !== undefined) updates.location_city = data.lokacija || null
+
+  const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/admin/stranke/${id}`)
+  return { success: true }
+}
+
 export async function deletePartner(id: string) {
   await ensureAdminAccess()
   await supabaseAdmin.from('obrtnik_profiles').delete().eq('id', id)
   revalidatePath('/admin/partnerji')
+}
+
+export async function updatePartner(
+  id: string,
+  data: { business_name?: string; telefon?: string; lokacija?: string; subscription_tier?: string }
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+  const obrtnikUpdates: Record<string, string | null> = {}
+  if (data.business_name !== undefined) obrtnikUpdates.business_name = data.business_name || null
+  if (data.subscription_tier !== undefined) obrtnikUpdates.subscription_tier = data.subscription_tier || null
+
+  const profileUpdates: Record<string, string | null> = {}
+  if (data.telefon !== undefined) profileUpdates.phone = data.telefon || null
+  if (data.lokacija !== undefined) profileUpdates.location_city = data.lokacija || null
+
+  const ops: Promise<any>[] = []
+  if (Object.keys(obrtnikUpdates).length)
+    ops.push(supabaseAdmin.from('obrtnik_profiles').update(obrtnikUpdates).eq('id', id))
+  if (Object.keys(profileUpdates).length)
+    ops.push(supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id))
+
+  const results = await Promise.all(ops)
+  const err = results.find((r) => r.error)?.error
+  if (err) return { success: false, error: err.message }
+  revalidatePath(`/admin/partnerji/${id}`)
+  return { success: true }
+}
+
+export async function getAdminPovprasevanjeDetail(id: string) {
+  await ensureAdminAccess()
+  const { data: row } = await supabaseAdmin
+    .from('povprasevanja')
+    .select('id, title, description, status, location_city, narocnik_id, category_id, urgency, budget_min, budget_max, preferred_date_from, preferred_date_to, assigned_to, admin_opomba')
+    .eq('id', id)
+    .single()
+  if (!row) return null
+
+  const [{ data: narocnik }, { data: category }, { data: obrtniki }] = await Promise.all([
+    row.narocnik_id
+      ? supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()
+      : Promise.resolve({ data: null }),
+    row.category_id
+      ? supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()
+      : Promise.resolve({ data: null }),
+    supabaseAdmin.from('obrtnik_profiles').select('id, business_name').eq('is_verified', true).order('business_name'),
+  ])
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    location_city: row.location_city,
+    category_id: row.category_id,
+    category_name: (category as any)?.name || '—',
+    urgency: row.urgency,
+    budget_min: row.budget_min,
+    budget_max: row.budget_max,
+    preferred_date_from: row.preferred_date_from,
+    preferred_date_to: row.preferred_date_to,
+    assigned_to: row.assigned_to,
+    admin_opomba: row.admin_opomba || '',
+    narocnik_id: row.narocnik_id,
+    narocnik_ime: (narocnik as any)?.full_name || '—',
+    narocnik_email: (narocnik as any)?.email || '—',
+    narocnik_telefon: (narocnik as any)?.phone || '',
+    obrtniki: (obrtniki || []) as { id: string; business_name: string }[],
+  }
+}
+
+export async function updatePovprasevanjeAdmin(
+  id: string,
+  data: {
+    status?: string
+    assigned_to?: string | null
+    urgency?: string
+    budget_min?: number | null
+    budget_max?: number | null
+    preferred_date_from?: string | null
+    preferred_date_to?: string | null
+    admin_opomba?: string
+  }
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+  const updates: Record<string, any> = {}
+  if (data.status !== undefined) updates.status = data.status
+  if (data.assigned_to !== undefined) updates.assigned_to = data.assigned_to || null
+  if (data.urgency !== undefined) updates.urgency = data.urgency
+  if (data.budget_min !== undefined) updates.budget_min = data.budget_min
+  if (data.budget_max !== undefined) updates.budget_max = data.budget_max
+  if (data.preferred_date_from !== undefined) updates.preferred_date_from = data.preferred_date_from || null
+  if (data.preferred_date_to !== undefined) updates.preferred_date_to = data.preferred_date_to || null
+  if (data.admin_opomba !== undefined) updates.admin_opomba = data.admin_opomba
+
+  const { error } = await supabaseAdmin.from('povprasevanja').update(updates).eq('id', id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/admin/povprasevanja/${id}`)
+  revalidatePath('/admin/povprasevanja')
+  return { success: true }
 }
 
 export async function reaktivirajPartnerja(id: string) {
