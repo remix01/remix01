@@ -1,28 +1,24 @@
 'use client'
 
-import { useMemo, useState, type ComponentType, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import {
   LogOut,
   BarChart3,
-  FileText,
-  Home,
-  User,
   TrendingUp,
   Zap,
-  Bell,
-  Menu,
   X,
   Bot,
   Send,
   MessageSquare,
   Sparkles,
   RefreshCw,
+  type LucideIcon,
 } from 'lucide-react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { getPartnerDesktopNav } from '@/components/partner/nav-config'
 
 interface PartnerSidebarProps {
   partner: {
@@ -31,12 +27,6 @@ interface PartnerSidebarProps {
     avg_rating: number
     is_verified: boolean
   }
-}
-
-interface PartnerNavItem {
-  href: string
-  icon: ComponentType<{ className?: string }>
-  label: string
 }
 
 interface PartnerAiAction {
@@ -51,32 +41,14 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
   const router = useRouter()
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [aiResponse, setAiResponse] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
 
-  const isProOrElite = partner.subscription_tier === 'pro' || partner.subscription_tier === 'elite'
+  const navItems = useMemo(() => getPartnerDesktopNav(partner.subscription_tier), [partner.subscription_tier])
 
-  const navItems: PartnerNavItem[] = useMemo(
-    () => [
-      { href: '/partner-dashboard', icon: Home, label: 'Domov' },
-      { href: '/partner-dashboard/povprasevanja', icon: FileText, label: 'Povpraševanja' },
-      ...(isProOrElite
-        ? [
-            { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM' },
-            { href: '/partner-dashboard/insights', icon: BarChart3, label: 'Insights' },
-            { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator ponudb' },
-          ]
-        : []),
-      { href: '/partner-dashboard/notifications', icon: Bell, label: 'Obvestila' },
-      { href: '/partner-dashboard/account', icon: User, label: 'Račun' },
-    ],
-    [isProOrElite]
-  )
-
-  const quickAiLinks: PartnerNavItem[] = [
+  const quickAiLinks: Array<{ href: string; icon: LucideIcon; label: string }> = [
     { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM orodja' },
     { href: '/partner-dashboard/insights', icon: BarChart3, label: 'Insights' },
     { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'Generator ponudb' },
@@ -127,7 +99,6 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
-      setIsMobileMenuOpen(false)
       setIsAiSidebarOpen(false)
       setIsLoading(false)
       router.replace('/partner-auth/login')
@@ -227,15 +198,12 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
     }
   }
 
-  const NavList = ({ closeOnNavigate = false }: { closeOnNavigate?: boolean }) => (
+  const NavList = () => (
     <nav className="mb-8 flex-1 space-y-2">
       {navItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
-          onClick={() => {
-            if (closeOnNavigate) setIsMobileMenuOpen(false)
-          }}
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
             isActive(item.href) ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-background'
           }`}
