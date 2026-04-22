@@ -109,16 +109,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // ── API ROUTES AUTH CHECK ───────────────────────────────
-  if (path.startsWith('/api/') && !path.startsWith('/api/public/')) {
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Nepooblaščen dostop - Prosim, se prijavite.' },
-        { status: 401 }
-      )
-    }
-  }
-
   // ── ADMIN API ZAŠČITA ───────────────────────────────────
   // Defense-in-depth: preveri admin_users za vse /api/admin/* klice.
   // Posamezni route-i z withAdminAuth/requireAdmin še vedno naredijo
@@ -131,7 +121,7 @@ export async function proxy(request: NextRequest) {
       const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
         .select('id, aktiven')
-        .eq('auth_user_id', user.id)
+        .or(`auth_user_id.eq.${user.id},user_id.eq.${user.id}`)
         .eq('aktiven', true)
         .maybeSingle()
 
