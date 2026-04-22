@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { env } from '@/lib/env'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { emailLimiter } from '@/lib/rate-limit/limiters'
 
 const RESEND_API_KEY = env.RESEND_API_KEY
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     if (!RESEND_API_KEY) {
       console.log('[v0] RESEND_API_KEY not configured, skipping email');
@@ -63,3 +65,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(emailLimiter, postHandler)

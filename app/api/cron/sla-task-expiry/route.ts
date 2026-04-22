@@ -16,13 +16,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
-// Verify cron secret (optional but recommended)
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
   const cronSecret = process.env.CRON_SECRET
 
   if (!cronSecret) {
-    console.warn('[v0] CRON_SECRET not configured - cron endpoint is public')
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[v0] CRON_SECRET not configured in production — request denied')
+      return false
+    }
     return true
   }
 

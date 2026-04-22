@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { type NextRequest, NextResponse } from 'next/server'
+import { validateCsrfOrigin, isCsrfExempt, csrfForbidden } from '@/lib/csrf'
 
 const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
   'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard', 'obrtnik', 'prijava', 'registracija',
@@ -95,14 +96,50 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
+  // ── CSRF ZAŠČITA ────────────────────────────────────────
+  // Preveri Origin header za vse mutacijske API klice
+  const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+  if (
+    path.startsWith('/api/') &&
+    MUTATION_METHODS.has(request.method) &&
+    !isCsrfExempt(path)
+  ) {
+    if (!validateCsrfOrigin(request)) {
+      return csrfForbidden()
+    }
+  }
+
   // ── API ROUTES AUTH CHECK ───────────────────────────────
-  // Protect all /api routes with auth validation
   if (path.startsWith('/api/') && !path.startsWith('/api/public/')) {
     if (!user) {
       return NextResponse.json(
         { error: 'Nepooblaščen dostop - Prosim, se prijavite.' },
         { status: 401 }
       )
+    }
+  }
+
+  // ── ADMIN API ZAŠČITA ───────────────────────────────────
+  // Defense-in-depth: preveri admin_users za vse /api/admin/* klice.
+  // Posamezni route-i z withAdminAuth/requireAdmin še vedno naredijo
+  // lastno preverjanje (role-based), to je samo varnostna mreža.
+  if (path.startsWith('/api/admin/')) {
+    if (!user) {
+      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    }
+    try {
+      const { data: adminUser } = await supabaseAdmin
+        .from('admin_users')
+        .select('id, aktiven')
+        .eq('auth_user_id', user.id)
+        .eq('aktiven', true)
+        .maybeSingle()
+
+      if (!adminUser) {
+        return NextResponse.json({ error: 'Prepovedano.' }, { status: 403 })
+      }
+    } catch {
+      return NextResponse.json({ error: 'Napaka pri preverjanju dostopa.' }, { status: 500 })
     }
   }
 
@@ -252,6 +289,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/api/:path*',
     '/:category((?!api|_next|icons|images|fonts|admin|dashboard|obrtnik|prijava|registracija)[^/]+)/:city',
     '/dashboard/:path*',
     '/povprasevanja/:path*',

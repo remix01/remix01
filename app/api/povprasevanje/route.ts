@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getOrCreateCategory } from '@/lib/dal/categories'
@@ -5,9 +6,10 @@ import { getOrCreateLocation } from '@/lib/dal/locations'
 import { geocodeLocation } from '@/lib/google/geocoding'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
-import { NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { inquiryLimiter } from '@/lib/rate-limit/limiters'
 
-export async function POST(req: Request) {
+async function postHandler(req: NextRequest) {
   try {
     // ── SECURITY: Verify user is authenticated ─────────────────────────────
     const supabase = await createClient()
@@ -191,6 +193,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(inquiryLimiter, postHandler)
 
 export async function GET(req: Request) {
   try {
