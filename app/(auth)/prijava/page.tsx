@@ -62,7 +62,26 @@ function PrijavaContent() {
     const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
 
     if (!profile) {
-      router.push('/registracija')
+      // User has an auth account but no profile record.
+      // Create a minimal profile from auth metadata so they can access their dashboard.
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        const meta = authUser.user_metadata || {}
+        const role = (['narocnik', 'obrtnik'].includes(meta.role as string)
+          ? meta.role
+          : 'narocnik') as 'narocnik' | 'obrtnik'
+        await supabase.from('profiles').insert({
+          id: userId,
+          email: authUser.email || null,
+          full_name: (meta.full_name as string) || null,
+          role,
+          phone: (meta.phone as string) || null,
+          location_city: (meta.location_city as string) || null,
+        })
+        router.push(role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+      } else {
+        router.push('/registracija')
+      }
       return
     }
 

@@ -19,6 +19,8 @@ export function Navbar() {
     const el = document.getElementById("oddaj-povprasevanje")
     if (el) {
       el.scrollIntoView({ behavior: "smooth" })
+    } else {
+      window.location.href = "/#oddaj-povprasevanje"
     }
   }
 

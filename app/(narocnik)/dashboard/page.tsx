@@ -39,8 +39,13 @@ export default async function DashboardPage() {
     subscription_tier: 'start' | 'pro' | 'elite' | null
   } | null
 
-  if (!profile || profile.role !== 'narocnik') {
-    redirect(profile?.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
+  if (!profile) {
+    // Auth user has no profile record — send them through login which will create one.
+    redirect('/prijava?redirectTo=/dashboard')
+  }
+
+  if (profile.role === 'obrtnik') {
+    redirect('/partner-dashboard')
   }
 
   // Fetch povprasevanja

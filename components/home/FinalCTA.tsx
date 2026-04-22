@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 
 export function FinalCTA() {
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-20 pt-12 lg:px-8">
+    <section id="oddaj-povprasevanje" className="scroll-mt-20 mx-auto max-w-7xl px-4 pb-20 pt-12 lg:px-8">
       <div className="rounded-3xl border bg-primary p-8 text-primary-foreground sm:p-12">
         <h2 className="text-3xl font-bold tracking-tight">Pridružite se tisočim zadovoljnim uporabnikom.</h2>
         <p className="mt-2 text-sm text-primary-foreground/85 sm:text-base">Oddajte povpraševanje ali razširite posel kot LiftGO partner.</p>
