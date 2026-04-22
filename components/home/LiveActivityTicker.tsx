@@ -39,6 +39,8 @@ export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
       }
     }
 
+    void refresh()
+
     const interval = setInterval(() => {
       void refresh()
     }, 12000)
@@ -64,6 +66,9 @@ export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
             const filtered = current.filter((entry) => entry.id !== item.id)
             return [item, ...filtered].slice(0, 8)
           })
+
+          // Keep server-backed path as source of truth for unauthenticated/public clients.
+          void refresh()
         })
         .subscribe()
     }
