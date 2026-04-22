@@ -30,22 +30,20 @@ function PrijavaContent() {
   const routeAuthenticatedUser = async (userId: string) => {
     const supabase = createClient()
 
-    const redirectTo = searchParams.get('redirectTo')
-    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
-      router.push(redirectTo)
-      return
-    }
-
+    // ── 1. Check admin ────────────────────────────────────────
     let adminRes = await fetch('/api/admin/me')
     if (!adminRes.ok) {
       await new Promise(resolve => setTimeout(resolve, 300))
       adminRes = await fetch('/api/admin/me')
     }
-
     if (adminRes.ok) {
       router.push('/admin')
       return
     }
+
+    // ── 2. Resolve profile / role ─────────────────────────────
+    // Must happen BEFORE redirectTo so the profile exists when the destination page loads.
+    let userRole: string = 'narocnik'
 
     const { data: profileDataById } = await supabase
       .from('profiles')
@@ -61,16 +59,19 @@ function PrijavaContent() {
 
     const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
 
-    if (!profile) {
-      // User has an auth account but no profile record.
-      // Create a minimal profile from auth metadata so they can access their dashboard.
+    if (profile) {
+      userRole = profile.role ?? 'narocnik'
+    } else {
+      // No profile — auto-create from auth metadata
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (authUser) {
         const meta = authUser.user_metadata || {}
         const role = (['narocnik', 'obrtnik'].includes(meta.role as string)
-          ? meta.role
-          : 'narocnik') as 'narocnik' | 'obrtnik'
-        await supabase.from('profiles').insert({
+          ? meta.role as 'narocnik' | 'obrtnik'
+          : 'narocnik')
+        userRole = role
+
+        const { error: insertError } = await supabase.from('profiles').insert({
           id: userId,
           email: authUser.email || null,
           full_name: (meta.full_name as string) || null,
@@ -78,14 +79,32 @@ function PrijavaContent() {
           phone: (meta.phone as string) || null,
           location_city: (meta.location_city as string) || null,
         })
-        router.push(role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
-      } else {
-        router.push('/registracija')
+
+        if (insertError) {
+          // Insert failed (e.g. duplicate key) — re-query in case profile already exists
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle()
+          if (existingProfile) {
+            userRole = existingProfile.role ?? 'narocnik'
+          } else {
+            setStrankaError('Prišlo je do napake pri prijavi. Prosimo, poskusite znova.')
+            return
+          }
+        }
       }
+    }
+
+    // ── 3. Redirect ───────────────────────────────────────────
+    const redirectTo = searchParams.get('redirectTo')
+    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
+      router.push(redirectTo)
       return
     }
 
-    router.push(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+    router.push(userRole === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
   }
 
   const handleGoogleLogin = async () => {
@@ -167,8 +186,9 @@ function PrijavaContent() {
 
       await new Promise(resolve => setTimeout(resolve, 500))
       await routeAuthenticatedUser(data.user.id)
-    } catch {
-      router.push('/registracija')
+    } catch (err) {
+      console.error('[auth] Login routing error:', err)
+      setStrankaError('Prišlo je do napake pri prijavi. Prosimo, poskusite znova.')
     } finally {
       setStrankaLoading(false)
     }
