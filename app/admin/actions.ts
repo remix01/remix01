@@ -477,15 +477,14 @@ export async function updatePartner(
   if (data.telefon !== undefined) profileUpdates.phone = data.telefon || null
   if (data.lokacija !== undefined) profileUpdates.location_city = data.lokacija || null
 
-  const ops: Promise<any>[] = []
-  if (Object.keys(obrtnikUpdates).length)
-    ops.push(supabaseAdmin.from('obrtnik_profiles').update(obrtnikUpdates).eq('id', id))
-  if (Object.keys(profileUpdates).length)
-    ops.push(supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id))
-
-  const results = await Promise.all(ops)
-  const err = results.find((r) => r.error)?.error
-  if (err) return { success: false, error: err.message }
+  if (Object.keys(obrtnikUpdates).length) {
+    const { error } = await supabaseAdmin.from('obrtnik_profiles').update(obrtnikUpdates).eq('id', id)
+    if (error) return { success: false, error: error.message }
+  }
+  if (Object.keys(profileUpdates).length) {
+    const { error } = await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id)
+    if (error) return { success: false, error: error.message }
+  }
   revalidatePath(`/admin/partnerji/${id}`)
   return { success: true }
 }
@@ -548,7 +547,7 @@ export async function updatePovprasevanjeAdmin(
   await ensureAdminAccess()
   const updates: Record<string, any> = {}
   if (data.status !== undefined) updates.status = data.status
-  if (data.assigned_to !== undefined) updates.assigned_to = data.assigned_to || null
+  if (data.assigned_to !== undefined) updates.obrtnik_id = data.assigned_to || null
   if (data.urgency !== undefined) updates.urgency = data.urgency
   if (data.budget_min !== undefined) updates.budget_min = data.budget_min
   if (data.budget_max !== undefined) updates.budget_max = data.budget_max

@@ -32,12 +32,9 @@ type DetailData = {
 
 const STATUS_OPTIONS = [
   { value: 'odprto', label: 'Odprto' },
-  { value: 'v_obravnavi', label: 'V obravnavi' },
-  { value: 'dodeljeno', label: 'Dodeljeno' },
-  { value: 'v_izvajanju', label: 'V izvajanju' },
+  { value: 'v_teku', label: 'V teku' },
   { value: 'zakljuceno', label: 'Zaključeno' },
   { value: 'preklicano', label: 'Preklicano' },
-  { value: 'poteklo', label: 'Poteklo' },
 ]
 
 const URGENCY_OPTIONS = [
