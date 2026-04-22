@@ -25,6 +25,7 @@ export function RegistracijaForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false)
 
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
@@ -65,6 +66,15 @@ export function RegistracijaForm() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/prijava`,
+          data: {
+            full_name: fullName,
+            role: selectedRole,
+            phone: phone || null,
+            location_city: locationCity,
+          },
+        },
       })
 
       if (signUpError) {
@@ -75,6 +85,14 @@ export function RegistracijaForm() {
 
       if (!data.user) {
         setError('Napaka pri registraciji. Poskusite znova.')
+        setLoading(false)
+        return
+      }
+
+      // If email confirmation is required, session will be null.
+      // Attempting a client-side profile insert without a session would fail RLS.
+      if (!data.session) {
+        setEmailConfirmationSent(true)
         setLoading(false)
         return
       }
@@ -153,6 +171,20 @@ export function RegistracijaForm() {
       setError('Napaka pri Google registraciji. Poskusite znova.')
       setGoogleLoading(false)
     }
+  }
+
+  if (emailConfirmationSent) {
+    return (
+      <div className="space-y-4 text-center">
+        <h2 className="text-2xl font-bold text-foreground">Preverite email</h2>
+        <p className="text-muted-foreground">
+          Na <strong>{email}</strong> smo poslali potrditveno sporočilo. Kliknite na povezavo v emailu in se nato prijavite.
+        </p>
+        <Link href="/prijava" className="text-primary hover:underline font-medium">
+          Pojdi na prijavo →
+        </Link>
+      </div>
+    )
   }
 
   return (
