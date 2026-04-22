@@ -6,9 +6,9 @@ export async function GET() {
   try {
     await requireAdmin()
     const { data, error } = await supabaseAdmin
-      .from('admin_alerts')
+      .from('alert_log')
       .select('*')
-      .eq('status', 'open')
+      .eq('resolved', false)
       .order('created_at', { ascending: false })
       .limit(20)
 

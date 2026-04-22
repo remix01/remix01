@@ -34,7 +34,7 @@ export async function GET() {
       supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', last24h.toISOString()),
       supabaseAdmin.from('povprasevanja').select('*', { count: 'exact', head: true }).gte('created_at', last24h.toISOString()),
       supabaseAdmin.from('povprasevanja').select('*', { count: 'exact', head: true }).gte('created_at', prev24h.toISOString()).lt('created_at', last24h.toISOString()),
-      supabaseAdmin.from('escrow_disputes').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+      supabaseAdmin.from('escrow_transactions').select('*', { count: 'exact', head: true }).eq('status', 'disputed'),
       supabaseAdmin.from('payment').select('amount, created_at, status').gte('created_at', prev24h.toISOString()).in('status', ['PAID', 'RELEASED', 'COMPLETED']),
       supabaseAdmin.from('povprasevanja').select('kategorija').gte('created_at', last24h.toISOString()).limit(500),
     ])
@@ -65,13 +65,20 @@ Format:
 - Opozorila z emoji ⚠️ če zaznaš padec konverzije ali prihodkov.
 Bodi konkreten in kratek.`
 
-    const ai = await chat([{ role: 'user', content: briefingPrompt }], { temperature: 0.2, maxTokens: 500 })
-
-    if (redis) {
-      await redis.set(CACHE_KEY, ai.content, { ex: TTL_SECONDS })
+    let briefingContent: string
+    try {
+      const ai = await chat([{ role: 'user', content: briefingPrompt }], { temperature: 0.2, maxTokens: 500 })
+      briefingContent = ai.content
+    } catch (aiError) {
+      console.error('[admin-briefing] AI chat failed:', aiError)
+      return NextResponse.json({ error: 'AI briefing trenutno ni na voljo.' }, { status: 503 })
     }
 
-    return NextResponse.json({ briefing: ai.content, cached: false })
+    if (redis) {
+      await redis.set(CACHE_KEY, briefingContent, { ex: TTL_SECONDS })
+    }
+
+    return NextResponse.json({ briefing: briefingContent, cached: false })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
     return NextResponse.json({ error: 'Napaka pri AI briefingu.' }, { status })
