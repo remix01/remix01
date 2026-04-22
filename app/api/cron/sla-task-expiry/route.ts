@@ -1,9 +1,10 @@
 /**
  * SLA Task Expiry Cron Job
- * 
- * Runs periodically to find and expire tasks that have passed their SLA deadline.
- * Intended to be run via Vercel Cron or similar scheduler (every hour recommended).
- * 
+ *
+ * Runs periodically to expire tasks that have passed their sla_expires_at deadline.
+ * Delegates all work to the expire_tasks() DB function which atomically updates
+ * tasks and inserts task_events in a single CTE.
+ *
  * Setup in vercel.json:
  * {
  *   "crons": [{
@@ -16,13 +17,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
-// Verify cron secret (optional but recommended)
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
   const cronSecret = process.env.CRON_SECRET
 
   if (!cronSecret) {
-    console.warn('[v0] CRON_SECRET not configured - cron endpoint is public')
+    console.warn('[sla-expiry] CRON_SECRET not configured - endpoint is public')
     return true
   }
 
@@ -31,150 +31,40 @@ function verifyCronSecret(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   try {
-    // Verify cron authorization
     if (!verifyCronSecret(req)) {
-      console.error('[v0] Unauthorized cron request')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('[v0] SLA task expiry cron job started')
+    console.log('[sla-expiry] start')
 
-    // Find all tasks that:
-    // 1. Are in a non-terminal state (not already expired, completed, or cancelled)
-    // 2. Have an SLA deadline
-    // 3. Have passed their SLA deadline
-    const now = new Date().toISOString()
+    const { data: expiredCount, error } = await supabaseAdmin.rpc('expire_tasks')
 
-    console.log('[v0] Querying for overdue tasks...')
-
-    const { data: overdueTasks, error: queryError } = await supabaseAdmin
-      .from('tasks')
-      // Keep the projection minimal: selecting non-existent columns on Supabase
-      // causes PostgREST to fail the whole query with a 500 response upstream.
-      .select('id, sla_deadline, status')
-      .in('status', ['published', 'claimed', 'accepted', 'in_progress'])
-      .not('sla_deadline', 'is', null)
-      .lt('sla_deadline', now)
-
-    if (queryError) {
-      console.error('[v0] Error querying overdue tasks:', queryError)
+    if (error) {
+      console.error('[sla-expiry] expire_tasks() failed:', error)
       return NextResponse.json(
-        { error: 'Failed to query tasks', details: queryError },
+        { success: false, error: error.message },
         { status: 500 }
       )
     }
 
-    if (!overdueTasks || overdueTasks.length === 0) {
-      console.log('[v0] No overdue tasks found')
-      return NextResponse.json({
-        success: true,
-        message: 'No overdue tasks to expire',
-        expiredCount: 0,
-      })
-    }
+    console.log(`[sla-expiry] done — expired ${expiredCount ?? 0} tasks`)
 
-    console.log(`[v0] Found ${overdueTasks.length} overdue tasks to expire`)
-
-    // Expire each task using the RPC function
-    const expiredIds: string[] = []
-    const failedIds: string[] = []
-
-    for (const task of overdueTasks) {
-      try {
-        console.log(`[v0] Expiring task: ${task.id}`)
-
-        const { error: expireError } = await expireTask(task.id)
-
-        if (expireError) {
-          console.error(`[v0] Failed to expire task ${task.id}:`, expireError)
-          failedIds.push(task.id)
-        } else {
-          console.log(`[v0] Successfully expired task: ${task.id}`)
-          expiredIds.push(task.id)
-
-          // Log audit event
-          await logAuditEvent(task.id, 'SLA expiry by cron job')
-        }
-      } catch (err) {
-        console.error(`[v0] Error expiring task ${task.id}:`, err)
-        failedIds.push(task.id)
-      }
-    }
-
-    const summary = {
+    return NextResponse.json({
       success: true,
-      totalOverdue: overdueTasks.length,
-      expiredCount: expiredIds.length,
-      failedCount: failedIds.length,
-      expiredIds,
-      failedIds: failedIds.length > 0 ? failedIds : undefined,
-      message: `Expired ${expiredIds.length} of ${overdueTasks.length} overdue tasks`,
-    }
-
-    console.log('[v0] SLA task expiry cron job completed:', summary)
-
-    return NextResponse.json(summary)
-  } catch (error) {
-    console.error('[v0] SLA task expiry cron job failed:', error)
+      expiredCount: expiredCount ?? 0,
+    })
+  } catch (err) {
+    console.error('[sla-expiry] unhandled error:', err)
     return NextResponse.json(
       {
         success: false,
-        error: 'Cron job failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: err instanceof Error ? err.message : 'Unknown error',
       },
       { status: 500 }
     )
   }
 }
 
-/**
- * Log audit event for task expiry
- */
-async function logAuditEvent(
-  taskId: string,
-  reason: string
-) {
-  try {
-    const { error } = await supabaseAdmin.from('audit_logs').insert({
-      table_name: 'tasks',
-      record_id: taskId,
-      action: 'UPDATE',
-      new_data: {
-        status: 'expired',
-        reason,
-      },
-      changed_by: 'system',
-      changed_at: new Date().toISOString(),
-    })
-
-    if (error) {
-      console.error('[v0] Failed to log audit event:', error)
-    }
-  } catch (err) {
-    console.error('[v0] Error logging audit event:', err)
-    // Don't throw - audit logging failure shouldn't stop expiry
-  }
-}
-
-async function expireTask(taskId: string) {
-  const firstTry = await supabaseAdmin.rpc('expire_task', {
-    task_id: taskId,
-    reason: 'SLA deadline passed - automated expiry',
-  })
-
-  if (
-    firstTry.error &&
-    (firstTry.error.message?.includes('function') ||
-      firstTry.error.message?.includes('does not exist') ||
-      firstTry.error.message?.includes('No function matches'))
-  ) {
-    return supabaseAdmin.rpc('expire_task', { task_id: taskId })
-  }
-
-  return firstTry
-}
-
-// Also export POST for testing
 export async function POST(req: NextRequest) {
   return GET(req)
 }
