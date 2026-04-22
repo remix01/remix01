@@ -41,7 +41,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url, { status: 301 })
   }
 
-  const pathname = request.nextUrl.pathname
   const retry = request.nextUrl.searchParams.get('retry')
   const userAgent = request.headers.get('user-agent')?.toLowerCase() || ''
   const isCrawler = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|linkedinbot/.test(userAgent)
