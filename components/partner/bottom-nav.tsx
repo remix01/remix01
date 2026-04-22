@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { MoreHorizontal } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { getPartnerMobileMoreNav, partnerMobilePrimaryNav } from '@/components/partner/nav-config'
+import { getPartnerMobileMoreNav, getPartnerMobilePrimaryNav } from '@/components/partner/nav-config'
 
 interface PartnerBottomNavProps {
   paket?: {
@@ -52,7 +52,7 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-t bg-background px-2 lg:hidden">
-      {getPartnerMobilePrimaryNav.map((link) => (
+      {getPartnerMobilePrimaryNav().map((link) => (
         <Link
           key={link.href}
           href={link.href}

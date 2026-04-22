@@ -38,6 +38,8 @@ export const partnerMobilePrimaryNav: PartnerNavLink[] = [
   { href: '/partner-dashboard/offers/generate', icon: Briefcase, label: 'Ponudbe' },
 ]
 
+export const getPartnerMobilePrimaryNav = () => partnerMobilePrimaryNav
+
 const partnerSecondaryNav: PartnerNavLink[] = [
   { href: '/partner-dashboard/account', icon: User, label: 'Profil' },
   { href: '/partner-dashboard/account/narocnina', icon: CreditCard, label: 'Naročnina' },
