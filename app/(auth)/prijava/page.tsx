@@ -93,6 +93,19 @@ function PrijavaContent() {
             setStrankaError('Prišlo je do napake pri prijavi. Prosimo, poskusite znova.')
             return
           }
+        } else if (role === 'obrtnik') {
+          // obrtnik_profiles must also exist for the partner dashboard to work.
+          // The email-confirmation path skips this during signup, so create it now.
+          await supabase.from('obrtnik_profiles').insert({
+            id: userId,
+            business_name: (meta.full_name as string) || null,
+            is_verified: false,
+            verification_status: 'pending',
+            status: 'pending',
+            avg_rating: 0,
+            total_reviews: 0,
+            is_available: true,
+          })
         }
       }
     }
