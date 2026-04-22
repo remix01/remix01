@@ -87,7 +87,7 @@ export default function PartnerSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
             />
           </div>
         ) : (
@@ -118,7 +118,7 @@ export default function PartnerSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
               povprasevanjeId={selectedPovprasevanje}
             />
           ) : (

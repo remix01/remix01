@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Home, BarChart3, FileText, Bell, User, TrendingUp, Zap, MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { getPartnerMobileMoreNav, getPartnerMobilePrimaryNav } from '@/components/partner/nav-config'
 
 interface PartnerBottomNavProps {
   paket?: {
@@ -47,25 +48,8 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
 
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
 
-  const allLinks = useMemo(
-    () => [
-      { href: '/partner-dashboard', icon: Home, label: 'Domov' },
-      { href: '/partner-dashboard/povprasevanja', icon: FileText, label: 'Povpraš.' },
-      ...(resolvedPaket === 'pro' || resolvedPaket === 'elite'
-        ? [
-            { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM' },
-            { href: '/partner-dashboard/insights', icon: BarChart3, label: 'Insights' },
-            { href: '/partner-dashboard/offers/generate', icon: Zap, label: 'AI ponudbe' },
-          ]
-        : []),
-      { href: '/partner-dashboard/notifications', icon: Bell, label: 'Obvestila' },
-      { href: '/partner-dashboard/account', icon: User, label: 'Račun' },
-    ],
-    [resolvedPaket]
-  )
-
-  const primaryLinks = allLinks.slice(0, 4)
-  const overflowLinks = allLinks.slice(4)
+  const primaryLinks = useMemo(() => getPartnerMobilePrimaryNav(resolvedPaket), [resolvedPaket])
+  const overflowLinks = useMemo(() => getPartnerMobileMoreNav(resolvedPaket), [resolvedPaket])
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-t bg-background px-2 lg:hidden">
@@ -91,7 +75,7 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
         </SheetTrigger>
         <SheetContent side="bottom" className="rounded-t-2xl">
           <SheetHeader className="mb-3">
-            <SheetTitle>Dodatni meniji</SheetTitle>
+            <SheetTitle>Več možnosti</SheetTitle>
           </SheetHeader>
           <div className="grid grid-cols-2 gap-2 pb-6">
             {overflowLinks.map((link) => (
