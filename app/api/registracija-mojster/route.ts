@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { env } from '@/lib/env'
 import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-response'
 import { ensureReferralCode, processReferralCode } from '@/lib/referral/referralService'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { authLimiter } from '@/lib/rate-limit/limiters'
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -19,7 +21,7 @@ const registrationSchema = z.object({
   referralCode: z.string().optional(),
 })
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     const body = await request.json()
     
@@ -167,3 +169,5 @@ export async function POST(request: NextRequest) {
     return internalError('Registration failed. Please try again.')
   }
 }
+
+export const POST = withRateLimit(authLimiter, postHandler)

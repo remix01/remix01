@@ -12,13 +12,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { env, hasEmbeddings } from '@/lib/env'
 import { backfillEmbeddings, type EmbeddingTarget } from '@/lib/ai/rag'
 
-// Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization')
   const cronSecret = env.CRON_SECRET
 
-  // Allow if no secret is configured (dev mode) or if it matches
-  if (!cronSecret) return true
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[v0] CRON_SECRET not configured in production — request denied')
+      return false
+    }
+    return true
+  }
+
   return authHeader === `Bearer ${cronSecret}`
 }
 

@@ -7,26 +7,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { withAdminAuth } from '@/lib/admin-auth'
 
-export async function POST(req: NextRequest) {
+async function handler(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
-
-    const { data: admin, error: adminError } = await supabaseAdmin
-      .from('admin_users')
-      .select('*')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
-
-    if (adminError || !admin) {
-      return NextResponse.json({ error: 'Prepovedano.' }, { status: 403 })
-    }
-
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
       return NextResponse.json(
@@ -63,3 +47,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message || 'Napaka pri testiranju.' }, { status: 500 })
   }
 }
+
+export const POST = withAdminAuth(handler)

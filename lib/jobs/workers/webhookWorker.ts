@@ -2,6 +2,7 @@
  * Webhook Worker — Send webhooks to partners about escrow status changes
  */
 
+import crypto from 'crypto'
 import { Job } from '../queue'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -52,13 +53,14 @@ export async function handleWebhook(job: Job<WebhookJobPayload>): Promise<void> 
   try {
     console.log(`[WEBHOOK] Sending webhook to ${webhookUrl}`, payload_data)
 
+    const body = JSON.stringify(payload_data)
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-LiftGO-Signature': generateWebhookSignature(payload_data),
+        'X-LiftGO-Signature': generateWebhookSignature(body),
       },
-      body: JSON.stringify(payload_data),
+      body,
     })
 
     if (!response.ok) {
@@ -72,18 +74,8 @@ export async function handleWebhook(job: Job<WebhookJobPayload>): Promise<void> 
   }
 }
 
-/**
- * Generate HMAC signature for webhook security
- * Partner should verify this using their secret key
- */
-function generateWebhookSignature(payload: any): string {
-  // TODO: Implement proper HMAC-SHA256 signature
-  // For now, just a placeholder
-  const secret = process.env.WEBHOOK_SIGNING_SECRET || 'dev-secret'
-  const message = JSON.stringify(payload)
-  
-  // In production, use crypto.createHmac('sha256', secret)
-  console.log('[WEBHOOK] Signature generation not yet implemented')
-  
-  return `sha256=${Buffer.from(message).toString('hex')}`
+function generateWebhookSignature(body: string): string {
+  const secret = process.env.WEBHOOK_SIGNING_SECRET
+  if (!secret) throw new Error('[WEBHOOK] WEBHOOK_SIGNING_SECRET not configured')
+  return `sha256=${crypto.createHmac('sha256', secret).update(body).digest('hex')}`
 }

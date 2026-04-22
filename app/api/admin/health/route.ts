@@ -5,52 +5,16 @@
  * Admin-only access (role = 'admin').
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { metrics } from '@/lib/monitoring/metrics'
-import { createAdminClient } from '@/lib/supabase/server'
+import { withAdminAuth } from '@/lib/admin-auth'
 
-export async function GET(req: NextRequest) {
-  // Verify admin role
-  const authHeader = req.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const token = authHeader.slice(7)
-
+export const GET = withAdminAuth(async () => {
   try {
-    const supabase = createAdminClient()
-    
-    // Verify JWT and check admin role
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token)
-
-    if (error || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check admin role
-    const { data: admin, error: adminError } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
-
-    if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // Get health snapshot
     const snapshot = await metrics.getSnapshot()
     return NextResponse.json(snapshot)
   } catch (err) {
     console.error('[API] Health endpoint error:', err)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

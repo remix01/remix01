@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -73,5 +74,28 @@ export async function requireAdmin(allowedRoles?: AdminRole[]): Promise<AdminCon
     userId: user.id,
     role,
     adminUserId: adminUser.id,
+  }
+}
+
+type RouteContext = { params: Promise<unknown> }
+type RouteHandler = (request: NextRequest, context: RouteContext) => Promise<NextResponse | Response>
+
+/**
+ * Wrap a route handler with admin authentication.
+ * Optionally restrict to specific roles.
+ *
+ * export const POST = withAdminAuth(handler)
+ * export const DELETE = withAdminAuth(handler, ['super_admin'])
+ */
+export function withAdminAuth(handler: RouteHandler, allowedRoles?: AdminRole[]): RouteHandler {
+  return async (request, context) => {
+    try {
+      await requireAdmin(allowedRoles)
+    } catch (error: any) {
+      const status = error?.message === 'UNAUTHORIZED' ? 401 : 403
+      const message = status === 401 ? 'Nepooblaščen dostop.' : 'Prepovedano.'
+      return NextResponse.json({ error: message }, { status })
+    }
+    return handler(request, context)
   }
 }
