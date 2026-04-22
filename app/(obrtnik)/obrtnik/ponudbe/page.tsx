@@ -46,20 +46,19 @@ export default function PonudbesPage() {
         return
       }
 
-      // Get obrtnik's categories
-      const { data: obrtnikCats } = await supabase
-        .from('obrtnik_categories')
-        .select('category_id')
-        .eq('obrtnik_id', obrtnikProfile.id)
+      // Fetch categories and already-sent offer IDs in parallel
+      const [{ data: obrtnikCats }, { data: mojePonudbe }] = await Promise.all([
+        supabase
+          .from('obrtnik_categories')
+          .select('category_id')
+          .eq('obrtnik_id', obrtnikProfile.id),
+        supabase
+          .from('ponudbe')
+          .select('povprasevanje_id')
+          .eq('obrtnik_id', obrtnikProfile.id),
+      ])
 
       const categoryIds = obrtnikCats?.map((oc: { category_id: string }) => oc.category_id) || []
-
-      // Get povprasevanja already sent by this obrtnik
-      const { data: mojePonudbe } = await supabase
-        .from('ponudbe')
-        .select('povprasevanje_id')
-        .eq('obrtnik_id', obrtnikProfile.id)
-
       const poslanoPovIds = mojePonudbe?.map((p: { povprasevanje_id: string }) => p.povprasevanje_id) || []
 
       // Tab 1: Nova povpraševanja - status='odprto', in obrtnik's categories, NOT already sent
@@ -83,27 +82,26 @@ export default function PonudbesPage() {
         query = query.not('id', 'in', `(${poslanoPovIds.join(',')})`)
       }
 
-      const { data: nP } = await query.order('urgency DESC, created_at DESC')
-
-      // Tab 2: Poslane ponudbe
-      const { data: pP } = await supabase
-        .from('ponudbe')
-        .select(`
-          id, status, price_estimate, price_type, created_at,
-          povprasevanja(id, title, category_id, location_city)
-        `)
-        .eq('obrtnik_id', obrtnikProfile.id)
-        .in('status', ['poslana', 'sprejeta'])
-
-      // Tab 3: Arhiv
-      const { data: aP } = await supabase
-        .from('ponudbe')
-        .select(`
-          id, status, price_estimate, created_at,
-          povprasevanja(id, title)
-        `)
-        .eq('obrtnik_id', obrtnikProfile.id)
-        .in('status', ['zavrnjena', 'preklicana'])
+      // Fetch nova povprasevanja, poslane, and arhiv in parallel
+      const [{ data: nP }, { data: pP }, { data: aP }] = await Promise.all([
+        query.order('urgency DESC, created_at DESC'),
+        supabase
+          .from('ponudbe')
+          .select(`
+            id, status, price_estimate, price_type, created_at,
+            povprasevanja(id, title, category_id, location_city)
+          `)
+          .eq('obrtnik_id', obrtnikProfile.id)
+          .in('status', ['poslana', 'sprejeta']),
+        supabase
+          .from('ponudbe')
+          .select(`
+            id, status, price_estimate, created_at,
+            povprasevanja(id, title)
+          `)
+          .eq('obrtnik_id', obrtnikProfile.id)
+          .in('status', ['zavrnjena', 'preklicana']),
+      ])
 
       setNovaPovprasevanja(nP || [])
       setPoslane(pP || [])

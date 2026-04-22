@@ -7,6 +7,8 @@ import { Star, MapPin } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 
+const STAR_INDICES = [0, 1, 2, 3, 4]
+
 interface ObrtnikCardProps {
   key?: React.Key
   obrtnik: ObrtnikProfile
@@ -42,7 +44,7 @@ export function ObrtnikCard({ obrtnik }: ObrtnikCardProps) {
           
           <div className="flex items-center gap-1 mb-3">
             <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
+              {STAR_INDICES.map((i) => (
                 <Star
                   key={i}
                   className={`w-4 h-4 ${

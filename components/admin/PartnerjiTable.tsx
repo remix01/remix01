@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, Edit, Ban, Trash2, Star, Building2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -26,6 +37,9 @@ import { PendingPartnerCard } from './PendingPartnerCard'
 import { zavrniPartnerja, suspendiranjPartnerja, reaktivirajPartnerja, deletePartner } from '@/app/admin/actions'
 import type { Partner } from '@/types/admin'
 
+// Pre-allocated to avoid creating a new array on every cell render
+const STAR_INDICES = [1, 2, 3, 4, 5]
+
 interface PartnerjiTableProps {
   partnerji: Partner[]
   currentPage: number
@@ -33,22 +47,55 @@ interface PartnerjiTableProps {
 }
 
 export function PartnerjiTable({ partnerji, currentPage, totalPages }: PartnerjiTableProps) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; partnerId: string | null }>({
     open: false,
     partnerId: null,
   })
   const [razlog, setRazlog] = useState('')
 
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; partnerId: string | null; partnerIme: string }>({
+    open: false,
+    partnerId: null,
+    partnerIme: '',
+  })
+
   const pendingPartnerji = partnerji.filter(p => p.status === 'PENDING')
   const activepartnerji = partnerji.filter(p => p.status !== 'PENDING')
+
+  const refresh = () => startTransition(() => router.refresh())
 
   const handleReject = async () => {
     if (rejectDialog.partnerId && razlog.trim().length >= 3) {
       await zavrniPartnerja(rejectDialog.partnerId, razlog)
       setRejectDialog({ open: false, partnerId: null })
       setRazlog('')
-      window.location.reload()
+      refresh()
     }
+  }
+
+  const handleToggleSuspend = async (partner: Partner) => {
+    if (partner.status === 'SUSPENDIRAN') {
+      await reaktivirajPartnerja(partner.id)
+    } else {
+      await suspendiranjPartnerja(partner.id)
+    }
+    refresh()
+  }
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteDialog.partnerId) return
+    await deletePartner(deleteDialog.partnerId)
+    setDeleteDialog({ open: false, partnerId: null, partnerIme: '' })
+    refresh()
+  }
+
+  const goToPage = (page: number) => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('page', String(page))
+    startTransition(() => router.push(url.pathname + url.search))
   }
 
   if (partnerji.length === 0) {
@@ -103,14 +150,14 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
                 <TableCell>{partner.tip}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map(i => (
-                      <Star 
-                        key={i} 
+                    {STAR_INDICES.map(i => (
+                      <Star
+                        key={i}
                         className={`h-3.5 w-3.5 ${
-                          i <= Math.round(partner.ocena) 
-                            ? 'fill-yellow-400 text-yellow-400' 
+                          i <= Math.round(partner.ocena)
+                            ? 'fill-yellow-400 text-yellow-400'
                             : 'text-gray-200'
-                        }`} 
+                        }`}
                       />
                     ))}
                     <span className="text-xs text-muted-foreground ml-1">{partner.ocena.toFixed(1)}</span>
@@ -139,14 +186,8 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
                       variant="ghost"
                       size="icon"
                       title={partner.status === 'SUSPENDIRAN' ? 'Reaktiviraj' : 'Suspendiraj'}
-                      onClick={async () => {
-                        if (partner.status === 'SUSPENDIRAN') {
-                          await reaktivirajPartnerja(partner.id)
-                        } else {
-                          await suspendiranjPartnerja(partner.id)
-                        }
-                        window.location.reload()
-                      }}
+                      disabled={isPending}
+                      onClick={() => handleToggleSuspend(partner)}
                     >
                       <Ban className="h-4 w-4" />
                     </Button>
@@ -154,11 +195,8 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
                       variant="ghost"
                       size="icon"
                       title="Izbriši"
-                      onClick={() => {
-                        if (confirm(`Ali res želite izbrisati partnerja "${partner.ime}"?`)) {
-                          deletePartner(partner.id).then(() => window.location.reload())
-                        }
-                      }}
+                      disabled={isPending}
+                      onClick={() => setDeleteDialog({ open: true, partnerId: partner.id, partnerIme: partner.ime })}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -180,24 +218,16 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
             <Button
               variant="outline"
               size="sm"
-              disabled={currentPage === 1}
-              onClick={() => {
-                const url = new URL(window.location.href)
-                url.searchParams.set('page', String(currentPage - 1))
-                window.location.href = url.toString()
-              }}
+              disabled={currentPage === 1 || isPending}
+              onClick={() => goToPage(currentPage - 1)}
             >
               Prejšnja
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={currentPage === totalPages}
-              onClick={() => {
-                const url = new URL(window.location.href)
-                url.searchParams.set('page', String(currentPage + 1))
-                window.location.href = url.toString()
-              }}
+              disabled={currentPage === totalPages || isPending}
+              onClick={() => goToPage(currentPage + 1)}
             >
               Naslednja
             </Button>
@@ -242,6 +272,27 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open, partnerId: null, partnerIme: '' })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Izbriši partnerja</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ali res želite izbrisati partnerja &ldquo;{deleteDialog.partnerIme}&rdquo;? Tega dejanja ni mogoče razveljaviti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Prekliči</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirmed} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Izbriši
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

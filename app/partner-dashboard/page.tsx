@@ -80,32 +80,23 @@ function PartnerDashboardInner() {
       if (partnerData) {
         setPartner(partnerData)
 
-        // Check completion status
-        const status = await getCompletionStatus(partnerData.id)
-        if (status) {
-          setCompletionStatus(status)
-        }
+        // Run all remaining queries in parallel
+        const [status, offersResult, countResult] = await Promise.all([
+          getCompletionStatus(partnerData.id),
+          sb
+            .from('ponudbe')
+            .select('*')
+            .eq('obrtnik_id', partnerData.id)
+            .order('created_at', { ascending: false }),
+          sb
+            .from('povprasevanja')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'odprto'),
+        ])
 
-        // Fetch offers
-        const { data: offersData } = await sb
-          .from('ponudbe')
-          .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .order('created_at', { ascending: false })
-
-        if (offersData) {
-          setOffers(offersData)
-        }
-
-        // Fetch open requests count
-        const { count: openCount } = await sb
-          .from('povprasevanja')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'odprto')
-
-        if (openCount !== null) {
-          setOpenRequestsCount(openCount)
-        }
+        if (status) setCompletionStatus(status)
+        if (offersResult.data) setOffers(offersResult.data)
+        if (countResult.count !== null) setOpenRequestsCount(countResult.count)
       }
 
       setLoading(false)
@@ -125,31 +116,35 @@ function PartnerDashboardInner() {
 
   const getCompletionStatus = async (partnerId: string) => {
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from('obrtnik_profiles')
-        .select('description, hourly_rate, subscription_tier')
-        .eq('id', partnerId)
-        .maybeSingle()
-
-      const { data: userProfileById, error: userByIdError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', partnerId)
-        .maybeSingle()
-
-      const { data: userProfileByAuthUserId, error: userByAuthUserIdError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('auth_user_id', partnerId)
-        .maybeSingle()
+      const [
+        { data: profile, error: profileError },
+        { data: userProfileById, error: userByIdError },
+        { data: userProfileByAuthUserId, error: userByAuthUserIdError },
+        { count: offersCount, error: offersError },
+      ] = await Promise.all([
+        supabase
+          .from('obrtnik_profiles')
+          .select('description, hourly_rate, subscription_tier')
+          .eq('id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('phone')
+          .eq('auth_user_id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('ponudbe')
+          .select('id', { count: 'exact', head: true })
+          .eq('obrtnik_id', partnerId),
+      ])
 
       const userProfile = userProfileById ?? userProfileByAuthUserId
       const userError = userByIdError ?? userByAuthUserIdError
-
-      const { count: offersCount, error: offersError } = await supabase
-        .from('ponudbe')
-        .select('id', { count: 'exact', head: true })
-        .eq('obrtnik_id', partnerId)
 
       if (!profileError && !userError && !offersError) {
         const hasDescription = profile?.description != null

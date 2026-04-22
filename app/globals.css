@@ -103,6 +103,20 @@
     overflow-x: hidden;
   }
   
+  /* Remove 300ms tap delay on touch devices for all interactive elements */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  [role='button'],
+  [role='tab'],
+  [role='menuitem'],
+  [role='option'] {
+    touch-action: manipulation;
+  }
+
   /* Prevent iOS zoom on input focus */
   input,
   textarea,

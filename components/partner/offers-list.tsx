@@ -7,6 +7,16 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Trash2, Edit2 } from 'lucide-react'
 
 export function OffersList({
@@ -20,6 +30,7 @@ export function OffersList({
   const [editing, setEditing] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null)
   const [formState, setFormState] = useState({
     title: '',
     message: '',
@@ -49,8 +60,10 @@ export function OffersList({
     })
   }
 
-  const handleDelete = async (offerId: string) => {
-    if (!confirm('Ste prepričani, da želite izbrisati to ponudbo?')) return
+  const handleDeleteConfirmed = async () => {
+    if (!deleteDialogId) return
+    const offerId = deleteDialogId
+    setDeleteDialogId(null)
 
     setError(null)
     setDeleting(offerId)
@@ -117,142 +130,164 @@ export function OffersList({
   }
 
   return (
-    <div className="space-y-4">
-      {offers.map((offer) => (
-        <Card key={offer.id} className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              {editing === offer.id ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-foreground">Uredi ponudbo</h3>
-                    <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
-                      {offer.status === 'poslana' ? 'Poslana' : offer.status}
-                    </Badge>
+    <>
+      <div className="space-y-4">
+        {offers.map((offer) => (
+          <Card key={offer.id} className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                {editing === offer.id ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-foreground">Uredi ponudbo</h3>
+                      <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
+                        {offer.status === 'poslana' ? 'Poslana' : offer.status}
+                      </Badge>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-2 sm:col-span-2">
+                        <Label htmlFor={`offer-title-${offer.id}`}>Naslov ponudbe</Label>
+                        <Input
+                          id={`offer-title-${offer.id}`}
+                          value={formState.title}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, title: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="grid gap-2 sm:col-span-2">
+                        <Label htmlFor={`offer-message-${offer.id}`}>Sporočilo</Label>
+                        <Textarea
+                          id={`offer-message-${offer.id}`}
+                          rows={5}
+                          value={formState.message}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, message: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor={`offer-price-${offer.id}`}>Cena (EUR)</Label>
+                        <Input
+                          id={`offer-price-${offer.id}`}
+                          type="number"
+                          min={1}
+                          value={formState.price_estimate}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, price_estimate: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label htmlFor={`offer-date-${offer.id}`}>Razpoložljiv od</Label>
+                        <Input
+                          id={`offer-date-${offer.id}`}
+                          type="date"
+                          value={formState.available_date}
+                          onChange={(e) => setFormState((prev) => ({ ...prev, available_date: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    {error && <p className="text-sm text-red-600">{error}</p>}
                   </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor={`offer-title-${offer.id}`}>Naslov ponudbe</Label>
-                      <Input
-                        id={`offer-title-${offer.id}`}
-                        value={formState.title}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, title: e.target.value }))}
-                      />
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {offer.title}
+                      </h3>
+                      <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
+                        {offer.status === 'poslana' ? 'Poslana' : offer.status}
+                      </Badge>
                     </div>
-
-                    <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor={`offer-message-${offer.id}`}>Sporočilo</Label>
-                      <Textarea
-                        id={`offer-message-${offer.id}`}
-                        rows={5}
-                        value={formState.message}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, message: e.target.value }))}
-                      />
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {offer.message}
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Vrsta cene</p>
+                        <p className="font-medium">{offer.price_type || 'ocena'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Cena</p>
+                        <p className="font-medium">€{offer.price_estimate}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Razpoložljiv od</p>
+                        <p className="font-medium">{offer.available_date || 'Ni določeno'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Oddano</p>
+                        <p className="font-medium">
+                          {new Date(offer.created_at).toLocaleDateString('sl-SI')}
+                        </p>
+                      </div>
                     </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor={`offer-price-${offer.id}`}>Cena (EUR)</Label>
-                      <Input
-                        id={`offer-price-${offer.id}`}
-                        type="number"
-                        min={1}
-                        value={formState.price_estimate}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, price_estimate: e.target.value }))}
-                      />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor={`offer-date-${offer.id}`}>Razpoložljiv od</Label>
-                      <Input
-                        id={`offer-date-${offer.id}`}
-                        type="date"
-                        value={formState.available_date}
-                        onChange={(e) => setFormState((prev) => ({ ...prev, available_date: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  {error && <p className="text-sm text-red-600">{error}</p>}
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {offer.title}
-                    </h3>
-                    <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
-                      {offer.status === 'poslana' ? 'Poslana' : offer.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {offer.message}
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Vrsta cene</p>
-                      <p className="font-medium">{offer.price_type || 'ocena'}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Cena</p>
-                      <p className="font-medium">€{offer.price_estimate}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Razpoložljiv od</p>
-                      <p className="font-medium">{offer.available_date || 'Ni določeno'}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Oddano</p>
-                      <p className="font-medium">
-                        {new Date(offer.created_at).toLocaleDateString('sl-SI')}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="flex gap-2 ml-4">
-              {editing === offer.id ? (
-                <>
+                  </>
+                )}
+              </div>
+              <div className="flex gap-2 ml-4">
+                {editing === offer.id ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSave(offer.id)}
+                      disabled={saving === offer.id}
+                    >
+                      {saving === offer.id ? 'Shranjujem...' : 'Shrani'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={cancelEditing}>
+                      Prekliči
+                    </Button>
+                  </>
+                ) : (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleSave(offer.id)}
-                    disabled={saving === offer.id}
+                    onClick={() => startEditing(offer)}
+                    disabled={offer.status === 'sprejeta' || offer.status === 'zavrnjena'}
+                    title={
+                      offer.status === 'sprejeta' || offer.status === 'zavrnjena'
+                        ? 'Sprejetih ali zavrnjenih ponudb ni mogoče urejati.'
+                        : 'Uredi ponudbo'
+                    }
                   >
-                    {saving === offer.id ? 'Shranjujem...' : 'Shrani'}
+                    <Edit2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={cancelEditing}>
-                    Prekliči
-                  </Button>
-                </>
-              ) : (
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => startEditing(offer)}
-                  disabled={offer.status === 'sprejeta' || offer.status === 'zavrnjena'}
-                  title={
-                    offer.status === 'sprejeta' || offer.status === 'zavrnjena'
-                      ? 'Sprejetih ali zavrnjenih ponudb ni mogoče urejati.'
-                      : 'Uredi ponudbo'
-                  }
+                  onClick={() => setDeleteDialogId(offer.id)}
+                  disabled={deleting === offer.id || editing === offer.id}
                 >
-                  <Edit2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDelete(offer.id)}
-                disabled={deleting === offer.id || editing === offer.id}
-              >
-                <Trash2 className="h-4 w-4 text-red-500" />
-              </Button>
+              </div>
             </div>
-          </div>
-        </Card>
-      ))}
-    </div>
+          </Card>
+        ))}
+      </div>
+
+      <AlertDialog open={!!deleteDialogId} onOpenChange={(open) => { if (!open) setDeleteDialogId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Izbriši ponudbo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ste prepričani, da želite izbrisati to ponudbo? Tega dejanja ni mogoče razveljaviti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Prekliči</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Izbriši
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
