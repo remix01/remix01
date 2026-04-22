@@ -23,6 +23,10 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
     micDenied: 'Mikrofon ni dovoljen. Če je widget v iframe, dodajte allow="microphone".',
     uploadError: 'Nalaganje datoteke ni uspelo. Poskusite znova.',
     genericError: 'Prišlo je do napake. Poskusite znova.',
+    uploading: 'Nalagam datoteko...',
+    thinking: 'Pripravljam odgovor...',
+    tipsLabel: 'Namig:',
+    tipsText: 'Dodajte lokacijo, okvirni proračun in nujnost za bolj natančen odgovor.',
     aiReplyTitle: 'AI odgovor',
     speakReply: 'Preberi odgovor',
     languageLabel: 'Slo/Eng',
@@ -39,6 +43,10 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
     micDenied: 'Microphone permission denied. If embedded in iframe, add allow="microphone".',
     uploadError: 'File upload failed. Please try again.',
     genericError: 'Something went wrong. Please try again.',
+    uploading: 'Uploading file...',
+    thinking: 'Preparing response...',
+    tipsLabel: 'Tip:',
+    tipsText: 'Include location, rough budget, and urgency for a more accurate answer.',
     aiReplyTitle: 'AI response',
     speakReply: 'Read answer',
     languageLabel: 'Slo/Eng',
@@ -172,7 +180,7 @@ export function AIConciergePopup() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-[min(96vw,430px)]">
+    <div className="fixed inset-x-2 bottom-2 z-40 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-[min(96vw,430px)]">
       {!open && (
         <Button
           aria-label={t.open}
@@ -185,7 +193,7 @@ export function AIConciergePopup() {
       )}
 
       {open && (
-        <div className="rounded-2xl bg-white p-4 shadow-lg">
+        <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-lg sm:max-h-[80vh]">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="flex items-center gap-2 text-base font-semibold text-slate-900">
@@ -218,7 +226,17 @@ export function AIConciergePopup() {
             placeholder={interimTranscript || t.placeholder}
             value={input}
             onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                event.preventDefault()
+                void submitInquiry()
+              }
+            }}
           />
+
+          <p className="mt-2 text-xs text-slate-500">
+            <span className="font-medium text-slate-700">{t.tipsLabel}</span> {t.tipsText}
+          </p>
 
           <div className="mt-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -282,7 +300,7 @@ export function AIConciergePopup() {
 
           {(errorMessage || statusMessage || isUploading) && (
             <p className={cn('mt-3 text-xs', errorMessage ? 'text-red-600' : 'text-emerald-700')}>
-              {isUploading ? 'Nalagam datoteko...' : errorMessage || statusMessage}
+              {isUploading ? t.uploading : errorMessage || statusMessage}
             </p>
           )}
 
@@ -313,7 +331,7 @@ export function AIConciergePopup() {
             onClick={submitInquiry}
             disabled={isSubmitting || isUploading || !input.trim()}
           >
-            {isSubmitting ? '....' : t.submit}
+            {isSubmitting ? t.thinking : t.submit}
           </Button>
         </div>
       )}

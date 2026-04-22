@@ -125,8 +125,32 @@ function buildFinalMessage(params: {
     .filter(Boolean)
     .join('\n\n')
 
+  const latestInquiryPrefixByLanguage: Record<ConciergeLanguage, string> = {
+    sl: 'Vaše zadnje povpraševanje',
+    en: 'Your latest inquiry',
+    hr: 'Vaš zadnji upit',
+    de: 'Ihre letzte Anfrage',
+    it: 'La tua ultima richiesta',
+  }
+
+  const untitledByLanguage: Record<ConciergeLanguage, string> = {
+    sl: 'brez naslova',
+    en: 'untitled',
+    hr: 'bez naslova',
+    de: 'ohne Titel',
+    it: 'senza titolo',
+  }
+
+  const generalCategoryByLanguage: Record<ConciergeLanguage, string> = {
+    sl: 'Splošno',
+    en: 'General',
+    hr: 'Općenito',
+    de: 'Allgemein',
+    it: 'Generale',
+  }
+
   const latestInquiryLine = params.latestInquiry
-    ? `Vaše zadnje povpraševanje: ${params.latestInquiry.title || 'brez naslova'} (${params.latestInquiry.kategorija || 'Splošno'})`
+    ? `${latestInquiryPrefixByLanguage[params.language]}: ${params.latestInquiry.title || untitledByLanguage[params.language]} (${params.latestInquiry.kategorija || generalCategoryByLanguage[params.language]})`
     : null
 
   return [introByLanguage[params.language], cleanResponses, latestInquiryLine, params.proactiveSuggestion]
