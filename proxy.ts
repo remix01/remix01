@@ -243,7 +243,40 @@ export async function proxy(request: NextRequest) {
       console.error('[v0] Partner check error in prijava redirect:', e instanceof Error ? e.message : String(e))
     }
 
-    // Default fallback to home
+    // Check obrtnik_profiles
+    try {
+      const { data: obrtnikProfile } = await supabase
+        .from('obrtnik_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (obrtnikProfile) {
+        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+      }
+    } catch (e) {
+      console.error('[v0] Obrtnik profile check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+    }
+
+    // Check profiles table for role-based routing
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+      }
+      if (profile) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch (e) {
+      console.error('[v0] Profile check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+    }
+
+    // Default fallback to home (no profile found)
     return NextResponse.redirect(new URL('/', request.url))
   }
 
