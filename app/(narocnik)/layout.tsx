@@ -17,6 +17,13 @@ export default async function NarocnikLayout({
 }: {
   children: React.ReactNode
 }) {
+  const normalizeRole = (role: string | null | undefined): 'narocnik' | 'obrtnik' | null => {
+    if (!role) return null
+    if (role === 'obrtnik' || role === 'partner') return 'obrtnik'
+    if (role === 'narocnik' || role === 'stranka') return 'narocnik'
+    return null
+  }
+
   const supabase = await createClient()
 
   // Check authentication - getUser() from server client with cookies
@@ -41,8 +48,9 @@ export default async function NarocnikLayout({
     .maybeSingle()
 
   const profileData = profileDataById ?? profileDataByAuthUserId
-  const profileError = profileByIdError ?? profileByAuthUserIdError
+  const profileError = !profileData && (profileByIdError ?? profileByAuthUserIdError)
   const profile = profileData as { role: string | null; full_name: string | null } | null
+  const normalizedRole = normalizeRole(profile?.role)
 
   // If profile doesn't exist or user is not narocnik, redirect appropriately
   if (profileError || !profile) {
@@ -50,9 +58,9 @@ export default async function NarocnikLayout({
     redirect('/registracija')
   }
 
-  if (profile.role !== 'narocnik') {
+  if (normalizedRole !== 'narocnik') {
     console.log(`[v0] Narocnik layout: User has role ${profile.role}, not narocnik, redirecting`)
-    redirect(profile.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
+    redirect(normalizedRole === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
   }
 
   return (
