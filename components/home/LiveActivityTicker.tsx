@@ -2,10 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js'
 import type { HomeActivityItem } from './types'
 
 interface LiveActivityTickerProps {
   initialItems: HomeActivityItem[]
+}
+
+interface PovprasevanjeInsertPayload {
+  id: string
+  location_city: string | null
+  kategorija: string | null
+  created_at: string
 }
 
 export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
@@ -17,28 +25,32 @@ export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
   )
 
   useEffect(() => {
-    const refresh = async () => {
-      const res = await fetch('/api/home/activity', { cache: 'no-store' })
-      if (!res.ok) return
-      const data = await res.json()
-      if (Array.isArray(data.items)) setItems(data.items)
-    }
-
-    const interval = setInterval(refresh, 12000)
-
     let channel: ReturnType<NonNullable<ReturnType<typeof createClient>>['channel']> | null = null
     const supabase = createClient()
+
     if (supabase) {
       channel = supabase
         .channel('homepage-activity')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'povprasevanja' }, () => {
-          refresh()
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'povprasevanja' }, (payload: RealtimePostgresInsertPayload<PovprasevanjeInsertPayload>) => {
+          const next = payload.new as Partial<PovprasevanjeInsertPayload>
+          if (!next.id || !next.created_at) return
+
+          const item: HomeActivityItem = {
+            id: next.id,
+            city: next.location_city || 'neznano mesto',
+            category: next.kategorija || 'splošno storitev',
+            createdAt: next.created_at,
+          }
+
+          setItems((current) => {
+            const filtered = current.filter((entry) => entry.id !== item.id)
+            return [item, ...filtered].slice(0, 8)
+          })
         })
         .subscribe()
     }
 
     return () => {
-      clearInterval(interval)
       if (channel && supabase) {
         supabase.removeChannel(channel)
       }

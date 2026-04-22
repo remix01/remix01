@@ -48,6 +48,23 @@ const faqSchema = {
   ],
 }
 
+
+interface ReviewRow {
+  id: string
+  rating: number
+  comment: string
+  profiles: {
+    full_name: string | null
+  } | null
+}
+
+interface ActivityRow {
+  id: string
+  location_city: string | null
+  kategorija: string | null
+  created_at: string
+}
+
 async function getHomeData(): Promise<{
   stats: HomeStats
   testimonials: HomeTestimonial[]
@@ -81,13 +98,13 @@ async function getHomeData(): Promise<{
       activeCraftsmen: activeCraftsmenQuery.count || 342,
     }
 
-    const testimonials: HomeTestimonial[] = (reviewsQuery.data || []).map((review: any) => {
+    const testimonials: HomeTestimonial[] = ((reviewsQuery.data as ReviewRow[] | null) || []).map((review) => {
       const fullName = review.profiles?.full_name || 'Zadovoljna stranka'
       const nameParts = String(fullName).split(' ')
       return {
         id: review.id,
         name: `${nameParts[0]} ${nameParts[1] ? `${nameParts[1][0]}.` : ''}`.trim(),
-        avatar: nameParts.slice(0, 2).map((item: string) => item[0]).join('').toUpperCase(),
+        avatar: nameParts.slice(0, 2).map((namePart) => namePart[0]).join('').toUpperCase(),
         comment: review.comment,
         rating: review.rating,
       }
@@ -98,7 +115,7 @@ async function getHomeData(): Promise<{
       { id: '2', name: 'Petra K.', avatar: 'PK', comment: 'Prejela sem tri dobre ponudbe in hitro izbrala izvajalca.', rating: 5 },
     ]
 
-    const activity: HomeActivityItem[] = (activityQuery.data || []).map((item: any) => ({
+    const activity: HomeActivityItem[] = ((activityQuery.data as ActivityRow[] | null) || []).map((item) => ({
       id: item.id,
       city: item.location_city || 'neznano mesto',
       category: item.kategorija || 'splošno storitev',
