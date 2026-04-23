@@ -1158,8 +1158,10 @@ export interface Database {
           id: string
           created_at: string
           user_id: string | null
+          session_id: string | null
           event: string | null
           tool: string | null
+          params: Json | null
           result: 'success' | 'error' | 'warning' | null
           duration_ms: number | null
           metadata: Json | null
@@ -1168,8 +1170,10 @@ export interface Database {
           id?: string
           created_at?: string
           user_id?: string | null
+          session_id?: string | null
           event?: string | null
           tool?: string | null
+          params?: Json | null
           result?: 'success' | 'error' | 'warning' | null
           duration_ms?: number | null
           metadata?: Json | null
@@ -1220,9 +1224,29 @@ export interface Database {
         Relationships: []
       }
       agent_alerts: {
-        Row: { id: string; created_at: string; [key: string]: unknown }
-        Insert: { id?: string; created_at?: string; [key: string]: unknown }
-        Update: { [key: string]: unknown }
+        Row: {
+          id: string
+          created_at: string
+          user_id: string | null
+          severity: 'low' | 'medium' | 'high' | 'critical'
+          type: string
+          details: string | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id?: string | null
+          severity?: 'low' | 'medium' | 'high' | 'critical'
+          type: string
+          details?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['agent_alerts']['Insert']>
         Relationships: []
       }
       ai_agent_conversations: {
