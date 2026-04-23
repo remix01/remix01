@@ -608,7 +608,7 @@ export interface Database {
           price_estimate?: number | null
           price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date?: string | null
-          status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
+          status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
