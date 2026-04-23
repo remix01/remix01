@@ -269,7 +269,7 @@ export interface Database {
           read_at: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['sporocila']['Row'], 'id' | 'created_at'> & {
+        Insert: Omit<Database['public']['Tables']['sporocila']['Row'], 'id' | 'created_at' | 'is_read' | 'read_at'> & {
           is_read?: boolean
           read_at?: string | null
         }
