@@ -121,7 +121,7 @@ export function useTaskFilters(filterType: TaskFilterType, options?: UseTaskFilt
         throw queryError
       }
 
-      setTasks(data || [])
+      setTasks((data || []) as unknown as Task[])
       setTotalCount(count || 0)
       setHasMore((offset + limit) < (count || 0))
     } catch (err) {
