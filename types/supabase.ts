@@ -651,7 +651,7 @@ export interface Database {
           user_id: string
           type: string
           title: string
-          body: string
+          body?: string | null
           message?: string | null
           resource_id?: string | null
           resource_type?: string | null
