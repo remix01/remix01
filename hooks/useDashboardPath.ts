@@ -52,7 +52,7 @@ export function useDashboardPath(): DashboardTarget {
           setDashboardPath(DASHBOARD_PATHS.partner)
         } else {
           const role = (profileRes.data ?? profileByAuthRes.data)?.role
-          if (role === 'obrtnik' || role === 'CRAFTWORKER') {
+          if (role === 'obrtnik') {
             setDashboardPath(DASHBOARD_PATHS.partner)
           }
         }
