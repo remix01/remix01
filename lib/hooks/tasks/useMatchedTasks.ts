@@ -50,7 +50,7 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
 
       if (taskError) throw taskError
 
-      setTask(taskData)
+      setTask(taskData as unknown as Task)
 
       // Load all worker stats (in production, filter by category/location first)
       const { data: workerStats, error: statsError } = await supabase
