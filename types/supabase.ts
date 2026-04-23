@@ -599,6 +599,11 @@ export interface Database {
           available_date: string | null
           estimated_duration: string | null
           status: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
+          accepted_at: string | null
+          stripe_payment_intent_id: string | null
+          payment_status: string | null
+          auto_generated: boolean | null
+          template_id: string | null
           created_at: string
         }
         Insert: {
@@ -611,6 +616,11 @@ export interface Database {
           available_date?: string | null
           estimated_duration?: string | null
           status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
+          accepted_at?: string | null
+          stripe_payment_intent_id?: string | null
+          payment_status?: string | null
+          auto_generated?: boolean | null
+          template_id?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
@@ -1008,13 +1018,55 @@ export interface Database {
       tasks: {
         Row: {
           id: string
+          customer_id: string | null
+          worker_id: string | null
+          title: string | null
+          description: string | null
+          category: string | null
           status: string | null
+          priority: string | null
+          location: string | null
+          estimated_value: number | null
+          sla_deadline: string | null
+          claimed_at: string | null
+          started_at: string | null
+          completed_at: string | null
+          expired_at: string | null
+          cancelled_at: string | null
+          expires_at: string | null
+          published_at: string | null
+          accepted_at: string | null
+          assigned_to: string | null
+          category_id: string | null
+          created_by: string | null
+          narocnik_id: string | null
           created_at: string
           updated_at: string | null
         }
         Insert: {
           id?: string
+          customer_id?: string | null
+          worker_id?: string | null
+          title?: string | null
+          description?: string | null
+          category?: string | null
           status?: string | null
+          priority?: string | null
+          location?: string | null
+          estimated_value?: number | null
+          sla_deadline?: string | null
+          claimed_at?: string | null
+          started_at?: string | null
+          completed_at?: string | null
+          expired_at?: string | null
+          cancelled_at?: string | null
+          expires_at?: string | null
+          published_at?: string | null
+          accepted_at?: string | null
+          assigned_to?: string | null
+          category_id?: string | null
+          created_by?: string | null
+          narocnik_id?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -1026,13 +1078,31 @@ export interface Database {
           id: string
           worker_id: string | null
           tasks_completed: number | null
+          total_completed: number | null
+          avg_rating: number | null
+          response_time_minutes: number | null
+          completion_rate: number | null
+          acceptance_rate: number | null
+          on_time_rate: number | null
+          category: string | null
+          location: string | null
           created_at: string
+          updated_at: string | null
         }
         Insert: {
           id?: string
           worker_id?: string | null
           tasks_completed?: number | null
+          total_completed?: number | null
+          avg_rating?: number | null
+          response_time_minutes?: number | null
+          completion_rate?: number | null
+          acceptance_rate?: number | null
+          on_time_rate?: number | null
+          category?: string | null
+          location?: string | null
           created_at?: string
+          updated_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
         Relationships: []
@@ -1151,8 +1221,8 @@ export interface Database {
           povprasevanje_id: string | null
           content: string | null
           body: string | null
+          sender_name: string | null
           created_at: string
-          [key: string]: unknown
         }
         Insert: {
           id?: string
@@ -1161,10 +1231,10 @@ export interface Database {
           povprasevanje_id?: string | null
           content?: string | null
           body?: string | null
+          sender_name?: string | null
           created_at?: string
-          [key: string]: unknown
         }
-        Update: { [key: string]: unknown }
+        Update: Partial<Database['public']['Tables']['messages']['Insert']>
         Relationships: []
       }
       agent_conversations: {
@@ -1420,14 +1490,78 @@ export interface Database {
         Relationships: []
       }
       audit_log: {
-        Row: { id: string; created_at: string; [key: string]: unknown }
-        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Row: {
+          id: string
+          table_name: string | null
+          record_id: string | null
+          action: string | null
+          old_data: Json | null
+          new_data: Json | null
+          changed_by: string | null
+          changed_at: string | null
+          event_type: string | null
+          actor: string | null
+          job_id: string | null
+          payment_id: string | null
+          stripe_event_id: string | null
+          created_at: string
+          [key: string]: unknown
+        }
+        Insert: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          old_data?: Json | null
+          new_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          event_type?: string | null
+          actor?: string | null
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          created_at?: string
+          [key: string]: unknown
+        }
         Update: { [key: string]: unknown }
         Relationships: []
       }
       audit_logs: {
-        Row: { id: string; created_at: string; [key: string]: unknown }
-        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Row: {
+          id: string
+          table_name: string | null
+          record_id: string | null
+          action: string | null
+          old_data: Json | null
+          new_data: Json | null
+          changed_by: string | null
+          changed_at: string | null
+          event_type: string | null
+          actor: string | null
+          job_id: string | null
+          payment_id: string | null
+          stripe_event_id: string | null
+          created_at: string
+          [key: string]: unknown
+        }
+        Insert: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          old_data?: Json | null
+          new_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          event_type?: string | null
+          actor?: string | null
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          created_at?: string
+          [key: string]: unknown
+        }
         Update: { [key: string]: unknown }
         Relationships: []
       }
