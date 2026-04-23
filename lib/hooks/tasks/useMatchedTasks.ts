@@ -67,7 +67,7 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
       }
 
       // Filter qualified workers
-      const qualified = filterQualifiedWorkers(workerStats as WorkerStats[])
+      const qualified = filterQualifiedWorkers(workerStats as unknown as WorkerStats[])
       setTotalQualified(qualified.length)
 
       // Score and rank workers
