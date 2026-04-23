@@ -27,14 +27,13 @@ export async function proxy(request: NextRequest) {
     return new NextResponse(null, { status: 404 })
   }
 
-  // Force canonical domain — skip for server-to-server API calls
-  // (cron, webhooks, jobs use deployment preview URLs and must not be redirected)
+  // Force canonical domain for page traffic only.
+  // Never redirect API requests because browser fetch() calls to preview domains
+  // can become cross-origin and fail with "TypeError: Failed to fetch".
   const host = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
-  const isServerToServer = pathname.startsWith('/api/cron/') ||
-    pathname.startsWith('/api/webhooks/') ||
-    pathname.startsWith('/api/jobs/')
-  if (host.includes('vercel.app') && !host.includes('localhost') && !isServerToServer) {
+  const isApiRoute = pathname.startsWith('/api/')
+  if (host.includes('vercel.app') && !host.includes('localhost') && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.host = 'liftgo.net'
     url.protocol = 'https'
@@ -122,14 +121,37 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
     }
     try {
-      const { data: adminUser } = await supabaseAdmin
+      const { data: adminByAuthUserId, error: authUserLookupError } = await supabaseAdmin
         .from('admin_users')
         .select('id, aktiven')
-        .or(`auth_user_id.eq.${user.id},user_id.eq.${user.id}`)
+        .eq('auth_user_id', user.id)
         .eq('aktiven', true)
         .maybeSingle()
 
-      if (!adminUser) {
+      if (authUserLookupError) {
+        throw authUserLookupError
+      }
+
+      let hasAdminAccess = Boolean(adminByAuthUserId)
+
+      if (!hasAdminAccess) {
+        // Legacy fallback for schemas where admin_users references user_id.
+        const { data: adminByUserId, error: userIdLookupError } = await supabaseAdmin
+          .from('admin_users')
+          .select('id, aktiven')
+          .eq('user_id', user.id)
+          .eq('aktiven', true)
+          .maybeSingle()
+
+        // If user_id doesn't exist in this schema, treat as "not found" fallback.
+        if (userIdLookupError && userIdLookupError.code !== 'PGRST204') {
+          throw userIdLookupError
+        }
+
+        hasAdminAccess = Boolean(adminByUserId)
+      }
+
+      if (!hasAdminAccess) {
         return NextResponse.json({ error: 'Prepovedano.' }, { status: 403 })
       }
     } catch {
