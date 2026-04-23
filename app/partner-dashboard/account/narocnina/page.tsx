@@ -13,7 +13,7 @@ import { Check, Zap, AlertCircle } from 'lucide-react'
 type PartnerProfile = {
   id: string
   business_name: string
-  subscription_tier: 'start' | 'pro' | 'elite'
+  subscription_tier: 'start' | 'pro' | 'elite' | null
   avg_rating: number
   is_verified: boolean
 }
@@ -451,7 +451,7 @@ export default function NarocninaPage() {
           </div>
         </div>
       </main>
-      <PartnerBottomNav paket={{ paket: partner.subscription_tier }} />
+      <PartnerBottomNav paket={{ paket: partner.subscription_tier ?? 'start' }} />
     </div>
   )
 }
