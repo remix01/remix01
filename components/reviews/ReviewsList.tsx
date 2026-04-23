@@ -194,7 +194,7 @@ export function ReviewsList({ obrtnik_id, currentUserId }: ReviewsListProps) {
                 </div>
                 <div className="flex-1">
                   <div className="font-semibold text-sm">
-                    {review.profiles.full_name.split(' ')[0]} {review.profiles.full_name.split(' ')[1]?.[0]}.
+                    {(review.profiles.full_name ?? '').split(' ')[0]} {(review.profiles.full_name ?? '').split(' ')[1]?.[0]}.
                   </div>
                   <div className="text-xs text-gray-500">{formatDate(review.created_at)}</div>
                 </div>
