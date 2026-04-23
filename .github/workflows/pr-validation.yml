@@ -72,18 +72,28 @@ jobs:
   validate-migrations:
     name: Validate Supabase Migrations
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.changed_files, 'supabase/migrations')
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check migration file naming
         run: |
-          for f in supabase/migrations/*.sql; do
-            if [ -f "$f" ]; then
-              basename "$f" | grep -qE '^[0-9]{14}_[a-z0-9_]+\.sql$' || {
-                echo "::error::Migration file $f does not follow naming convention: YYYYMMDDHHMMSS_description.sql"
-                exit 1
-              }
-            fi
+          CHANGED=$(git diff --name-only --diff-filter=A \
+            origin/${{ github.base_ref }}...HEAD \
+            -- 'supabase/migrations/*.sql' 2>/dev/null || true)
+
+          if [ -z "$CHANGED" ]; then
+            echo "No new migration files in this PR"
+            exit 0
+          fi
+
+          FAILED=0
+          for f in $CHANGED; do
+            basename "$f" | grep -qE '^[0-9]{14}_[a-z0-9_]+\.sql$' || {
+              echo "::error file=$f::Migration filename must follow YYYYMMDDHHMMSS_description.sql"
+              FAILED=1
+            }
           done
-          echo "All migration files follow correct naming convention"
+          [ $FAILED -eq 0 ] && echo "All new migration files follow correct naming convention"
+          exit $FAILED

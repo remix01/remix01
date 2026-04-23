@@ -9,21 +9,22 @@
 # Usage:
 #   ./scripts/sync-vercel-to-github-secrets.sh
 #   ./scripts/sync-vercel-to-github-secrets.sh --dry-run
-#   ./scripts/sync-vercel-to-github-secrets.sh --env preview
+#   ./scripts/sync-vercel-to-github-secrets.sh --env=preview
+#   ./scripts/sync-vercel-to-github-secrets.sh preview --dry-run
 
 set -euo pipefail
 
 # ── Config ──────────────────────────────────────────────────────────────────
 REPO="remix01/remix01"
-VERCEL_ENV="${1:-production}"
+VERCEL_ENV="production"
 TEMP_ENV=".env.vercel-sync-tmp"
 DRY_RUN=false
 
-# Parse args
+# Parse args — initialize defaults first, then parse flags
 for arg in "$@"; do
   case $arg in
     --dry-run) DRY_RUN=true ;;
-    --env) shift; VERCEL_ENV="${1:-production}" ;;
+    --env=*) VERCEL_ENV="${arg#--env=}" ;;
     preview|production|development) VERCEL_ENV="$arg" ;;
   esac
 done
