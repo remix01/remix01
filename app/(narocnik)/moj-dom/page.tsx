@@ -26,7 +26,7 @@ export default function MojDomPage() {
       .order('performed_at', { ascending: false })
       .limit(20)
 
-    setItems((data || []) as LogItem[])
+    setItems((data || []) as unknown as LogItem[])
 
     const res = await fetch('/api/ai/home-advisor', {
       method: 'POST',
