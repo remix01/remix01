@@ -181,8 +181,9 @@ export function ReviewsList({ obrtnik_id, currentUserId }: ReviewsListProps) {
       {/* Reviews */}
       <div className="space-y-6">
         {reviews.map((review) => {
-          const initials = review.profiles.full_name
+          const initials = (review.profiles.full_name ?? '')
             .split(' ')
+            .filter(Boolean)
             .map((n) => n[0])
             .join('')
           return (
