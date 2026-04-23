@@ -1,0 +1,62 @@
+# ── Build output ──────────────────────────────────────────
+.next/
+out/
+build/
+dist/
+
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+.pnp/
+.yarn/
+
+# ── Environment & secrets ─────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.vercel-sync-tmp
+
+# ── Generated / cache ─────────────────────────────────────
+.turbo/
+.cache/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Supabase local ────────────────────────────────────────
+supabase/.temp/
+supabase/.branches/
+
+# ── Vercel ────────────────────────────────────────────────
+.vercel/
+
+# ── Large binary / media files ────────────────────────────
+*.gz
+*.zip
+*.tar
+public/videos/
+public/fonts/
+
+# ── Logs ─────────────────────────────────────────────────
+*.log
+build-output.log
+
+# ── OS / Editor ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ── Documentation archive (large, not code) ───────────────
+*.txt
+!run-tests.sh
+
+# ── Test snapshots ────────────────────────────────────────
+**/__snapshots__/
+
+# ── AI-generated archive files ────────────────────────────
+liftgo-ai-module.tar_1.gz
+IMPLEMENTATION_COMPLETE.mjs
+UPSTASH_REDIS_COMPLETE_SUMMARY.ts
