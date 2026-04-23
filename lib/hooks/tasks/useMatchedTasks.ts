@@ -76,7 +76,7 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
 
       // Map to MatchedWorker objects
       const matched: MatchedWorker[] = topMatches.map((score: any) => {
-        const stats = workerStats.find((w: any) => w.worker_id === score.worker_id) as WorkerStats
+        const stats = workerStats.find((w: any) => w.worker_id === score.worker_id) as unknown as WorkerStats
 
         return {
           worker_id: score.worker_id,
