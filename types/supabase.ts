@@ -1434,6 +1434,77 @@ export interface Database {
         Args: Record<string, never>
         Returns: string
       }
+      assign_task: {
+        Args: { task_id: string; worker_id: string; auto_assign?: boolean }
+        Returns: Json
+      }
+      expire_task: {
+        Args: { task_id: string; reason?: string }
+        Returns: Json
+      }
+      publish_task: {
+        Args: { task_id: string }
+        Returns: Json
+      }
+      filter_tasks: {
+        Args: {
+          category_id?: string | null
+          location_city?: string | null
+          status?: string | null
+          limit?: number
+          offset?: number
+        }
+        Returns: Json
+      }
+      setup_liftgo_tables: {
+        Args: Record<string, never>
+        Returns: void
+      }
+      upsert_agent_cost_summary: {
+        Args: {
+          p_date: string
+          p_agent_type: string
+          p_messages?: number
+          p_tokens_in?: number
+          p_tokens_out?: number
+          p_cost_usd?: number
+        }
+        Returns: void
+      }
+      match_tasks: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
+      }
+      match_obrtniki: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
+      }
+      match_sporocila: {
+        Args: {
+          query_embedding: string
+          conversation_id?: string | null
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
+      }
+      match_ponudbe: {
+        Args: {
+          query_embedding: string
+          task_id?: string | null
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
+      }
     }
     Enums: {}
   }

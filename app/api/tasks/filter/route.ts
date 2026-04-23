@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     // 3. Call RPC function with filter type
-    const { data, error } = await supabase.rpc('filter_tasks' as any, {
+    const { data, error } = await supabase.rpc('filter_tasks', {
       filter_type: filterType,
       user_id: user.id,
       limit_count: limit,
