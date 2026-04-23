@@ -1,0 +1,83 @@
+name: Feature Request
+description: Suggest a new feature for LiftGO
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide as much detail as possible.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of LiftGO does this feature relate to?
+      options:
+        - Naročnik (Customer) flow
+        - Obrtnik (Craftsman) flow
+        - Authentication / Registration
+        - Messaging / Sporočila
+        - Payments / Stripe
+        - AI Agents
+        - Admin dashboard
+        - API
+        - Mobile
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: user-type
+    attributes:
+      label: User Type
+      description: Who would benefit from this feature?
+      options:
+        - Naročnik (Customer)
+        - Obrtnik (Craftsman)
+        - Both
+        - Admin
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve?
+      placeholder: "Currently, when a naročnik wants to... they have to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature you'd like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions?
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - High (blocking users)
+        - Medium (improves UX)
+        - Low (nice to have)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, or examples here.

@@ -1,0 +1,62 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Ljubljana"
+    open-pull-requests-limit: 10
+    reviewers:
+      - remix01
+    labels:
+      - dependencies
+      - automated
+    groups:
+      radix-ui:
+        patterns:
+          - "@radix-ui/*"
+      supabase:
+        patterns:
+          - "@supabase/*"
+          - supabase
+      stripe:
+        patterns:
+          - stripe
+          - "@stripe/*"
+      sentry:
+        patterns:
+          - "@sentry/*"
+      upstash:
+        patterns:
+          - "@upstash/*"
+      anthropic:
+        patterns:
+          - "@anthropic-ai/*"
+      types:
+        patterns:
+          - "@types/*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Ljubljana"
+    labels:
+      - dependencies
+      - github-actions
+      - automated

@@ -1,0 +1,85 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title follows Conventional Commits
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Please ensure that the subject
+            doesn't start with an uppercase character.
+
+  label-pr:
+    name: Auto-label PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labeler.yml
+
+  check-size:
+    name: Check PR Size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Count changed files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+          echo "count=$FILES" >> $GITHUB_OUTPUT
+          echo "Changed files: $FILES"
+
+      - name: Warn on large PR
+        if: steps.changed.outputs.count > 50
+        run: |
+          echo "::warning::This PR changes ${{ steps.changed.outputs.count }} files. Consider splitting into smaller PRs."
+
+  validate-migrations:
+    name: Validate Supabase Migrations
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'supabase/migrations')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check migration file naming
+        run: |
+          for f in supabase/migrations/*.sql; do
+            if [ -f "$f" ]; then
+              basename "$f" | grep -qE '^[0-9]{14}_[a-z0-9_]+\.sql$' || {
+                echo "::error::Migration file $f does not follow naming convention: YYYYMMDDHHMMSS_description.sql"
+                exit 1
+              }
+            fi
+          done
+          echo "All migration files follow correct naming convention"
