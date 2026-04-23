@@ -54,7 +54,7 @@ export default function MojsterDetailPage({ params }: PageProps) {
         // Transform service areas to display type
         const serviceAreasRaw = (data.service_areas as ServiceAreaRow[]) || []
         const transformedServiceAreas: ServiceAreaDisplay[] = toServiceAreaDisplayList(serviceAreasRaw)
-        data.service_areas = transformedServiceAreas
+        ;(data as any).service_areas = transformedServiceAreas
 
         // Transform reviews: rename 'narocnik' to 'profiles' for consistency
         const reviews = (data.ocene as Array<any>) || []
@@ -62,7 +62,7 @@ export default function MojsterDetailPage({ params }: PageProps) {
           ...review,
           profiles: review.narocnik ? { first_name: review.narocnik.first_name, last_name: review.narocnik.last_name } : null,
         }))
-        data.ocene = transformedReviews
+        ;(data as any).ocene = transformedReviews
 
         setObrtnik(data)
       } catch (err) {

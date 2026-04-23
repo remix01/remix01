@@ -8,7 +8,7 @@ interface Alert {
   severity: 'low' | 'medium' | 'high' | 'critical'
   type: string
   user_id: string | null
-  details: string
+  details: string | null
   created_at: string
   resolved: boolean
 }

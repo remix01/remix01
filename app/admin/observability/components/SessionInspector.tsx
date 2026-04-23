@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { Json } from '@/types/supabase'
 
 interface SessionLog {
   id: string
   created_at: string
-  event: string
+  event: string | null
   tool: string | null
-  params: Record<string, any> | null
+  params: Json | null
   result: string | null
   duration_ms: number | null
 }
@@ -135,7 +136,7 @@ export function SessionInspector() {
             </thead>
             <tbody>
               {logs.map(log => {
-                const sanitized = sanitizeParams(log.params)
+                const sanitized = sanitizeParams(log.params as Record<string, any> | null)
                 return (
                   <tr key={log.id} className="border-b border-slate-800 hover:bg-slate-800/50">
                     <td className="py-2 px-3 text-slate-300 whitespace-nowrap">{formatTime(log.created_at)}</td>

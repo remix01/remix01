@@ -269,7 +269,7 @@ export interface Database {
           read_at: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['sporocila']['Row'], 'id' | 'created_at'> & {
+        Insert: Omit<Database['public']['Tables']['sporocila']['Row'], 'id' | 'created_at' | 'is_read' | 'read_at'> & {
           is_read?: boolean
           read_at?: string | null
         }
@@ -597,7 +597,13 @@ export interface Database {
           price_estimate: number | null
           price_type: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date: string | null
-          status: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
+          estimated_duration: string | null
+          status: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
+          accepted_at: string | null
+          stripe_payment_intent_id: string | null
+          payment_status: string | null
+          auto_generated: boolean | null
+          template_id: string | null
           created_at: string
         }
         Insert: {
@@ -608,7 +614,13 @@ export interface Database {
           price_estimate?: number | null
           price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date?: string | null
-          status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
+          estimated_duration?: string | null
+          status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
+          accepted_at?: string | null
+          stripe_payment_intent_id?: string | null
+          payment_status?: string | null
+          auto_generated?: boolean | null
+          template_id?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
@@ -640,6 +652,7 @@ export interface Database {
           resource_id: string | null
           resource_type: string | null
           link: string | null
+          action_url: string | null
           metadata: Json
           is_read: boolean
           created_at: string
@@ -650,11 +663,12 @@ export interface Database {
           user_id: string
           type: string
           title: string
-          body: string
+          body?: string | null
           message?: string | null
           resource_id?: string | null
           resource_type?: string | null
           link?: string | null
+          action_url?: string | null
           metadata?: Json
           is_read?: boolean
           created_at?: string
@@ -717,11 +731,13 @@ export interface Database {
           ponudba_id: string
           narocnik_id: string
           obrtnik_id: string
+          povprasevanje_id: string | null
           rating: number
           quality_rating: number | null
           punctuality_rating: number | null
           price_rating: number | null
           comment: string | null
+          text: string | null
           photos: string[] | null
           obrtnik_reply: string | null
           replied_at: string | null
@@ -730,14 +746,16 @@ export interface Database {
         }
         Insert: {
           id?: string
-          ponudba_id: string
-          narocnik_id: string
+          ponudba_id?: string
+          narocnik_id?: string
           obrtnik_id: string
+          povprasevanje_id?: string | null
           rating: number
           quality_rating?: number | null
           punctuality_rating?: number | null
           price_rating?: number | null
           comment?: string | null
+          text?: string | null
           photos?: string[] | null
           obrtnik_reply?: string | null
           replied_at?: string | null
@@ -1000,13 +1018,55 @@ export interface Database {
       tasks: {
         Row: {
           id: string
+          customer_id: string | null
+          worker_id: string | null
+          title: string | null
+          description: string | null
+          category: string | null
           status: string | null
+          priority: string | null
+          location: string | null
+          estimated_value: number | null
+          sla_deadline: string | null
+          claimed_at: string | null
+          started_at: string | null
+          completed_at: string | null
+          expired_at: string | null
+          cancelled_at: string | null
+          expires_at: string | null
+          published_at: string | null
+          accepted_at: string | null
+          assigned_to: string | null
+          category_id: string | null
+          created_by: string | null
+          narocnik_id: string | null
           created_at: string
           updated_at: string | null
         }
         Insert: {
           id?: string
+          customer_id?: string | null
+          worker_id?: string | null
+          title?: string | null
+          description?: string | null
+          category?: string | null
           status?: string | null
+          priority?: string | null
+          location?: string | null
+          estimated_value?: number | null
+          sla_deadline?: string | null
+          claimed_at?: string | null
+          started_at?: string | null
+          completed_at?: string | null
+          expired_at?: string | null
+          cancelled_at?: string | null
+          expires_at?: string | null
+          published_at?: string | null
+          accepted_at?: string | null
+          assigned_to?: string | null
+          category_id?: string | null
+          created_by?: string | null
+          narocnik_id?: string | null
           created_at?: string
           updated_at?: string | null
         }
@@ -1018,35 +1078,33 @@ export interface Database {
           id: string
           worker_id: string | null
           tasks_completed: number | null
+          total_completed: number | null
+          avg_rating: number | null
+          response_time_minutes: number | null
+          completion_rate: number | null
+          acceptance_rate: number | null
+          on_time_rate: number | null
+          category: string | null
+          location: string | null
           created_at: string
+          updated_at: string | null
         }
         Insert: {
           id?: string
           worker_id?: string | null
           tasks_completed?: number | null
+          total_completed?: number | null
+          avg_rating?: number | null
+          response_time_minutes?: number | null
+          completion_rate?: number | null
+          acceptance_rate?: number | null
+          on_time_rate?: number | null
+          category?: string | null
+          location?: string | null
           created_at?: string
+          updated_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
-        Relationships: []
-      }
-      home_maintenance_log: {
-        Row: {
-          id: string
-          user_id: string
-          event_name: string
-          notes: string | null
-          performed_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id?: string
-          event_name: string
-          notes?: string | null
-          performed_at: string
-          created_at?: string
-        }
-        Update: Partial<Database['public']['Tables']['home_maintenance_log']['Insert']>
         Relationships: []
       }
       inquiry_status: {
@@ -1097,6 +1155,460 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
         Relationships: []
       }
+      home_maintenance_log: {
+        Row: {
+          id: string
+          user_id: string | null
+          event_name: string
+          performed_at: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          event_name: string
+          performed_at: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['home_maintenance_log']['Insert']>
+        Relationships: []
+      }
+      partners: {
+        Row: {
+          id: string
+          user_id: string
+          email: string | null
+          ime: string | null
+          priimek: string | null
+          podjetje: string | null
+          stripe_account_id: string | null
+          stripe_account_status: string | null
+          subscription_tier: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          email?: string | null
+          ime?: string | null
+          priimek?: string | null
+          podjetje?: string | null
+          stripe_account_id?: string | null
+          stripe_account_status?: string | null
+          subscription_tier?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['partners']['Insert']>
+        Relationships: []
+      }
+      ai_usage_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          agent_type: string | null
+          model_used: string | null
+          tokens_input: number | null
+          tokens_output: number | null
+          cost_usd: number | null
+          response_cached: boolean | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          agent_type?: string | null
+          model_used?: string | null
+          tokens_input?: number | null
+          tokens_output?: number | null
+          cost_usd?: number | null
+          response_cached?: boolean | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ai_usage_logs']['Insert']>
+        Relationships: []
+      }
+      conversations: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          id: string
+          sender_id: string | null
+          receiver_id: string | null
+          povprasevanje_id: string | null
+          content: string | null
+          body: string | null
+          sender_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          sender_id?: string | null
+          receiver_id?: string | null
+          povprasevanje_id?: string | null
+          content?: string | null
+          body?: string | null
+          sender_name?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['messages']['Insert']>
+        Relationships: []
+      }
+      agent_conversations: {
+        Row: { id: string; user_id: string | null; agent_type: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; agent_type?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_jobs: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_logs: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string | null
+          session_id: string | null
+          event: string | null
+          tool: string | null
+          params: Json | null
+          result: 'success' | 'error' | 'warning' | null
+          duration_ms: number | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id?: string | null
+          session_id?: string | null
+          event?: string | null
+          tool?: string | null
+          params?: Json | null
+          result?: 'success' | 'error' | 'warning' | null
+          duration_ms?: number | null
+          metadata?: Json | null
+        }
+        Update: Partial<Database['public']['Tables']['agent_logs']['Insert']>
+        Relationships: []
+      }
+      agent_matches: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_material_lists: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_quote_drafts: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_user_memory: {
+        Row: { id: string; user_id: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_definitions: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_job_reports: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_cost_summary: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_alerts: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string | null
+          severity: 'low' | 'medium' | 'high' | 'critical'
+          type: string
+          details: string | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id?: string | null
+          severity?: 'low' | 'medium' | 'high' | 'critical'
+          type: string
+          details?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['agent_alerts']['Insert']>
+        Relationships: []
+      }
+      ai_agent_conversations: {
+        Row: { id: string; user_id: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      disputes: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrow_disputes: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrow_holds: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrows: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrow_audit_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      hitl_approvals: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      matching_logs: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      risk_scores: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      saga_instances: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_outbox: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_dlq: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_processing_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      analytics_events: {
+        Row: { id: string; user_id: string | null; event_type: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; event_type?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: { id: string; key: string; value: Json; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; key: string; value?: Json; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      partner_insights: {
+        Row: { id: string; partner_id: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; partner_id?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      rezervacije: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      verifications: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      locations: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      obrtnik_portfolio: {
+        Row: { id: string; obrtnik_id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; obrtnik_id: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      portfolio: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      admin_alerts: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      admin_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          id: string
+          table_name: string | null
+          record_id: string | null
+          action: string | null
+          old_data: Json | null
+          new_data: Json | null
+          changed_by: string | null
+          changed_at: string | null
+          event_type: string | null
+          actor: string | null
+          job_id: string | null
+          payment_id: string | null
+          stripe_event_id: string | null
+          created_at: string
+          [key: string]: unknown
+        }
+        Insert: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          old_data?: Json | null
+          new_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          event_type?: string | null
+          actor?: string | null
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          created_at?: string
+          [key: string]: unknown
+        }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          table_name: string | null
+          record_id: string | null
+          action: string | null
+          old_data: Json | null
+          new_data: Json | null
+          changed_by: string | null
+          changed_at: string | null
+          event_type: string | null
+          actor: string | null
+          job_id: string | null
+          payment_id: string | null
+          stripe_event_id: string | null
+          created_at: string
+          [key: string]: unknown
+        }
+        Insert: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          old_data?: Json | null
+          new_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          event_type?: string | null
+          actor?: string | null
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          created_at?: string
+          [key: string]: unknown
+        }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      alert_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      device_tokens: {
+        Row: { id: string; user_id: string | null; token: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; token: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      zaposleni: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {
@@ -1107,6 +1619,76 @@ export interface Database {
       user_id: {
         Args: Record<string, never>
         Returns: string
+      }
+      assign_task: {
+        Args: { task_id: string; worker_id: string; auto_assign?: boolean }
+        Returns: Json
+      }
+      expire_task: {
+        Args: { task_id: string; reason?: string }
+        Returns: Json
+      }
+      publish_task: {
+        Args: { task_id: string }
+        Returns: Json
+      }
+      filter_tasks: {
+        Args: {
+          filter_type?: string | null
+          user_id?: string | null
+          limit_count?: number
+          offset_count?: number
+        }
+        Returns: Json
+      }
+      setup_liftgo_tables: {
+        Args: Record<string, never>
+        Returns: void
+      }
+      upsert_agent_cost_summary: {
+        Args: {
+          p_date: string
+          p_agent_type: string
+          p_messages?: number
+          p_tokens_in?: number
+          p_tokens_out?: number
+          p_cost_usd?: number
+        }
+        Returns: void
+      }
+      match_tasks: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
+      }
+      match_obrtniki: {
+        Args: {
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
+      }
+      match_sporocila: {
+        Args: {
+          query_embedding: string
+          conversation_id?: string | null
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
+      }
+      match_ponudbe: {
+        Args: {
+          query_embedding: string
+          task_id?: string | null
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: Json
       }
     }
     Enums: {}

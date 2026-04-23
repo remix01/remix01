@@ -40,9 +40,6 @@ export function useRealtimePonudbe(povprasevanjeId: string) {
             setPonudbe(data)
           }
         })
-        .catch((error: any) => {
-          console.error('[v0] Error in ponudbe query:', error)
-        })
 
       // Subscribe to new ponudbe for this povprasevanje
       const channel = supabase

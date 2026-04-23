@@ -21,7 +21,7 @@ interface Review {
   obrtnik_reply: string | null
   replied_at: string | null
   created_at: string
-  profiles: { full_name: string }
+  profiles: { full_name: string | null }
 }
 
 const formatDate = (dateStr: string) => {
@@ -181,8 +181,9 @@ export function ReviewsList({ obrtnik_id, currentUserId }: ReviewsListProps) {
       {/* Reviews */}
       <div className="space-y-6">
         {reviews.map((review) => {
-          const initials = review.profiles.full_name
+          const initials = (review.profiles.full_name ?? '')
             .split(' ')
+            .filter(Boolean)
             .map((n) => n[0])
             .join('')
           return (
@@ -193,7 +194,7 @@ export function ReviewsList({ obrtnik_id, currentUserId }: ReviewsListProps) {
                 </div>
                 <div className="flex-1">
                   <div className="font-semibold text-sm">
-                    {review.profiles.full_name.split(' ')[0]} {review.profiles.full_name.split(' ')[1]?.[0]}.
+                    {(review.profiles.full_name ?? '').split(' ')[0]} {(review.profiles.full_name ?? '').split(' ')[1]?.[0]}.
                   </div>
                   <div className="text-xs text-gray-500">{formatDate(review.created_at)}</div>
                 </div>

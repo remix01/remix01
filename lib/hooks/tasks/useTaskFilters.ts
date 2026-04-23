@@ -121,7 +121,7 @@ export function useTaskFilters(filterType: TaskFilterType, options?: UseTaskFilt
         throw queryError
       }
 
-      setTasks(data || [])
+      setTasks((data || []) as unknown as Task[])
       setTotalCount(count || 0)
       setHasMore((offset + limit) < (count || 0))
     } catch (err) {
@@ -175,7 +175,7 @@ export function useTaskFilters(filterType: TaskFilterType, options?: UseTaskFilt
 
       if (queryError) throw queryError
 
-      setTasks(prev => [...prev, ...(data || [])])
+      setTasks(prev => [...prev, ...((data || []) as unknown as Task[])])
       setHasMore(tasks.length + (data?.length || 0) < totalCount)
     } catch (err) {
       console.error('[v0] Error loading more tasks:', err)
