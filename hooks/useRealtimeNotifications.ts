@@ -70,7 +70,7 @@ export function useRealtimeNotifications(userId: string | null) {
       supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId ?? '')
         .eq('is_read', false)
         .order('created_at', { ascending: false })
         .limit(20)
@@ -132,7 +132,7 @@ export function useRealtimeNotifications(userId: string | null) {
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
-        .eq('user_id', userId)
+        .eq('user_id', userId ?? '')
         .eq('is_read', false)
 
       if (error) {
