@@ -5,13 +5,14 @@ import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { NotificationBellClient } from "@/components/liftgo/NotificationBellClient"
-import { useAccountTarget } from "@/hooks/useAccountTarget"
-import { NAV_LINKS } from "@/lib/nav/nav-config"
+import { BrandLogo } from "@/components/layout/BrandLogo"
+import { useDashboardPath } from "@/hooks/useDashboardPath"
+import { NAV_LINKS } from "@/components/navigation/config"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
-  const { userId, dashboardPath } = useAccountTarget()
+  const { userId, dashboardPath } = useDashboardPath()
 
   const scrollToForm = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
@@ -31,18 +32,13 @@ export function Navbar() {
   }, [isOpen])
 
   return (
-    <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60" ref={mobileMenuRef}>
+    <nav
+      className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      ref={mobileMenuRef}
+    >
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">L</span>
-            </div>
-            <span className="font-display text-xl font-bold tracking-tight text-foreground">
-              Lift<span className="text-primary">GO</span>
-            </span>
-          </Link>
+          <BrandLogo />
 
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-8 lg:flex">
@@ -50,7 +46,11 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-sm font-${link.variant === 'primary' ? 'semibold text-primary hover:text-primary/80' : 'medium text-muted-foreground hover:text-foreground'} transition-colors min-h-[44px] flex items-center`}
+                className={
+                  link.variant === 'primary'
+                    ? 'text-sm font-semibold text-primary transition-colors hover:text-primary/80 min-h-[44px] flex items-center'
+                    : 'text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center'
+                }
               >
                 {link.label}
               </Link>
@@ -79,7 +79,7 @@ export function Navbar() {
             aria-label={isOpen ? "Zapri meni" : "Odpri meni"}
             aria-expanded={isOpen}
           >
-            {isOpen ? <X className="h-6 w-6 transition-transform" /> : <Menu className="h-6 w-6 transition-transform" />}
+            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
@@ -95,7 +95,11 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setIsOpen(false)}
-                className={`text-sm font-${link.variant === 'primary' ? 'semibold text-primary hover:text-primary/80' : 'medium text-foreground hover:text-primary'} transition-colors min-h-[44px] flex items-center`}
+                className={
+                  link.variant === 'primary'
+                    ? 'text-sm font-semibold text-primary transition-colors hover:text-primary/80 min-h-[44px] flex items-center'
+                    : 'text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center'
+                }
               >
                 {link.label}
               </Link>
