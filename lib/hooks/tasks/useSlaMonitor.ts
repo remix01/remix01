@@ -44,7 +44,7 @@ export function useSlaMonitor(taskId: string, options?: UseSlaMonitorOptions) {
 
       if (queryError) throw queryError
 
-      setTask(data)
+      setTask(data as unknown as Task)
     } catch (err) {
       console.error('[v0] Error loading task for SLA monitor:', err)
       setError(err)
