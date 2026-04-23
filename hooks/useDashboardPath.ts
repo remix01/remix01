@@ -34,29 +34,33 @@ export function useDashboardPath(): DashboardTarget {
 
       setUserId(user.id)
 
-      // All role lookups in parallel — no sequential waterfall
-      const [adminRes, obrtnikRes, partnerRes, profileRes, profileByAuthRes] = await Promise.all([
-        supabase.from('admin_users').select('id').eq('auth_user_id', user.id).maybeSingle(),
-        supabase.from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle(),
-        supabase.from('partners').select('id').eq('user_id', user.id).maybeSingle(),
-        supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-        supabase.from('profiles').select('role').eq('auth_user_id', user.id).maybeSingle(),
-      ])
+      try {
+        // All role lookups in parallel — no sequential waterfall
+        const [adminRes, obrtnikRes, partnerRes, profileRes, profileByAuthRes] = await Promise.all([
+          supabase.from('admin_users').select('id').eq('auth_user_id', user.id).maybeSingle(),
+          supabase.from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle(),
+          supabase.from('partners').select('id').eq('user_id', user.id).maybeSingle(),
+          supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+          supabase.from('profiles').select('role').eq('auth_user_id', user.id).maybeSingle(),
+        ])
 
-      if (!mounted) return
+        if (!mounted) return
 
-      if (adminRes.data) {
-        setDashboardPath(DASHBOARD_PATHS.admin)
-      } else if (obrtnikRes.data || partnerRes.data) {
-        setDashboardPath(DASHBOARD_PATHS.partner)
-      } else {
-        const role = (profileRes.data ?? profileByAuthRes.data)?.role
-        if (role === 'obrtnik' || role === 'CRAFTWORKER') {
+        if (adminRes.data) {
+          setDashboardPath(DASHBOARD_PATHS.admin)
+        } else if (obrtnikRes.data || partnerRes.data) {
           setDashboardPath(DASHBOARD_PATHS.partner)
+        } else {
+          const role = (profileRes.data ?? profileByAuthRes.data)?.role
+          if (role === 'obrtnik' || role === 'CRAFTWORKER') {
+            setDashboardPath(DASHBOARD_PATHS.partner)
+          }
         }
+      } catch {
+        // On transient failure keep the default customer path
+      } finally {
+        if (mounted) setIsLoading(false)
       }
-
-      setIsLoading(false)
     }
 
     resolve()
