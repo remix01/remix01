@@ -5,116 +5,30 @@ import Link from "next/link"
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { NotificationBellClient } from "@/components/liftgo/NotificationBellClient"
-import { createClient } from "@/lib/supabase/client"
+import { useAccountTarget } from "@/hooks/useAccountTarget"
+import { NAV_LINKS } from "@/lib/nav/nav-config"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [dashboardPath, setDashboardPath] = useState('/dashboard')
   const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const { userId, dashboardPath } = useAccountTarget()
 
   const scrollToForm = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
     setIsOpen(false)
-    const el = document.getElementById("oddaj-povprasevanje")
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" })
-    }
+    document.getElementById("oddaj-povprasevanje")?.scrollIntoView({ behavior: "smooth" })
   }
 
-  // Close menu when clicking outside
   useEffect(() => {
+    if (!isOpen) return
     const handleClickOutside = (event: MouseEvent) => {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [isOpen])
-
-  // Get current user
-  useEffect(() => {
-    let isMounted = true
-    const getUser = async () => {
-      try {
-        const supabase = createClient()
-        if (!supabase) {
-          console.warn('[v0] Supabase client not available')
-          return
-        }
-        const { data: { user }, error } = await supabase.auth.getUser()
-        if (isMounted && !error && user) {
-          setUserId(user.id)
-          
-          // Določi pravilno pot na osnovi vloge
-          const { data: adminUser } = await supabase
-            .from('admin_users')
-            .select('id')
-            .eq('auth_user_id', user.id)
-            .maybeSingle()
-
-          if (adminUser) {
-            setDashboardPath('/admin')
-          } else {
-            const { data: obrtnikProfile } = await supabase
-              .from('obrtnik_profiles')
-              .select('id')
-              .eq('id', user.id)
-              .maybeSingle()
-
-            if (obrtnikProfile) {
-              setDashboardPath('/partner-dashboard')
-            } else {
-              const { data: partner } = await supabase
-                .from('partners')
-                .select('id')
-                .eq('user_id', user.id)
-                .maybeSingle()
-
-              if (partner) {
-                setDashboardPath('/partner-dashboard')
-              } else {
-                const { data: profileById } = await supabase
-                  .from('profiles')
-                  .select('role')
-                  .eq('id', user.id)
-                  .maybeSingle()
-
-                const { data: profileByAuthUserId } = await supabase
-                  .from('profiles')
-                  .select('role')
-                  .eq('auth_user_id', user.id)
-                  .maybeSingle()
-
-                const profile = (profileById ?? profileByAuthUserId) as { role: string | null } | null
-
-                if (profile?.role === 'obrtnik') {
-                  setDashboardPath('/partner-dashboard')
-                }
-                // else ostane /dashboard (default za naročnika)
-              }
-            }
-          }
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('[v0] Error getting user:', err)
-        }
-      }
-    }
-    getUser()
-    
-    return () => {
-      isMounted = false
-    }
-  }, [])
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60" ref={mobileMenuRef}>
@@ -132,24 +46,15 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden items-center gap-8 lg:flex">
-            <Link href="/" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
-              Domov
-            </Link>
-            <Link href="/kako-deluje" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
-              Kako deluje
-            </Link>
-            <Link href="/blog" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
-              Vodiči
-            </Link>
-            <Link href="/orodja" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
-              Orodja
-            </Link>
-            <Link href="/e-kljuc" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground min-h-[44px] flex items-center">
-              E-Ključ
-            </Link>
-            <Link href="/za-obrtnike" className="text-sm font-semibold text-primary transition-colors hover:text-primary/80 min-h-[44px] flex items-center">
-              Za obrtnike
-            </Link>
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`text-sm font-${link.variant === 'primary' ? 'semibold text-primary hover:text-primary/80' : 'medium text-muted-foreground hover:text-foreground'} transition-colors min-h-[44px] flex items-center`}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
 
           {/* Desktop CTA */}
@@ -174,63 +79,27 @@ export function Navbar() {
             aria-label={isOpen ? "Zapri meni" : "Odpri meni"}
             aria-expanded={isOpen}
           >
-            {isOpen ? (
-              <X className="h-6 w-6 transition-transform" />
-            ) : (
-              <Menu className="h-6 w-6 transition-transform" />
-            )}
+            {isOpen ? <X className="h-6 w-6 transition-transform" /> : <Menu className="h-6 w-6 transition-transform" />}
           </button>
         </div>
 
         {/* Mobile Navigation */}
-        <div 
+        <div
           className={`overflow-hidden border-t transition-all duration-200 ease-out lg:hidden ${
             isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0 border-t-0'
           }`}
         >
           <div className="flex flex-col gap-4 px-4 py-4">
-            <Link 
-              href="/" 
-              onClick={() => setIsOpen(false)} 
-              className="text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center"
-            >
-              Domov
-            </Link>
-            <Link 
-              href="/kako-deluje" 
-              onClick={() => setIsOpen(false)} 
-              className="text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center"
-            >
-              Kako deluje
-            </Link>
-            <Link 
-              href="/blog" 
-              onClick={() => setIsOpen(false)} 
-              className="text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center"
-            >
-              Vodiči
-            </Link>
-            <Link 
-              href="/orodja" 
-              onClick={() => setIsOpen(false)} 
-              className="text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center"
-            >
-              Orodja
-            </Link>
-            <Link 
-              href="/e-kljuc" 
-              onClick={() => setIsOpen(false)} 
-              className="text-sm font-medium text-foreground transition-colors hover:text-primary min-h-[44px] flex items-center"
-            >
-              E-Ključ
-            </Link>
-            <Link 
-              href="/za-obrtnike" 
-              onClick={() => setIsOpen(false)} 
-              className="text-sm font-semibold text-primary transition-colors hover:text-primary/80 min-h-[44px] flex items-center"
-            >
-              Za obrtnike
-            </Link>
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setIsOpen(false)}
+                className={`text-sm font-${link.variant === 'primary' ? 'semibold text-primary hover:text-primary/80' : 'medium text-foreground hover:text-primary'} transition-colors min-h-[44px] flex items-center`}
+              >
+                {link.label}
+              </Link>
+            ))}
             <div className="flex flex-col gap-2 pt-4 border-t">
               <Button variant="outline" size="lg" asChild className="w-full min-h-[48px]">
                 <Link href={userId ? dashboardPath : "/prijava"} onClick={() => setIsOpen(false)}>
