@@ -29,7 +29,7 @@ type PartnerProfile = {
 
 type UserProfile = {
   id: string
-  email: string
+  email: string | null
   phone: string | null
   location_city: string | null
 }
