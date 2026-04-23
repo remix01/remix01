@@ -719,11 +719,13 @@ export interface Database {
           ponudba_id: string
           narocnik_id: string
           obrtnik_id: string
+          povprasevanje_id: string | null
           rating: number
           quality_rating: number | null
           punctuality_rating: number | null
           price_rating: number | null
           comment: string | null
+          text: string | null
           photos: string[] | null
           obrtnik_reply: string | null
           replied_at: string | null
@@ -732,14 +734,16 @@ export interface Database {
         }
         Insert: {
           id?: string
-          ponudba_id: string
-          narocnik_id: string
+          ponudba_id?: string
+          narocnik_id?: string
           obrtnik_id: string
+          povprasevanje_id?: string | null
           rating: number
           quality_rating?: number | null
           punctuality_rating?: number | null
           price_rating?: number | null
           comment?: string | null
+          text?: string | null
           photos?: string[] | null
           obrtnik_reply?: string | null
           replied_at?: string | null
