@@ -21,12 +21,12 @@ export default function MojDomPage() {
 
   const load = async () => {
     const { data } = await supabase
-      .from('home_maintenance_log' as any)
+      .from('home_maintenance_log')
       .select('id,event_name,performed_at')
       .order('performed_at', { ascending: false })
       .limit(20)
 
-    setItems((data || []) as unknown as LogItem[])
+    setItems((data || []) as LogItem[])
 
     const res = await fetch('/api/ai/home-advisor', {
       method: 'POST',
@@ -43,7 +43,7 @@ export default function MojDomPage() {
 
   const addLog = async () => {
     if (!eventName.trim() || !performedAt) return
-    await supabase.from('home_maintenance_log' as any).insert({ event_name: eventName, performed_at: performedAt })
+    await supabase.from('home_maintenance_log').insert({ event_name: eventName, performed_at: performedAt })
     setEventName('')
     setPerformedAt('')
     await load()

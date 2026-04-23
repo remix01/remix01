@@ -597,7 +597,7 @@ export interface Database {
           price_estimate: number | null
           price_type: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date: string | null
-          status: 'poslana' | 'sprejeta' | 'zavrnjena'
+          status: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
           created_at: string
         }
         Insert: {
@@ -608,7 +608,7 @@ export interface Database {
           price_estimate?: number | null
           price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date?: string | null
-          status?: 'poslana' | 'sprejeta' | 'zavrnjena'
+          status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana'
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
@@ -1049,6 +1049,336 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
+        Relationships: []
+      }
+      home_maintenance_log: {
+        Row: {
+          id: string
+          user_id: string | null
+          event_name: string
+          performed_at: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          event_name: string
+          performed_at: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['home_maintenance_log']['Insert']>
+        Relationships: []
+      }
+      partners: {
+        Row: {
+          id: string
+          user_id: string
+          email: string | null
+          ime: string | null
+          priimek: string | null
+          podjetje: string | null
+          stripe_account_id: string | null
+          stripe_account_status: string | null
+          subscription_tier: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          email?: string | null
+          ime?: string | null
+          priimek?: string | null
+          podjetje?: string | null
+          stripe_account_id?: string | null
+          stripe_account_status?: string | null
+          subscription_tier?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['partners']['Insert']>
+        Relationships: []
+      }
+      ai_usage_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          agent_type: string | null
+          model_used: string | null
+          tokens_input: number | null
+          tokens_output: number | null
+          cost_usd: number | null
+          response_cached: boolean | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          agent_type?: string | null
+          model_used?: string | null
+          tokens_input?: number | null
+          tokens_output?: number | null
+          cost_usd?: number | null
+          response_cached?: boolean | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ai_usage_logs']['Insert']>
+        Relationships: []
+      }
+      conversations: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      messages: {
+        Row: { id: string; body: string | null; sender_id: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; body?: string | null; sender_id?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_conversations: {
+        Row: { id: string; user_id: string | null; agent_type: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; agent_type?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_jobs: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_logs: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_matches: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_material_lists: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_quote_drafts: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_user_memory: {
+        Row: { id: string; user_id: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_definitions: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_job_reports: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_cost_summary: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      agent_alerts: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      ai_agent_conversations: {
+        Row: { id: string; user_id: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      disputes: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrow_disputes: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrow_holds: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrows: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      escrow_audit_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      hitl_approvals: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      matching_logs: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      risk_scores: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      saga_instances: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_outbox: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_dlq: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      event_processing_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      analytics_events: {
+        Row: { id: string; user_id: string | null; event_type: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; event_type?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: { id: string; key: string; value: Json; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; key: string; value?: Json; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      partner_insights: {
+        Row: { id: string; partner_id: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; partner_id?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      rezervacije: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      verifications: {
+        Row: { id: string; status: string | null; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; status?: string | null; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      locations: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      obrtnik_portfolio: {
+        Row: { id: string; obrtnik_id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; obrtnik_id: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      portfolio: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      admin_alerts: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      admin_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      audit_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      alert_log: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      device_tokens: {
+        Row: { id: string; user_id: string | null; token: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; user_id?: string | null; token: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
+        Relationships: []
+      }
+      zaposleni: {
+        Row: { id: string; created_at: string; [key: string]: unknown }
+        Insert: { id?: string; created_at?: string; [key: string]: unknown }
+        Update: { [key: string]: unknown }
         Relationships: []
       }
     }
