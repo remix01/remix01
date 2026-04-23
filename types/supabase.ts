@@ -640,6 +640,7 @@ export interface Database {
           resource_id: string | null
           resource_type: string | null
           link: string | null
+          action_url: string | null
           metadata: Json
           is_read: boolean
           created_at: string
@@ -655,6 +656,7 @@ export interface Database {
           resource_id?: string | null
           resource_type?: string | null
           link?: string | null
+          action_url?: string | null
           metadata?: Json
           is_read?: boolean
           created_at?: string
