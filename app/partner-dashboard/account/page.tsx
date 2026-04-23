@@ -24,7 +24,7 @@ type PartnerProfile = {
   website_url: string | null
   facebook_url: string | null
   instagram_url: string | null
-  subscription_tier: 'start' | 'pro' | 'elite'
+  subscription_tier: 'start' | 'pro' | 'elite' | null
 }
 
 type UserProfile = {
