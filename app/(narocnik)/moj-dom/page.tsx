@@ -21,7 +21,7 @@ export default function MojDomPage() {
 
   const load = async () => {
     const { data } = await supabase
-      .from('home_maintenance_log')
+      .from('home_maintenance_log' as any)
       .select('id,event_name,performed_at')
       .order('performed_at', { ascending: false })
       .limit(20)
@@ -43,7 +43,7 @@ export default function MojDomPage() {
 
   const addLog = async () => {
     if (!eventName.trim() || !performedAt) return
-    await supabase.from('home_maintenance_log').insert({ event_name: eventName, performed_at: performedAt })
+    await supabase.from('home_maintenance_log' as any).insert({ event_name: eventName, performed_at: performedAt })
     setEventName('')
     setPerformedAt('')
     await load()
