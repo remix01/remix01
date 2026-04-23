@@ -93,9 +93,6 @@ export function useRealtimeNotifications(userId: string | null) {
             setUnreadCount(mapped.length)
           }
         })
-        .catch((error: any) => {
-          console.error('[v0] Error in notification query:', error)
-        })
 
       return () => {
         supabase.removeChannel(channel)
