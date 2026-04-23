@@ -1107,26 +1107,6 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
         Relationships: []
       }
-      home_maintenance_log: {
-        Row: {
-          id: string
-          user_id: string
-          event_name: string
-          notes: string | null
-          performed_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id?: string
-          event_name: string
-          notes?: string | null
-          performed_at: string
-          created_at?: string
-        }
-        Update: Partial<Database['public']['Tables']['home_maintenance_log']['Insert']>
-        Relationships: []
-      }
       inquiry_status: {
         Row: {
           id: string
