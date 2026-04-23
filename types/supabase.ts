@@ -1448,11 +1448,10 @@ export interface Database {
       }
       filter_tasks: {
         Args: {
-          category_id?: string | null
-          location_city?: string | null
-          status?: string | null
-          limit?: number
-          offset?: number
+          filter_type?: string | null
+          user_id?: string | null
+          limit_count?: number
+          offset_count?: number
         }
         Returns: Json
       }
