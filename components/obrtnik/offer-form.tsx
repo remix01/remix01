@@ -151,7 +151,7 @@ export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess, povprasevanjeCo
           <label className="block text-sm font-medium mb-1">Vrsta cene</label>
           <select
             value={priceType}
-            onChange={e => setPriceType(e.target.value)}
+            onChange={e => setPriceType(e.target.value as 'fiksna' | 'ocena' | 'po_ogledu')}
             className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="fiksna">Fiksna cena</option>
