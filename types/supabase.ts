@@ -1136,8 +1136,26 @@ export interface Database {
         Relationships: []
       }
       messages: {
-        Row: { id: string; body: string | null; sender_id: string | null; created_at: string; [key: string]: unknown }
-        Insert: { id?: string; body?: string | null; sender_id?: string | null; created_at?: string; [key: string]: unknown }
+        Row: {
+          id: string
+          sender_id: string | null
+          receiver_id: string | null
+          povprasevanje_id: string | null
+          content: string | null
+          body: string | null
+          created_at: string
+          [key: string]: unknown
+        }
+        Insert: {
+          id?: string
+          sender_id?: string | null
+          receiver_id?: string | null
+          povprasevanje_id?: string | null
+          content?: string | null
+          body?: string | null
+          created_at?: string
+          [key: string]: unknown
+        }
         Update: { [key: string]: unknown }
         Relationships: []
       }
