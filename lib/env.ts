@@ -82,6 +82,12 @@ export const env = {
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 } as const
 
+export function assertEnv() {
+  if (!env.STRIPE_SECRET_KEY) {
+    throw new Error('Missing STRIPE_SECRET_KEY')
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper functions – check before using optional features
 // ═══════════════════════════════════════════════════════════════════════════
