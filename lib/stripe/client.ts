@@ -15,6 +15,11 @@ function getStripeClient(): Stripe {
   return stripeClient
 }
 
+// Exposed for webhook verification only — do not use for API calls.
+export function getStripeInstance(): Stripe {
+  return getStripeClient()
+}
+
 export const stripe = {
   paymentIntents: {
     create: (...args: [params: any, options?: any]) => getStripeClient().paymentIntents.create(...args),

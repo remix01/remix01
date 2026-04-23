@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import Stripe from 'stripe'
-import { constructStripeEvent } from '@/lib/stripe'
+import { constructStripeEvent, constructStripeV2Event, isStripeV2EventPayload } from '@/lib/stripe/webhooks'
 import { assertEnv } from '@/lib/env'
 import { fail, ok } from '@/lib/http/response'
 import { isStripeEventProcessed } from '@/lib/escrow'
@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
   assertEnv()
 
   const rawBody = Buffer.from(await request.arrayBuffer())
+  const rawBodyStr = rawBody.toString('utf8')
   const sig = request.headers.get('stripe-signature')
 
   if (!sig) {
@@ -19,11 +20,26 @@ export async function POST(request: NextRequest) {
   }
 
   let event: Stripe.Event
-  try {
-    event = constructStripeEvent(rawBody, sig)
-  } catch (err) {
-    console.error('[WEBHOOK] Signature fail:', err)
-    return fail('Neveljaven podpis')
+
+  if (isStripeV2EventPayload(rawBodyStr)) {
+    // v2 thin events (Event Destinations) require a different verification method
+    // and a separate signing secret (STRIPE_V2_WEBHOOK_SECRET).
+    const headers: Record<string, string> = {}
+    request.headers.forEach((value, key) => { headers[key] = value })
+
+    try {
+      event = constructStripeV2Event(rawBodyStr, headers) as unknown as Stripe.Event
+    } catch (err) {
+      console.error('[WEBHOOK] Signature fail:', err)
+      return fail('Neveljaven podpis')
+    }
+  } else {
+    try {
+      event = constructStripeEvent(rawBody, sig)
+    } catch (err) {
+      console.error('[WEBHOOK] Signature fail:', err)
+      return fail('Neveljaven podpis')
+    }
   }
 
   if (await isStripeEventProcessed(event.id)) {

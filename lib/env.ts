@@ -11,6 +11,8 @@ export const env = {
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
   STRIPE_CONNECT_WEBHOOK_SECRET: process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? '',
+  // Signing secret for Stripe v2 thin event destinations (Event Destinations in Stripe dashboard).
+  STRIPE_V2_WEBHOOK_SECRET: process.env.STRIPE_V2_WEBHOOK_SECRET ?? '',
   // Optional comma-separated list for rotated/multi-endpoint webhook secrets.
   // Example: "whsec_old,whsec_new,whsec_connect"
   STRIPE_WEBHOOK_SECRETS: process.env.STRIPE_WEBHOOK_SECRETS ?? '',

@@ -51,12 +51,10 @@ export async function GET(req: NextRequest) {
 
     const { data: overdueTasks, error: queryError } = await supabaseAdmin
       .from('tasks')
-      // Keep the projection minimal: selecting non-existent columns on Supabase
-      // causes PostgREST to fail the whole query with a 500 response upstream.
-      .select('id, sla_deadline, status')
-      .in('status', ['published', 'claimed', 'accepted', 'in_progress'])
-      .not('sla_deadline', 'is', null)
-      .lt('sla_deadline', now)
+      .select('id, expires_at, status')
+      .in('status', ['open', 'has_ponudbe', 'in_progress'])
+      .not('expires_at', 'is', null)
+      .lt('expires_at', now)
 
     if (queryError) {
       console.error('[v0] Error querying overdue tasks:', queryError)
@@ -170,7 +168,12 @@ async function expireTask(taskId: string) {
       firstTry.error.message?.includes('does not exist') ||
       firstTry.error.message?.includes('No function matches'))
   ) {
-    return supabaseAdmin.rpc('expire_task', { task_id: taskId })
+    // RPC not available — fall back to a direct status update.
+    return supabaseAdmin
+      .from('tasks')
+      .update({ status: 'expired' })
+      .eq('id', taskId)
+      .in('status', ['open', 'has_ponudbe', 'in_progress'])
   }
 
   return firstTry
