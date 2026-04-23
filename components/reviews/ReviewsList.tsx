@@ -21,7 +21,7 @@ interface Review {
   obrtnik_reply: string | null
   replied_at: string | null
   created_at: string
-  profiles: { full_name: string }
+  profiles: { full_name: string | null }
 }
 
 const formatDate = (dateStr: string) => {
