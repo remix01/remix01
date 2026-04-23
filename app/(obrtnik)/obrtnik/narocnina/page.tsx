@@ -40,7 +40,7 @@ export default function NarocinaPage() {
         .maybeSingle()
 
       if (obrtnikProfile) {
-        setCurrentPlan(obrtnikProfile.subscription_tier || 'START')
+        setCurrentPlan(obrtnikProfile.subscription_tier?.toUpperCase() === 'PRO' ? 'PRO' : 'START')
         setStripeCustomerId(obrtnikProfile.stripe_customer_id)
       } else {
         setCurrentPlan('START')
