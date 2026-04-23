@@ -23,7 +23,7 @@ interface ObrtnikiOfferFormProps {
 
 export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess, povprasevanjeContext }: ObrtnikiOfferFormProps) {
   const [price, setPrice] = useState('')
-  const [priceType, setPriceType] = useState('fiksna')
+  const [priceType, setPriceType] = useState<'fiksna' | 'ocena' | 'po_ogledu'>('fiksna')
   const [duration, setDuration] = useState('')
   const [availableDate, setAvailableDate] = useState('')
   const [message, setMessage] = useState('')

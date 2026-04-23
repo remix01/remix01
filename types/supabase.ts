@@ -597,6 +597,7 @@ export interface Database {
           price_estimate: number | null
           price_type: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date: string | null
+          estimated_duration: string | null
           status: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
           created_at: string
         }
@@ -608,6 +609,7 @@ export interface Database {
           price_estimate?: number | null
           price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date?: string | null
+          estimated_duration?: string | null
           status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
           created_at?: string
         }
