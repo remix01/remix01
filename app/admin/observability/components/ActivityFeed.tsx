@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 interface ActivityLog {
   id: string
   created_at: string
-  user_id: string
-  event: string
+  user_id: string | null
+  event: string | null
   tool: string | null
   result: 'success' | 'error' | 'warning' | null
   duration_ms: number | null

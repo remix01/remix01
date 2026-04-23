@@ -1154,9 +1154,27 @@ export interface Database {
         Relationships: []
       }
       agent_logs: {
-        Row: { id: string; created_at: string; [key: string]: unknown }
-        Insert: { id?: string; created_at?: string; [key: string]: unknown }
-        Update: { [key: string]: unknown }
+        Row: {
+          id: string
+          created_at: string
+          user_id: string | null
+          event: string | null
+          tool: string | null
+          result: 'success' | 'error' | 'warning' | null
+          duration_ms: number | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id?: string | null
+          event?: string | null
+          tool?: string | null
+          result?: 'success' | 'error' | 'warning' | null
+          duration_ms?: number | null
+          metadata?: Json | null
+        }
+        Update: Partial<Database['public']['Tables']['agent_logs']['Insert']>
         Relationships: []
       }
       agent_matches: {
