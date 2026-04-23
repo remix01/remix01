@@ -8,12 +8,20 @@ import { Button } from '@/components/ui/button'
 import { AlertCircle, CheckCircle, Crown } from 'lucide-react'
 import { AIUsageWidget } from '@/components/ai-usage-widget'
 
+type Plan = 'START' | 'PRO'
+
+function normalizePlan(tier: string | null | undefined): Plan {
+  if (!tier) return 'START'
+  const value = tier.toUpperCase()
+  return value === 'PRO' ? 'PRO' : 'START'
+}
+
 export default function NarocinaPage() {
   const router = useRouter()
   const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
-  const [currentPlan, setCurrentPlan] = useState<'START' | 'PRO' | null>(null)
+  const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
