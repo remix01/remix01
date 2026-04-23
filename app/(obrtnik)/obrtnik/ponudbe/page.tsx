@@ -103,7 +103,7 @@ export default function PonudbesPage() {
           povprasevanja(id, title)
         `)
         .eq('obrtnik_id', obrtnikProfile.id)
-        .in('status', ['zavrnjena', 'preklicana'])
+        .in('status', ['zavrnjena', 'preklicana'] as any)
 
       setNovaPovprasevanja(nP || [])
       setPoslane(pP || [])
