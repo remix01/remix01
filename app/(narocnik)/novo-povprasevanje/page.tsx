@@ -75,7 +75,7 @@ export default function NovoPoVprasevanjePage() {
         .from('profiles')
         .select('location_city')
         .eq('id', currentUser.id)
-        .single()
+        .maybeSingle()
       const profile = profileData as { location_city: string | null } | null
 
       if (profile?.location_city) {

@@ -45,7 +45,7 @@ export default function NarocnikSporocila() {
       .from('povprasevanja')
       .select('title')
       .eq('id', povprasevanjeId)
-      .single()
+      .maybeSingle()
 
     setPovprasevanjeTitle(data?.title ?? null)
   }

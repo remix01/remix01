@@ -80,7 +80,11 @@ export default function OcenaPage({ params }: Props) {
           return
         }
 
-        setBusinessName(ponudba.obrtnik?.business_name || 'Obrtnik')
+        const obrtnikData = Array.isArray((ponudba as any).obrtnik)
+          ? (ponudba as any).obrtnik[0]
+          : (ponudba as any).obrtnik
+
+        setBusinessName(obrtnikData?.business_name || 'Obrtnik')
         setLoading(false)
       } catch (err) {
         console.error('[v0] Error loading ponudba:', err)

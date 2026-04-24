@@ -47,7 +47,7 @@ export default function StankaSporocila() {
       .from('povprasevanja')
       .select('title, naslov')
       .eq('id', povprasevanjeId)
-      .single()
+      .maybeSingle()
 
     if (data) {
       setPovprasevanjeInfo(data)

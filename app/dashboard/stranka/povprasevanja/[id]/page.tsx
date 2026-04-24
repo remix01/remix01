@@ -40,7 +40,7 @@ export default async function InquiryDetailPage({
     .select('*')
     .eq('id', id)
     .eq('narocnik_id', user.id)
-    .single() as { data: any }
+    .maybeSingle() as { data: any }
 
   if (!povprasevanje) {
     return <div className="p-8 text-center text-slate-600">Povpraševanje ni najdeno.</div>
