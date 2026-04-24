@@ -128,7 +128,9 @@ export async function proxy(request: NextRequest) {
         .eq('aktiven', true)
         .maybeSingle()
 
-      if (authUserLookupError) {
+      // PGRST204 = column not in schema cache; fall through to legacy user_id check
+      if (authUserLookupError && authUserLookupError.code !== 'PGRST204') {
+        console.error('[v0] Admin lookup error:', authUserLookupError.message)
         throw authUserLookupError
       }
 
