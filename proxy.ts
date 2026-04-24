@@ -17,7 +17,7 @@ function isCategoryCityPath(pathname: string) {
   return true
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Block common WordPress/scanner attack paths
   const blockedPaths = [
     '/wp-login.php', '/wp-admin', '/xmlrpc.php', 
