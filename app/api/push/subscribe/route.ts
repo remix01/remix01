@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!result.success) {
-      return fail(result.error, 500)
+      return fail(result.error ?? 'Failed to save subscription', 500)
     }
 
     return ok({ success: true })
