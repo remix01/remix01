@@ -128,8 +128,17 @@ export default function PovprasevanjeDetailPage() {
       if (error) {
         console.error('[povprasevanje-detail] fetch error:', error.message)
         setError('Povpraševanje ni bilo najdeno.')
+      } else if (!data) {
+        setError('Povpraševanje ni bilo najdeno.')
       } else {
-        setPovprasevanje(data as Povprasevanje)
+        const normalizedData: Povprasevanje = {
+          ...(data as Omit<Povprasevanje, 'categories'>),
+          categories: Array.isArray((data as any).categories)
+            ? (data as any).categories[0] ?? null
+            : ((data as any).categories ?? null),
+        }
+
+        setPovprasevanje(normalizedData)
       }
       setLoading(false)
     }

@@ -17,7 +17,7 @@ function isCategoryCityPath(pathname: string) {
   return true
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Block common WordPress/scanner attack paths
   const blockedPaths = [
     '/wp-login.php', '/wp-admin', '/xmlrpc.php', 
@@ -281,7 +281,7 @@ export async function proxy(request: NextRequest) {
       console.error('[v0] Admin check error in prijava redirect:', e instanceof Error ? e.message : String(e))
     }
 
-    // Check for partner
+    // Check for partner (legacy table)
     try {
       const { data: partner } = await supabase
         .from('partners')
@@ -296,8 +296,37 @@ export async function proxy(request: NextRequest) {
       console.error('[v0] Partner check error in prijava redirect:', e instanceof Error ? e.message : String(e))
     }
 
-    // Default fallback to home
-    return NextResponse.redirect(new URL('/', request.url))
+    // Check role in profiles (current auth flow)
+    try {
+      const { data: profileById } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const { data: profileByAuthUserId } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('auth_user_id', user.id)
+        .maybeSingle()
+
+      const profile = (profileById ?? profileByAuthUserId) as { role: string | null } | null
+
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+      }
+
+      if (profile?.role) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch (e) {
+      console.error('[v0] Profile check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+    }
+
+    // If authenticated but profile is missing, continue to login page
+    // so users can choose next step (instead of being forced to home).
+    // Return supabaseResponse to preserve refreshed auth cookies.
+    return supabaseResponse
   }
 
   return supabaseResponse
