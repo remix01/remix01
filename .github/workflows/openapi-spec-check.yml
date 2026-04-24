@@ -7,7 +7,6 @@ on:
       - 'lib/api/schemas/**'
       - 'lib/openapi/**'
       - 'scripts/generate-openapi.ts'
-      - 'docs/openapi.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
   push:
