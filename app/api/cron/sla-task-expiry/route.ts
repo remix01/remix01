@@ -15,6 +15,33 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { env } from '@/lib/env'
+
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause,
+    }
+  }
+
+  return {
+    message: typeof error === 'string' ? error : 'Non-Error thrown',
+    raw: error,
+  }
+}
+
+function getCronEnvDiagnostics() {
+  return {
+    nodeEnv: process.env.NODE_ENV,
+    hasCronSecret: Boolean(env.CRON_SECRET),
+    hasSupabaseUrl: Boolean(env.NEXT_PUBLIC_SUPABASE_URL),
+    hasServiceRoleKey: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+  }
+}
 
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
@@ -39,7 +66,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('[v0] SLA task expiry cron job started')
+    console.log('[v0] SLA task expiry cron job started', {
+      timestamp: new Date().toISOString(),
+      diagnostics: getCronEnvDiagnostics(),
+    })
 
     // Find all tasks that:
     // 1. Are in a non-terminal state (not already expired, completed, or cancelled)
@@ -59,7 +89,11 @@ export async function GET(req: NextRequest) {
       .lt('sla_deadline', now)
 
     if (queryError) {
-      console.error('[v0] Error querying overdue tasks:', queryError)
+      console.error('[v0] Error querying overdue tasks:', {
+        now,
+        diagnostics: getCronEnvDiagnostics(),
+        queryError,
+      })
       return NextResponse.json(
         { error: 'Failed to query tasks', details: queryError },
         { status: 500 }
@@ -117,12 +151,16 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(summary)
   } catch (error) {
-    console.error('[v0] SLA task expiry cron job failed:', error)
+    console.error('[v0] SLA task expiry cron job failed:', {
+      error: serializeError(error),
+      diagnostics: getCronEnvDiagnostics(),
+    })
     return NextResponse.json(
       {
         success: false,
         error: 'Cron job failed',
         message: error instanceof Error ? error.message : 'Unknown error',
+        diagnostics: getCronEnvDiagnostics(),
       },
       { status: 500 }
     )
