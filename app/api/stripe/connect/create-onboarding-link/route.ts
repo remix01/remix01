@@ -1,17 +1,15 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getStripeInstance } from '@/lib/stripe/client'
 import { env } from '@/lib/env'
+import { ok, fail } from '@/lib/http/response'
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (authError || !user) return fail('Unauthorized', 401)
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('obrtnik_profiles')
@@ -20,10 +18,7 @@ export async function POST(request: Request) {
       .single()
 
     if (profileError || !profile?.stripe_account_id) {
-      return NextResponse.json(
-        { error: 'No Stripe account found. Create one first.' },
-        { status: 404 }
-      )
+      return fail('No Stripe account found. Create one first.', 404)
     }
 
     const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
@@ -42,9 +37,9 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ url: accountLink.url })
+    return ok({ url: accountLink.url })
   } catch (error) {
     console.error('[create-onboarding-link] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

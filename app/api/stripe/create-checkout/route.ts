@@ -6,6 +6,7 @@ import { getStripePriceId, isValidPlan, type PlanType } from '@/lib/stripe/confi
 import { createClient } from '@/lib/supabase/server'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { paymentLimiter } from '@/lib/rate-limit/limiters'
+import { fail } from '@/lib/http/response'
 
 function getBaseUrl(req: Request): string {
   if (env.NEXT_PUBLIC_APP_URL) {
@@ -28,17 +29,11 @@ async function postHandler(req: NextRequest) {
     const { plan, email, successPath, cancelPath } = await req.json()
 
     if (!isValidPlan(plan)) {
-      return NextResponse.json(
-        { error: 'Neveljaven paket. Izberite veljaven naročniški paket.' },
-        { status: 400 }
-      )
+      return fail('Neveljaven paket. Izberite veljaven naročniški paket.')
     }
 
     if (plan === 'START') {
-      return NextResponse.json(
-        { error: 'START paket je brezplačan. Registracija ne zahteva Stripe plačila.' },
-        { status: 400 }
-      )
+      return fail('START paket je brezplačen. Registracija ne zahteva Stripe plačila.')
     }
 
     // Pridobi prijavljenega userja za client_reference_id
@@ -48,10 +43,7 @@ async function postHandler(req: NextRequest) {
     const priceId = getStripePriceId(plan as PlanType)
     if (!priceId) {
       console.error(`[Stripe] Manjka priceId za ${plan}`)
-      return NextResponse.json(
-        { error: 'Konfiguracija plačila manjka. Kontaktirajte info@liftgo.net' },
-        { status: 500 }
-      )
+      return fail('Konfiguracija plačila manjka. Kontaktirajte info@liftgo.net', 500)
     }
 
     const baseUrl = getBaseUrl(req)
@@ -72,9 +64,9 @@ async function postHandler(req: NextRequest) {
       new URL(cancelUrl)
     } catch {
       console.error('[Stripe] Neveljaven URL:', { baseUrl, successUrl, cancelUrl })
-      return NextResponse.json(
-        { error: `Napaka konfiguracije URL: baseUrl="${baseUrl}". Nastavite NEXT_PUBLIC_APP_URL=https://liftgo.net v env spremenljivkah.` },
-        { status: 500 }
+      return fail(
+        `Napaka konfiguracije URL: baseUrl="${baseUrl}". Nastavite NEXT_PUBLIC_APP_URL=https://liftgo.net v env spremenljivkah.`,
+        500
       )
     }
 
@@ -101,7 +93,7 @@ async function postHandler(req: NextRequest) {
 
   } catch (err: any) {
     console.error('[Stripe] error:', err.message)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return fail(err.message || 'Napaka pri Stripe plačilu.', 500)
   }
 }
 

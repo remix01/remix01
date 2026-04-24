@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { stripe } from '@/lib/stripe'
 import { calculateEscrow } from '@/lib/stripe/escrow'
 import { env } from '@/lib/env'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Create a Checkout Session for a marketplace job payment.
@@ -18,15 +19,11 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (authError || !user) return fail('Unauthorized', 401)
 
     const { ponudbaId, successUrl, cancelUrl } = await req.json()
 
-    if (!ponudbaId) {
-      return NextResponse.json({ error: 'ponudbaId is required' }, { status: 400 })
-    }
+    if (!ponudbaId) return fail('ponudbaId is required', 400)
 
     // Look up the offer and the craftsman's Stripe account in a single query.
     const { data: ponudba, error: ponudbaError } = await supabaseAdmin
@@ -47,10 +44,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (ponudbaError || !ponudba) {
-      return NextResponse.json(
-        { error: 'Offer not found or not in accepted state' },
-        { status: 404 }
-      )
+      return fail('Offer not found or not in accepted state', 404)
     }
 
     const obrtnikProfile = Array.isArray(ponudba.obrtnik_profiles)
@@ -58,24 +52,15 @@ export async function POST(req: NextRequest) {
       : ponudba.obrtnik_profiles
 
     if (!obrtnikProfile?.stripe_account_id) {
-      return NextResponse.json(
-        { error: 'Craftsman has not connected a Stripe account yet' },
-        { status: 422 }
-      )
+      return fail('Craftsman has not connected a Stripe account yet', 422)
     }
 
     if (obrtnikProfile.stripe_account_status !== 'active') {
-      return NextResponse.json(
-        { error: 'Craftsman Stripe account is not yet active' },
-        { status: 422 }
-      )
+      return fail('Craftsman Stripe account is not yet active', 422)
     }
 
-    if (!ponudba.price_estimate || ponudba.price_estimate <= 0) {
-      return NextResponse.json(
-        { error: 'Offer has no valid price' },
-        { status: 422 }
-      )
+    if (!ponudba.price_estimate || Number(ponudba.price_estimate) <= 0) {
+      return fail('Offer has no valid price', 422)
     }
 
     const amountCents = Math.round(Number(ponudba.price_estimate) * 100)
@@ -116,9 +101,9 @@ export async function POST(req: NextRequest) {
       },
     } as any)
 
-    return NextResponse.json({ url: session.url, sessionId: session.id })
+    return ok({ url: session.url, sessionId: session.id })
   } catch (error) {
     console.error('[payment/create-checkout] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

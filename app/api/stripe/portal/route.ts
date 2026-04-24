@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
+import { fail } from '@/lib/http/response'
 
 function getBaseUrl(req: Request): string {
   if (env.NEXT_PUBLIC_APP_URL) {
@@ -34,9 +35,7 @@ export async function POST(req: Request) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (authError || !user) return fail('Unauthorized', 401)
 
     const body = await req.json().catch(() => ({}))
     const returnPath = sanitizePath(body?.returnPath)
@@ -50,14 +49,11 @@ export async function POST(req: Request) {
 
     if (profileError) {
       console.error('[Stripe portal] profile fetch error:', profileError)
-      return NextResponse.json({ error: 'Napaka pri branju profila.' }, { status: 500 })
+      return fail('Napaka pri branju profila.', 500)
     }
 
     if (!profile?.stripe_customer_id) {
-      return NextResponse.json(
-        { error: 'Stripe customer ne obstaja za ta račun. Najprej aktivirajte PRO naročnino.' },
-        { status: 400 }
-      )
+      return fail('Stripe customer ne obstaja za ta račun. Najprej aktivirajte PRO naročnino.')
     }
 
     const session = await stripe.billingPortal.sessions.create({
@@ -68,6 +64,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url })
   } catch (err: any) {
     console.error('[Stripe portal] error:', err.message)
-    return NextResponse.json({ error: err.message || 'Napaka pri odpiranju Stripe portala.' }, { status: 500 })
+    return fail(err.message || 'Napaka pri odpiranju Stripe portala.', 500)
   }
 }

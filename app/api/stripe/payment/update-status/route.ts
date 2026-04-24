@@ -1,17 +1,13 @@
 import { getErrorMessage } from '@/lib/utils/error'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { fail } from '@/lib/http/response'
 
 export async function POST(req: NextRequest) {
   try {
     const { offerId, paymentIntentId } = await req.json()
 
-    if (!offerId || !paymentIntentId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
+    if (!offerId || !paymentIntentId) return fail('Missing required fields', 400)
 
     const supabase = await createClient()
 
@@ -27,18 +23,12 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error('[v0] Database update error:', error)
-      return NextResponse.json(
-        { error: 'Failed to update offer status' },
-        { status: 500 }
-      )
+      return fail('Failed to update offer status', 500)
     }
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {
     console.error('[v0] Update status error:', error)
-    return NextResponse.json(
-      { error: getErrorMessage(error) || 'Failed to update status' },
-      { status: 500 }
-    )
+    return fail(getErrorMessage(error) || 'Failed to update status', 500)
   }
 }
