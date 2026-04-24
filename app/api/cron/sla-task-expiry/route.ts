@@ -170,6 +170,7 @@ export async function GET(req: NextRequest) {
         success: false,
         error: 'Cron job failed',
         message: error instanceof Error ? error.message : 'Unknown error',
+        diagnostics: getCronEnvDiagnostics(),
       },
       { status: 500 }
     )
