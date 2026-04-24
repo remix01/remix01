@@ -22,13 +22,10 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event
 
   if (isStripeV2EventPayload(rawBodyStr)) {
-    // v2 thin events (Event Destinations) require a different verification method
-    // and a separate signing secret (STRIPE_V2_WEBHOOK_SECRET).
-    const headers: Record<string, string> = {}
-    request.headers.forEach((value, key) => { headers[key] = value })
-
+    // v2 thin events (Event Destinations) use the same HMAC-SHA256 as v1.
+    // STRIPE_V2_WEBHOOK_SECRET must be set to the Event Destination signing secret.
     try {
-      event = constructStripeV2Event(rawBodyStr, headers) as unknown as Stripe.Event
+      event = constructStripeV2Event(rawBody, sig)
     } catch (err) {
       console.error('[WEBHOOK] Signature fail:', err)
       return fail('Neveljaven podpis')
