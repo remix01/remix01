@@ -4,8 +4,21 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[admin/me] Error:', new Error('Missing SUPABASE_SERVICE_ROLE_KEY'))
+      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError) {
+      console.error('[admin/me] Error:', userError)
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
 
     // No auth user - return 401 (not authenticated)
     if (!user?.id) {
@@ -27,9 +40,9 @@ export async function GET() {
       .maybeSingle()
 
     if (adminError) {
-      console.error('[v0] Admin check: DB error', adminError)
+      console.error('[admin/me] Error:', adminError)
       return NextResponse.json(
-        { error: 'Internal server error' },
+        { error: 'Internal server error', details: adminError.message },
         { status: 500 }
       )
     }
@@ -54,11 +67,10 @@ export async function GET() {
       },
     }, { status: 200 })
   } catch (error) {
-    console.error('[v0] Error fetching admin role:', error)
+    console.error('[admin/me] Error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
-

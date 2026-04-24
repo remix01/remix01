@@ -23,11 +23,19 @@ export default async function PovprasevanjaPage() {
   }
 
   // Fetch user profile to check role
-  const { data: profile } = await supabase
+  const { data: profileById } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
+
+  const { data: profileByAuthUserId } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('auth_user_id', user.id)
+    .maybeSingle()
+
+  const profile = profileById ?? profileByAuthUserId
 
   if (profile?.role !== 'narocnik') {
     redirect('/partner-dashboard')

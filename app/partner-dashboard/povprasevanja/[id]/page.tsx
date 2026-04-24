@@ -129,7 +129,7 @@ export default function PovprasevanjeDetailPage() {
         console.error('[povprasevanje-detail] fetch error:', error.message)
         setError('Povpraševanje ni bilo najdeno.')
       } else {
-        setPovprasevanje(data as Povprasevanje)
+        setPovprasevanje(data as unknown as Povprasevanje)
       }
       setLoading(false)
     }

@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { Menu } from 'lucide-react'
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { NarocnikSidebar } from '@/components/narocnik/sidebar'
 import { NarocnikBottomNav } from '@/components/narocnik/bottom-nav'
 import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
@@ -11,6 +13,67 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 export const metadata = {
   title: 'LiftGO - Naročnik',
 }
+
+type NarocnikRecord = {
+  id?: string
+  user_id?: string | null
+  email?: string | null
+  full_name?: string | null
+}
+
+const getNarocnikForUser = cache(async (userId: string, userEmail: string | null | undefined) => {
+  const { data: narocnikByUserId, error: narocnikByUserIdError } = await supabaseAdmin
+    .from('narocniki')
+    .select('id, user_id, email, full_name')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (narocnikByUserIdError) {
+    console.error('[v0] Narocnik layout: Failed loading narocnik profile by user_id', narocnikByUserIdError)
+  }
+
+  if (narocnikByUserId) {
+    return narocnikByUserId as NarocnikRecord
+  }
+
+  if (!userEmail) {
+    return null
+  }
+
+  const { data: narocnikByEmail, error: narocnikByEmailError } = await supabaseAdmin
+    .from('narocniki')
+    .select('id, user_id, email, full_name')
+    .eq('email', userEmail)
+    .maybeSingle()
+
+  if (narocnikByEmailError) {
+    console.error('[v0] Narocnik layout: Failed loading narocnik profile by email', narocnikByEmailError)
+  }
+
+  return (narocnikByEmail as NarocnikRecord | null) ?? null
+})
+
+const getProfileForUser = cache(async (userId: string) => {
+  const supabase = await createClient()
+
+  const { data: profileDataById, error: profileByIdError } = await supabase
+    .from('profiles')
+    .select('role, full_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  const { data: profileDataByAuthUserId, error: profileByAuthUserIdError } = await supabase
+    .from('profiles')
+    .select('role, full_name')
+    .eq('auth_user_id', userId)
+    .maybeSingle()
+
+  if (profileByIdError || profileByAuthUserIdError) {
+    console.error('[v0] Narocnik layout: Failed loading profile role', profileByIdError ?? profileByAuthUserIdError)
+  }
+
+  return (profileDataById ?? profileDataByAuthUserId) as { role: string | null; full_name: string | null } | null
+})
 
 export default async function NarocnikLayout({
   children,
@@ -27,39 +90,27 @@ export default async function NarocnikLayout({
     redirect('/prijava?redirectTo=/dashboard')
   }
 
-  // Fetch profile with error handling
-  const { data: profileDataById, error: profileByIdError } = await supabase
-    .from('profiles')
-    .select('role, full_name')
-    .eq('id', user.id)
-    .maybeSingle()
+  const narocnik = await getNarocnikForUser(user.id, user.email)
 
-  const { data: profileDataByAuthUserId, error: profileByAuthUserIdError } = await supabase
-    .from('profiles')
-    .select('role, full_name')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
-
-  const profileData = profileDataById ?? profileDataByAuthUserId
-  const profileError = profileByIdError ?? profileByAuthUserIdError
-  const profile = profileData as { role: string | null; full_name: string | null } | null
-
-  // If profile doesn't exist or user is not narocnik, redirect appropriately
-  if (profileError || !profile) {
-    console.log('[v0] Narocnik layout: Profile not found, redirecting to registration')
+  if (!narocnik) {
+    console.log('[v0] Narocnik layout: Narocnik profile not found, redirecting to registration')
     redirect('/registracija')
   }
 
-  if (profile.role !== 'narocnik') {
-    console.log(`[v0] Narocnik layout: User has role ${profile.role}, not narocnik, redirecting`)
-    redirect(profile.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
+  const profile = await getProfileForUser(user.id)
+
+  if (profile?.role === 'obrtnik') {
+    console.log('[v0] Narocnik layout: User has obrtnik role, redirecting to partner dashboard')
+    redirect('/partner-dashboard')
   }
+
+  const fullName = profile?.full_name ?? narocnik.full_name ?? null
 
   return (
     <div className="flex flex-col bg-background md:min-h-screen md:flex-row">
       {/* Desktop Sidebar */}
       <div className="hidden md:fixed md:block md:h-screen md:w-64 md:border-r">
-        <NarocnikSidebar fullName={profile.full_name} />
+        <NarocnikSidebar fullName={fullName} />
       </div>
 
       {/* Main Content */}
@@ -74,7 +125,7 @@ export default async function NarocnikLayout({
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-0">
-                <NarocnikSidebar fullName={profile.full_name} />
+                <NarocnikSidebar fullName={fullName} />
               </SheetContent>
             </Sheet>
           </div>

@@ -26,7 +26,7 @@ export default async function ProfilPage() {
     .from('calendar_connections')
     .select('id')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
