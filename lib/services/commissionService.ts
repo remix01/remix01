@@ -27,6 +27,13 @@ export function getCommissionRate(tier: SubscriptionTier): number {
   return COMMISSION_RATES[tier]
 }
 
+// Maps a stored float rate back to its canonical tier (e.g. 0.10 → 'START')
+export function rateToTier(rate: number): SubscriptionTier {
+  if (rate <= 0) return 'ELITE'
+  if (rate <= 0.05) return 'PRO'
+  return 'START'
+}
+
 interface CommissionLogParams {
   escrowId: string
   partnerId: string

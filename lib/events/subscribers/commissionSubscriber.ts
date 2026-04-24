@@ -9,7 +9,7 @@
 
 import { eventBus } from '../eventBus'
 import { idempotency } from '../idempotency'
-import { commissionService } from '@/lib/services/commissionService'
+import { commissionService, rateToTier } from '@/lib/services/commissionService'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createAdminClient } from '@/lib/supabase/server'
 
@@ -65,7 +65,7 @@ export function registerCommissionSubscriber() {
         partnerId: escrow.partner_id,
         inquiryId: escrow.inquiry_id,
         grossAmountCents: escrow.amount_total_cents,
-        commissionRate: parseFloat(String(escrow.commission_rate)),
+        tier: rateToTier(parseFloat(String(escrow.commission_rate))),
         stripeAccountId: escrow.partner?.stripe_account_id,
       })
 
