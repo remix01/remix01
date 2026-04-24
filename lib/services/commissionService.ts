@@ -127,7 +127,7 @@ export const commissionService = {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       
-      // Update with failure info
+      // Update with failure info (reuse already-fetched commission to avoid extra round trip)
       await supabaseAdmin
         .from('commission_logs')
         .update({
@@ -135,12 +135,7 @@ export const commissionService = {
           failed_at: new Date().toISOString(),
           last_error: errorMsg,
           last_attempted_at: new Date().toISOString(),
-          transfer_attempts: (await supabaseAdmin
-            .from('commission_logs')
-            .select('transfer_attempts')
-            .eq('id', commissionId)
-            .single()
-            .then(r => r.data?.transfer_attempts || 0)) + 1,
+          transfer_attempts: (commission.transfer_attempts || 0) + 1,
         })
         .eq('id', commissionId)
 

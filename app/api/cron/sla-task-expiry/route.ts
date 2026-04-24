@@ -59,16 +59,12 @@ export async function GET(req: NextRequest) {
 
     if (queryError) {
       console.error('[v0] Error querying overdue tasks:', queryError)
-      return fail('Failed to query tasks', 500, { details: queryError })
+      return fail(queryError.message || 'Failed to query tasks', 500)
     }
 
     if (!overdueTasks || overdueTasks.length === 0) {
       console.log('[v0] No overdue tasks found')
-      return ok({
-        success: true,
-        message: 'No overdue tasks to expire',
-        expiredCount: 0,
-      })
+      return ok({ message: 'No overdue tasks to expire', expiredCount: 0 })
     }
 
     console.log(`[v0] Found ${overdueTasks.length} overdue tasks to expire`)
@@ -111,7 +107,7 @@ export async function GET(req: NextRequest) {
 
     console.log('[v0] SLA task expiry cron job completed:', summary)
 
-    return Response.json(summary)
+    return ok(summary as unknown as Record<string, unknown>)
   } catch (error) {
     console.error('[v0] SLA task expiry cron job failed:', error)
     return fail('Cron job failed', 500, { message: error instanceof Error ? error.message : 'Unknown error' })

@@ -20,18 +20,18 @@ export async function GET(req: NextRequest) {
   }
 
   const start = Date.now()
-  console.log(JSON.stringify({ level: 'info', message: '[health-sweep] start', ranAt: new Date().toISOString() }))
+  console.log('[health-sweep] start', new Date().toISOString())
 
   try {
     await healthMonitor.runAll()
 
     const durationMs = Date.now() - start
-    console.log(JSON.stringify({ level: 'info', message: '[health-sweep] completed', durationMs }))
+    console.log(`[health-sweep] completed in ${durationMs}ms`)
 
     return ok({ ok: true, durationMs, ranAt: new Date().toISOString() })
   } catch (err) {
     const durationMs = Date.now() - start
-    console.error(JSON.stringify({ level: 'error', message: '[health-sweep] error', error: String(err), durationMs }))
+    console.error(`[health-sweep] error after ${durationMs}ms:`, err)
     return fail('Internal server error', 500)
   }
 }
