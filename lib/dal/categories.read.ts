@@ -101,7 +101,11 @@ export async function getObrtnikCategories(obrtnikId: string): Promise<Category[
     return []
   }
 
-  return data.map((item) => (item as { category: Category }).category)
+  return data.flatMap((item) => {
+    const category = (item as { category: Category | Category[] | null }).category
+    if (!category) return []
+    return Array.isArray(category) ? category : [category]
+  })
 }
 
 export async function countObrtnikPerCategory(): Promise<Record<string, number>> {

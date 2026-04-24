@@ -325,7 +325,8 @@ export async function proxy(request: NextRequest) {
 
     // If authenticated but profile is missing, continue to login page
     // so users can choose next step (instead of being forced to home).
-    return NextResponse.next()
+    // Return supabaseResponse to preserve refreshed auth cookies.
+    return supabaseResponse
   }
 
   return supabaseResponse

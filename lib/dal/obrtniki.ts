@@ -128,13 +128,15 @@ export async function listVerifiedObrtniki(
   // Flatten categories + apply category slug filter client-side
   let results = (data || []).map((row: RawRow) => {
     const rawRow = row as RawRow & {
-      obrtnik_categories?: Array<{ categories: RawCategory | null }>
+      obrtnik_categories?: Array<{ categories: RawCategory | RawCategory[] | null }>
     }
     return {
       ...row,
       categories: (rawRow.obrtnik_categories || [])
-        .map((oc) => oc.categories)
-        .filter((c): c is RawCategory => c !== null),
+        .flatMap((oc) => {
+          if (!oc.categories) return []
+          return Array.isArray(oc.categories) ? oc.categories : [oc.categories]
+        }),
     }
   })
 
@@ -169,14 +171,16 @@ export async function getObrtnikiById(id: string): Promise<ObrtnikiPublic | null
   if (error || !data) return null
 
   type RawSingle = typeof data & {
-    obrtnik_categories?: Array<{ categories: { name: string; slug: string; icon_name: string | null } | null }>
+    obrtnik_categories?: Array<{ categories: { name: string; slug: string; icon_name: string | null } | Array<{ name: string; slug: string; icon_name: string | null }> | null }>
   }
   const raw = data as RawSingle
   return {
     ...data,
     categories: (raw.obrtnik_categories || [])
-      .map((oc) => oc.categories)
-      .filter((c): c is { name: string; slug: string; icon_name: string | null } => c !== null),
+      .flatMap((oc) => {
+        if (!oc.categories) return []
+        return Array.isArray(oc.categories) ? oc.categories : [oc.categories]
+      }),
   } as unknown as ObrtnikiPublic
 }
 
