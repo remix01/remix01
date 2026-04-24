@@ -71,6 +71,7 @@ export const stripeWebhookHandlers: Record<string, StripeWebhookHandler> = {
   'v2.core.account[requirements].updated': handleConnectAccount,
   'v2.core.account[identity].updated': handleConnectAccount,
   'v2.core.account[configuration.merchant].capability_status_updated': handleConnectAccount,
+  'v2.core.account[configuration.recipient].capability_status_updated': handleConnectAccount,
   'v2.core.account_person.created': handleConnectAccount,
   'v2.core.account_person.updated': handleConnectAccount,
 }

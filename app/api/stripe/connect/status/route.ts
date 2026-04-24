@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getStripeInstance } from '@/lib/stripe/client'
 
 export async function GET() {
   try {
@@ -9,90 +9,59 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user with craftworker profile
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role, craftworker_profile(*)')
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id, stripe_account_id, stripe_account_status')
       .eq('id', user.id)
       .single()
 
-    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
-      return NextResponse.json(
-        { error: 'Only craftworkers can check Stripe status' },
-        { status: 403 }
-      )
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Obrtnik profile not found' }, { status: 403 })
     }
 
-    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
-      ? dbUser.craftworker_profile[0] 
-      : dbUser.craftworker_profile
-
-    if (!craftworkerProfile?.stripe_account_id) {
+    if (!profile.stripe_account_id) {
       return NextResponse.json({
-        isComplete: false,
         hasAccount: false,
         accountId: null,
-        needsInfo: false,
-        chargesEnabled: false,
-        payoutsEnabled: false,
-        detailsSubmitted: false,
-        restrictionReason: null
+        isComplete: false,
+        status: 'incomplete',
+        transfersActive: false,
       })
     }
 
-    // Retrieve account from Stripe
-    const account = await stripe.accounts.retrieve(
-      craftworkerProfile.stripe_account_id
+    // Retrieve v2 account to check recipient transfer capability.
+    const stripe = getStripeInstance() as any
+    const account = await stripe.v2.core.accounts.retrieve(
+      profile.stripe_account_id,
+      { include: ['configuration.recipient'] }
     )
 
-    const isComplete = 
-      account.charges_enabled === true && 
-      account.details_submitted === true &&
-      account.payouts_enabled === true
+    const transferStatus: string =
+      account.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status ?? 'inactive'
 
-    // Update database if status changed
-    if (isComplete !== craftworkerProfile.stripe_onboarding_complete) {
+    const isComplete = transferStatus === 'active'
+    const accountStatus = isComplete ? 'active' : (transferStatus === 'pending' ? 'pending' : 'incomplete')
+
+    // Persist status change so the webhook sync stays consistent.
+    if (accountStatus !== profile.stripe_account_status) {
       await supabaseAdmin
-        .from('craftworker_profile')
-        .update({ stripe_onboarding_complete: isComplete })
-        .eq('user_id', user.id)
-    }
-
-    // Determine if more info is needed
-    const needsInfo = account.details_submitted === false || 
-                     (account.requirements?.currently_due?.length ?? 0) > 0
-
-    // Get restriction reason if exists
-    let restrictionReason = null
-    if (account.requirements?.disabled_reason) {
-      restrictionReason = account.requirements.disabled_reason
+        .from('obrtnik_profiles')
+        .update({ stripe_account_status: accountStatus })
+        .eq('id', user.id)
     }
 
     return NextResponse.json({
-      isComplete,
       hasAccount: true,
-      accountId: craftworkerProfile.stripe_account_id,
-      needsInfo,
-      chargesEnabled: account.charges_enabled ?? false,
-      payoutsEnabled: account.payouts_enabled ?? false,
-      detailsSubmitted: account.details_submitted ?? false,
-      restrictionReason,
-      currentlyDue: account.requirements?.currently_due ?? [],
-      pendingVerification: account.requirements?.pending_verification ?? []
+      accountId: profile.stripe_account_id,
+      isComplete,
+      status: accountStatus,
+      transfersActive: isComplete,
     })
-
   } catch (error) {
-    console.error('[stripe-status] Error:', error)
-    
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('[connect-status] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

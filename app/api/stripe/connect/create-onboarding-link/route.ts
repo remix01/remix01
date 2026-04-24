@@ -1,13 +1,8 @@
 import { NextResponse } from 'next/server'
-import { z } from 'zod'
-import { stripe } from '@/lib/stripe'
-import { env } from '@/lib/env'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-
-const requestSchema = z.object({
-  accountId: z.string().optional(),
-})
+import { getStripeInstance } from '@/lib/stripe/client'
+import { env } from '@/lib/env'
 
 export async function POST(request: Request) {
   try {
@@ -15,79 +10,41 @@ export async function POST(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify user is a craftworker
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role, craftworker_profile(*)')
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id, stripe_account_id')
       .eq('id', user.id)
       .single()
 
-    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
-      return NextResponse.json(
-        { error: 'Only craftworkers can access onboarding' },
-        { status: 403 }
-      )
-    }
-
-    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
-      ? dbUser.craftworker_profile[0] 
-      : dbUser.craftworker_profile
-
-    if (!craftworkerProfile?.stripe_account_id) {
+    if (profileError || !profile?.stripe_account_id) {
       return NextResponse.json(
         { error: 'No Stripe account found. Create one first.' },
         { status: 404 }
       )
     }
 
-    const body = await request.json().catch(() => ({}))
-    const validatedData = requestSchema.parse(body)
-    const accountId = validatedData.accountId ?? craftworkerProfile.stripe_account_id
+    const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
 
-    // Verify the account ID matches the user's account
-    if (accountId !== craftworkerProfile.stripe_account_id) {
-      return NextResponse.json(
-        { error: 'Account ID mismatch' },
-        { status: 403 }
-      )
-    }
-
-    const baseUrl = env.NEXT_PUBLIC_APP_URL
-    const account = await stripe.accounts.retrieve(accountId)
-    const onboardingLinkType = account.details_submitted ? 'account_update' : 'account_onboarding'
-
-    // Create account link
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: `${baseUrl}/dashboard/stripe-return?refresh=true`,
-      return_url: `${baseUrl}/dashboard/stripe-return?success=true`,
-      type: onboardingLinkType,
+    // v2 account links use use_case instead of the legacy type/refresh_url/return_url shape.
+    const stripe = getStripeInstance() as any
+    const accountLink = await stripe.v2.core.accountLinks.create({
+      account: profile.stripe_account_id,
+      use_case: {
+        type: 'account_onboarding',
+        account_onboarding: {
+          configurations: ['recipient', 'merchant'],
+          refresh_url: `${baseUrl}/obrtnik/narocnine?stripe_refresh=true`,
+          return_url: `${baseUrl}/obrtnik/narocnine?stripe_connected=true`,
+        },
+      },
     })
 
-    return NextResponse.json({
-      url: accountLink.url,
-      type: onboardingLinkType,
-    })
-
+    return NextResponse.json({ url: accountLink.url })
   } catch (error) {
     console.error('[create-onboarding-link] Error:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

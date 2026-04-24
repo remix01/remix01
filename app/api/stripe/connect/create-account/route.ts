@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server'
-import { z } from 'zod'
-import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-
-const requestSchema = z.object({
-  email: z.string().email(),
-})
+import { getStripeInstance } from '@/lib/stripe/client'
 
 export async function POST(request: Request) {
   try {
@@ -14,92 +9,75 @@ export async function POST(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify user is a craftworker
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role, craftworker_profile(*)')
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id, stripe_account_id')
       .eq('id', user.id)
       .single()
 
-    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: 'Only craftworkers can create Stripe Connect accounts' },
+        { error: 'Obrtnik profile not found' },
         { status: 403 }
       )
     }
 
-    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
-      ? dbUser.craftworker_profile[0] 
-      : dbUser.craftworker_profile
-
-    if (!craftworkerProfile) {
-      return NextResponse.json(
-        { error: 'Craftworker profile not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check if already has Stripe account
-    if (craftworkerProfile.stripe_account_id) {
+    if (profile.stripe_account_id) {
       return NextResponse.json({
-        accountId: craftworkerProfile.stripe_account_id,
-        alreadyExists: true
+        accountId: profile.stripe_account_id,
+        alreadyExists: true,
       })
     }
 
-    const body = await request.json()
-    const validatedData = requestSchema.parse(body)
+    const body = await request.json().catch(() => ({}))
+    const contactEmail: string = body.email || user.email || ''
+    const displayName: string = body.displayName || 'LiftGO Obrtnik'
 
-    // Create Stripe Express account
-    const account = await stripe.accounts.create({
-      type: 'express',
-      country: 'SI',
-      email: validatedData.email,
-      capabilities: {
-        transfers: { requested: true },
+    // Create a v2 recipient account — the platform collects fees and covers losses.
+    const stripe = getStripeInstance() as any
+    const account = await stripe.v2.core.accounts.create({
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { requested: true },
+            },
+          },
+        },
       },
-      business_type: 'individual',
-      metadata: {
-        userId: user.id,
-        platform: 'LiftGO'
-      }
+      display_name: displayName,
+      contact_email: contactEmail,
+      defaults: {
+        responsibilities: {
+          losses_collector: 'application',
+          fees_collector: 'application',
+        },
+      },
+      dashboard: 'express',
+      identity: { country: 'SI' },
+      include: [
+        'configuration.merchant',
+        'configuration.recipient',
+        'identity',
+        'defaults',
+        'configuration.customer',
+      ],
     })
 
-    // Save account ID to database
-    const { error: updateError } = await supabaseAdmin
-      .from('craftworker_profile')
+    await supabaseAdmin
+      .from('obrtnik_profiles')
       .update({
         stripe_account_id: account.id,
-        stripe_onboarding_complete: false
+        stripe_account_status: 'incomplete',
       })
-      .eq('user_id', user.id)
+      .eq('id', user.id)
 
-    if (updateError) throw new Error(updateError.message)
-
-    return NextResponse.json({
-      accountId: account.id,
-      alreadyExists: false
-    })
-
+    return NextResponse.json({ accountId: account.id, alreadyExists: false })
   } catch (error) {
     console.error('[create-account] Error:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
