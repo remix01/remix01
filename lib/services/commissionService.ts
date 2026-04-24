@@ -1,6 +1,6 @@
 /**
  * Commission Service — Tracks platform commissions on completed jobs
- * 
+ *
  * Responsibilities:
  * - Create commission logs when jobs complete
  * - Track commission status through lifecycle
@@ -11,18 +11,28 @@
 
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { stripe } from '@/lib/stripe'
-import { STRIPE_PRODUCTS } from '@/lib/stripe/config'
-import type { Database } from '@/types/supabase'
 
-export type CommissionStatus = 
+export type CommissionStatus =
   | 'pending' | 'earned' | 'transferred' | 'failed' | 'refunded'
+
+export type SubscriptionTier = 'START' | 'PRO' | 'ELITE'
+
+const COMMISSION_RATES: Record<SubscriptionTier, number> = {
+  START: 0.10,
+  PRO: 0.05,
+  ELITE: 0.00,
+}
+
+export function getCommissionRate(tier: SubscriptionTier): number {
+  return COMMISSION_RATES[tier]
+}
 
 interface CommissionLogParams {
   escrowId: string
   partnerId: string
+  tier: SubscriptionTier
   inquiryId?: string
   grossAmountCents: number
-  commissionRate: number  // 0.10 for 10%, 0.05 for 5%
   stripeAccountId?: string
 }
 
@@ -32,15 +42,29 @@ interface TransferResult {
   error?: string
 }
 
+interface CommissionRow {
+  id: string
+  gross_amount_cents: number
+  commission_cents: number
+  partner_payout_cents: number
+  status: CommissionStatus
+  created_at: string
+  transferred_at: string | null
+}
+
+interface TransferRow {
+  inquiry_id: string | null
+  transfer_attempts: number | null
+}
+
 export const commissionService = {
   /**
-   * Create a commission log when job is completed
-   * Called after escrow payment is captured and job marked complete
+   * Create a commission log when job is completed.
+   * Called after escrow payment is captured and job marked complete.
    */
   async createCommissionLog(params: CommissionLogParams) {
-    const commissionCents = Math.round(
-      params.grossAmountCents * params.commissionRate
-    )
+    const commissionRate = getCommissionRate(params.tier)
+    const commissionCents = Math.round(params.grossAmountCents * commissionRate)
     const partnerPayoutCents = params.grossAmountCents - commissionCents
 
     const { data, error } = await supabaseAdmin
@@ -50,14 +74,14 @@ export const commissionService = {
         partner_id: params.partnerId,
         inquiry_id: params.inquiryId,
         gross_amount_cents: params.grossAmountCents,
-        commission_rate: params.commissionRate,
+        commission_rate: commissionRate,
         commission_cents: commissionCents,
         partner_payout_cents: partnerPayoutCents,
         stripe_account_id: params.stripeAccountId,
         status: 'earned',
         captured_at: new Date().toISOString(),
       })
-      .select()
+      .select('id')
       .single()
 
     if (error) {
@@ -67,52 +91,53 @@ export const commissionService = {
 
     return {
       id: data.id,
-      commission: commissionCents / 100,  // EUR
-      payout: partnerPayoutCents / 100,   // EUR
+      commission: commissionCents / 100,
+      payout: partnerPayoutCents / 100,
     }
   },
 
   /**
-   * Transfer commission payout to partner's Stripe connected account
-   * Uses Stripe Connect for marketplace transfers
+   * Transfer commission payout to partner's Stripe connected account.
+   * Uses Stripe Connect for marketplace transfers.
    */
   async transferToPartner(
     commissionId: string,
     stripeAccountId: string,
     amountCents: number
   ): Promise<TransferResult> {
+    // Declared outside try so catch can read transfer_attempts without a second query
+    let row: TransferRow | null = null
+
     try {
-      // Get commission record for audit trail
-      const { data: commission, error: fetchError } = await supabaseAdmin
+      const { data, error: fetchError } = await supabaseAdmin
         .from('commission_logs')
-        .select('*')
+        .select('inquiry_id, transfer_attempts')
         .eq('id', commissionId)
         .single()
 
-      if (fetchError || !commission) {
+      if (fetchError || !data) {
         throw new Error(`Commission log not found: ${commissionId}`)
       }
+      row = data
 
-      // Create Stripe transfer to partner's connected account
       const transfer = await stripe.transfers.create({
         amount: amountCents,
         currency: 'eur',
         destination: stripeAccountId,
-        description: `Job payout - Inquiry ${commission.inquiry_id}`,
+        description: `Job payout - Inquiry ${row.inquiry_id}`,
         metadata: {
           commission_id: commissionId,
-          inquiry_id: commission.inquiry_id,
+          inquiry_id: row.inquiry_id ?? '',
         },
       })
 
-      // Update commission log with transfer info
       const { error: updateError } = await supabaseAdmin
         .from('commission_logs')
         .update({
           status: 'transferred',
           stripe_transfer_id: transfer.id,
           transferred_at: new Date().toISOString(),
-          transfer_attempts: (commission.transfer_attempts || 0) + 1,
+          transfer_attempts: (row.transfer_attempts ?? 0) + 1,
         })
         .eq('id', commissionId)
 
@@ -120,14 +145,10 @@ export const commissionService = {
         console.error('[CommissionService] Failed to update transfer:', updateError)
       }
 
-      return {
-        success: true,
-        transferId: transfer.id,
-      }
+      return { success: true, transferId: transfer.id }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
-      
-      // Update with failure info
+
       await supabaseAdmin
         .from('commission_logs')
         .update({
@@ -135,34 +156,26 @@ export const commissionService = {
           failed_at: new Date().toISOString(),
           last_error: errorMsg,
           last_attempted_at: new Date().toISOString(),
-          transfer_attempts: (await supabaseAdmin
-            .from('commission_logs')
-            .select('transfer_attempts')
-            .eq('id', commissionId)
-            .single()
-            .then(r => r.data?.transfer_attempts || 0)) + 1,
+          transfer_attempts: (row?.transfer_attempts ?? 0) + 1,
         })
         .eq('id', commissionId)
 
       console.error('[CommissionService] Transfer failed:', errorMsg)
-      return {
-        success: false,
-        error: errorMsg,
-      }
+      return { success: false, error: errorMsg }
     }
   },
 
   /**
-   * Retry failed transfers (called by cron job)
-   * Attempts to re-transfer commissions that failed
+   * Retry failed transfers (called by cron job).
+   * Attempts to re-transfer commissions that failed up to 3 times.
    */
   async retryFailedTransfers() {
     const { data: failedLogs, error } = await supabaseAdmin
       .from('commission_logs')
-      .select('*')
+      .select('id, stripe_account_id, partner_payout_cents, transfer_attempts')
       .eq('status', 'failed')
-      .lt('transfer_attempts', 3)  // Max 3 attempts
-      .lt('last_attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())  // At least 1hr since last attempt
+      .lt('transfer_attempts', 3)
+      .lt('last_attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
 
     if (error) {
       console.error('[CommissionService] Failed to fetch failed transfers:', error)
@@ -172,10 +185,8 @@ export const commissionService = {
     let succeeded = 0
     let failed = 0
 
-    for (const log of failedLogs || []) {
-      if (!log.stripe_account_id) {
-        continue
-      }
+    for (const log of failedLogs ?? []) {
+      if (!log.stripe_account_id) continue
 
       const result = await this.transferToPartner(
         log.id,
@@ -190,20 +201,16 @@ export const commissionService = {
       }
     }
 
-    return {
-      retried: (failedLogs?.length || 0),
-      succeeded,
-      failed,
-    }
+    return { retried: failedLogs?.length ?? 0, succeeded, failed }
   },
 
   /**
-   * Refund a commission if job is disputed/refunded
+   * Refund a commission if job is disputed/refunded.
    */
   async refundCommission(commissionId: string) {
     const { data: commission, error: fetchError } = await supabaseAdmin
       .from('commission_logs')
-      .select('*')
+      .select('id')
       .eq('id', commissionId)
       .single()
 
@@ -211,8 +218,6 @@ export const commissionService = {
       throw new Error(`Commission log not found: ${commissionId}`)
     }
 
-    // If already transferred, we'd need to reverse via Stripe
-    // For now, just mark as refunded in DB
     const { error } = await supabaseAdmin
       .from('commission_logs')
       .update({
@@ -222,13 +227,11 @@ export const commissionService = {
       })
       .eq('id', commissionId)
 
-    if (error) {
-      throw error
-    }
+    if (error) throw error
   },
 
   /**
-   * Get partner's commission summary
+   * Get partner's commission summary.
    */
   async getPartnerCommissions(partnerId: string, months?: number) {
     const fromDate = months
@@ -237,8 +240,7 @@ export const commissionService = {
 
     const { data, error } = await supabaseAdmin
       .from('commission_logs')
-      .select(
-        `
+      .select(`
         id,
         gross_amount_cents,
         commission_cents,
@@ -246,33 +248,29 @@ export const commissionService = {
         status,
         created_at,
         transferred_at
-        `
-      )
+      `)
       .eq('partner_id', partnerId)
       .gte('created_at', fromDate)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      throw error
-    }
+    if (error) throw error
 
-    // Calculate summary stats
-    const summary = {
-      total_jobs: data?.length || 0,
-      total_gross_eur: (data?.reduce((sum: any, log: any) => sum + log.gross_amount_cents, 0) || 0) / 100,
-      total_commission_eur: (data?.reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
-      total_payout_eur: (data?.reduce((sum: any, log: any) => sum + log.partner_payout_cents, 0) || 0) / 100,
-      transferred_count: (data?.filter((log: any) => log.status === 'transferred').length || 0),
-      pending_count: (data?.filter((log: any) => log.status === 'earned').length || 0),
-      failed_count: (data?.filter((log: any) => log.status === 'failed').length || 0),
-      logs: data || [],
-    }
+    const logs = (data ?? []) as CommissionRow[]
 
-    return summary
+    return {
+      total_jobs: logs.length,
+      total_gross_eur: logs.reduce((sum, l) => sum + l.gross_amount_cents, 0) / 100,
+      total_commission_eur: logs.reduce((sum, l) => sum + l.commission_cents, 0) / 100,
+      total_payout_eur: logs.reduce((sum, l) => sum + l.partner_payout_cents, 0) / 100,
+      transferred_count: logs.filter(l => l.status === 'transferred').length,
+      pending_count: logs.filter(l => l.status === 'earned').length,
+      failed_count: logs.filter(l => l.status === 'failed').length,
+      logs,
+    }
   },
 
   /**
-   * Get platform revenue summary
+   * Get platform revenue summary.
    */
   async getPlatformRevenue(months?: number) {
     const fromDate = months
@@ -284,24 +282,24 @@ export const commissionService = {
       .select('commission_cents, status, created_at')
       .gte('created_at', fromDate)
 
-    if (error) {
-      throw error
-    }
+    if (error) throw error
 
-    const revenue = {
-      total_commission_eur: (data?.reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
-      earned_commission_eur: (data
-        ?.filter((log: any) => ['earned', 'transferred', 'refunded'].includes(log.status))
-        .reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
-      transferred_commission_eur: (data
-        ?.filter((log: any) => log.status === 'transferred')
-        .reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
-      pending_commission_eur: (data
-        ?.filter((log: any) => log.status === 'pending')
-        .reduce((sum: any, log: any) => sum + log.commission_cents, 0) || 0) / 100,
-      jobs_completed: data?.length || 0,
-    }
+    type RevenueRow = Pick<CommissionRow, 'commission_cents' | 'status' | 'created_at'>
+    const logs = (data ?? []) as RevenueRow[]
+    const earnedStatuses: CommissionStatus[] = ['earned', 'transferred', 'refunded']
 
-    return revenue
+    return {
+      total_commission_eur: logs.reduce((sum, l) => sum + l.commission_cents, 0) / 100,
+      earned_commission_eur: logs
+        .filter(l => earnedStatuses.includes(l.status))
+        .reduce((sum, l) => sum + l.commission_cents, 0) / 100,
+      transferred_commission_eur: logs
+        .filter(l => l.status === 'transferred')
+        .reduce((sum, l) => sum + l.commission_cents, 0) / 100,
+      pending_commission_eur: logs
+        .filter(l => l.status === 'pending')
+        .reduce((sum, l) => sum + l.commission_cents, 0) / 100,
+      jobs_completed: logs.length,
+    }
   },
 }
