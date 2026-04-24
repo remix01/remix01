@@ -2,6 +2,13 @@ import Stripe from 'stripe'
 import { env } from '@/lib/env'
 import { stripe } from './client'
 
+export class WebhookSecretMissingError extends Error {
+  constructor() {
+    super('[Stripe] No webhook signing secret configured — set STRIPE_WEBHOOK_SECRET in environment variables')
+    this.name = 'WebhookSecretMissingError'
+  }
+}
+
 export function constructStripeEvent(
   payload: string | Buffer,
   sig: string
@@ -14,7 +21,11 @@ export function constructStripeEvent(
     .map((secret) => secret.trim())
     .filter(Boolean)
 
-  let lastError: unknown = new Error('[Stripe] No webhook signing secret configured')
+  if (configuredSecrets.length === 0) {
+    throw new WebhookSecretMissingError()
+  }
+
+  let lastError: unknown
 
   for (const secret of Array.from(new Set(configuredSecrets))) {
     try {
