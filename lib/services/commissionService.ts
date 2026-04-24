@@ -81,6 +81,8 @@ export const commissionService = {
     stripeAccountId: string,
     amountCents: number
   ): Promise<TransferResult> {
+    let transferAttempts = 0
+
     try {
       // Get commission record for audit trail
       const { data: commission, error: fetchError } = await supabaseAdmin
@@ -92,6 +94,8 @@ export const commissionService = {
       if (fetchError || !commission) {
         throw new Error(`Commission log not found: ${commissionId}`)
       }
+
+      transferAttempts = commission.transfer_attempts || 0
 
       // Create Stripe transfer to partner's connected account
       const transfer = await stripe.transfers.create({
@@ -112,7 +116,7 @@ export const commissionService = {
           status: 'transferred',
           stripe_transfer_id: transfer.id,
           transferred_at: new Date().toISOString(),
-          transfer_attempts: (commission.transfer_attempts || 0) + 1,
+          transfer_attempts: transferAttempts + 1,
         })
         .eq('id', commissionId)
 
@@ -135,7 +139,7 @@ export const commissionService = {
           failed_at: new Date().toISOString(),
           last_error: errorMsg,
           last_attempted_at: new Date().toISOString(),
-          transfer_attempts: (commission.transfer_attempts || 0) + 1,
+          transfer_attempts: transferAttempts + 1,
         })
         .eq('id', commissionId)
 
