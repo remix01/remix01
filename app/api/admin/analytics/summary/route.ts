@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 type EventName = 'inquiry_submitted' | 'offer_sent' | 'offer_accepted' | 'payment_completed'
 
@@ -113,7 +114,7 @@ export async function GET(_request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (!user?.id) {
-      return NextResponse.json({ error: 'Neavtoriziran' }, { status: 401 })
+      return fail('Neavtoriziran', 401)
     }
 
     const { data: admin, error: adminError } = await supabaseAdmin
@@ -125,11 +126,11 @@ export async function GET(_request: NextRequest) {
 
     if (adminError) {
       console.error('[admin/analytics/summary] Admin check error:', adminError)
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      return fail('Internal server error', 500)
     }
 
     if (!admin) {
-      return NextResponse.json({ error: 'Dostop zavrnjen' }, { status: 403 })
+      return fail('Dostop zavrnjen', 403)
     }
 
     const { todayStart, tomorrowStart, sevenDaysAgo } = getDateWindow()
@@ -263,7 +264,7 @@ export async function GET(_request: NextRequest) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
 
-    return NextResponse.json({
+    return ok({
       today: {
         events: todayEventsCount,
         activeUsers: uniqueActiveUsers,
@@ -291,6 +292,6 @@ export async function GET(_request: NextRequest) {
     })
   } catch (error) {
     console.error('[admin/analytics/summary] Fatal error:', error)
-    return NextResponse.json({ error: 'Napaka pri pridobivanju podatkov' }, { status: 500 })
+    return fail('Napaka pri pridobivanju podatkov', 500)
   }
 }

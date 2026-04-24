@@ -6,9 +6,10 @@ import { getErrorMessage } from '@/lib/utils/error'
  * Query params: type=my_tasks|available|overdue|completed|all
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { TaskFilterType } from '@/lib/task-engine/types'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // 2. Get query parameters
@@ -40,15 +41,12 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[v0] RPC error:', error)
-      return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
+      return fail(getErrorMessage(error), 400)
     }
 
-    return NextResponse.json({ tasks: data || [] })
+    return ok({ tasks: data || [] })
   } catch (error) {
     console.error('[v0] API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return fail(error instanceof Error ? error.message : 'Internal server error', 500)
   }
 }

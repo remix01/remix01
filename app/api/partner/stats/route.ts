@@ -1,16 +1,16 @@
 import { getPartner, getPartnerStats } from '@/lib/supabase-partner'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * GET — partner's personal KPI stats
  */
 export async function GET() {
   const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!partner) return fail('Unauthorized', 401)
 
   const stats = await getPartnerStats(partner.id)
   
-  return NextResponse.json({
+  return ok({
     ...stats,
     paket: partner.partner_paketi?.[0]?.paket ?? 'start',
   })

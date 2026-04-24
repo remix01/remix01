@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { NextResponse } from 'next/server';
+import { ok, fail } from '@/lib/http/response'
+
 
 export async function GET() {
   try {
@@ -11,14 +12,11 @@ export async function GET() {
 
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({
+    return ok({
       needsSetup: (count || 0) === 0,
     });
   } catch (error) {
     console.error('Error checking setup status:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return fail('Internal server error', 500);
   }
 }

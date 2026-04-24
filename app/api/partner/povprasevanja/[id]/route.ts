@@ -1,7 +1,7 @@
 import { getPartner } from '@/lib/supabase-partner'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -13,7 +13,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!partner) return fail('Unauthorized', 401)
 
   const { id } = await params
 
@@ -25,7 +25,7 @@ export async function PATCH(
     .eq('obrtnik_id', partner.id)
     .single()
 
-  if (!inquiry) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!inquiry) return fail('Not found', 404)
 
   const body = await req.json()
   const { status, cena_ocena_min, cena_ocena_max, opomba } = body
@@ -38,10 +38,7 @@ export async function PATCH(
   }
   
   if (status && !allowedTransitions[inquiry.status]?.includes(status)) {
-    return NextResponse.json(
-      { error: `Ne morete spremeniti statusa iz ${inquiry.status} v ${status}` },
-      { status: 400 }
-    )
+    return fail(`Ne morete spremeniti statusa iz ${inquiry.status} v ${status}`, 400)
   }
 
   const updates: Record<string, unknown> = {}
@@ -57,7 +54,7 @@ export async function PATCH(
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return fail(error.message, 500)
 
   // Email stranka on accept
   if (status === 'sprejeto' && inquiry.stranka_email && resend) {
@@ -111,7 +108,7 @@ export async function PATCH(
     if (logError) console.error('[admin_log]', logError)
   }
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 
 /**
@@ -119,7 +116,7 @@ export async function PATCH(
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!partner) return fail('Unauthorized', 401)
 
   const { id } = await params
 
@@ -131,6 +128,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .eq('obrtnik_id', partner.id)
     .single()
 
-  if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(data)
+  if (error || !data) return fail('Not found', 404)
+  return Response.json(data)
 }

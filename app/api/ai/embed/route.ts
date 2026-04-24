@@ -8,8 +8,9 @@
  * Configure in vercel.json with cron schedule: 0 [slash]15 [space] [asterisk] [space] [asterisk] [space] [asterisk] [space] [asterisk]
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { env, hasEmbeddings } from '@/lib/env'
+import { fail } from '@/lib/http/response'
 import { backfillEmbeddings, type EmbeddingTarget } from '@/lib/ai/rag'
 
 // Verify cron secret to prevent unauthorized access
@@ -25,7 +26,7 @@ function verifyCronSecret(request: NextRequest): boolean {
 export async function GET(request: NextRequest) {
   // Verify authorization
   if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   const startTime = Date.now()
@@ -35,12 +36,10 @@ export async function GET(request: NextRequest) {
   > = {}
 
   if (!hasEmbeddings()) {
-    return NextResponse.json({
-      success: false,
+    return fail('No embedding provider configured (OPENAI_API_KEY, VOYAGE_API_KEY, GEMINI_API_KEY)', 500, {
       skipped: true,
-      reason: 'No embedding provider configured (OPENAI_API_KEY, VOYAGE_API_KEY, GEMINI_API_KEY)',
       timestamp: new Date().toISOString(),
-    }, { status: 500 })
+    })
   }
 
   // Hard limit per cron execution to avoid exhausting embedding quotas in one run.
@@ -91,7 +90,7 @@ export async function GET(request: NextRequest) {
     `[Cron] Embedding backfill complete: ${totalProcessed} processed, ${totalErrors} errors in ${durationMs}ms`
   )
 
-  return NextResponse.json({
+  return Response.json({
     success: statusCode === 200,
     results,
     summary: {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getOrCreateCategory } from '@/lib/dal/categories'
@@ -8,6 +8,7 @@ import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { inquiryLimiter } from '@/lib/rate-limit/limiters'
+import { ok, fail } from '@/lib/http/response'
 
 async function postHandler(req: NextRequest) {
   try {
@@ -16,7 +17,7 @@ async function postHandler(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const body = await req.json()
@@ -48,10 +49,7 @@ async function postHandler(req: NextRequest) {
 
     // Validate required fields
     if (!title || !locationCity) {
-      return NextResponse.json(
-        { error: 'Title and location are required' },
-        { status: 400 }
-      )
+      return fail('Title and location are required', 400)
     }
 
     // Handle category auto-creation if categoryName provided
@@ -74,15 +72,9 @@ async function postHandler(req: NextRequest) {
           endpoint: 'POST /api/povprasevanje',
           timestamp: new Date().toISOString(),
         })
-        return NextResponse.json(
-          {
-            error:
-              catError instanceof Error
+        return fail(catError instanceof Error
                 ? catError.message
-                : 'Ustvarjanje kategorije ni uspelo. Prosimo poskusite ponovno.',
-          },
-          { status: 400 }
-        )
+                : 'Ustvarjanje kategorije ni uspelo. Prosimo poskusite ponovno.', 400)
       }
     }
 
@@ -149,7 +141,7 @@ async function postHandler(req: NextRequest) {
 
     if (error) {
       console.error('[v0] Supabase insert error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return fail(error.message, 500)
     }
 
     console.log('[v0] Povprasevanje created:', {
@@ -187,10 +179,10 @@ async function postHandler(req: NextRequest) {
       console.error('[v0] Error with notifications:', notifyErr)
     }
 
-    return NextResponse.json({ id: data.id, status: data.status }, { status: 201 })
+    return ok({ id: data.id, status: data.status }, 201)
   } catch (err) {
     console.error('[v0] Unhandled error in povprasevanje endpoint:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }
 
@@ -202,7 +194,7 @@ export async function GET(req: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { searchParams } = new URL(req.url)
@@ -230,12 +222,12 @@ export async function GET(req: Request) {
     const { data, count, error } = await query
     if (error) {
       console.error('[v0] GET povprasevanja error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return fail(error.message, 500)
     }
 
-    return NextResponse.json({ data, count, page, limit })
+    return ok({ data, count, page, limit })
   } catch (err) {
     console.error('[v0] Unhandled error in GET povprasevanje:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { ok, fail } from '@/lib/http/response'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
@@ -135,7 +136,7 @@ export async function GET(req: NextRequest) {
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401)
     }
 
     const { data } = await supabaseAdmin
@@ -144,7 +145,7 @@ export async function GET(req: NextRequest) {
       .eq('user_id', user.id)
       .maybeSingle()
 
-    return NextResponse.json({ messages: data?.messages ?? [] })
+    return ok({ messages: data?.messages ?? [] })
   } catch (error) {
     console.error('[agent/chat] GET error:', error)
     return handleAuthError(error)
@@ -156,13 +157,13 @@ export async function DELETE(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
-    
+
     // Handle auth errors
     if (error) {
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401)
     }
 
     await supabaseAdmin
@@ -170,7 +171,7 @@ export async function DELETE(req: NextRequest) {
       .delete()
       .eq('user_id', user.id)
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error) {
     console.error('[agent/chat] DELETE error:', error)
     return handleAuthError(error)
@@ -192,16 +193,16 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401)
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503)
     }
 
     const { message } = await req.json()
     if (!message?.trim()) {
-      return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
+      return fail('Sporočilo je obvezno.', 400)
     }
 
     // Load profile: subscription tier + daily usage
@@ -227,14 +228,10 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
 
     // Hard limit check
     if (usedToday >= dailyLimit) {
-      return NextResponse.json(
-        {
-          error: `Dnevni limit dosežen (${dailyLimit}). ${tier === 'start' ? 'Nadgradite na PRO za 100 sporočil/dan.' : 'Poskusite jutri.'}`,
-          limit_reached: true,
-          used: usedToday,
-          limit: dailyLimit,
-        },
-        { status: 429 }
+      return fail(
+        `Dnevni limit dosežen (${dailyLimit}). ${tier === 'start' ? 'Nadgradite na PRO za 100 sporočil/dan.' : 'Poskusite jutri.'}`,
+        429,
+        { limit_reached: true, used: usedToday, limit: dailyLimit }
       )
     }
 
@@ -288,12 +285,12 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
           { onConflict: 'user_id' }
         )
 
-      return NextResponse.json({
+      return ok({
         message: cached,
         cached: true,
         ...(softLimitWarning ? { warning: softLimitWarning } : {}),
         usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
-      })
+      } as Record<string, unknown>)
     }
 
     // Select model based on complexity
@@ -392,24 +389,24 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
 
     console.log(`[agent/chat] model=${modelSelection.modelId} reason=${modelSelection.reason} tokens=${inputTokens}+${outputTokens} cost=$${costUsd.toFixed(6)}`)
 
-    return NextResponse.json({
+    return ok({
       message: assistantText,
       cached: false,
       model: modelSelection.modelId,
       ...(softLimitWarning ? { warning: softLimitWarning } : {}),
       usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
-    })
+    } as Record<string, unknown>)
   } catch (error) {
     console.error('[agent/chat] POST error:', error)
-    
+
     // Check if it's an auth error
     if (error && typeof error === 'object' && ('code' in error || 'message' in error)) {
       return handleAuthError(error)
     }
-    
+
     const msg = anthropicErrorMessage(error)
     const status = error instanceof Anthropic.APIError ? error.status : 500
-    return NextResponse.json({ error: msg }, { status })
+    return fail(msg, status)
   }
 }
 

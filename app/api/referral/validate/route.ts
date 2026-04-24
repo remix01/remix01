@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { isValidReferralCode } from '@/lib/referral/generateCode'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Validate referral code and return referrer info
@@ -10,13 +11,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
-    
+
     if (!code || !isValidReferralCode(code)) {
-      return NextResponse.json({ valid: false }, { status: 400 })
+      return ok({ valid: false })
     }
-    
+
     const supabase = createAdminClient()
-    
+
     const { data: profileData } = await supabase
       .from('profiles')
       .select('id, referral_code')
@@ -25,22 +26,21 @@ export async function GET(request: NextRequest) {
     const profile = profileData as { id: string; referral_code: string | null } | null
 
     if (!profile) {
-      return NextResponse.json({ valid: false }, { status: 404 })
+      return ok({ valid: false })
     }
-    
-    // Get referrer name from obrtnik_profiles
+
     const { data: obrtnik } = await supabase
       .from('obrtnik_profiles')
       .select('business_name')
       .eq('id', profile.id)
       .maybeSingle()
-    
-    return NextResponse.json({
+
+    return ok({
       valid: true,
       referrerName: obrtnik?.business_name || 'prijatelj',
-    })
+    } as Record<string, unknown>)
   } catch (error) {
     console.error('[v0] Referral validation error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

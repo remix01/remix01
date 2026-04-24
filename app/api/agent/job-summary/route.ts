@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -6,21 +6,22 @@ import { estimateCost } from '@/lib/model-router'
 import { getAgentDefinition } from '@/lib/agents/ai-definitions'
 import { getAgentDailyLimit } from '@/lib/agents/ai-router'
 import type { AIAgentType } from '@/lib/agents/ai-router'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     const { povprasevanje_id, ponudba_id, work_notes, materials_used } = await req.json()
-    if (!povprasevanje_id) return NextResponse.json({ error: 'povprasevanje_id je obvezen.' }, { status: 400 })
+    if (!povprasevanje_id) return fail('povprasevanje_id je obvezen.', 400)
 
     const { data: obrtnik } = await supabaseAdmin
       .from('obrtnik_profiles')
       .select('id, business_name, subscription_tier')
       .eq('id', user.id).maybeSingle()
-    if (!obrtnik) return NextResponse.json({ error: 'Profil obrtnika ni najden.' }, { status: 404 })
+    if (!obrtnik) return fail('Profil obrtnika ni najden.', 404)
 
     const tier = obrtnik.subscription_tier ?? 'start'
     const dailyLimit = getAgentDailyLimit('job_summary' as AIAgentType, tier)
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
     const effectiveUsed = Date.now() - resetAt.getTime() > 86_400_000 ? 0 : usedToday
     if (effectiveUsed >= dailyLimit) {
-      return NextResponse.json({ error: `Dnevni limit dosežen (${dailyLimit}).`, limit_reached: true }, { status: 429 })
+      return fail(`Dnevni limit dosežen (${dailyLimit}).`, 429, { limit_reached: true })
     }
 
     const { data: pov } = await supabaseAdmin
@@ -94,13 +95,13 @@ export async function POST(req: NextRequest) {
       agent_type: 'job_summary', user_message: `report for: ${pov?.title?.slice(0,100)}`,
     }) as any).catch(() => {})
 
-    return NextResponse.json({
+    return ok({
       report_text: reportText,
       report_id: report?.id,
       usage: { used: effectiveUsed + 1, limit: dailyLimit },
-    })
+    } as Record<string, unknown>)
   } catch (error) {
     console.error('[agent/job-summary] POST:', error)
-    return NextResponse.json({ error: 'Napaka pri generiranju poročila.' }, { status: 500 })
+    return fail('Napaka pri generiranju poročila.', 500)
   }
 }

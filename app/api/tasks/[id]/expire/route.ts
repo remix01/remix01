@@ -7,8 +7,9 @@
  * Can be called by admins, system processes, or automated workflows.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/client'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(
   req: NextRequest,
@@ -20,10 +21,7 @@ export async function POST(
 
     // Validate inputs
     if (!taskId) {
-      return NextResponse.json(
-        { error: 'Missing taskId' },
-        { status: 400 }
-      )
+      return fail('Missing taskId', 400)
     }
 
     const expireReason = reason || 'Task expired'
@@ -45,17 +43,11 @@ export async function POST(
 
     if (rpcError) {
       console.error('[v0] RPC error in expire_task:', rpcError)
-      return NextResponse.json(
-        { error: 'Failed to expire task', details: rpcError },
-        { status: 400 }
-      )
+      return fail('Failed to expire task', 400, { details: rpcError })
     }
 
     if (!result || !result.success) {
-      return NextResponse.json(
-        { error: result?.message || 'Expiry failed' },
-        { status: 400 }
-      )
+      return fail(result?.message || 'Expiry failed', 400)
     }
 
     console.log('[v0] Task expired successfully:', {
@@ -66,20 +58,14 @@ export async function POST(
     // Log audit event
     await logAuditEvent(supabase, taskId, expireReason)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       task: result.task,
       message: 'Task expired successfully',
     })
   } catch (error) {
     console.error('[v0] Error expiring task:', error)
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500, { message: error instanceof Error ? error.message : 'Unknown error' })
   }
 }
 

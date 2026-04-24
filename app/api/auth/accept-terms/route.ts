@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 const CURRENT_TOS_VERSION = '2026-02-v1'
 
@@ -19,10 +20,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     const body: unknown = await request.json()
@@ -30,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       const message = parsed.error.errors.map((e) => e.message).join(', ')
-      return NextResponse.json({ error: message }, { status: 400 })
+      return fail(message, 400)
     }
 
     const { craftworkerAgreement } = parsed.data
@@ -53,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     if (updateError) throw new Error(updateError.message)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       user: {
         id: updatedUser?.id,
@@ -64,9 +62,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[accept-terms] Error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

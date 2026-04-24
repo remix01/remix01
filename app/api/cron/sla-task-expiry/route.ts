@@ -13,8 +13,9 @@
  * }
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     // Verify cron authorization
     if (!verifyCronSecret(req)) {
       console.error('[v0] Unauthorized cron request')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     console.log('[v0] SLA task expiry cron job started')
@@ -58,15 +59,12 @@ export async function GET(req: NextRequest) {
 
     if (queryError) {
       console.error('[v0] Error querying overdue tasks:', queryError)
-      return NextResponse.json(
-        { error: 'Failed to query tasks', details: queryError },
-        { status: 500 }
-      )
+      return fail('Failed to query tasks', 500, { details: queryError })
     }
 
     if (!overdueTasks || overdueTasks.length === 0) {
       console.log('[v0] No overdue tasks found')
-      return NextResponse.json({
+      return ok({
         success: true,
         message: 'No overdue tasks to expire',
         expiredCount: 0,
@@ -113,17 +111,10 @@ export async function GET(req: NextRequest) {
 
     console.log('[v0] SLA task expiry cron job completed:', summary)
 
-    return NextResponse.json(summary)
+    return Response.json(summary)
   } catch (error) {
     console.error('[v0] SLA task expiry cron job failed:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Cron job failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail('Cron job failed', 500, { message: error instanceof Error ? error.message : 'Unknown error' })
   }
 }
 

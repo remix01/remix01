@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { chat } from '@/lib/ai/providers'
+import { ok, fail } from '@/lib/http/response'
 
 interface RouteContext { params: Promise<{ jobId: string }> }
 
@@ -22,7 +22,7 @@ export async function GET(_: Request, context: RouteContext) {
       .eq('id', jobId)
       .single()
 
-    if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!job) return fail('Not found', 404)
 
     const messages = (job as any).conversation?.message || []
     const transcript = messages.map((m: any) => `${m.sender?.name || 'Unknown'}: ${m.body}`).join('\n').slice(0, 6000)
@@ -32,9 +32,9 @@ export async function GET(_: Request, context: RouteContext) {
 
     const ai = await chat([{ role: 'user', content: prompt }], { temperature: 0.2, maxTokens: 700 })
 
-    return NextResponse.json({ analysis: ai.content })
+    return ok({ analysis: ai.content })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri AI analizi.' }, { status })
+    return fail('Napaka pri AI analizi.', status)
   }
 }

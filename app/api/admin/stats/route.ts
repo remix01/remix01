@@ -1,9 +1,9 @@
 import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(req: Request) {
   const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return fail('Unauthorized', 401)
 
   const [
     { count: skupajPovprasevanj },
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       .order('created_at'),
   ])
 
-  return NextResponse.json({
+  return ok({
     skupajPovprasevanj,
     novaPovprasevanja,
     skupajObrtnikov,

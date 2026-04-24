@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
-import { fail } from '@/lib/http/response'
+import { fail, ok } from '@/lib/http/response'
 
 function getBaseUrl(req: Request): string {
   if (env.NEXT_PUBLIC_APP_URL) {
@@ -61,7 +60,7 @@ export async function POST(req: Request) {
       return_url: `${baseUrl}${returnPath}`,
     })
 
-    return NextResponse.json({ url: session.url })
+    return ok({ url: session.url })
   } catch (err: any) {
     console.error('[Stripe portal] error:', err.message)
     return fail(err.message || 'Napaka pri odpiranju Stripe portala.', 500)

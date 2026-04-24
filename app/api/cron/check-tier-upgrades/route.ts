@@ -1,14 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEffectiveCommission } from '@/lib/loyalty/commissionCalculator'
 import { sendEmail } from '@/lib/email/sender'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization')
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     console.log('[tier-upgrades] Starting tier upgrade check...')
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[tier-upgrades] Processed ${craftworkers?.length || 0} craftworkers, ${upgradeCount} upgrades`)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       checked: craftworkers?.length || 0,
       upgrades: upgradeCount,
@@ -95,9 +96,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('[tier-upgrades] Error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500, { message: error instanceof Error ? error.message : 'Unknown error' })
   }
 }

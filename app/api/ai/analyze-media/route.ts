@@ -1,16 +1,16 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!user) return fail('Unauthorized', 401)
 
     const { imageUrl, description } = await req.json()
     if (!imageUrl) {
-      return NextResponse.json({ success: false, error: 'imageUrl is required' }, { status: 400 })
+      return fail('imageUrl is required', 400)
     }
 
     const ai = await executeAgent({
@@ -22,9 +22,9 @@ export async function POST(req: Request) {
       useTools: false,
     })
 
-    return NextResponse.json({ success: true, data: ai.response })
+    return ok({ success: true, data: ai.response })
   } catch (error) {
     console.error('[analyze-media] error:', error)
-    return NextResponse.json({ success: false, error: 'Napaka pri AI analizi medija' }, { status: 500 })
+    return fail('Napaka pri AI analizi medija', 500)
   }
 }

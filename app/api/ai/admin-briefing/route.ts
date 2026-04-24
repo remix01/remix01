@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { chat } from '@/lib/ai/providers'
+import { ok, fail } from '@/lib/http/response'
 
 const CACHE_KEY = 'admin:ai:dnevni-pregled:v1'
 const TTL_SECONDS = 60 * 60
@@ -22,7 +22,7 @@ export async function GET() {
     if (redis) {
       const cached = await redis.get<string>(CACHE_KEY)
       if (cached) {
-        return NextResponse.json({ briefing: cached, cached: true })
+        return ok({ briefing: cached, cached: true })
       }
     }
 
@@ -71,9 +71,9 @@ Bodi konkreten in kratek.`
       await redis.set(CACHE_KEY, ai.content, { ex: TTL_SECONDS })
     }
 
-    return NextResponse.json({ briefing: ai.content, cached: false })
+    return ok({ briefing: ai.content, cached: false })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri AI briefingu.' }, { status })
+    return fail('Napaka pri AI briefingu.', status)
   }
 }

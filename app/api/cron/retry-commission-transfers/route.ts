@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { commissionService } from '@/lib/services/commissionService'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Cron Job: Retry failed commission transfers
@@ -16,10 +17,7 @@ export async function GET(request: NextRequest) {
   const expectedToken = process.env.CRON_SECRET
   
   if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
+    return fail('Unauthorized', 401)
   }
 
   try {
@@ -32,23 +30,13 @@ export async function GET(request: NextRequest) {
       `${result.retried} retried, ${result.succeeded} succeeded, ${result.failed} failed`
     )
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Commission transfer retry job completed',
-        ...result,
-      },
-      { status: 200 }
-    )
+    return ok({
+      message: 'Commission transfer retry job completed',
+      ...result,
+    } as Record<string, unknown>)
   } catch (error) {
     console.error('[retry-commission-transfers] Error:', error)
     
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail(error instanceof Error ? error.message : 'Unknown error', 500)
   }
 }

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -12,10 +13,10 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503)
     }
 
     const formData = await req.formData()
@@ -23,20 +24,18 @@ export async function POST(req: NextRequest) {
     const additionalContext = (formData.get('context') as string) || ''
 
     if (!file) {
-      return NextResponse.json({ error: 'Datoteka je obvezna.' }, { status: 400 })
+      return fail('Datoteka je obvezna.', 400)
     }
 
     // Validate file type
     const mediaType = file.type as SupportedMediaType
     if (!SUPPORTED_TYPES.includes(mediaType)) {
-      return NextResponse.json({
-        error: 'Podprti formati: JPEG, PNG, GIF, WebP. Za video prosimo zajemite posnetek zaslona.',
-      }, { status: 400 })
+      return fail('Podprti formati: JPEG, PNG, GIF, WebP. Za video prosimo zajemite posnetek zaslona.', 400)
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Datoteka je prevelika. Maksimalna velikost je 5MB.' }, { status: 400 })
+      return fail('Datoteka je prevelika. Maksimalna velikost je 5MB.', 400)
     }
 
     const arrayBuffer = await file.arrayBuffer()
@@ -111,12 +110,12 @@ Vrni JSON z naslednjo strukturo:
       }
     }
 
-    return NextResponse.json({ diagnosis })
+    return ok({ diagnosis })
   } catch (error) {
     console.error('[agent/video-diagnosis] error:', error)
     if (error instanceof Anthropic.APIError) {
-      return NextResponse.json({ error: `AI napaka: ${error.message}` }, { status: error.status })
+      return fail(`AI napaka: ${error.message}`, error.status)
     }
-    return NextResponse.json({ error: 'Napaka pri analizi slike.' }, { status: 500 })
+    return fail('Napaka pri analizi slike.', 500)
   }
 }

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { savePushSubscription } from '@/lib/push-notifications'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,14 +10,14 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // Parse request body
     const { subscription } = await request.json()
 
     if (!subscription || !subscription.endpoint) {
-      return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 })
+      return fail('Invalid subscription', 400)
     }
 
     // Detect device info from User-Agent
@@ -32,12 +33,12 @@ export async function POST(request: NextRequest) {
     })
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 500 })
+      return fail(result.error, 500)
     }
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error) {
     console.error('[v0] Error in push subscribe:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

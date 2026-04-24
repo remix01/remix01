@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 type RouteParams = { params: Promise<{ id: string }> }
 
@@ -13,7 +13,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   const { id } = await params
@@ -28,11 +28,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       : null
 
   if (!title || !message) {
-    return NextResponse.json({ error: 'Naslov in sporočilo sta obvezna.' }, { status: 400 })
+    return fail('Naslov in sporočilo sta obvezna.', 400)
   }
 
   if (!Number.isFinite(rawPrice) || rawPrice <= 0) {
-    return NextResponse.json({ error: 'Cena mora biti večja od 0.' }, { status: 400 })
+    return fail('Cena mora biti večja od 0.', 400)
   }
 
   const { data: currentOffer, error: fetchError } = await supabase
@@ -43,14 +43,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     .maybeSingle()
 
   if (fetchError || !currentOffer) {
-    return NextResponse.json({ error: 'Ponudba ni bila najdena.' }, { status: 404 })
+    return fail('Ponudba ni bila najdena.', 404)
   }
 
   if (currentOffer.status === 'sprejeta' || currentOffer.status === 'zavrnjena') {
-    return NextResponse.json(
-      { error: 'Sprejetih ali zavrnjenih ponudb ni mogoče urejati.' },
-      { status: 400 }
-    )
+    return fail('Sprejetih ali zavrnjenih ponudb ni mogoče urejati.', 400)
   }
 
   const { data, error } = await supabase
@@ -67,10 +64,10 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return fail(error.message, 500)
   }
 
-  return NextResponse.json({ success: true, data })
+  return ok({ success: true, data })
 }
 
 /**
@@ -83,7 +80,7 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   const { id } = await params
@@ -96,14 +93,11 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     .maybeSingle()
 
   if (fetchError || !currentOffer) {
-    return NextResponse.json({ error: 'Ponudba ni bila najdena.' }, { status: 404 })
+    return fail('Ponudba ni bila najdena.', 404)
   }
 
   if (currentOffer.status === 'sprejeta') {
-    return NextResponse.json(
-      { error: 'Sprejete ponudbe ni mogoče izbrisati.' },
-      { status: 400 }
-    )
+    return fail('Sprejete ponudbe ni mogoče izbrisati.', 400)
   }
 
   const { error } = await supabase
@@ -113,8 +107,8 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
     .eq('obrtnik_id', user.id)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return fail(error.message, 500)
   }
 
-  return NextResponse.json({ success: true })
+  return ok({ success: true })
 }

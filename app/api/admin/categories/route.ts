@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
@@ -11,10 +11,10 @@ export async function GET() {
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true })
     if (error) throw error
-    return NextResponse.json({ categories: data || [] })
+    return ok({ categories: data || [] })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri kategorijah.' }, { status })
+    return fail('Napaka pri kategorijah.', status)
   }
 }
 
@@ -35,10 +35,10 @@ export async function POST(request: Request) {
     }
     const { data, error } = await supabaseAdmin.from('categories').insert(payload).select('*').single()
     if (error) throw error
-    return NextResponse.json({ category: data })
+    return ok({ category: data })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri ustvarjanju kategorije.' }, { status })
+    return fail('Napaka pri ustvarjanju kategorije.', status)
   }
 }
 
@@ -49,10 +49,10 @@ export async function PUT(request: Request) {
     const { id, ...updates } = body
     const { data, error } = await supabaseAdmin.from('categories').update(updates).eq('id', id).select('*').single()
     if (error) throw error
-    return NextResponse.json({ category: data })
+    return ok({ category: data })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri posodobitvi kategorije.' }, { status })
+    return fail('Napaka pri posodobitvi kategorije.', status)
   }
 }
 
@@ -61,12 +61,12 @@ export async function DELETE(request: Request) {
     await requireAdmin(['super_admin'])
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+    if (!id) return fail('Missing id', 400)
     const { error } = await supabaseAdmin.from('categories').delete().eq('id', id)
     if (error) throw error
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri brisanju kategorije.' }, { status })
+    return fail('Napaka pri brisanju kategorije.', status)
   }
 }

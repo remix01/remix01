@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { startVerification } from '@/lib/mcp/ajpes'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,10 +9,7 @@ export async function POST(request: NextRequest) {
     const { ajpesId, businessName } = body
 
     if (!ajpesId || !businessName) {
-      return NextResponse.json(
-        { error: 'Manjka matična številka ali ime podjetja' },
-        { status: 400 }
-      )
+      return fail('Manjka matična številka ali ime podjetja', 400)
     }
 
     // Auth check
@@ -19,10 +17,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Nepooblaščeni dostop' },
-        { status: 401 }
-      )
+      return fail('Nepooblaščeni dostop', 401)
     }
 
     // Get obrtnik profile
@@ -33,10 +28,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!obrtnikProfile) {
-      return NextResponse.json(
-        { error: 'Obrtnik profil ni najden' },
-        { status: 404 }
-      )
+      return fail('Obrtnik profil ni najden', 404)
     }
 
     // Start verification
@@ -52,7 +44,7 @@ export async function POST(request: NextRequest) {
       failed: 'Napaka pri verifikaciji. Poskusite ponovno. ❌',
     }
 
-    return NextResponse.json({
+    return ok({
       status: result.status,
       message: messages[result.status],
       verificationId: result.verificationId,
@@ -60,9 +52,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[v0] Verify endpoint error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri obdelavi zahteve' },
-      { status: 500 }
-    )
+    return fail('Napaka pri obdelavi zahteve', 500)
   }
 }

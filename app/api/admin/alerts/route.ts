@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
@@ -13,9 +13,9 @@ export async function GET() {
       .limit(20)
 
     if (error) throw error
-    return NextResponse.json({ alerts: data || [] })
+    return ok({ alerts: data || [] })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri nalaganju opozoril.' }, { status })
+    return fail('Napaka pri nalaganju opozoril.', status)
   }
 }

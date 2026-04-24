@@ -4,8 +4,9 @@
  * Auth: checks admin_users table via supabaseAdmin.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 import {
   sendMessage,
   sendBusinessEvent,
@@ -34,7 +35,7 @@ async function isAdmin(req: NextRequest): Promise<boolean> {
 
 export async function POST(req: NextRequest) {
   if (!(await isAdmin(req))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   const body = await req.json()
@@ -44,33 +45,33 @@ export async function POST(req: NextRequest) {
     switch (action) {
       case 'send_message': {
         const result = await sendMessage({ channel: body.channel, text: body.text, threadTs: body.thread_ts })
-        return NextResponse.json(result)
+        return Response.json(result)
       }
       case 'send_business_event': {
         await sendBusinessEvent({ event: body.event as BusinessEventType, title: body.title, details: body.details, link: body.link })
-        return NextResponse.json({ ok: true })
+        return ok({ ok: true })
       }
       case 'send_alert': {
         await sendAlert({ type: body.type, severity: body.severity as SlackSeverity, message: body.message, metadata: body.metadata })
-        return NextResponse.json({ ok: true })
+        return ok({ ok: true })
       }
       case 'read_messages': {
         const messages = await readMessages({ channel: body.channel, limit: body.limit, oldest: body.oldest, latest: body.latest })
-        return NextResponse.json({ ok: true, messages })
+        return ok({ ok: true, messages })
       }
       case 'read_thread': {
         const messages = await readThread({ channel: body.channel, threadTs: body.thread_ts, limit: body.limit })
-        return NextResponse.json({ ok: true, messages })
+        return ok({ ok: true, messages })
       }
       case 'list_channels': {
         const channels = await listChannels()
-        return NextResponse.json({ ok: true, channels })
+        return ok({ ok: true, channels })
       }
       default:
-        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
+        return fail(`Unknown action: ${action}`, 400)
     }
   } catch (err) {
     console.error('[/api/slack] Error:', err)
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    return fail('Internal error', 500)
   }
 }

@@ -1,7 +1,7 @@
 import { getErrorMessage } from '@/lib/utils/error'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { fail } from '@/lib/http/response'
+import { fail, ok } from '@/lib/http/response'
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return fail('Failed to update offer status', 500)
     }
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error: unknown) {
     console.error('[v0] Update status error:', error)
     return fail(getErrorMessage(error) || 'Failed to update status', 500)

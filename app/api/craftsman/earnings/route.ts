@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
@@ -9,7 +9,7 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // Get partner data
@@ -20,7 +20,7 @@ export async function GET() {
       .maybeSingle()
 
     if (partnerError || !partner) {
-      return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
+      return fail('Partner not found', 404)
     }
 
     // Get all payouts for this craftsman
@@ -33,7 +33,7 @@ export async function GET() {
 
     if (payoutsError) {
       console.error('Error fetching payouts:', payoutsError)
-      return NextResponse.json({ error: 'Failed to fetch payouts' }, { status: 500 })
+      return fail('Failed to fetch payouts', 500)
     }
 
     // Calculate statistics
@@ -67,7 +67,7 @@ export async function GET() {
       ?.filter(o => pendingIds.includes(o.id))
       ?.reduce((sum, o) => sum + (Number(o.price_estimate) || 0), 0) || 0
 
-    return NextResponse.json({
+    return ok({
       stripeAccountId: partner.stripe_account_id,
       stripeOnboardingComplete: false,
       subscriptionPlan: partner.subscription_tier || 'start',
@@ -81,9 +81,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Error in earnings API:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

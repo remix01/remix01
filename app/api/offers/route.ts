@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
 import { offerService, handleServiceError } from '@/lib/services'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: Request) {
   try {
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // Check user's role
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     // Delegate to service layer
     const offers = await offerService.getOffers(user.id, userRole, partnerId)
 
-    return NextResponse.json({ success: true, data: offers })
+    return ok({ success: true, data: offers })
   } catch (error: unknown) {
     console.error('[API] Error fetching offers:', error)
     return handleServiceError(error)
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const body = await request.json()
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     // Delegate to service layer
     const offer = await offerService.createOffer(user.id, body)
 
-    return NextResponse.json({ success: true, data: offer })
+    return ok({ success: true, data: offer })
   } catch (error: unknown) {
     console.error('[API] Error creating offer:', error)
     return handleServiceError(error)

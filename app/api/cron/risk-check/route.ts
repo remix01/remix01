@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { calculateJobRisk, getJobsForRiskCheck } from '@/lib/riskScoring/calculator'
 import { adminAlertEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
+import { ok, fail } from '@/lib/http/response'
 
 export const maxDuration = 60
 
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '')
 
   if (!token || token !== env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   console.log('[risk-check] Starting risk assessment for active jobs...')
@@ -50,14 +51,11 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('[risk-check] Completed:', results)
-    return NextResponse.json({ success: true, summary: results, timestamp: new Date().toISOString() })
+    return ok({ success: true, summary: results, timestamp: new Date().toISOString() })
 
   } catch (error) {
     console.error('[risk-check] Fatal error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500, { details: error instanceof Error ? error.message : 'Unknown error' })
   }
 }
 

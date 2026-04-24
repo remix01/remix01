@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import twilio from 'twilio'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { analyzeMessage, getBlockedReasonMessage } from '@/lib/twilio/contentFilter'
 import { sendBlockedMessageWarning } from '@/lib/twilio/systemMessages'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Twilio Pre-Event Webhook
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get('x-twilio-signature')
     if (!signature) {
       console.error('[v0] Missing Twilio signature')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const url = req.url
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     if (!isValid) {
       console.error('[v0] Invalid Twilio signature')
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
+      return fail('Invalid signature', 403)
     }
 
     // Extract webhook parameters
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     if (!messageBody || !conversationSid) {
       console.error('[v0] Missing required parameters')
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
+      return fail('Missing parameters', 400)
     }
 
     console.log('[v0] Pre-event webhook received:', {
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
     if (convoError || !conversation) {
       console.error('[v0] Conversation not found:', conversationSid)
       // Allow message if conversation not found (fail open)
-      return NextResponse.json({ action: 'ALLOW' })
+      return ok({ action: 'ALLOW' })
     }
 
     // Determine sender (customer or craftworker)
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     if (!senderUserId) {
       console.error('[v0] Could not determine sender')
-      return NextResponse.json({ action: 'ALLOW' })
+      return ok({ action: 'ALLOW' })
     }
 
     // Check if payment is confirmed (contact info allowed after payment)
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
           created_at: new Date().toISOString(),
         })
 
-      return NextResponse.json({ action: 'ALLOW' })
+      return ok({ action: 'ALLOW' })
     }
 
     // Block message if violation detected
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
       const elapsed = Date.now() - startTime
       console.log('[v0] Pre-event response time:', elapsed, 'ms')
 
-      return NextResponse.json({ action: 'BLOCK' })
+      return ok({ action: 'BLOCK' })
     }
 
     // Allow message
@@ -203,11 +204,11 @@ export async function POST(req: NextRequest) {
     const elapsed = Date.now() - startTime
     console.log('[v0] Pre-event response time:', elapsed, 'ms')
 
-    return NextResponse.json({ action: 'ALLOW' })
+    return ok({ action: 'ALLOW' })
   } catch (error) {
     console.error('[v0] Pre-event webhook error:', error)
     
     // Fail open on error (allow message to prevent blocking legitimate messages)
-    return NextResponse.json({ action: 'ALLOW' })
+    return ok({ action: 'ALLOW' })
   }
 }

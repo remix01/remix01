@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/client'
 import { createAdminClient } from '@/lib/supabase/server'
 import { getReferralStats, ensureReferralCode } from '@/lib/referral/referralService'
 import { generateReferralLink } from '@/lib/referral/generateCode'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Get referral stats for current user
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
     
     // Ensure referral code exists
@@ -27,13 +28,13 @@ export async function GET(request: NextRequest) {
     // Generate referral link
     const referralLink = generateReferralLink(referralCode)
     
-    return NextResponse.json({
+    return ok({
       ...stats,
       referralCode,
       referralLink,
     })
   } catch (error) {
     console.error('[v0] Referral stats error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { writeAuditLog } from '@/lib/escrow'
+import { ok, fail } from '@/lib/http/response'
 
 export const maxDuration = 60
 
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   // Zavaruj cron endpoint z secret headerjem
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   // ========== OPTIMISTIC LOCKING: Atomically claim transactions ==========
@@ -25,12 +26,12 @@ export async function GET(request: NextRequest) {
 
   if (claimError) {
     console.error('[CRON AUTO-RELEASE] Claim error:', claimError)
-    return NextResponse.json({ error: claimError.message }, { status: 500 })
+    return fail(claimError.message, 500)
   }
 
   if (!claimed || claimed.length === 0) {
     console.log('[CRON AUTO-RELEASE] No transactions to release')
-    return NextResponse.json({ processed: 0, results: [] })
+    return ok({ processed: 0, results: [] })
   }
 
   console.log(`[CRON AUTO-RELEASE] Claimed ${claimed.length} transactions for processing`)
@@ -108,5 +109,5 @@ export async function GET(request: NextRequest) {
   const successCount = results.filter(r => r.success).length
   console.log(`[CRON AUTO-RELEASE] Completed: ${successCount}/${results.length} successful`)
 
-  return NextResponse.json({ processed: results.length, successCount, results })
+  return ok({ processed: results.length, successCount, results })
 }

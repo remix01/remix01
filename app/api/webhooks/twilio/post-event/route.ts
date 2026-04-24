@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import twilio from 'twilio'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Twilio Post-Event Webhook
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get('x-twilio-signature')
     if (!signature) {
       console.error('[v0] Missing Twilio signature')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const url = req.url
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     if (!isValid) {
       console.error('[v0] Invalid Twilio signature')
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
+      return fail('Invalid signature', 403)
     }
 
     // Extract webhook parameters
@@ -58,12 +59,12 @@ export async function POST(req: NextRequest) {
 
     // Only process MessageAdded events
     if (eventType !== 'onMessageAdded') {
-      return NextResponse.json({ success: true })
+      return ok({ success: true })
     }
 
     if (!conversationSid || !messageSid) {
       console.error('[v0] Missing required parameters')
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
+      return fail('Missing parameters', 400)
     }
 
     // Find conversation
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     if (convoError || !conversation) {
       console.error('[v0] Conversation not found:', conversationSid)
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+      return fail('Conversation not found', 404)
     }
 
     // Update conversation's last message timestamp
@@ -100,11 +101,11 @@ export async function POST(req: NextRequest) {
 
     console.log('[v0] Post-event processed successfully')
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error) {
     console.error('[v0] Post-event webhook error:', error)
     
     // Return success even on error to prevent Twilio retries
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   }
 }

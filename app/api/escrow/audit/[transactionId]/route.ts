@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +19,7 @@ export async function GET(
     )
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ success: false }, { status: 401 })
+      return ok({ success: false }, 401)
     }
 
     // Verify user owns this transaction OR is admin
@@ -29,7 +30,7 @@ export async function GET(
       .maybeSingle()
 
     if (!escrow) {
-      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
+      return fail('Transaction not found', 404)
     }
 
     // Check if user is the partner, customer, or admin
@@ -44,7 +45,7 @@ export async function GET(
     const isCustomer = escrow.customer_email === user.email
 
     if (!isAdmin && !isPartner && !isCustomer) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      return fail('Unauthorized', 403)
     }
 
     const { data: logs, error } = await supabaseAdmin
@@ -55,10 +56,10 @@ export async function GET(
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, logs })
+    return ok({ success: true, logs })
 
   } catch (err) {
     console.error('[AUDIT QUERY]', err)
-    return NextResponse.json({ success: false, logs: [] }, { status: 500 })
+    return ok({ success: false, logs: [] }, 500)
   }
 }

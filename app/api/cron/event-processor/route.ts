@@ -13,7 +13,8 @@
  * - Fixes event-processor 500 errors
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(req: NextRequest) {
   // Verify CRON_SECRET
@@ -22,10 +23,7 @@ export async function GET(req: NextRequest) {
 
   if (authHeader !== expectedToken) {
     console.warn('[Cron] Unauthorized event processor call')
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
+    return fail('Unauthorized', 401)
   }
 
   const start = Date.now()
@@ -123,7 +121,7 @@ export async function GET(req: NextRequest) {
       durationMs 
     }))
 
-    return NextResponse.json({ 
+    return ok({ 
       ok: true, 
       processed: result.processed, 
       failed: result.failed, 
@@ -140,9 +138,6 @@ export async function GET(req: NextRequest) {
       durationMs 
     }))
     
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? String(err) : undefined
-    }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

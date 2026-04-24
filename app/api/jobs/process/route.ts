@@ -8,10 +8,11 @@ import { getErrorMessage } from '@/lib/utils/error'
  * Security: This endpoint is protected by QStash signature verification.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs'
 import { processJob } from '@/lib/jobs/processor'
 import { JobType } from '@/lib/jobs/queue'
+import { ok, fail } from '@/lib/http/response'
 
 export const maxDuration = 60 // 60 second timeout for job processing
 
@@ -21,10 +22,7 @@ async function handler(req: NextRequest) {
     const { jobType, payload } = body
 
     if (!jobType || !payload) {
-      return NextResponse.json(
-        { error: 'Missing jobType or payload' },
-        { status: 400 }
-      )
+      return fail('Missing jobType or payload', 400)
     }
 
     console.log(`[API] Processing job: ${jobType}`, { payload })
@@ -32,15 +30,12 @@ async function handler(req: NextRequest) {
     // Process the job
     await processJob(jobType as JobType, { data: payload })
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
 
   } catch (error: unknown) {
     console.error('[JOBS API]', error)
     // Return 5xx so QStash retries. Return 2xx and job is considered handled.
-    return NextResponse.json(
-      { error: getErrorMessage(error) ?? 'Failed to process job' },
-      { status: 500 }
-    )
+    return fail(getErrorMessage(error) ?? 'Failed to process job', 500)
   }
 }
 

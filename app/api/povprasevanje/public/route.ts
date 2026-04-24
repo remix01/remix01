@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { slugify } from '@/lib/utils/slugify'
 import { publicInquirySchema } from '@/lib/validators/public-inquiry'
 import { geocodeLocation } from '@/lib/google/geocoding'
+import { ok, fail } from '@/lib/http/response'
 
 type PublicInquiryBody = {
   storitev?: unknown
@@ -200,10 +201,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await parseJsonBody(request)
     if (!body) {
-      return NextResponse.json(
-        { error: 'Neveljavno JSON telo zahtevka' },
-        { status: 400 }
-      )
+      return fail('Neveljavno JSON telo zahtevka', 400)
     }
 
     const parsedInput = publicInquirySchema.safeParse({
@@ -216,16 +214,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (!parsedInput.success) {
-      return NextResponse.json(
-        { error: parsedInput.error.issues[0]?.message || 'Neveljavni vhodni podatki' },
-        { status: 400 }
-      )
+      return fail(parsedInput.error.issues[0]?.message || 'Neveljavni vhodni podatki', 400)
     }
 
     const { storitev, lokacija, opis, stranka_email, stranka_telefon, stranka_ime } = parsedInput.data
 
     if (!storitev || !lokacija) {
-      return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
+      return fail('Manjkajo obvezna polja', 400)
     }
 
     const normalizedLocation = await resolveLocationName(lokacija)
@@ -238,10 +233,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (isDuplicate) {
-      return NextResponse.json(
-        { error: 'Podobno povpraševanje je bilo pravkar oddano. Prosimo počakajte trenutek.' },
-        { status: 409 }
-      )
+      return fail('Podobno povpraševanje je bilo pravkar oddano. Prosimo počakajte trenutek.', 409)
     }
 
     const category_id = await resolveCategoryIdFromService(storitev)
@@ -312,7 +304,7 @@ export async function POST(request: NextRequest) {
         message: error.message,
         details: error.details,
       })
-      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
+      return fail('Napaka pri shranjevanju', 500)
     }
 
     if (stranka_email && process.env.RESEND_API_KEY) {
@@ -363,13 +355,13 @@ export async function POST(request: NextRequest) {
 
     if (!data) {
       console.error('[public] Insert succeeded without row data', { requestId })
-      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
+      return fail('Napaka pri shranjevanju', 500)
     }
 
-    return NextResponse.json({ success: true, id: data.id })
+    return ok({ success: true, id: data.id })
   } catch (err) {
     console.error('[public] Unexpected error:', { requestId, error: err })
-    return NextResponse.json({ error: 'Napaka strežnika' }, { status: 500 })
+    return fail('Napaka strežnika', 500)
   }
 }
 

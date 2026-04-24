@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,10 +9,7 @@ export async function GET(request: NextRequest) {
     // Verify admin access
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     // Fetch subscriptions with user details - use only existing columns
@@ -90,7 +88,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
+    return ok({
       totalRevenue,
       totalCommissions,
       pendingPayouts,
@@ -117,9 +115,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[v0] Monetization API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return fail(error instanceof Error ? error.message : 'Internal server error', 500)
   }
 }

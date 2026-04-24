@@ -5,16 +5,16 @@
  * Admin-only access (role = 'admin').
  */
 
-import { NextResponse } from 'next/server'
 import { metrics } from '@/lib/monitoring/metrics'
 import { withAdminAuth } from '@/lib/admin-auth'
+import { ok, fail } from '@/lib/http/response'
 
 export const GET = withAdminAuth(async () => {
   try {
     const snapshot = await metrics.getSnapshot()
-    return NextResponse.json(snapshot)
+    return Response.json(snapshot)
   } catch (err) {
     console.error('[API] Health endpoint error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 })

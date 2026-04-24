@@ -1,9 +1,10 @@
 import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
+import { fail } from '@/lib/http/response'
 
 export async function GET(req: Request) {
   const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return fail('Unauthorized', 401)
 
   const { searchParams } = new URL(req.url)
   const od  = searchParams.get('od')

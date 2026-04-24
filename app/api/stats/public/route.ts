@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Public stats endpoint - No auth required
@@ -50,7 +50,7 @@ export async function GET() {
       reviews: totalReviews || 0,
     })
 
-    return NextResponse.json({
+    return ok({
       successfulConnections: successfulConnections || 347, // Fallback
       activeArtisans: activeArtisans || 225, // Fallback
       rating: parseFloat(avgRating as string),
@@ -60,7 +60,7 @@ export async function GET() {
     console.error('[v0] Error fetching public stats:', error)
     
     // Return sensible defaults on error
-    return NextResponse.json({
+    return ok({
       successfulConnections: 347,
       activeArtisans: 225,
       rating: 4.9,

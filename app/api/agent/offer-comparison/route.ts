@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -9,15 +10,15 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503)
     }
 
     const { povprasevanjeId } = await req.json()
     if (!povprasevanjeId) {
-      return NextResponse.json({ error: 'ID povpraševanja je obvezen.' }, { status: 400 })
+      return fail('ID povpraševanja je obvezen.', 400)
     }
 
     // Verify ownership
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!povprasevanje || povprasevanje.narocnik_id !== user.id) {
-      return NextResponse.json({ error: 'Ni dovoljenja.' }, { status: 403 })
+      return fail('Ni dovoljenja.', 403)
     }
 
     // Load ponudbe with obrtnik info
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
       .eq('status', 'poslana')
 
     if (!ponudbe || ponudbe.length < 2) {
-      return NextResponse.json({ error: 'Za primerjavo potrebujete vsaj 2 ponudbi.' }, { status: 400 })
+      return fail('Za primerjavo potrebujete vsaj 2 ponudbi.', 400)
     }
 
     // Build comparison prompt
@@ -117,9 +118,9 @@ Pripravi JSON z naslednjo strukturo:
       analysis = { summary: text, warnings: [], comparison: [], recommendation: '' }
     }
 
-    return NextResponse.json({ analysis, ponudbe })
+    return ok({ analysis, ponudbe })
   } catch (error) {
     console.error('[agent/offer-comparison] error:', error)
-    return NextResponse.json({ error: 'Napaka pri primerjavi ponudb.' }, { status: 500 })
+    return fail('Napaka pri primerjavi ponudb.', 500)
   }
 }

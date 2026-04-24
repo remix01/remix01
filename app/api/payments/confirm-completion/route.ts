@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 const confirmCompletionSchema = z.object({
   jobId: z.string().cuid(),
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // 2. Parse and validate request
@@ -23,10 +24,7 @@ export async function POST(request: NextRequest) {
     const validation = confirmCompletionSchema.safeParse(body)
     
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: validation.error.errors },
-        { status: 400 }
-      )
+      return fail('Invalid request data', 400, { details: validation.error.errors })
     }
 
     const { jobId } = validation.data
@@ -47,39 +45,30 @@ export async function POST(request: NextRequest) {
 
     // 4. Validate job exists and user is the customer
     if (jobError || !job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+      return fail('Job not found', 404)
     }
 
     if (job.customer_id !== user.id) {
-      return NextResponse.json({ error: 'Not authorized for this job' }, { status: 403 })
+      return fail('Not authorized for this job', 403)
     }
 
     // 5. Validate job status
     if (job.status !== 'IN_PROGRESS' && job.status !== 'AWAITING_CONFIRMATION') {
-      return NextResponse.json(
-        { error: 'Job must be IN_PROGRESS or AWAITING_CONFIRMATION', currentStatus: job.status },
-        { status: 400 }
-      )
+      return fail('Job must be IN_PROGRESS or AWAITING_CONFIRMATION', 400, { currentStatus: job.status })
     }
 
     // 6. Validate payment exists and is held in escrow
     if (!job.payment) {
-      return NextResponse.json({ error: 'No payment found for this job' }, { status: 400 })
+      return fail('No payment found for this job', 400)
     }
 
     if (job.payment.status !== 'HELD') {
-      return NextResponse.json(
-        { error: 'Payment is not in HELD status', currentStatus: job.payment.status },
-        { status: 400 }
-      )
+      return fail('Payment is not in HELD status', 400, { currentStatus: job.payment.status })
     }
 
     // 7. Validate craftworker has Stripe account
     if (!job.craftworker?.craftworker_profile?.stripe_account_id) {
-      return NextResponse.json(
-        { error: 'Craftworker does not have Stripe account configured' },
-        { status: 400 }
-      )
+      return fail('Craftworker does not have Stripe account configured', 400)
     }
 
     const stripeAccountId = job.craftworker.craftworker_profile.stripe_account_id
@@ -130,7 +119,7 @@ export async function POST(request: NextRequest) {
     // TODO: Send email/SMS notification to craftworker
     console.log(`[confirm-completion] Job ${jobId} completed. Craftworker ${job.craftworker_id} will receive ${craftworkerPayoutAmount} EUR`)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       jobId: job.id,
       paymentStatus: 'RELEASED',
@@ -140,9 +129,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[confirm-completion] Error:', error)
-    return NextResponse.json(
-      { error: 'Failed to confirm job completion', message: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return fail('Failed to confirm job completion', 500, { message: error instanceof Error ? error.message : 'Unknown error' })
   }
 }

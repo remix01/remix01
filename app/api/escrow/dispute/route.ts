@@ -1,5 +1,5 @@
 import { isStructuredError } from '@/lib/utils/error'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEscrowTransaction, updateEscrowStatus, writeAuditLog } from '@/lib/escrow'
 import { createServerClient } from '@supabase/ssr'

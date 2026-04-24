@@ -1,5 +1,6 @@
 import { saveCalendarTokens } from '@/lib/mcp/calendar'
 import { NextRequest, NextResponse } from 'next/server'
+import { fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,10 +9,7 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state')
 
     if (!code || !state) {
-      return NextResponse.json(
-        { error: 'Missing code or state parameter' },
-        { status: 400 }
-      )
+      return fail('Missing code or state parameter', 400)
     }
 
     const { userId, role } = JSON.parse(state)
@@ -19,10 +17,7 @@ export async function GET(request: NextRequest) {
     const { success, error } = await saveCalendarTokens(userId, code)
 
     if (!success) {
-      return NextResponse.json(
-        { error: error || 'Failed to save calendar tokens' },
-        { status: 500 }
-      )
+      return fail(error || 'Failed to save calendar tokens', 500)
     }
 
     // Redirect to appropriate profile page
@@ -35,9 +30,6 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('[v0] Calendar callback error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process calendar callback' },
-      { status: 500 }
-    )
+    return fail('Failed to process calendar callback', 500)
   }
 }

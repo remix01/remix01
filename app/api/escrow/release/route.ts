@@ -1,5 +1,6 @@
 import { isStructuredError } from '@/lib/utils/error'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 import { stripe, calculateEscrow } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEscrowTransaction, updateEscrowStatus } from '@/lib/escrow'
@@ -76,28 +77,10 @@ export async function POST(request: NextRequest) {
         .maybeSingle()
 
       const status = current?.status
-      if (status === 'disputed') {
-        return NextResponse.json(
-          { success: false, message: 'Transakcija ima odprt spor. Sproščanje ni možno.' },
-          { status: 400 }
-        )
-      }
-      if (status === 'released') {
-        return NextResponse.json(
-          { success: false, message: 'Transakcija je že bila sproščena.' },
-          { status: 400 }
-        )
-      }
-      if (status === 'refunded') {
-        return NextResponse.json(
-          { success: false, message: 'Transakcija je bila povrnjena.' },
-          { status: 400 }
-        )
-      }
-      return NextResponse.json(
-        { success: false, message: `Transakcija v stanju '${status}' ne more biti sproščena.` },
-        { status: 400 }
-      )
+      if (status === 'disputed') return fail('Transakcija ima odprt spor. Sproščanje ni možno.', 400)
+      if (status === 'released') return fail('Transakcija je že bila sproščena.', 400)
+      if (status === 'refunded') return fail('Transakcija je bila povrnjena.', 400)
+      return fail(`Transakcija v stanju '${status}' ne more biti sproščena.`, 400)
     }
 
     // 5. DOUBLE-CHECK — preveri da ni odprtega spora (belt-and-suspenders)
@@ -112,10 +95,7 @@ export async function POST(request: NextRequest) {
         .from('escrow_transactions')
         .update({ status: 'paid' })
         .eq('id', escrowId)
-      return NextResponse.json(
-        { success: false, message: 'Transakcija ima odprt spor. Sproščanje ni možno.' },
-        { status: 400 }
-      )
+      return fail('Transakcija ima odprt spor. Sproščanje ni možno.', 400)
     }
 
     // 6. TRANSACTIONAL CONSISTENCY FIX
@@ -144,10 +124,7 @@ export async function POST(request: NextRequest) {
         console.error(`[ESCROW RELEASE] Failed to revert status: ${revertError.message}`)
       }
       
-      return NextResponse.json(
-        { success: false, message: `Stripe napaka: ${stripeError.message}` },
-        { status: 402 } // Payment Required status for Stripe errors
-      )
+      return fail(`Stripe napaka: ${stripeError.message}`, 402)
     }
 
     // 7. ONLY UPDATE DB AFTER STRIPE SUCCESS
@@ -168,10 +145,7 @@ export async function POST(request: NextRequest) {
       console.error(`[ESCROW RELEASE] DB update failed after Stripe success: ${updateError.message}`)
       // Even if DB update fails, Stripe was successful - we must retry the DB update
       // This is a critical state that needs manual intervention/retry
-      return NextResponse.json(
-        { success: false, message: 'Napaka pri posodobi stanja. Kontaktirajte support.' },
-        { status: 500 }
-      )
+      return fail('Napaka pri posodobi stanja. Kontaktirajte support.', 500)
     }
 
     // 8. ZAPIŠI AUDIT
@@ -211,17 +185,13 @@ export async function POST(request: NextRequest) {
       console.error('[ESCROW RELEASE] Error enqueueing jobs:', err)
     })
 
-    return NextResponse.json({
-      success: true,
-      message:     'Sredstva sproščena. Izplačilo bo obdelano v 2–5 delovnih dneh.',
+    return ok({
+      message: 'Sredstva sproščena. Izplačilo bo obdelano v 2–5 delovnih dneh.',
       payoutCents: escrow.payout_cents,
-    })
+    } as Record<string, unknown>)
 
   } catch (err) {
     console.error('[ESCROW RELEASE]', err)
-    return NextResponse.json(
-      { success: false, message: 'Napaka pri sproščanju. Kontaktirajte support.' },
-      { status: 500 }
-    )
+    return fail('Napaka pri sproščanju. Kontaktirajte support.', 500)
   }
 }

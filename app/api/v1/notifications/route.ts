@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireUser } from '@/lib/auth/require'
 import { notificationService, handleServiceError } from '@/lib/services'
 import { notificationsListQuerySchema } from '@/lib/api/schemas/v1'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,10 +10,7 @@ export async function GET(request: NextRequest) {
     try {
       user = await requireUser()
     } catch {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     // Parse and validate query params
@@ -20,10 +18,7 @@ export async function GET(request: NextRequest) {
     const validationResult = notificationsListQuerySchema.safeParse(searchParams)
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Neveljavni parametri', details: validationResult.error.errors },
-        { status: 400 }
-      )
+      return fail('Neveljavni parametri', 400, { details: validationResult.error.errors })
     }
 
     const { page, limit } = validationResult.data
@@ -31,7 +26,7 @@ export async function GET(request: NextRequest) {
     // Delegate to service layer
     const result = await notificationService.listNotifications(user.id, { page, limit })
 
-    return NextResponse.json({
+    return ok({
       success: true,
       data: result,
     })

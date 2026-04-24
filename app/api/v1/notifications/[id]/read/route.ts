@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { NotificationService } from '@/lib/notifications/notification-service'
+import { ok, fail } from '@/lib/http/response'
 
 export async function PATCH(
   request: NextRequest,
@@ -13,10 +14,7 @@ export async function PATCH(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     const { id } = await params
@@ -25,21 +23,15 @@ export async function PATCH(
     const success = await NotificationService.markRead(id, user.id)
 
     if (!success) {
-      return NextResponse.json(
-        { error: 'Obvestilo ni bilo najdeno ali ni vaše' },
-        { status: 404 }
-      )
+      return fail('Obvestilo ni bilo najdeno ali ni vaše', 404)
     }
 
-    return NextResponse.json({
+    return ok({
       success: true,
       message: 'Obvestilo označeno kot prebrano',
     })
   } catch (error) {
     console.error('[notifications/read] PATCH error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri označevanju obvestila' },
-      { status: 500 }
-    )
+    return fail('Napaka pri označevanju obvestila', 500)
   }
 }

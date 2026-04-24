@@ -5,18 +5,16 @@
  * Admin-only.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { withAdminAuth } from '@/lib/admin-auth'
+import { ok, fail } from '@/lib/http/response'
 
 async function handler(req: NextRequest) {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'ANTHROPIC_API_KEY ni nastavljen v okoljskih spremenljivkah.' },
-        { status: 400 }
-      )
+      return fail('ANTHROPIC_API_KEY ni nastavljen v okoljskih spremenljivkah.', 400)
     }
 
     const client = new Anthropic({ apiKey })
@@ -32,19 +30,19 @@ async function handler(req: NextRequest) {
       .map(b => (b as any).text)
       .join('')
 
-    return NextResponse.json({ success: true, message: `API ključ je veljaven. Model odgovor: "${text.trim()}"` })
+    return ok({ message: `API ključ je veljaven. Model odgovor: "${text.trim()}"` })
   } catch (err: any) {
     console.error('[test-anthropic] error:', err)
     if (err instanceof Anthropic.APIError) {
       if (err.status === 401) {
-        return NextResponse.json({ error: 'Neveljaven API ključ (401). Preverite vrednost ANTHROPIC_API_KEY.' }, { status: 400 })
+        return fail('Neveljaven API ključ (401). Preverite vrednost ANTHROPIC_API_KEY.', 400)
       }
       if (err.status === 403) {
-        return NextResponse.json({ error: 'Dostop zavrnjen (403). API ključ nima dostopa do modela.' }, { status: 400 })
+        return fail('Dostop zavrnjen (403). API ključ nima dostopa do modela.', 400)
       }
-      return NextResponse.json({ error: `Anthropic napaka (${err.status}): ${err.message}` }, { status: 400 })
+      return fail(`Anthropic napaka (${err.status}): ${err.message}`, 400)
     }
-    return NextResponse.json({ error: err.message || 'Napaka pri testiranju.' }, { status: 500 })
+    return fail(err.message || 'Napaka pri testiranju.', 500)
   }
 }
 

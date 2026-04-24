@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server'
 import {
   authLimiter,
   inquiryLimiter,
@@ -8,6 +7,7 @@ import {
   searchLimiter,
 } from '@/lib/rate-limit/limiters'
 import { requireAdmin } from '@/lib/admin-auth'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Admin endpoint to view rate limiter statistics
@@ -18,7 +18,7 @@ export async function GET() {
     await requireAdmin(['super_admin'])
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : 403
-    return NextResponse.json({ error: 'Dostop zavrnjen. Samo administratorji.' }, { status })
+    return fail('Dostop zavrnjen. Samo administratorji.', status)
   }
 
   const stats = {
@@ -33,5 +33,5 @@ export async function GET() {
     ],
   }
 
-  return NextResponse.json(stats)
+  return Response.json(stats)
 }

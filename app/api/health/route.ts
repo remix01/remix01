@@ -4,9 +4,9 @@
  * Checks database connectivity and returns system status
  */
 
-import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getConfigReadiness } from '@/lib/health/configReadiness'
+import { ok, fail } from '@/lib/http/response'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -68,5 +68,5 @@ export async function GET() {
   // Return 503 if database is down
   const httpStatus = status === 'ok' ? 200 : 503
 
-  return NextResponse.json(response, { status: httpStatus })
+  return Response.json(response, { status: httpStatus })
 }

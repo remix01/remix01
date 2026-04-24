@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
@@ -31,13 +31,13 @@ export async function GET() {
       .or('business_name.is.null,logo_url.is.null')
       .limit(100)
 
-    return NextResponse.json({
+    return ok({
       duplicateUsers,
       incompleteCraftworkers: incompleteCraftworkers || [],
       staleInquiries: staleInquiries.data || [],
     })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri data quality.' }, { status })
+    return fail('Napaka pri data quality.', status)
   }
 }

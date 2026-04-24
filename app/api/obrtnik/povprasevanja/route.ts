@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
@@ -14,10 +16,7 @@ export async function GET(request: NextRequest) {
     const obrtnik_id = searchParams.get('obrtnik_id');
 
     if (!obrtnik_id) {
-      return NextResponse.json(
-        { error: 'obrtnik_id required' },
-        { status: 400 }
-      );
+      return fail('obrtnik_id required', 400);
     }
 
     // Get all inquiries for this contractor
@@ -42,10 +41,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[v0] Query error:', error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return fail(error.message, 500);
     }
 
     // Group by status
@@ -56,7 +52,7 @@ export async function GET(request: NextRequest) {
       zakljuceno: data?.filter((p) => p.status === 'zakljuceno') || [],
     };
 
-    return NextResponse.json({
+    return ok({
       success: true,
       inquiries: data || [],
       grouped,
@@ -64,9 +60,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[v0] API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return fail('Internal server error', 500);
   }
 }

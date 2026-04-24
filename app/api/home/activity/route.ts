@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
@@ -18,9 +18,9 @@ export async function GET() {
       createdAt: item.created_at,
     }))
 
-    return NextResponse.json({ items })
+    return ok({ items })
   } catch (error) {
     console.error('[home/activity] Failed to load activity:', error)
-    return NextResponse.json({ items: [] })
+    return ok({ items: [] })
   }
 }

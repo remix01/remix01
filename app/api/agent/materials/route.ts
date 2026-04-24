@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -6,25 +6,26 @@ import { estimateCost } from '@/lib/model-router'
 import { getAgentDefinition } from '@/lib/agents/ai-definitions'
 import { isAgentAccessible, getAgentDailyLimit } from '@/lib/agents/ai-router'
 import type { AIAgentType } from '@/lib/agents/ai-router'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     const { povprasevanje_id, work_description } = await req.json()
-    if (!work_description?.trim()) return NextResponse.json({ error: 'Opis dela je obvezen.' }, { status: 400 })
+    if (!work_description?.trim()) return fail('Opis dela je obvezen.', 400)
 
     const { data: obrtnik } = await supabaseAdmin
       .from('obrtnik_profiles')
       .select('id, subscription_tier')
       .eq('id', user.id).maybeSingle()
-    if (!obrtnik) return NextResponse.json({ error: 'Profil obrtnika ni najden.' }, { status: 404 })
+    if (!obrtnik) return fail('Profil obrtnika ni najden.', 404)
 
     const tier = obrtnik.subscription_tier ?? 'start'
     if (!isAgentAccessible('materials_agent' as AIAgentType, tier)) {
-      return NextResponse.json({ error: 'Materiali so samo za PRO obrtnike.', upgrade_required: true, upgrade_url: '/cenik' }, { status: 403 })
+      return fail('Materiali so samo za PRO obrtnike.', 403, { upgrade_required: true, upgrade_url: '/cenik' })
     }
 
     const dailyLimit = getAgentDailyLimit('materials_agent' as AIAgentType, tier)
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
     const effectiveUsed = Date.now() - resetAt.getTime() > 86_400_000 ? 0 : usedToday
     if (effectiveUsed >= dailyLimit) {
-      return NextResponse.json({ error: `Dnevni limit dosežen (${dailyLimit}).`, limit_reached: true }, { status: 429 })
+      return fail(`Dnevni limit dosežen (${dailyLimit}).`, 429, { limit_reached: true })
     }
 
     const agentDef = await getAgentDefinition('materials_agent')
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
       agent_type: 'materials_agent', user_message: work_description.slice(0,200),
     }) as any).catch(() => {})
 
-    return NextResponse.json({
+    return ok({
       material_list: parsed.material_list ?? [],
       total_min_eur: parsed.skupaj_ocena_eur?.min,
       total_max_eur: parsed.skupaj_ocena_eur?.max,
@@ -87,9 +88,9 @@ export async function POST(req: NextRequest) {
       predracun_text: parsed.predracun_tekst,
       list_id: matList?.id,
       usage: { used: effectiveUsed + 1, limit: dailyLimit },
-    })
+    } as Record<string, unknown>)
   } catch (error) {
     console.error('[agent/materials] POST:', error)
-    return NextResponse.json({ error: 'Napaka pri generiranju seznama materiala.' }, { status: 500 })
+    return fail('Napaka pri generiranju seznama materiala.', 500)
   }
 }

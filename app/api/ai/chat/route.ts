@@ -10,11 +10,12 @@
  * - Tracks usage and enforces quotas
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 import { executeAgent, AgentAccessError, QuotaExceededError } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
+import { ok, fail } from '@/lib/http/response'
 
 const supabaseAdmin = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     // 1. Authenticate user
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const token = authHeader.substring(7)
@@ -46,14 +47,14 @@ export async function POST(request: NextRequest) {
     } = await supabaseAdmin.auth.getUser(token)
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      return fail('Invalid token', 401)
     }
 
     // 2. Parse request
     const body: ChatRequest = await request.json()
 
     if (!body.message?.trim()) {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+      return fail('Message is required', 400)
     }
 
     // 3. Execute agent
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     })
 
     // 4. Return response
-    return NextResponse.json({
+    return ok({
       success: true,
       response: result.response,
       metadata: {
@@ -87,40 +88,20 @@ export async function POST(request: NextRequest) {
     console.error('AI Chat error:', error)
 
     if (error instanceof AgentAccessError) {
-      return NextResponse.json(
-        {
-          error: 'Access denied',
-          message: error.message,
-          code: 'AGENT_ACCESS_DENIED',
-        },
-        { status: 403 }
-      )
+      return fail('Access denied', 403, { message: error.message, code: 'AGENT_ACCESS_DENIED' })
     }
 
     if (error instanceof QuotaExceededError) {
-      return NextResponse.json(
-        {
-          error: 'Quota exceeded',
-          message: error.message,
-          code: 'QUOTA_EXCEEDED',
-        },
-        { status: 429 }
-      )
+      return fail('Quota exceeded', 429, { message: error.message, code: 'QUOTA_EXCEEDED' })
     }
 
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500, { message: error instanceof Error ? error.message : 'Unknown error' })
   }
 }
 
 // Health check
 export async function GET() {
-  return NextResponse.json({
+  return ok({
     status: 'ok',
     service: 'ai-chat',
     features: ['rag', 'tool-calling', 'model-routing'],

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 const disputeSchema = z.object({
   jobId: z.string().cuid(),
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // 2. Parse and validate request
@@ -23,10 +24,7 @@ export async function POST(request: NextRequest) {
     const validation = disputeSchema.safeParse(body)
     
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: validation.error.errors },
-        { status: 400 }
-      )
+      return fail('Invalid request data', 400, { details: validation.error.errors })
     }
 
     const { jobId, reason } = validation.data
@@ -45,24 +43,21 @@ export async function POST(request: NextRequest) {
 
     // 4. Validate job exists and user is the customer
     if (jobError || !job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+      return fail('Job not found', 404)
     }
 
     if (job.customer_id !== user.id) {
-      return NextResponse.json({ error: 'Not authorized for this job' }, { status: 403 })
+      return fail('Not authorized for this job', 403)
     }
 
     // 5. Validate payment exists
     if (!job.payment) {
-      return NextResponse.json({ error: 'No payment found for this job' }, { status: 400 })
+      return fail('No payment found for this job', 400)
     }
 
     // 6. Can only dispute if payment is HELD or RELEASED (within dispute window)
     if (job.payment.status !== 'HELD' && job.payment.status !== 'RELEASED') {
-      return NextResponse.json(
-        { error: 'Payment cannot be disputed in current status', currentStatus: job.payment.status },
-        { status: 400 }
-      )
+      return fail('Payment cannot be disputed in current status', 400, { currentStatus: job.payment.status })
     }
 
     // 7. Update job and payment status to DISPUTED
@@ -99,7 +94,7 @@ export async function POST(request: NextRequest) {
     // 1. Release payment to craftworker (set status to RELEASED)
     // 2. Refund customer (set status to REFUNDED and create Stripe refund)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       jobId: job.id,
       jobStatus: 'DISPUTED',
@@ -109,9 +104,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[dispute] Error:', error)
-    return NextResponse.json(
-      { error: 'Failed to open dispute', message: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return fail('Failed to open dispute', 500, { message: error instanceof Error ? error.message : 'Unknown error' })
   }
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { executeAgent, AgentAccessError, QuotaExceededError } from '@/lib/ai/orchestrator'
@@ -7,6 +7,7 @@ import { determineRouting } from '@/lib/ai/concierge-routing'
 import { detectLanguage } from '@/lib/ai/concierge-language'
 import type { ConciergeLanguage } from '@/lib/ai/concierge-types'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
+import { ok, fail } from '@/lib/http/response'
 
 interface ConciergeRequest {
   message: string
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
     const message = String(body.message || '').trim()
 
     if (!message) {
-      return NextResponse.json({ error: 'Message is required.' }, { status: 400 })
+      return fail('Message is required.', 400)
     }
 
     const supabase = await createClient()
@@ -177,7 +178,7 @@ export async function POST(req: NextRequest) {
     const cacheKey = buildCacheKey(`concierge:${cacheUserScope}:${language}:${message}`)
     const cached = await getCachedResponse(cacheKey)
     if (cached) {
-      return NextResponse.json({
+      return ok({
         message: cached,
         language,
         cached: true,
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest) {
     const routing = determineRouting(message, Boolean(body.imageUrl))
 
     if (!user) {
-      return NextResponse.json({
+      return ok({
         message: buildGuestReply(language, message, routing.intent),
         language,
         intent: routing.intent,
@@ -237,7 +238,7 @@ export async function POST(req: NextRequest) {
 
     await setCachedResponse(cacheKey, finalMessage)
 
-    return NextResponse.json({
+    return ok({
       message: finalMessage,
       language,
       intent: routing.intent,
@@ -247,6 +248,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('[ai/concierge] POST error:', error)
-    return NextResponse.json({ error: 'Concierge failed.' }, { status: 500 })
+    return fail('Concierge failed.', 500)
   }
 }

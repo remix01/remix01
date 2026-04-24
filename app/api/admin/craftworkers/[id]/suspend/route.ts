@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 import { craftworkerSuspensionEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
+import { ok, fail } from '@/lib/http/response'
 
 const suspendSchema = z.object({
   reason: z.string().min(10, 'Reason must be at least 10 characters'),
@@ -24,7 +25,7 @@ export async function POST(
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { data: admin, error: adminError } = await supabaseAdmin
@@ -35,7 +36,7 @@ export async function POST(
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
+      return fail('Forbidden - Admin only', 403)
     }
 
     // Validate request body
@@ -52,11 +53,11 @@ export async function POST(
       .single()
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: 'Craftworker not found' }, { status: 404 })
+      return fail('Craftworker not found', 404)
     }
 
     if (profile.is_suspended) {
-      return NextResponse.json({ error: 'Craftworker already suspended' }, { status: 400 })
+      return fail('Craftworker already suspended', 400)
     }
 
     // Suspend the craftworker
@@ -122,7 +123,7 @@ export async function POST(
     await sendEmail(profile.user.email, emailTemplate)
     console.log(`[suspend] Suspension email sent to ${profile.user.email}`)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       message: 'Craftworker suspended successfully',
       craftworkerId,
@@ -134,15 +135,9 @@ export async function POST(
     console.error('[suspend] Error:', error)
     
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
-        { status: 400 }
-      )
+      return fail('Validation error', 400, { details: error.errors })
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

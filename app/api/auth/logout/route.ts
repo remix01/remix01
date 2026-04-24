@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST() {
   try {
@@ -8,12 +8,12 @@ export async function POST() {
 
     if (error) {
       console.error('[Auth logout] signOut error:', error)
-      return NextResponse.json({ error: 'Odjava ni uspela.' }, { status: 500 })
+      return fail('Odjava ni uspela.', 500)
     }
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error) {
     console.error('[Auth logout] unexpected error:', error)
-    return NextResponse.json({ error: 'Prišlo je do napake pri odjavi.' }, { status: 500 })
+    return fail('Prišlo je do napake pri odjavi.', 500)
   }
 }

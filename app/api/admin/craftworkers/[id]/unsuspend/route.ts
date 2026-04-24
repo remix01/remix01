@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
 import { craftworkerUnsuspensionEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * POST /api/admin/craftworkers/[id]/unsuspend
@@ -18,7 +19,7 @@ export async function POST(
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { data: admin, error: adminError } = await supabaseAdmin
@@ -29,7 +30,7 @@ export async function POST(
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
+      return fail('Forbidden - Admin only', 403)
     }
 
     const { id: craftworkerId } = await params
@@ -42,11 +43,11 @@ export async function POST(
       .single()
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: 'Craftworker not found' }, { status: 404 })
+      return fail('Craftworker not found', 404)
     }
 
     if (!profile.is_suspended) {
-      return NextResponse.json({ error: 'Craftworker is not suspended' }, { status: 400 })
+      return fail('Craftworker is not suspended', 400)
     }
 
     // Unsuspend the craftworker
@@ -69,7 +70,7 @@ export async function POST(
     
     console.log(`[unsuspend] Unsuspension email sent to ${profile.user.email}`)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       message: 'Craftworker unsuspended successfully',
       craftworkerId,
@@ -79,9 +80,6 @@ export async function POST(
   } catch (error) {
     console.error('[unsuspend] Error:', error)
     
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

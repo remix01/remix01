@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { chat } from '@/lib/ai/providers'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST() {
   try {
@@ -18,9 +18,9 @@ export async function POST() {
     const prompt = `Na podlagi spodnjih poizvedb predlagaj nove kategorije za LiftGO.\nVrni:\n1) 5 predlogov kategorij (ime, slug, opis)\n2) 5 SEO blog tem.\nOdgovori v slovenščini.\n\nPodatki:\n${sample}`
     const result = await chat([{ role: 'user', content: prompt }], { temperature: 0.3, maxTokens: 800 })
 
-    return NextResponse.json({ insights: result.content })
+    return ok({ insights: result.content })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri AI SEO analizi.' }, { status })
+    return fail('Napaka pri AI SEO analizi.', status)
   }
 }

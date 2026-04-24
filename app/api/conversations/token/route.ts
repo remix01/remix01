@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import twilio from 'twilio'
+import { ok, fail } from '@/lib/http/response'
 
 const AccessToken = twilio.jwt.AccessToken
 const ChatGrant = AccessToken.ChatGrant
@@ -13,19 +14,13 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     // Get jobId from query params
     const jobId = request.nextUrl.searchParams.get('jobId')
     if (!jobId) {
-      return NextResponse.json(
-        { error: 'jobId is required' },
-        { status: 400 }
-      )
+      return fail('jobId is required', 400)
     }
 
     // Create access token
@@ -45,15 +40,12 @@ export async function GET(request: NextRequest) {
     })
     token.addGrant(chatGrant)
 
-    return NextResponse.json({
+    return ok({
       token: token.toJwt(),
       identity: user.id,
     })
   } catch (error) {
     console.error('[v0] Error generating Twilio token:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate token' },
-      { status: 500 }
-    )
+    return fail('Failed to generate token', 500)
   }
 }

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { z } from 'zod'
+import { ok, fail } from '@/lib/http/response'
 
 const querySchema = z.object({
   type: z.enum(['PHONE_DETECTED', 'EMAIL_DETECTED', 'BYPASS_ATTEMPT', 'SUSPICIOUS_PATTERN']).optional(),
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { data: admin, error: adminError } = await supabaseAdmin
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return fail('Forbidden', 403)
     }
 
     // Parse query params
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     if (error) throw new Error(error.message)
 
-    return NextResponse.json({
+    return ok({
       violations,
       pagination: {
         page,
@@ -72,9 +73,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('[admin/violations] Error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

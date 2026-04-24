@@ -1,14 +1,14 @@
 import { getPartner } from '@/lib/supabase-partner'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * GET — partner profile
  */
 export async function GET() {
   const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(partner)
+  if (!partner) return fail('Unauthorized', 401)
+  return Response.json(partner)
 }
 
 /**
@@ -16,7 +16,7 @@ export async function GET() {
  */
 export async function PATCH(req: Request) {
   const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!partner) return fail('Unauthorized', 401)
 
   const body = await req.json()
   const allowed = ['telefon', 'bio', 'specialnosti', 'lokacije',
@@ -31,6 +31,6 @@ export async function PATCH(req: Request) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  if (error) return fail(error.message, 500)
+  return Response.json(data)
 }

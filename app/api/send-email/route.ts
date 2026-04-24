@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { env } from '@/lib/env'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { emailLimiter } from '@/lib/rate-limit/limiters'
+import { ok, fail } from '@/lib/http/response'
 
 const RESEND_API_KEY = env.RESEND_API_KEY
 
@@ -9,7 +10,7 @@ async function postHandler(request: NextRequest) {
   try {
     if (!RESEND_API_KEY) {
       console.log('[v0] RESEND_API_KEY not configured, skipping email');
-      return NextResponse.json({
+      return ok({
         success: false,
         message: 'Email service not configured',
       });
@@ -44,25 +45,19 @@ async function postHandler(request: NextRequest) {
     if (!response.ok) {
       const error = await response.json();
       console.error('[v0] Resend error:', error);
-      return NextResponse.json(
-        { error: 'Email service error', details: error },
-        { status: 500 }
-      );
+      return fail('Email service error', 500, { details: error });
     }
 
     const result = await response.json();
 
-    return NextResponse.json({
+    return ok({
       success: true,
       email_id: result.id,
       message: 'Email notification sent',
     });
   } catch (error) {
     console.error('[v0] API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return fail('Internal server error', 500);
   }
 }
 

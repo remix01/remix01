@@ -1,12 +1,12 @@
 import Stripe from 'stripe'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { getStripePriceId, isValidPlan, type PlanType } from '@/lib/stripe/config'
 import { createClient } from '@/lib/supabase/server'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { paymentLimiter } from '@/lib/rate-limit/limiters'
-import { fail } from '@/lib/http/response'
+import { fail, ok } from '@/lib/http/response'
 
 function getBaseUrl(req: Request): string {
   if (env.NEXT_PUBLIC_APP_URL) {
@@ -89,7 +89,7 @@ async function postHandler(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ url: session.url })
+    return ok({ url: session.url })
 
   } catch (err: any) {
     console.error('[Stripe] error:', err.message)

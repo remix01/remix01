@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { TokenService } from '@/lib/push/token-service'
 import { deviceRegisterBodySchema } from '@/lib/api/schemas/v1'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,10 +14,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Nepooblaščen dostop' },
-        { status: 401 }
-      )
+      return fail('Nepooblaščen dostop', 401)
     }
 
     // Validate request body
@@ -24,13 +22,7 @@ export async function POST(request: NextRequest) {
     const validation = deviceRegisterBodySchema.safeParse(body)
 
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: 'Neveljavni podatki',
-          details: validation.error.errors,
-        },
-        { status: 400 }
-      )
+      return fail('Neveljavni podatki', 400, { details: validation.error.errors })
     }
 
     const { token, platform, appVersion, deviceName } = validation.data
@@ -44,15 +36,12 @@ export async function POST(request: NextRequest) {
       deviceName
     )
 
-    return NextResponse.json({
+    return ok({
       success: true,
       data: deviceToken,
     })
   } catch (error) {
     console.error('[Device Register] Error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri registraciji naprave' },
-      { status: 500 }
-    )
+    return fail('Napaka pri registraciji naprave', 500)
   }
 }

@@ -1,21 +1,19 @@
 'use server'
 
 import { isStructuredError } from '@/lib/utils/error'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { matchObrtnikiForPovprasevanje } from '@/lib/agent/liftgo-agent'
 import { runGuardrails } from '@/lib/agent/guardrails'
 import type { Role } from '@/lib/agent/permissions'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
     const { povprasevanjeId } = await request.json()
 
     if (!povprasevanjeId) {
-      return NextResponse.json(
-        { error: 'povprasevanjeId je obvezen' },
-        { status: 400 }
-      )
+      return fail('povprasevanjeId je obvezen', 400)
     }
 
     // 1. Verify auth
@@ -23,10 +21,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Niste prijavljeni' },
-        { status: 401 }
-      )
+      return fail('Niste prijavljeni', 401)
     }
 
     // 2. Get user profile with role
@@ -38,10 +33,7 @@ export async function POST(request: NextRequest) {
     const profile = profileData as { role: string | null } | null
 
     if (!profile) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
+      return fail('Forbidden', 403)
     }
 
     // 3. Build session for guardrails
@@ -57,10 +49,7 @@ export async function POST(request: NextRequest) {
     try {
       await runGuardrails('agent.match', { povprasevanjeId }, session)
     } catch (error: unknown) {
-      return NextResponse.json(
-        { error: isStructuredError(error) ? error.error : 'Forbidden' },
-        { status: isStructuredError(error) ? error.code : 403 }
-      )
+      return fail(isStructuredError(error) ? error.error : 'Forbidden', isStructuredError(error) ? error.code : 403)
     }
 
     // 5. Verify ownership (redundant with guardrails but keeping for clarity)
@@ -71,20 +60,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!povprasevanje || povprasevanje.narocnik_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Nimate dostopa do tega povpraševanja' },
-        { status: 403 }
-      )
+      return fail('Nimate dostopa do tega povpraševanja', 403)
     }
 
     // 4. Call agent
     const result = await matchObrtnikiForPovprasevanje(povprasevanjeId)
 
     if (result.error) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 500 }
-      )
+      return fail(result.error, 500)
     }
 
     // 5. Save results to Supabase
@@ -102,15 +85,12 @@ export async function POST(request: NextRequest) {
       // Don't fail the response, still return the matches
     }
 
-    return NextResponse.json({
+    return ok({
       matches: result.topMatches,
       reasoning: result.reasoning,
     })
   } catch (error) {
     console.error('[v0] Agent API error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri iskanju obrtnov' },
-      { status: 500 }
-    )
+    return fail('Napaka pri iskanju obrtnov', 500)
   }
 }

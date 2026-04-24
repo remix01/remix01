@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { ok, fail } from '@/lib/http/response'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
@@ -24,15 +25,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     const { agentType } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503)
     }
 
     const { message, context } = await req.json()
     if (!message?.trim()) {
-      return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
+      return fail('Sporočilo je obvezno.', 400)
     }
 
     // Load user profile
@@ -46,23 +47,16 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     // Tier access check
     if (!isAgentAccessible(agentType as AIAgentType, tier)) {
-      return NextResponse.json(
-        {
-          error: 'Ta agent je na voljo samo za PRO naročnike.',
-          upgrade_required: true,
-          upgrade_url: '/obrtnik/narocnina',
-        },
-        { status: 403 }
-      )
+      return fail('Ta agent je na voljo samo za PRO naročnike.', 403, {
+        upgrade_required: true,
+        upgrade_url: '/obrtnik/narocnina',
+      })
     }
 
     // Daily limit check
     const dailyLimit = getAgentDailyLimit(agentType as AIAgentType, tier)
     if (dailyLimit === 0) {
-      return NextResponse.json(
-        { error: 'Ta agent ni dostopen z vašim paketom.', upgrade_required: true },
-        { status: 403 }
-      )
+      return fail('Ta agent ni dostopen z vašim paketom.', 403, { upgrade_required: true })
     }
 
     // Reset counter if 24h passed
@@ -77,15 +71,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     if (usedToday >= dailyLimit) {
-      return NextResponse.json(
-        {
-          error: `Dnevni limit dosežen (${dailyLimit} sporočil). Poskusite jutri.`,
-          limit_reached: true,
-          used: usedToday,
-          limit: dailyLimit,
-        },
-        { status: 429 }
-      )
+      return fail(`Dnevni limit dosežen (${dailyLimit} sporočil). Poskusite jutri.`, 429, {
+        limit_reached: true,
+        used: usedToday,
+        limit: dailyLimit,
+      })
     }
 
     // Load agent definition + system prompt
@@ -126,12 +116,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       if (cached) {
         await persistConversation(user.id, agentType, conv, history, message, cached)
         await logUsage(user.id, usedToday, agentType, 'cached', 0, 0, 0, 0, cacheKey, message)
-        return NextResponse.json({
+        return ok({
           message: cached,
           cached: true,
           agent: agentType,
           usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
-        })
+        } as Record<string, unknown>)
       }
     }
 
@@ -171,17 +161,17 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     console.log(`[agent/${agentType}] model=${modelSelection.modelId} tokens=${inputTokens}+${outputTokens} cost=$${costUsd.toFixed(6)}`)
 
-    return NextResponse.json({
+    return ok({
       message: assistantText,
       cached: false,
       agent: agentType,
       model: modelSelection.modelId,
       usage: { used: usedToday + 1, limit: dailyLimit === Infinity ? null : dailyLimit },
-    })
+    } as Record<string, unknown>)
   } catch (error) {
     console.error('[agent/dynamic] error:', error)
     const status = error instanceof Anthropic.APIError ? error.status : 500
-    return NextResponse.json({ error: 'Napaka pri procesiranju. Poskusite znova.' }, { status })
+    return fail('Napaka pri procesiranju. Poskusite znova.', status)
   }
 }
 
@@ -191,7 +181,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const { agentType } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     const { data } = await supabaseAdmin
       .from('ai_agent_conversations')
@@ -203,9 +193,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       .limit(1)
       .maybeSingle()
 
-    return NextResponse.json({ messages: data?.messages ?? [] })
+    return ok({ messages: data?.messages ?? [] })
   } catch {
-    return NextResponse.json({ messages: [] })
+    return ok({ messages: [] })
   }
 }
 
@@ -215,7 +205,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const { agentType } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     await supabaseAdmin
       .from('ai_agent_conversations')
@@ -224,9 +214,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       .eq('agent_type', agentType)
       .eq('status', 'active')
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch {
-    return NextResponse.json({ error: 'Napaka pri brisanju.' }, { status: 500 })
+    return fail('Napaka pri brisanju.', 500)
   }
 }
 

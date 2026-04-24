@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 const CURRENT_TOS_VERSION = '2026-02-v1'
 const NINETY_DAYS_IN_MS = 90 * 24 * 60 * 60 * 1000
@@ -13,7 +13,7 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json({ shouldShowModal: false })
+      return ok({ shouldShowModal: false })
     }
 
     // Get user from database
@@ -24,7 +24,7 @@ export async function GET() {
       .single()
 
     if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
-      return NextResponse.json({ shouldShowModal: false })
+      return ok({ shouldShowModal: false })
     }
 
     // Check if craftworker has accepted current terms
@@ -33,7 +33,7 @@ export async function GET() {
       dbUser.craftworker_agreement_accepted_at !== null
 
     if (hasAcceptedCurrentTerms) {
-      return NextResponse.json({ shouldShowModal: false })
+      return ok({ shouldShowModal: false })
     }
 
     // Check if last acceptance was more than 90 days ago
@@ -41,9 +41,9 @@ export async function GET() {
       !dbUser.craftworker_agreement_accepted_at ||
       Date.now() - new Date(dbUser.craftworker_agreement_accepted_at).getTime() > NINETY_DAYS_IN_MS
 
-    return NextResponse.json({ shouldShowModal: shouldShow })
+    return ok({ shouldShowModal: shouldShow })
   } catch (error) {
     console.error('[check-terms-acceptance] Error:', error)
-    return NextResponse.json({ shouldShowModal: false })
+    return ok({ shouldShowModal: false })
   }
 }

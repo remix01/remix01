@@ -1,6 +1,6 @@
 import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -9,14 +9,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return fail('Unauthorized', 401)
 
   const { id } = await params
   const body = await req.json()
   const { data: current } = await supabaseAdmin
     .from('obrtniki').select('*').eq('id', id).single()
 
-  if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!current) return fail('Not found', 404)
 
   const updates: Record<string, unknown> = { ...body }
 
@@ -32,7 +32,7 @@ export async function PATCH(
   const { data, error } = await supabaseAdmin
     .from('obrtniki').update(updates).eq('id', id).select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return fail(error.message, 500)
 
   await logAction(admin.id, `STATUS_${body.status?.toUpperCase() || 'UPDATE'}`,
     'obrtniki', id, current, updates)
@@ -74,5 +74,5 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }

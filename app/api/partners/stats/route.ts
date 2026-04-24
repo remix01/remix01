@@ -1,6 +1,6 @@
 import { getErrorMessage } from '@/lib/utils/error'
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: Request) {
   try {
@@ -8,17 +8,14 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { searchParams } = new URL(request.url)
     const partnerId = searchParams.get('partner_id')
 
     if (!partnerId) {
-      return NextResponse.json(
-        { success: false, error: 'partner_id je zahtevan' },
-        { status: 400 }
-      )
+      return fail('partner_id je zahtevan', 400)
     }
 
     // Pridobi ponudbe
@@ -28,7 +25,7 @@ export async function GET(request: Request) {
       .eq('partner_id', partnerId)
 
     if (offersError) {
-      return NextResponse.json({ success: false, error: offersError.message }, { status: 500 })
+      return fail(offersError.message, 500)
     }
 
     // Pridobi plačila
@@ -38,7 +35,7 @@ export async function GET(request: Request) {
       .eq('craftsman_id', partnerId)
 
     if (payoutsError) {
-      return NextResponse.json({ success: false, error: payoutsError.message }, { status: 500 })
+      return fail(payoutsError.message, 500)
     }
 
     const stats = {
@@ -49,9 +46,9 @@ export async function GET(request: Request) {
       pendingPayouts: payouts?.filter(p => p.status === 'pending').length || 0,
     }
 
-    return NextResponse.json({ success: true, data: stats })
+    return ok({ success: true, data: stats })
   } catch (error: unknown) {
     console.error('[API] Error fetching partner stats:', error)
-    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 })
+    return fail(getErrorMessage(error), 500)
   }
 }

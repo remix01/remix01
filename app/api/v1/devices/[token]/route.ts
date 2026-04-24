@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function DELETE(
   request: NextRequest,
@@ -15,19 +16,13 @@ export async function DELETE(
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Nepooblaščen dostop' },
-        { status: 401 }
-      )
+      return fail('Nepooblaščen dostop', 401)
     }
 
     const { token } = await params
 
     if (!token) {
-      return NextResponse.json(
-        { error: 'Token je obvezen' },
-        { status: 400 }
-      )
+      return fail('Token je obvezen', 400)
     }
 
     // Verify token belongs to current user before deactivating
@@ -38,17 +33,11 @@ export async function DELETE(
       .single()
 
     if (fetchError || !existingToken) {
-      return NextResponse.json(
-        { error: 'Naprava ni najdena' },
-        { status: 404 }
-      )
+      return fail('Naprava ni najdena', 404)
     }
 
     if (existingToken.user_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Nimate dovoljenja za brisanje te naprave' },
-        { status: 403 }
-      )
+      return fail('Nimate dovoljenja za brisanje te naprave', 403)
     }
 
     // Deactivate the token
@@ -61,15 +50,12 @@ export async function DELETE(
       throw error
     }
 
-    return NextResponse.json({
+    return ok({
       success: true,
       message: 'Naprava je bila uspešno odstranjena',
     })
   } catch (error) {
     console.error('[Device Delete] Error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri brisanju naprave' },
-      { status: 500 }
-    )
+    return fail('Napaka pri brisanju naprave', 500)
   }
 }

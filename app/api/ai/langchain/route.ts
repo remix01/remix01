@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { runLangGraphChat } from '@/lib/ai/langgraph'
 import { getLangSmithStatus } from '@/lib/ai/langsmith'
+import { ok, fail } from '@/lib/http/response'
 
 const requestSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required').max(8000),
@@ -15,18 +16,12 @@ export async function POST(request: NextRequest) {
     const parsed = requestSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: 'Invalid request body',
-          issues: parsed.error.issues,
-        },
-        { status: 400 }
-      )
+      return fail('Invalid request body', 400, { issues: parsed.error.issues })
     }
 
     const result = await runLangGraphChat(parsed.data)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       output: result.output,
       tracing: result.tracing,
@@ -34,12 +29,12 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return fail(message, 500)
   }
 }
 
 export async function GET() {
-  return NextResponse.json({
+  return ok({
     status: 'ok',
     service: 'ai-langchain',
     orchestration: 'langgraph',

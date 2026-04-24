@@ -1,6 +1,6 @@
 import { getErrorMessage } from '@/lib/utils/error'
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: Request) {
   try {
@@ -8,10 +8,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return fail('Unauthorized', 401);
     }
 
     // Check if super admin already exists
@@ -21,19 +18,13 @@ export async function POST(request: Request) {
       .eq('vloga', 'SUPER_ADMIN')
 
     if ((count ?? 0) > 0) {
-      return NextResponse.json(
-        { error: 'Super admin already exists' },
-        { status: 400 }
-      );
+      return fail('Super admin already exists', 400);
     }
 
     const { ime, priimek } = await request.json();
 
     if (!ime || !priimek) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return fail('Missing required fields', 400);
     }
 
     // Create super admin from current user
@@ -51,21 +42,15 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      return NextResponse.json(
-        { error: getErrorMessage(error) },
-        { status: 500 }
-      )
+      return fail(getErrorMessage(error), 500)
     }
 
-    return NextResponse.json({
+    return ok({
       success: true,
       data: adminUser,
     });
   } catch (error) {
     console.error('Error setting up admin:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return fail('Internal server error', 500);
   }
 }

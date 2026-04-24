@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(req: Request) {
   try {
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const body = await req.json()
@@ -25,11 +25,11 @@ export async function POST(req: Request) {
 
     // Validacija
     if (!ponudba_id || !obrtnik_id || !rating) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return fail('Missing required fields', 400)
     }
 
     if (rating < 1 || rating > 5) {
-      return NextResponse.json({ error: 'Invalid rating' }, { status: 400 })
+      return fail('Invalid rating', 400)
     }
 
     // Check if ponudba exists and belongs to this narocnik
@@ -40,12 +40,12 @@ export async function POST(req: Request) {
       .single()
 
     if (ponudbaError || !ponudba) {
-      return NextResponse.json({ error: 'Ponudba not found' }, { status: 404 })
+      return fail('Ponudba not found', 404)
     }
 
     const povprasevanjeNarocnikId = (ponudba.povprasevanja as any)?.[0]?.narocnik_id
     if (povprasevanjeNarocnikId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return fail('Forbidden', 403)
     }
 
     // Check if review already exists
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       .single()
 
     if (existingReview) {
-      return NextResponse.json({ error: 'Review already exists' }, { status: 409 })
+      return fail('Review already exists', 409)
     }
 
     // Insert review
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
 
     if (insertError) {
       console.error('[v0] Insert error:', insertError)
-      return NextResponse.json({ error: 'Failed to create review' }, { status: 500 })
+      return fail('Failed to create review', 500)
     }
 
     // Create notification for craftsman
@@ -91,9 +91,9 @@ export async function POST(req: Request) {
       is_read: false,
     })
 
-    return NextResponse.json({ success: true, ocena_id: review.id })
+    return ok({ success: true, ocena_id: review.id })
   } catch (err) {
     console.error('[v0] Error:', err)
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    return fail('Internal error', 500)
   }
 }

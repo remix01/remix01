@@ -1,24 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
     const { userId, tier } = await request.json()
 
     if (!userId || !tier) {
-      return NextResponse.json(
-        { error: 'Missing userId or tier' },
-        { status: 400 }
-      )
+      return fail('Missing userId or tier', 400)
     }
 
     // Validate tier
     const validTiers = ['start', 'pro', 'elite', 'enterprise']
     if (!validTiers.includes(tier)) {
-      return NextResponse.json(
-        { error: 'Invalid tier' },
-        { status: 400 }
-      )
+      return fail('Invalid tier', 400)
     }
 
     const supabase = createAdminClient()
@@ -47,15 +42,9 @@ export async function POST(request: NextRequest) {
       })
     if (auditError) console.error('Audit log error:', auditError)
 
-    return NextResponse.json({
-      success: true,
-      message: `User upgraded to ${tier} tier`,
-    })
+    return ok({ message: `User upgraded to ${tier} tier` })
   } catch (error) {
     console.error('[v0] Upgrade user error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return fail(error instanceof Error ? error.message : 'Internal server error', 500)
   }
 }

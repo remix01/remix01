@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 const CATEGORY_RULES: Array<{ keywords: string[]; category: string; estimateMin: number; estimateMax: number }> = [
   { keywords: ['pipa', 'vodovod', 'odtok', 'bojler', 'cev'], category: 'Vodovodar', estimateMin: 80, estimateMax: 450 },
@@ -16,20 +16,20 @@ export async function POST(req: Request) {
     const match = CATEGORY_RULES.find((rule) => rule.keywords.some((kw) => text.includes(kw)))
 
     if (match) {
-      return NextResponse.json({
+      return ok({
         category: match.category,
         estimateMin: match.estimateMin,
         estimateMax: match.estimateMax,
       })
     }
 
-    return NextResponse.json({
+    return ok({
       category: 'Splošna hišna opravila',
       estimateMin: 80,
       estimateMax: 800,
     })
   } catch (error) {
     console.error('[ai/categorize] Error:', error)
-    return NextResponse.json({ error: 'Napaka pri kategorizaciji.' }, { status: 500 })
+    return fail('Napaka pri kategorizaciji.', 500)
   }
 }

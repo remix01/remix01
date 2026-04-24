@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,10 +14,7 @@ export async function POST(request: NextRequest) {
     const { povprasevanje_id, obrtnik_id, termin_datum, termin_ura } = body;
 
     if (!povprasevanje_id || !obrtnik_id) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return fail('Missing required fields', 400);
     }
 
     // Check if slot is available (simplified - in production, implement real availability logic)
@@ -28,18 +27,12 @@ export async function POST(request: NextRequest) {
       .eq('termin_ura', termin_ura);
 
     if (checkError) {
-      return NextResponse.json(
-        { error: checkError.message },
-        { status: 500 }
-      );
+      return fail(checkError.message, 500);
     }
 
     // Limit to 3 concurrent bookings per slot
     if (existingBookings && existingBookings.length >= 3) {
-      return NextResponse.json(
-        { error: 'Termin ni več na voljo. Izberite drugi termin.' },
-        { status: 409 }
-      );
+      return fail('Termin ni več na voljo. Izberite drugi termin.', 409);
     }
 
     // Create booking
@@ -55,10 +48,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[v0] Booking error:', error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
+      return fail(error.message, 500);
     }
 
     // Update inquiry status
@@ -67,16 +57,13 @@ export async function POST(request: NextRequest) {
       .update({ status: 'sprejeto' })
       .eq('id', povprasevanje_id);
 
-    return NextResponse.json({
+    return ok({
       success: true,
       booking_id: data.id,
       message: 'Rezervacija uspešno potrdjena',
     });
   } catch (error) {
     console.error('[v0] API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return fail('Internal server error', 500);
   }
 }

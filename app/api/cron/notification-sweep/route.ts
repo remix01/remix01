@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const token = authHeader?.replace('Bearer ', '')
 
   if (!token || token !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   const start = Date.now()
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     if (fetchError) {
       console.error(JSON.stringify({ level: 'error', message: '[notification-sweep] fetch error', error: fetchError.message }))
-      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+      return fail(fetchError.message, 500)
     }
 
     const pending = povprasevanja || []
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
       durationMs,
     }))
 
-    return NextResponse.json({ success: true, total: pending.length, notified, skipped, durationMs })
+    return ok({ success: true, total: pending.length, notified, skipped, durationMs })
   } catch (error) {
     const durationMs = Date.now() - start
     console.error(JSON.stringify({
@@ -129,6 +130,6 @@ export async function GET(request: NextRequest) {
       error: error instanceof Error ? error.message : String(error),
       durationMs,
     }))
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return fail(String(error), 500)
   }
 }

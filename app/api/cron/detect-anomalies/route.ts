@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 function verifyCron(req: Request) {
   const secret = process.env.CRON_SECRET
@@ -9,7 +9,7 @@ function verifyCron(req: Request) {
 
 export async function GET(req: Request) {
   if (!verifyCron(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -59,5 +59,5 @@ export async function GET(req: Request) {
     await supabaseAdmin.from('admin_alerts').insert(alerts)
   }
 
-  return NextResponse.json({ success: true, inserted: alerts.length })
+  return ok({ success: true, inserted: alerts.length })
 }

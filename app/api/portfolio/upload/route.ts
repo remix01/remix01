@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { uploadLimiter } from '@/lib/rate-limit/limiters'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * POST /api/portfolio/upload
@@ -23,10 +24,7 @@ async function postHandler(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     // 2. Parse formData
@@ -35,40 +33,25 @@ async function postHandler(request: NextRequest) {
     const obrtnikId = formData.get('obrtnikId') as string
 
     if (!obrtnikId) {
-      return NextResponse.json(
-        { error: 'Missing obrtnikId' },
-        { status: 400 }
-      )
+      return fail('Missing obrtnikId', 400)
     }
 
     // 3. Validation
     if (!files || files.length === 0) {
-      return NextResponse.json(
-        { error: 'No files provided' },
-        { status: 400 }
-      )
+      return fail('No files provided', 400)
     }
 
     if (files.length > 8) {
-      return NextResponse.json(
-        { error: 'Največ 8 slik' },
-        { status: 400 }
-      )
+      return fail('Največ 8 slik', 400)
     }
 
     for (const file of files) {
       if (file.size > 5 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: `Datoteka ${file.name} je prevelika (max 5MB)` },
-          { status: 400 }
-        )
+        return fail(`Datoteka ${file.name} je prevelika (max 5MB)`, 400)
       }
 
       if (!file.type.startsWith('image/')) {
-        return NextResponse.json(
-          { error: `${file.name} ni slika` },
-          { status: 400 }
-        )
+        return fail(`${file.name} ni slika`, 400)
       }
     }
 
@@ -91,10 +74,7 @@ async function postHandler(request: NextRequest) {
 
         if (uploadError) {
           console.error('[v0] Upload error:', uploadError)
-          return NextResponse.json(
-            { error: `Napaka pri nalaganju: ${uploadError.message}` },
-            { status: 500 }
-          )
+          return fail(`Napaka pri nalaganju: ${uploadError.message}`, 500)
         }
 
         // Get public URL
@@ -105,21 +85,15 @@ async function postHandler(request: NextRequest) {
         urls.push(publicData.publicUrl)
       } catch (err: any) {
         console.error('[v0] File upload error:', err)
-        return NextResponse.json(
-          { error: `Napaka pri nalaganju: ${err.message}` },
-          { status: 500 }
-        )
+        return fail(`Napaka pri nalaganju: ${err.message}`, 500)
       }
     }
 
     // 5. Return URLs
-    return NextResponse.json({ urls })
+    return ok({ urls })
   } catch (error: unknown) {
     console.error('[v0] Portfolio upload error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri nalaganju' },
-      { status: 500 }
-    )
+    return fail('Napaka pri nalaganju', 500)
   }
 }
 

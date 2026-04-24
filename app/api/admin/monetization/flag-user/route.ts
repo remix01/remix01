@@ -1,15 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
     const { userId, flagged } = await request.json()
 
     if (!userId || typeof flagged !== 'boolean') {
-      return NextResponse.json(
-        { error: 'Missing userId or flagged status' },
-        { status: 400 }
-      )
+      return fail('Missing userId or flagged status', 400)
     }
 
     const supabase = createAdminClient()
@@ -38,15 +36,9 @@ export async function POST(request: NextRequest) {
       })
     if (auditError) console.error('Audit log error:', auditError)
 
-    return NextResponse.json({
-      success: true,
-      message: `User ${flagged ? 'flagged' : 'unflagged'} successfully`,
-    })
+    return ok({ message: `User ${flagged ? 'flagged' : 'unflagged'} successfully` })
   } catch (error) {
     console.error('[v0] Flag user error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return fail(error instanceof Error ? error.message : 'Internal server error', 500)
   }
 }

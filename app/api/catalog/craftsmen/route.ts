@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { listVerifiedObrtnikiWithFilters } from '@/lib/dal/partners'
 import { getActiveCategories } from '@/lib/dal/categories'
 import type { ObrtnikFilters } from '@/types/marketplace'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * GET /api/catalog/craftsment
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     // Fetch craftsment
     const craftsment = await listVerifiedObrtnikiWithFilters(filters)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       data: craftsment,
       pagination: {
@@ -58,10 +59,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[v0] Error in GET /api/catalog/craftsmen:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch craftsment' },
-      { status: 500 }
-    )
+    return fail('Failed to fetch craftsment', 500)
   }
 }
 
@@ -73,15 +71,12 @@ export async function GET_CATEGORIES(request: NextRequest) {
   try {
     const categories = await getActiveCategories()
     
-    return NextResponse.json({
+    return ok({
       success: true,
       data: categories,
     })
   } catch (error) {
     console.error('[v0] Error in GET /api/catalog/categories:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch categories' },
-      { status: 500 }
-    )
+    return fail('Failed to fetch categories', 500)
   }
 }

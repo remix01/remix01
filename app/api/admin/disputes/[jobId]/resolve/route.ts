@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { stripe } from '@/lib/stripe'
 import { z } from 'zod'
 import { sendEmail } from '@/lib/email/sender'
+import { ok, fail } from '@/lib/http/response'
 
 const resolveSchema = z.object({
   resolution: z.enum(['release_to_craftworker', 'refund_to_customer', 'split']),
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { data: admin, error: adminError } = await supabaseAdmin
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return fail('Forbidden', 403)
     }
 
     const { jobId } = await context.params
@@ -53,10 +54,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .single()
 
     if (jobError || !job || !job.payment || job.status !== 'DISPUTED') {
-      return NextResponse.json(
-        { error: 'Job not found or not in disputed state' },
-        { status: 404 }
-      )
+      return fail('Job not found or not in disputed state', 404)
     }
 
     const payment = job.payment
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       craftworkerPayout = netAmount
     } else if (resolution === 'split') {
       if (!splitPct) {
-        return NextResponse.json({ error: 'Split percentage required' }, { status: 400 })
+        return fail('Split percentage required', 400)
       }
       customerRefund = (netAmount * splitPct) / 100
       craftworkerPayout = (netAmount * (100 - splitPct)) / 100
@@ -160,19 +158,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
       ])
 
-      return NextResponse.json({ success: true })
+      return ok({ success: true })
     } catch (stripeError) {
       console.error('[API] Stripe transaction failed:', stripeError)
-      return NextResponse.json(
-        { error: 'Payment processing failed' },
-        { status: 500 }
-      )
+      return fail('Payment processing failed', 500)
     }
   } catch (error) {
     console.error('[API] Failed to resolve dispute:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

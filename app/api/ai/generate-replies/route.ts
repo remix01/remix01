@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
+import { ok, fail } from '@/lib/http/response'
 
 function parseReplies(text: string): string[] {
   try {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!user) return fail('Unauthorized', 401)
 
     const body = await req.json()
     const prompt = `Na podlagi spodnjega konteksta pripravi 3 kratke profesionalne odgovore v slovenščini.
@@ -39,9 +39,9 @@ Zgodovina pogovora: ${body?.history || ''}`
     })
 
     const replies = parseReplies(ai.response)
-    return NextResponse.json({ success: true, data: replies })
+    return ok({ success: true, data: replies })
   } catch (error) {
     console.error('[generate-replies] error:', error)
-    return NextResponse.json({ success: false, error: 'Napaka pri generiranju odgovorov' }, { status: 500 })
+    return fail('Napaka pri generiranju odgovorov', 500)
   }
 }

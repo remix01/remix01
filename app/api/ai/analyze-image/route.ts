@@ -9,11 +9,12 @@
  * - Suggests relevant service categories
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 import { analyzeImage } from '@/lib/ai/orchestrator'
 import { isAgentAccessible, getAgentDailyLimit, AGENT_DAILY_LIMITS } from '@/lib/agents/ai-router'
+import { ok, fail } from '@/lib/http/response'
 
 const supabaseAdmin = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     // 1. Authenticate user
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const token = authHeader.substring(7)
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     } = await supabaseAdmin.auth.getUser(token)
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      return fail('Invalid token', 401)
     }
 
     // 2. Check access (video_diagnosis is PRO only)
@@ -53,14 +54,10 @@ export async function POST(request: NextRequest) {
     const userTier = profile?.subscription_tier || 'start'
 
     if (!isAgentAccessible('video_diagnosis', userTier)) {
-      return NextResponse.json(
-        {
-          error: 'Access denied',
-          message: 'Analiza slik zahteva naročnino PRO',
-          code: 'AGENT_ACCESS_DENIED',
-        },
-        { status: 403 }
-      )
+      return fail('Access denied', 403, {
+        message: 'Analiza slik zahteva naročnino PRO',
+        code: 'AGENT_ACCESS_DENIED',
+      })
     }
 
     // 3. Check daily quota
@@ -76,28 +73,24 @@ export async function POST(request: NextRequest) {
 
     const dailyLimit = getAgentDailyLimit('video_diagnosis', userTier)
     if ((count || 0) >= dailyLimit) {
-      return NextResponse.json(
-        {
-          error: 'Quota exceeded',
-          message: `Dnevna kvota za analizo slik dosežena (${count}/${dailyLimit})`,
-          code: 'QUOTA_EXCEEDED',
-        },
-        { status: 429 }
-      )
+      return fail('Quota exceeded', 429, {
+        message: `Dnevna kvota za analizo slik dosežena (${count}/${dailyLimit})`,
+        code: 'QUOTA_EXCEEDED',
+      })
     }
 
     // 4. Parse request
     const body: AnalyzeImageRequest = await request.json()
 
     if (!body.imageUrl) {
-      return NextResponse.json({ error: 'imageUrl is required' }, { status: 400 })
+      return fail('imageUrl is required', 400)
     }
 
     // Validate URL
     try {
       new URL(body.imageUrl)
     } catch {
-      return NextResponse.json({ error: 'Invalid imageUrl format' }, { status: 400 })
+      return fail('Invalid imageUrl format', 400)
     }
 
     // 5. Analyze image
@@ -117,7 +110,7 @@ export async function POST(request: NextRequest) {
     })
 
     // 7. Return response
-    return NextResponse.json({
+    return ok({
       success: true,
       analysis: result.analysis,
       suggestedCategories: result.suggestedCategories,
@@ -131,13 +124,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Image analysis error:', error)
 
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }
 
@@ -147,7 +134,7 @@ export async function PUT(request: NextRequest) {
     // 1. Authenticate
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const token = authHeader.substring(7)
@@ -157,7 +144,7 @@ export async function PUT(request: NextRequest) {
     } = await supabaseAdmin.auth.getUser(token)
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      return fail('Invalid token', 401)
     }
 
     // 2. Parse form data
@@ -166,16 +153,13 @@ export async function PUT(request: NextRequest) {
     const analysisType = (formData.get('analysisType') as string) || 'diagnosis'
 
     if (!file) {
-      return NextResponse.json({ error: 'Image file is required' }, { status: 400 })
+      return fail('Image file is required', 400)
     }
 
     // 3. Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Allowed: JPEG, PNG, WebP, GIF' },
-        { status: 400 }
-      )
+      return fail('Invalid file type. Allowed: JPEG, PNG, WebP, GIF', 400)
     }
 
     // 4. Upload to Supabase Storage
@@ -191,7 +175,7 @@ export async function PUT(request: NextRequest) {
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
-      return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 })
+      return fail('Failed to upload image', 500)
     }
 
     // 5. Get public URL
@@ -216,7 +200,7 @@ export async function PUT(request: NextRequest) {
       created_at: new Date().toISOString(),
     })
 
-    return NextResponse.json({
+    return ok({
       success: true,
       imageUrl: publicUrl,
       analysis: result.analysis,
@@ -226,12 +210,6 @@ export async function PUT(request: NextRequest) {
     })
   } catch (error) {
     console.error('Image upload/analysis error:', error)
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

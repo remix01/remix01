@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -17,9 +17,9 @@ export async function POST(_: Request, context: RouteContext) {
       .eq('id', id)
 
     if (error) throw error
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri zapiranju opozorila.' }, { status })
+    return fail('Napaka pri zapiranju opozorila.', status)
   }
 }

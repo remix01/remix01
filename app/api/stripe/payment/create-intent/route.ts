@@ -1,8 +1,8 @@
 import { getErrorMessage } from '@/lib/utils/error'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
-import { fail } from '@/lib/http/response'
+import { fail, ok } from '@/lib/http/response'
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({
+    return ok({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
     })

@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!user) return fail('Unauthorized', 401)
 
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const { data: offers } = await supabase
@@ -40,7 +40,7 @@ export async function GET() {
         recommendations: ai.response,
       }, { onConflict: 'partner_id,period_start,period_end' })
 
-    return NextResponse.json({
+    return ok({
       success: true,
       data: {
         metrics: { sent, accepted, conversion, avgPrice },
@@ -49,6 +49,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error('[partner-insights] error:', error)
-    return NextResponse.json({ success: false, error: 'Napaka pri pridobivanju uvidov' }, { status: 500 })
+    return fail('Napaka pri pridobivanju uvidov', 500)
   }
 }

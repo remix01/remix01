@@ -1,15 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await request.json()
 
     if (!userId) {
-      return NextResponse.json(
-        { error: 'Missing userId' },
-        { status: 400 }
-      )
+      return fail('Missing userId', 400)
     }
 
     const supabase = createAdminClient()
@@ -39,15 +37,12 @@ export async function POST(request: NextRequest) {
       })
     if (auditError) console.error('Audit log error:', auditError)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       message: 'AI usage reset successfully',
     })
   } catch (error) {
     console.error('[v0] Reset AI usage error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return fail(error instanceof Error ? error.message : 'Internal server error', 500)
   }
 }

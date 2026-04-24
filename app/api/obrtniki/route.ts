@@ -1,7 +1,7 @@
 import { verifyAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
 import { partnerService, handleServiceError } from '@/lib/services'
 import { z } from 'zod'
+import { ok, fail } from '@/lib/http/response'
 
 const createObrtnikiSchema = z.object({
   email: z.string().email('Neveljaven e-poštni naslov'),
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
   const admin = adminReq ? await verifyAdmin(req) : null
   if (adminReq && !admin) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   try {
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       includeUnverified: !!admin,
     })
 
-    return NextResponse.json(data)
+    return Response.json(data)
   } catch (error) {
     console.error('[obrtniki] error:', error)
     return handleServiceError(error)
@@ -40,7 +40,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return fail('Unauthorized', 401)
 
   try {
     const rawBody: unknown = await req.json()
@@ -48,12 +48,12 @@ export async function POST(req: Request) {
 
     if (!parsed.success) {
       const message = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ')
-      return NextResponse.json({ error: message }, { status: 400 })
+      return fail(message, 400)
     }
 
     const data = await partnerService.createObrtnik(parsed.data)
 
-    return NextResponse.json(data, { status: 201 })
+    return Response.json(data, { status: 201 })
   } catch (error) {
     console.error('[obrtniki] POST error:', error)
     return handleServiceError(error)

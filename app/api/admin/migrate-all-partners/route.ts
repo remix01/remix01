@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { migrateAllPartners } from '@/lib/migration/partner-migration'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
     // Check admin access
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { data: adminUser } = await supabase
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!adminUser) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return fail('Forbidden', 403)
     }
 
     // Get batch size from query or env
@@ -30,18 +31,12 @@ export async function POST(req: NextRequest) {
 
     const result = await migrateAllPartners(batchSize)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       ...result
     })
   } catch (error) {
     console.error('[v0] Batch migration error:', error)
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error' 
-      },
-      { status: 500 }
-    )
+    return fail(error instanceof Error ? error.message : 'Internal server error', 500)
   }
 }

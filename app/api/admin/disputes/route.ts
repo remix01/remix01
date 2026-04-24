@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
@@ -8,7 +8,7 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { data: admin, error: adminError } = await supabaseAdmin
@@ -19,7 +19,7 @@ export async function GET() {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return fail('Forbidden', 403)
     }
 
     const { data: disputes, error } = await supabaseAdmin
@@ -52,9 +52,9 @@ export async function GET() {
       violationCount: (job.violation || []).length,
     }))
 
-    return NextResponse.json(result)
+    return Response.json(result)
   } catch (error) {
     console.error('[API] Failed to fetch disputes:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

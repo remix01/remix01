@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET() {
   try {
@@ -13,10 +13,10 @@ export async function GET() {
       .maybeSingle()
 
     if (error) throw error
-    return NextResponse.json({ success: true, data: data || null })
+    return ok({ success: true, data: data || null })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ success: false, error: 'Napaka pri nalaganju nastavitev.' }, { status })
+    return fail('Napaka pri nalaganju nastavitev.', status)
   }
 }
 
@@ -39,9 +39,9 @@ export async function PATCH(request: Request) {
       .single()
 
     if (error) throw error
-    return NextResponse.json({ success: true, data })
+    return ok({ success: true, data })
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ success: false, error: 'Napaka pri shranjevanju nastavitev.' }, { status })
+    return fail('Napaka pri shranjevanju nastavitev.', status)
   }
 }

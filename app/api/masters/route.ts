@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { listVerifiedObrtniki, type ObrtnikiPublic } from '@/lib/dal/obrtniki'
+import { ok, fail } from '@/lib/http/response'
 
 type PublicMasterDto = Omit<ObrtnikiPublic, 'profiles'> & {
   profiles: Pick<ObrtnikiPublic['profiles'], 'id' | 'full_name' | 'location_city' | 'location_region'>
@@ -46,13 +47,11 @@ export async function GET(request: NextRequest) {
       },
     }))
 
-    return NextResponse.json(
+    return Response.json(
       {
         success: true,
         data: publicMasters,
-        meta: {
-          count: publicMasters.length,
-        },
+        meta: { count: publicMasters.length },
       },
       {
         headers: {
@@ -62,6 +61,6 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('[api/masters] Failed to fetch masters:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch masters' }, { status: 500 })
+    return fail('Failed to fetch masters', 500)
   }
 }

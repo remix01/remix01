@@ -14,9 +14,10 @@
  * }
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { eventReplay } from '@/lib/events/eventReplay'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,10 +26,7 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     // Check admin role
@@ -40,10 +38,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      )
+      return fail('Admin access required', 403)
     }
 
     const body = await request.json()
@@ -51,26 +46,20 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     if (!taskId && !eventLogId) {
-      return NextResponse.json(
-        { error: 'Either taskId or eventLogId required' },
-        { status: 400 }
-      )
+      return fail('Either taskId or eventLogId required', 400)
     }
 
     // Replay by single event ID
     if (eventLogId) {
       try {
         await eventReplay.replayById(eventLogId)
-        return NextResponse.json({
+        return ok({
           success: true,
           message: 'Event replayed successfully',
           eventLogId,
         })
       } catch (err) {
-        return NextResponse.json(
-          { error: err instanceof Error ? err.message : 'Failed to replay event' },
-          { status: 400 }
-        )
+        return fail(err instanceof Error ? err.message : 'Failed to replay event', 400)
       }
     }
 
@@ -83,24 +72,18 @@ export async function POST(request: NextRequest) {
           eventNames: eventNames as any,
         })
 
-        return NextResponse.json({
+        return ok({
           success: true,
           ...result,
           taskId,
         })
       } catch (err) {
-        return NextResponse.json(
-          { error: err instanceof Error ? err.message : 'Failed to replay events' },
-          { status: 400 }
-        )
+        return fail(err instanceof Error ? err.message : 'Failed to replay events', 400)
       }
     }
   } catch (err) {
     console.error('[admin/events/replay] error:', err)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }
 
@@ -114,10 +97,7 @@ export async function GET(request: NextRequest) {
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     // Check admin role
@@ -129,25 +109,19 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      )
+      return fail('Admin access required', 403)
     }
 
     const { searchParams } = new URL(request.url)
     const taskId = searchParams.get('taskId')
 
     if (!taskId) {
-      return NextResponse.json(
-        { error: 'taskId query parameter required' },
-        { status: 400 }
-      )
+      return fail('taskId query parameter required', 400)
     }
 
     const timeline = await eventReplay.getTaskTimeline(taskId)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       taskId,
       events: timeline,
@@ -155,9 +129,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (err) {
     console.error('[admin/events/replay] GET error:', err)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

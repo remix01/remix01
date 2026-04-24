@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export const maxDuration = 30
 
@@ -13,9 +14,9 @@ export async function POST(request: NextRequest) {
 
   if (!sig) {
     console.warn('[webhook-deprecated] Missing signature header')
-    return NextResponse.json({ received: true, deprecated: true })
+    return ok({ received: true, deprecated: true })
   }
 
   console.warn('[webhook-deprecated] /api/payments/webhook called. Use /api/stripe/webhook instead.')
-  return NextResponse.json({ received: true, deprecated: true })
+  return ok({ received: true, deprecated: true })
 }

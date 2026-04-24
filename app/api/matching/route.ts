@@ -1,11 +1,12 @@
 'use server'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { matchingService, handleServiceError } from '@/lib/services'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { apiLimiter } from '@/lib/rate-limit/limiters'
 import { z } from 'zod'
+import { ok, fail } from '@/lib/http/response'
 
 const matchingBodySchema = z.object({
   requestId: z.string().uuid('requestId mora biti veljavni UUID'),
@@ -49,17 +50,14 @@ async function postHandler(request: NextRequest, _context: { params: Promise<unk
     try {
       rawBody = await request.json()
     } catch {
-      return NextResponse.json(
-        { error: 'Neveljavno telo zahtevka' },
-        { status: 400 }
-      )
+      return fail('Neveljavno telo zahtevka', 400)
     }
 
     // Validate with Zod
     const parsed = matchingBodySchema.safeParse(rawBody)
     if (!parsed.success) {
       const message = parsed.error.errors.map((e) => e.message).join(', ')
-      return NextResponse.json({ error: message }, { status: 400 })
+      return fail(message, 400)
     }
 
     const { requestId, lat, lng, categoryId } = parsed.data
@@ -69,10 +67,7 @@ async function postHandler(request: NextRequest, _context: { params: Promise<unk
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Niste prijavljeni' },
-        { status: 401 }
-      )
+      return fail('Niste prijavljeni', 401)
     }
 
     // Delegate to service layer
@@ -85,7 +80,7 @@ async function postHandler(request: NextRequest, _context: { params: Promise<unk
     )
 
     // Return results
-    return NextResponse.json({
+    return ok({
       matches: result.matches || [],
       matchingId: result.matchingId,
       executionTimeMs: result.executionTimeMs,

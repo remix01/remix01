@@ -5,16 +5,17 @@
  * Admin-only. Secured by CRON_SECRET or admin session.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(req: NextRequest) {
   try {
     // Auth check — must be admin
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     const { data: admin, error: adminError } = await supabaseAdmin
       .from('admin_users')
@@ -24,15 +25,12 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json({ error: 'Prepovedano.' }, { status: 403 })
+      return fail('Prepovedano.', 403)
     }
 
     const webhookUrl = process.env.SLACK_WEBHOOK_URL
     if (!webhookUrl) {
-      return NextResponse.json(
-        { error: 'SLACK_WEBHOOK_URL ni nastavljen v okoljskih spremenljivkah.' },
-        { status: 400 }
-      )
+      return fail('SLACK_WEBHOOK_URL ni nastavljen v okoljskih spremenljivkah.', 400)
     }
 
     const res = await fetch(webhookUrl, {
@@ -59,15 +57,12 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const text = await res.text()
-      return NextResponse.json(
-        { error: `Slack je vrnil napako: ${res.status} ${text}` },
-        { status: 502 }
-      )
+      return fail(`Slack je vrnil napako: ${res.status} ${text}`, 502)
     }
 
-    return NextResponse.json({ success: true, message: 'Test sporočilo poslano na Slack!' })
+    return ok({ success: true, message: 'Test sporočilo poslano na Slack!' })
   } catch (err: any) {
     console.error('[test-slack] error:', err)
-    return NextResponse.json({ error: err.message || 'Napaka pri pošiljanju.' }, { status: 500 })
+    return fail(err.message || 'Napaka pri pošiljanju.', 500)
   }
 }

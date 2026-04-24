@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -8,15 +9,15 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401)
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503)
     }
 
     const { keywords, category, existingDescription } = await req.json()
     if (!keywords?.trim()) {
-      return NextResponse.json({ error: 'Ključne besede so obvezne.' }, { status: 400 })
+      return fail('Ključne besede so obvezne.', 400)
     }
 
     const systemPrompt = `Si LiftGO asistent za pomoč pri opisovanju del v Sloveniji.
@@ -59,7 +60,7 @@ Pripravi JSON z naslednjo strukturo:
       parsed = JSON.parse(text)
     } catch {
       // Fallback if JSON parsing fails
-      return NextResponse.json({
+      return ok({
         variants: {
           kratek: text.slice(0, 200),
           podroben: text,
@@ -67,12 +68,12 @@ Pripravi JSON z naslednjo strukturo:
         },
         questions: [],
         suggestedTitle: keywords,
-      })
+      } as Record<string, unknown>)
     }
 
-    return NextResponse.json(parsed)
+    return Response.json(parsed)
   } catch (error) {
     console.error('[agent/task-description] error:', error)
-    return NextResponse.json({ error: 'Napaka pri generiranju opisa.' }, { status: 500 })
+    return fail('Napaka pri generiranju opisa.', 500)
   }
 }

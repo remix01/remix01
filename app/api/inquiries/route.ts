@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: Request) {
   try {
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // Check user's role
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     } else {
       // Regular users only see their own inquiries (matched by email)
       if (!user.email) {
-        return NextResponse.json({ success: false, error: 'User email not found' }, { status: 400 })
+        return fail('User email not found', 400)
       }
       query = query.eq('email', user.email)
     }
@@ -40,13 +40,13 @@ export async function GET(request: Request) {
     const { data: inquiries, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      return fail(error.message, 500)
     }
 
-    return NextResponse.json({ success: true, data: inquiries })
+    return ok({ success: true, data: inquiries })
   } catch (error) {
     console.error('[API] Error fetching inquiries:', error)
     const message = error instanceof Error ? error.message : 'Internal server error'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+    return fail(message, 500)
   }
 }

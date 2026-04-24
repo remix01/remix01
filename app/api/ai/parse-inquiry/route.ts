@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
+import { ok, fail } from '@/lib/http/response'
 
 type ParsedInquiry = {
   title: string
@@ -42,14 +42,14 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Niste prijavljeni.' }, { status: 401 })
+      return fail('Niste prijavljeni.', 401)
     }
 
     const body = await req.json()
     const input = body?.input as string
 
     if (!input?.trim()) {
-      return NextResponse.json({ success: false, error: 'Opis je obvezen.' }, { status: 400 })
+      return fail('Opis je obvezen.', 400)
     }
 
     const prompt = `
@@ -76,9 +76,9 @@ ${input}
     })
 
     const data = parseResponse(ai.response)
-    return NextResponse.json({ success: true, data })
+    return ok({ success: true, data })
   } catch (error) {
     console.error('[parse-inquiry] error:', error)
-    return NextResponse.json({ success: false, error: 'Napaka pri AI razčlenitvi povpraševanja.' }, { status: 500 })
+    return fail('Napaka pri AI razčlenitvi povpraševanja.', 500)
   }
 }

@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getEscrowTransaction, updateEscrowStatus } from '@/lib/escrow'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     )
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (user?.app_metadata?.role !== 'ADMIN') {
-      return NextResponse.json({ success: false, message: 'Samo admin.' }, { status: 403 })
+      return fail('Samo admin.', 403)
     }
 
     const { escrowId, resolution, adminNotes } = await request.json()
@@ -32,10 +33,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (!claimed) {
-      return NextResponse.json(
-        { success: false, message: 'Transakcija ni v stanju spora ali je že v reševanju.' },
-        { status: 400 }
-      )
+      return fail('Transakcija ni v stanju spora ali je že v reševanju.', 400)
     }
 
     let newEscrowStatus: 'refunded' | 'released' = 'released'
@@ -76,10 +74,7 @@ export async function POST(request: NextRequest) {
         console.error(`[RESOLVE DISPUTE] Failed to revert status: ${revertError.message}`)
       }
       
-      return NextResponse.json(
-        { success: false, message: `Stripe napaka: ${stripeError.message}` },
-        { status: 402 } // Payment Required status for Stripe errors
-      )
+      return fail(`Stripe napaka: ${stripeError.message}`, 402)
     }
 
     // ONLY proceed with DB updates after Stripe success
@@ -101,10 +96,7 @@ export async function POST(request: NextRequest) {
 
     if (disputeError) {
       console.error(`[RESOLVE DISPUTE] Failed to update dispute: ${disputeError.message}`)
-      return NextResponse.json(
-        { success: false, message: 'Napaka pri posodobi spora. Kontaktirajte support.' },
-        { status: 500 }
-      )
+      return fail('Napaka pri posodobi spora. Kontaktirajte support.', 500)
     }
 
     // Posodobi escrow na končno stanje
@@ -119,10 +111,7 @@ export async function POST(request: NextRequest) {
 
     if (escrowError) {
       console.error(`[RESOLVE DISPUTE] Failed to update escrow status: ${escrowError.message}`)
-      return NextResponse.json(
-        { success: false, message: 'Napaka pri posodobi escrow. Kontaktirajte support.' },
-        { status: 500 }
-      )
+      return fail('Napaka pri posodobi escrow. Kontaktirajte support.', 500)
     }
 
     // Zapiši audit
@@ -138,7 +127,7 @@ export async function POST(request: NextRequest) {
       metadata: { resolution, adminNotes },
     })
 
-    return NextResponse.json({
+    return ok({
       success:    true,
       resolution,
       newStatus:  newEscrowStatus,
@@ -146,9 +135,6 @@ export async function POST(request: NextRequest) {
 
   } catch (err) {
     console.error('[ADMIN RESOLVE]', err)
-    return NextResponse.json(
-      { success: false, message: 'Napaka pri reševanju spora.' },
-      { status: 500 }
-    )
+    return fail('Napaka pri reševanju spora.', 500)
   }
 }

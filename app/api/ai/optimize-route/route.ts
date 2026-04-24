@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 type Visit = {
   id: string
@@ -21,12 +21,12 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!user) return fail('Unauthorized', 401)
 
     const body = await req.json()
     const visits = (body?.visits || []) as Visit[]
     if (!Array.isArray(visits) || visits.length === 0) {
-      return NextResponse.json({ success: true, data: [] })
+      return ok({ data: [] })
     }
 
     const hasCoords = visits.every((v) => v.lat != null && v.lng != null)
@@ -59,9 +59,9 @@ export async function POST(req: Request) {
       estimatedTravelMinutes: i === 0 ? 0 : 20,
     }))
 
-    return NextResponse.json({ success: true, data: result })
+    return ok({ data: result } as Record<string, unknown>)
   } catch (error) {
     console.error('[optimize-route] error:', error)
-    return NextResponse.json({ success: false, error: 'Napaka pri optimizaciji poti' }, { status: 500 })
+    return fail('Napaka pri optimizaciji poti', 500)
   }
 }

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { analyticsTrackBodySchema } from '@/lib/api/schemas/v1'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,10 +10,7 @@ export async function POST(request: NextRequest) {
     const validation = analyticsTrackBodySchema.safeParse(body)
 
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Napačna oblika podatkov', details: validation.error.issues },
-        { status: 400 }
-      )
+      return fail('Napačna oblika podatkov', 400, { details: validation.error.issues })
     }
 
     const { events } = validation.data
@@ -50,21 +48,15 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[Analytics API] Insert error:', error)
-      return NextResponse.json(
-        { error: 'Napaka pri shranjevanju dogodkov' },
-        { status: 500 }
-      )
+      return fail('Napaka pri shranjevanju dogodkov', 500)
     }
 
-    return NextResponse.json({
+    return ok({
       success: true,
       tracked: events.length,
     })
   } catch (error) {
     console.error('[Analytics API] Track exception:', error)
-    return NextResponse.json(
-      { error: 'Notranja napaka strežnika' },
-      { status: 500 }
-    )
+    return fail('Notranja napaka strežnika', 500)
   }
 }

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,14 +9,14 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // Parse request body
     const { endpoint } = await request.json()
 
     if (!endpoint) {
-      return NextResponse.json({ error: 'Endpoint required' }, { status: 400 })
+      return fail('Endpoint required', 400)
     }
 
     // Delete push subscription
@@ -27,12 +28,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[v0] Error deleting push subscription:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return fail(error.message, 500)
     }
 
-    return NextResponse.json({ success: true })
+    return ok({ success: true })
   } catch (error) {
     console.error('[v0] Error in push unsubscribe:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

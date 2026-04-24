@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
 import { executeRedisOperation } from '@/lib/cache/redis-client'
+import { ok, fail } from '@/lib/http/response'
 
 type OfferInput = {
   id: string
@@ -15,14 +15,14 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!user) return fail('Unauthorized', 401)
 
     const body = await req.json()
     const inquiryId = body?.inquiryId as string
     const offers = (body?.offers || []) as OfferInput[]
 
     if (!inquiryId || offers.length === 0) {
-      return NextResponse.json({ success: false, error: 'inquiryId in offers sta obvezna.' }, { status: 400 })
+      return fail('inquiryId in offers sta obvezna.', 400)
     }
 
     const offerSignature = offers.map((o) => `${o.id}:${o.price_estimate ?? 0}:${o.rating ?? 0}`).join('|')
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     )
 
     if (cached) {
-      return NextResponse.json({ success: true, data: JSON.parse(cached), cached: true })
+      return ok({ success: true, data: JSON.parse(cached), cached: true })
     }
 
     const prompt = `
@@ -66,9 +66,9 @@ ${JSON.stringify(offers)}
       'offers-analysis:set'
     )
 
-    return NextResponse.json({ success: true, data: parsed, cached: false })
+    return ok({ success: true, data: parsed, cached: false })
   } catch (error) {
     console.error('[analyze-offers] error:', error)
-    return NextResponse.json({ success: false, error: 'Napaka pri AI analizi ponudb.' }, { status: 500 })
+    return fail('Napaka pri AI analizi ponudb.', 500)
   }
 }

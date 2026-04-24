@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { env } from '@/lib/env'
 import webpush from 'web-push'
+import { ok, fail } from '@/lib/http/response'
 
 // Lazy VAPID configuration function - returns false if not configured
 function getWebPush() {
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   
   if (!wp) {
     console.warn('[v0] Push notifications not configured - missing VAPID environment variables')
-    return NextResponse.json({ sent: 0, failed: 0 })
+    return ok({ sent: 0, failed: 0 })
   }
 
   try {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { userId, title, message, link, icon } = await request.json()
 
     if (!userId || !title || !message) {
-      return NextResponse.json({ error: 'userId, title, and message required' }, { status: 400 })
+      return fail('userId, title, and message required', 400)
     }
 
     const supabase = await createClient()
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', userId)
 
     if (error || !subscriptions || subscriptions.length === 0) {
-      return NextResponse.json({ sent: 0, failed: 0 })
+      return ok({ sent: 0, failed: 0 })
     }
 
     // Prepare push notification payload
@@ -102,9 +103,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ sent, failed })
+    return ok({ sent, failed })
   } catch (error) {
     console.error('[v0] Error in push send:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

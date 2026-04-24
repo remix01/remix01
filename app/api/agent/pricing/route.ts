@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { getAgentPricingEstimate } from '@/lib/agent/liftgo-agent'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,15 +16,12 @@ export async function GET(request: NextRequest) {
       isWeekend,
     })
 
-    return NextResponse.json(estimate)
+    return Response.json(estimate)
   } catch (error) {
     console.error('[v0] Pricing endpoint error:', error)
-    return NextResponse.json(
-      {
-        estimate: '25-60 EUR/uro',
-        notes: 'Splošna ocena — dejanska cena se lahko razlikuje',
-      },
-      { status: 200 }
-    )
+    return ok({
+      estimate: '25-60 EUR/uro',
+      notes: 'Splošna ocena — dejanska cena se lahko razlikuje',
+    })
   }
 }

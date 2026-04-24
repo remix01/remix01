@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
 import { executeRedisOperation } from '@/lib/cache/redis-client'
+import { ok, fail } from '@/lib/http/response'
 
 function safeJsonParse<T>(value: string, fallback: T): T {
   try {
@@ -15,12 +15,12 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    if (!user) return fail('Unauthorized', 401)
 
     const body = await req.json()
     const inquiryId = body?.inquiryId as string | undefined
     if (!inquiryId) {
-      return NextResponse.json({ success: false, error: 'inquiryId is required' }, { status: 400 })
+      return fail('inquiryId is required', 400)
     }
 
     const cacheKey = `ai:inquiry-analysis:${inquiryId}`
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       'inquiry-analysis:get'
     )
 
-    if (cached) return NextResponse.json({ success: true, data: safeJsonParse(cached, {}) })
+    if (cached) return ok({ data: safeJsonParse(cached, {}) } as Record<string, unknown>)
 
     const prompt = `Analiziraj naslednje povpraševanje in vrni STROGO JSON brez dodatnega besedila.
 
@@ -70,9 +70,9 @@ Vrni JSON oblike:
       'inquiry-analysis:set'
     )
 
-    return NextResponse.json({ success: true, data: parsed })
+    return ok({ success: true, data: parsed })
   } catch (error) {
     console.error('[analyze-inquiry] error:', error)
-    return NextResponse.json({ success: false, error: 'Napaka pri AI analizi' }, { status: 500 })
+    return fail('Napaka pri AI analizi', 500)
   }
 }

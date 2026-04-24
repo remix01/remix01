@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (!user || authError) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // Check if user is admin
@@ -51,10 +52,7 @@ export async function GET(request: NextRequest) {
 
     if (queryError) {
       console.error('[DISPUTES API] Query error:', queryError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch disputes' },
-        { status: 500 }
-      )
+      return fail('Failed to fetch disputes', 500)
     }
 
     const result = (disputes || []).map((dispute: any) => ({
@@ -77,12 +75,9 @@ export async function GET(request: NextRequest) {
       ),
     }))
 
-    return NextResponse.json({ success: true, data: result })
+    return ok({ success: true, data: result })
   } catch (error) {
     console.error('[DISPUTES API]', error)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

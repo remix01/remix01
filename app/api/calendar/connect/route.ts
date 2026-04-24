@@ -1,6 +1,6 @@
 import { getCalendarAuthUrl } from '@/lib/mcp/calendar'
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(request: Request) {
   try {
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     // Determine user role
@@ -22,12 +22,9 @@ export async function GET(request: Request) {
 
     const { url } = await getCalendarAuthUrl(user.id, role)
 
-    return NextResponse.json({ url })
+    return ok({ url })
   } catch (error) {
     console.error('[v0] Calendar auth URL error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate calendar auth URL' },
-      { status: 500 }
-    )
+    return fail('Failed to generate calendar auth URL', 500)
   }
 }

@@ -1,6 +1,7 @@
 import { awardReferralBonus } from '@/lib/referral/referralService'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { ok, fail } from '@/lib/http/response'
 
 /**
  * Job completion webhook - award referral bonuses
@@ -12,10 +13,7 @@ export async function POST(request: NextRequest) {
     const { partnerId, jobId } = await request.json()
     
     if (!partnerId || !jobId) {
-      return NextResponse.json(
-        { error: 'Missing partnerId or jobId' },
-        { status: 400 }
-      )
+      return fail('Missing partnerId or jobId', 400)
     }
     
     // Award referral bonus to this user if they have an unrewarded referral
@@ -23,15 +21,12 @@ export async function POST(request: NextRequest) {
     
     if (success) {
       console.log(`[v0] Referral bonus awarded for job ${jobId} completed by ${partnerId}`)
-      return NextResponse.json({ success: true, bonusAwarded: true })
+      return ok({ success: true, bonusAwarded: true })
     }
     
-    return NextResponse.json({ success: true, bonusAwarded: false })
+    return ok({ success: true, bonusAwarded: false })
   } catch (error) {
     console.error('[v0] Job completion webhook error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

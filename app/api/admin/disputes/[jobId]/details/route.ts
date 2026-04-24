@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 interface RouteContext {
   params: Promise<{ jobId: string }>
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const { data: admin, error: adminError } = await supabaseAdmin
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return fail('Forbidden', 403)
     }
 
     const { jobId } = await context.params
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       .single()
 
     if (jobError || !job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+      return fail('Job not found', 404)
     }
 
     const messages = (job.conversation?.message || []).map((msg: any) => ({
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       createdAt: v.created_at,
     }))
 
-    return NextResponse.json({
+    return ok({
       messages,
       violations,
       payment: job.payment ? {
@@ -73,6 +74,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
     })
   } catch (error) {
     console.error('[API] Failed to fetch dispute details:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return fail('Internal server error', 500)
   }
 }

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { commissionService } from '@/lib/services/commissionService'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ok, fail } from '@/lib/http/response'
 
 const querySchema = z.object({
   months: z.coerce.number().optional().default(3),
@@ -31,10 +32,7 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail('Unauthorized', 401)
     }
 
     // Check admin role
@@ -46,10 +44,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
 
     if (adminError || !admin) {
-      return NextResponse.json(
-        { error: 'Forbidden - admin access required' },
-        { status: 403 }
-      )
+      return fail('Forbidden - admin access required', 403)
     }
 
     // Parse query params
@@ -59,10 +54,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid query parameters', details: validation.error.errors },
-        { status: 400 }
-      )
+      return fail('Invalid query parameters', 400, { details: validation.error.errors })
     }
 
     const { months } = validation.data
@@ -70,7 +62,7 @@ export async function GET(request: NextRequest) {
     // Get platform revenue
     const revenue = await commissionService.getPlatformRevenue(months)
 
-    return NextResponse.json({
+    return ok({
       success: true,
       data: revenue,
       period_months: months,
@@ -78,12 +70,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('[GET /api/admin/revenue]:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch revenue data',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail('Failed to fetch revenue data', 500)
   }
 }

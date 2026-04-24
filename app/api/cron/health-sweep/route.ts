@@ -5,8 +5,9 @@
  * Protected by CRON_SECRET.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { healthMonitor } from '@/lib/monitoring/healthMonitor'
+import { ok, fail } from '@/lib/http/response'
 
 export async function GET(req: NextRequest) {
   // Verify CRON_SECRET
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   if (authHeader !== expectedToken) {
     console.warn('[Cron] Unauthorized health sweep call')
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return fail('Unauthorized', 401)
   }
 
   const start = Date.now()
@@ -27,13 +28,10 @@ export async function GET(req: NextRequest) {
     const durationMs = Date.now() - start
     console.log(JSON.stringify({ level: 'info', message: '[health-sweep] completed', durationMs }))
 
-    return NextResponse.json({ ok: true, durationMs, ranAt: new Date().toISOString() })
+    return ok({ ok: true, durationMs, ranAt: new Date().toISOString() })
   } catch (err) {
     const durationMs = Date.now() - start
     console.error(JSON.stringify({ level: 'error', message: '[health-sweep] error', error: String(err), durationMs }))
-    return NextResponse.json(
-      { error: 'Internal server error', details: String(err) },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500)
   }
 }

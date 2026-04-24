@@ -1,6 +1,6 @@
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(request: Request) {
   try {
@@ -8,17 +8,14 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return fail('Unauthorized', 401)
     }
 
     const body = await request.json()
     const { ponudbaId, startDateTime, endDateTime } = body
 
     if (!ponudbaId || !startDateTime || !endDateTime) {
-      return NextResponse.json(
-        { error: 'Missing required parameters' },
-        { status: 400 }
-      )
+      return fail('Missing required parameters', 400)
     }
 
     // Fetch ponudba to verify ownership and get details
@@ -33,10 +30,7 @@ export async function POST(request: Request) {
       .single()
 
     if (!ponudba) {
-      return NextResponse.json(
-        { error: 'Ponudba not found' },
-        { status: 404 }
-      )
+      return fail('Ponudba not found', 404)
     }
 
     // Verify user is the narocnik for this ponudba
@@ -47,10 +41,7 @@ export async function POST(request: Request) {
       .single()
 
     if (povprasevanje?.narocnik_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
+      return fail('Unauthorized', 403)
     }
 
     const result = await createAppointmentEvent({
@@ -64,7 +55,7 @@ export async function POST(request: Request) {
       ponudbaId
     })
 
-    return NextResponse.json({
+    return ok({
       success: !result.error,
       narocnikEventId: result.narocnikEventId,
       obrtknikEventId: result.obrtknikEventId,
@@ -72,9 +63,6 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('[v0] Appointment creation error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create appointment' },
-      { status: 500 }
-    )
+    return fail('Failed to create appointment', 500)
   }
 }

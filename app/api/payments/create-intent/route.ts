@@ -1,18 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { paymentService, handleServiceError } from '@/lib/services'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { paymentLimiter } from '@/lib/rate-limit/limiters'
+import { ok, fail } from '@/lib/http/response'
 
 async function postHandler(request: NextRequest) {
   try {
     const { ponudbaId } = await request.json()
 
     if (!ponudbaId) {
-      return NextResponse.json(
-        { error: 'ponudbaId is required' },
-        { status: 400 }
-      )
+      return fail('ponudbaId is required', 400)
     }
 
     // Auth check
@@ -20,10 +18,7 @@ async function postHandler(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - not logged in' },
-        { status: 401 }
-      )
+      return fail('Unauthorized - not logged in', 401)
     }
 
     // Delegate to service layer
@@ -33,7 +28,7 @@ async function postHandler(request: NextRequest) {
       user.email || ''
     )
 
-    return NextResponse.json({
+    return ok({
       clientSecret: result.clientSecret,
       amount: result.amount,
       currency: result.currency,

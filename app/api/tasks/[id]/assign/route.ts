@@ -7,8 +7,9 @@
  * Backend RPC call with permission checks and error handling.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/client'
+import { ok, fail } from '@/lib/http/response'
 
 export async function POST(
   req: NextRequest,
@@ -20,10 +21,7 @@ export async function POST(
 
     // Validate inputs
     if (!taskId || !worker_id) {
-      return NextResponse.json(
-        { error: 'Missing taskId or worker_id' },
-        { status: 400 }
-      )
+      return fail('Missing taskId or worker_id', 400)
     }
 
     console.log('[v0] Assigning task:', { taskId, worker_id, auto_assign })
@@ -44,17 +42,11 @@ export async function POST(
 
     if (rpcError) {
       console.error('[v0] RPC error in assign_task:', rpcError)
-      return NextResponse.json(
-        { error: 'Failed to assign task', details: rpcError },
-        { status: 400 }
-      )
+      return fail('Failed to assign task', 400, { details: rpcError })
     }
 
     if (!result || !result.success) {
-      return NextResponse.json(
-        { error: result?.message || 'Assignment failed' },
-        { status: 400 }
-      )
+      return fail(result?.message || 'Assignment failed', 400)
     }
 
     console.log('[v0] Task assigned successfully:', {
@@ -63,7 +55,7 @@ export async function POST(
       assignmentId: result.assignment_id,
     })
 
-    return NextResponse.json({
+    return ok({
       success: true,
       task: result.task,
       assignment_id: result.assignment_id,
@@ -71,12 +63,6 @@ export async function POST(
     })
   } catch (error) {
     console.error('[v0] Error assigning task:', error)
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return fail('Internal server error', 500, { message: error instanceof Error ? error.message : 'Unknown error' })
   }
 }

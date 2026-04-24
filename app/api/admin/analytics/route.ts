@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createAdminClient } from '@/lib/supabase/server'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { ok, fail } from '@/lib/http/response'
 
 export const dynamic = 'force-dynamic'
 
@@ -280,15 +281,12 @@ export async function GET(request: NextRequest) {
     const data = await getAnalyticsData()
     
     if ('error' in data) {
-      return NextResponse.json(data, { status: data.status })
+      return Response.json(data, { status: data.status })
     }
 
-    return NextResponse.json(data)
+    return Response.json(data)
   } catch (error) {
     console.error('[v0] GET /api/admin/analytics error:', error)
-    return NextResponse.json(
-      { error: 'Napaka pri pridobivanju analitike' },
-      { status: 500 }
-    )
+    return fail('Napaka pri pridobivanju analitike', 500)
   }
 }
