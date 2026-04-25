@@ -1,8 +1,13 @@
 'use server'
 
-import { Resend } from 'resend'
 import { env } from '@/lib/env'
 import { v4 as uuidv4 } from 'uuid'
+import {
+  FROM_EMAIL,
+  FROM_NAME,
+  getResendClient as getSharedResendClient,
+  resolveEmailRecipients,
+} from '@/lib/resend'
 
 /**
  * Production-ready Resend email utilities with:
@@ -11,10 +16,6 @@ import { v4 as uuidv4 } from 'uuid'
  * - Error handling and logging
  * - Support for both single and batch emails
  */
-
-function getResendClient(): Resend {
-  return new Resend(env.RESEND_API_KEY)
-}
 
 function getEmailRenderPayload(html?: string, text?: string): { html?: string; text?: string } {
   if (html && text) return { html, text }
@@ -27,8 +28,8 @@ function getEmailRenderPayload(html?: string, text?: string): { html?: string; t
  * Configuration for email sending
  */
 export const EMAIL_CONFIG = {
-  FROM_EMAIL: process.env.RESEND_FROM || 'noreply@liftgo.net',
-  FROM_NAME: 'LiftGO',
+  FROM_EMAIL,
+  FROM_NAME,
   MAX_RETRIES: 3,
   INITIAL_BACKOFF_MS: 1000,
   MAX_BACKOFF_MS: 30000,
@@ -154,7 +155,8 @@ export async function sendEmail({
     }
 
     // Normalize to array for consistency
-    const toArray = Array.isArray(to) ? to : [to]
+    const resolvedRecipients = resolveEmailRecipients(to)
+    const toArray = resolvedRecipients.to
     if (toArray.length > 50) {
       throw new Error(`To list exceeds 50 recipients: ${toArray.length}`)
     }
@@ -180,7 +182,10 @@ export async function sendEmail({
       }
     }
 
-    const resend = getResendClient()
+    const resend = getSharedResendClient()
+    if (!resend) {
+      throw new Error('Email service not configured')
+    }
 
     const data = await retryWithBackoff(async () => {
       const response = await resend.emails.send({
@@ -314,7 +319,7 @@ export async function sendBatchEmails({
       const renderPayload = getEmailRenderPayload(email.html, email.text)
       return {
         from: `${EMAIL_CONFIG.FROM_NAME} <${EMAIL_CONFIG.FROM_EMAIL}>`,
-        to: Array.isArray(email.to) ? email.to : [email.to],
+        to: resolveEmailRecipients(email.to).to,
         subject: email.subject,
         ...renderPayload,
         cc: email.cc,
@@ -325,7 +330,10 @@ export async function sendBatchEmails({
       }
     })
 
-    const resend = getResendClient()
+    const resend = getSharedResendClient()
+    if (!resend) {
+      throw new Error('Email service not configured')
+    }
 
     const data = await retryWithBackoff(async () => {
       const response = await resend.batch.send(

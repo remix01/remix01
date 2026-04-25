@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
 import { slugify } from '@/lib/utils/slugify'
 import { publicInquirySchema } from '@/lib/validators/public-inquiry'
 import { geocodeLocation } from '@/lib/google/geocoding'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
 type PublicInquiryBody = {
   storitev?: unknown
@@ -315,12 +315,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
     }
 
-    if (stranka_email && process.env.RESEND_API_KEY) {
+    const resend = getResendClient()
+
+    if (stranka_email && resend) {
       try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
         await resend.emails.send({
-          from: 'LiftGO <info@liftgo.net>',
-          to: stranka_email,
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(stranka_email).to,
           subject: `✅ Povpraševanje oddano: ${storitev}`,
           html: `
             <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
@@ -340,12 +341,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL) {
+    if (resend && process.env.ADMIN_EMAIL) {
       try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
         await resend.emails.send({
-          from: 'LiftGO <info@liftgo.net>',
-          to: process.env.ADMIN_EMAIL,
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(process.env.ADMIN_EMAIL).to,
           subject: `🔔 Novo povpraševanje: ${storitev}`,
           html: `
             <h3>Novo povpraševanje prejeto</h3>

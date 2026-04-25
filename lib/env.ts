@@ -49,6 +49,12 @@ export const env = {
 
   // ─── Email & Notifications ───
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
+  RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET ?? '',
+  EMAIL_FROM: process.env.EMAIL_FROM ?? '',
+  DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL ?? '',
+  RESEND_FROM: process.env.RESEND_FROM ?? '',
+  EMAIL_DEV_REDIRECT_TO: process.env.EMAIL_DEV_REDIRECT_TO ?? '',
+  EMAIL_ALLOWED_RECIPIENTS: process.env.EMAIL_ALLOWED_RECIPIENTS ?? '',
   ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL ?? '',
   ADMIN_EMAIL: process.env.ADMIN_EMAIL ?? '',
 

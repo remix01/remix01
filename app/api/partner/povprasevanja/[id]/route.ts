@@ -1,9 +1,9 @@
 import { getPartner } from '@/lib/supabase-partner'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const resend = getResendClient()
 
 /**
  * PATCH — partner accepts/rejects/completes inquiry
@@ -63,8 +63,8 @@ export async function PATCH(
   if (status === 'sprejeto' && inquiry.stranka_email && resend) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: inquiry.stranka_email,
+        from: getDefaultFrom(),
+        to: resolveEmailRecipients(inquiry.stranka_email).to,
         subject: `✓ ${partner.ime} je sprejel vaše povpraševanje`,
         html: `
           <h2>Dobra novica!</h2>
@@ -83,8 +83,8 @@ export async function PATCH(
   if (status === 'zavrnjeno' && inquiry.stranka_email && resend) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: inquiry.stranka_email,
+        from: getDefaultFrom(),
+        to: resolveEmailRecipients(inquiry.stranka_email).to,
         subject: 'LiftGO — Iščemo vam novega mojstra',
         html: `
           <h2>Obveščamo vas</h2>

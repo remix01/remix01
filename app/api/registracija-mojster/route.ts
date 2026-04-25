@@ -6,6 +6,7 @@ import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-respo
 import { ensureReferralCode, processReferralCode } from '@/lib/referral/referralService'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { authLimiter } from '@/lib/rate-limit/limiters'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -20,6 +21,15 @@ const registrationSchema = z.object({
   planSelected: z.enum(['start', 'pro']),
   referralCode: z.string().optional(),
 })
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
 
 async function postHandler(request: NextRequest) {
   try {
@@ -100,31 +110,31 @@ async function postHandler(request: NextRequest) {
     }
     
     // Send welcome email using Resend
-    if (env.RESEND_API_KEY) {
+    const resend = getResendClient()
+    if (resend) {
       try {
         const planName = validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : 'START (10% provizija)'
-        
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net',
-            to: validatedData.email,
-            subject: 'Dobrodošli na LiftGO - Potrdite vaš račun',
-            html: `
+        const safeFirstName = escapeHtml(validatedData.firstName)
+        const safeLastName = escapeHtml(validatedData.lastName)
+        const safeCompanyName = escapeHtml(validatedData.companyName)
+        const safeSpecialization = escapeHtml(validatedData.specialization)
+        const safePlanName = escapeHtml(planName)
+
+        const response = await resend.emails.send({
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(validatedData.email).to,
+          subject: 'Dobrodošli na LiftGO - Potrdite vaš račun',
+          html: `
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #2563eb;">Dobrodošli, ${validatedData.firstName}!</h2>
+                <h2 style="color: #2563eb;">Dobrodošli, ${safeFirstName}!</h2>
                 <p>Hvala, da ste se pridružili LiftGO platformi kot obrtnik.</p>
                 
                 <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="margin-top: 0;">Vaši podatki:</h3>
-                  <p style="margin: 5px 0;"><strong>Ime:</strong> ${validatedData.firstName} ${validatedData.lastName}</p>
-                  <p style="margin: 5px 0;"><strong>Podjetje:</strong> ${validatedData.companyName}</p>
-                  <p style="margin: 5px 0;"><strong>Specialnost:</strong> ${validatedData.specialization}</p>
-                  <p style="margin: 5px 0;"><strong>Paket:</strong> ${planName}</p>
+                  <p style="margin: 5px 0;"><strong>Ime:</strong> ${safeFirstName} ${safeLastName}</p>
+                  <p style="margin: 5px 0;"><strong>Podjetje:</strong> ${safeCompanyName}</p>
+                  <p style="margin: 5px 0;"><strong>Specialnost:</strong> ${safeSpecialization}</p>
+                  <p style="margin: 5px 0;"><strong>Paket:</strong> ${safePlanName}</p>
                 </div>
                 
                 <p><strong>Naslednji koraki:</strong></p>
@@ -146,8 +156,11 @@ async function postHandler(request: NextRequest) {
                 </p>
               </div>
             `,
-          }),
         })
+
+        if (response.error) {
+          console.error('[v0] Welcome email provider error:', response.error.message)
+        }
       } catch (emailError) {
         console.error('[v0] Welcome email error:', emailError)
         // Don't fail registration if email fails
