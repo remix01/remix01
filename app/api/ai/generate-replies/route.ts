@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { executeAgent } from '@/lib/ai/orchestrator'
+import { executeAgent, AgentAccessError } from '@/lib/ai/orchestrator'
 
 function parseReplies(text: string): string[] {
   try {
@@ -41,6 +41,9 @@ Zgodovina pogovora: ${body?.history || ''}`
     const replies = parseReplies(ai.response)
     return NextResponse.json({ success: true, data: replies })
   } catch (error) {
+    if (error instanceof AgentAccessError) {
+      return NextResponse.json({ success: false, error: 'Za to funkcijo potrebujete PRO naročnino.' }, { status: 403 })
+    }
     console.error('[generate-replies] error:', error)
     return NextResponse.json({ success: false, error: 'Napaka pri generiranju odgovorov' }, { status: 500 })
   }
