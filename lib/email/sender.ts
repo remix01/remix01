@@ -1,5 +1,6 @@
 import type { EmailTemplate } from './templates'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { writeEmailLog } from '@/lib/email/email-logs'
 
 /**
  * Send email using Resend. Falls back to a no-op warning if RESEND_API_KEY is not set.
@@ -12,14 +13,36 @@ export async function sendEmail(to: string, template: EmailTemplate): Promise<vo
     return
   }
 
-  const { error } = await resend.emails.send({
+  await writeEmailLog({
+    email: to,
+    type: 'generic_template_email',
+    status: 'pending',
+    metadata: { subject: template.subject },
+  })
+
+  const response = await resend.emails.send({
     from: getDefaultFrom(),
     to: resolveEmailRecipients(to).to,
     subject: template.subject,
     html: template.html,
   })
 
-  if (error) {
-    throw new Error(`[sendEmail] Resend error: ${error.message}`)
+  if (response.error) {
+    await writeEmailLog({
+      email: to,
+      type: 'generic_template_email',
+      status: 'failed',
+      errorMessage: response.error.message,
+      metadata: { subject: template.subject },
+    })
+    throw new Error(`[sendEmail] Resend error: ${response.error.message}`)
   }
+
+  await writeEmailLog({
+    email: to,
+    type: 'generic_template_email',
+    status: 'sent',
+    resendEmailId: response.data?.id,
+    metadata: { subject: template.subject },
+  })
 }

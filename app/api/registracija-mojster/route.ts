@@ -7,6 +7,8 @@ import { ensureReferralCode, processReferralCode } from '@/lib/referral/referral
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { authLimiter } from '@/lib/rate-limit/limiters'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
+import { writeEmailLog } from '@/lib/email/email-logs'
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -22,14 +24,6 @@ const registrationSchema = z.object({
   referralCode: z.string().optional(),
 })
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
 
 async function postHandler(request: NextRequest) {
   try {
@@ -76,6 +70,24 @@ async function postHandler(request: NextRequest) {
     if (!userId) {
       return internalError('Failed to create user account')
     }
+
+    const welcomeRateLimit = await checkEmailRateLimit({
+      request,
+      action: 'signup_welcome',
+      email: validatedData.email,
+      userId,
+    })
+
+    if (!welcomeRateLimit.allowed) {
+      await writeEmailLog({
+        email: validatedData.email,
+        type: 'welcome_email',
+        status: 'rate_limited',
+        userId,
+        errorMessage: `Rate limited by ${welcomeRateLimit.reason}`,
+        metadata: { endpoint: '/api/registracija-mojster', retryAfter: welcomeRateLimit.retryAfter },
+      })
+    }
     
     // Create obrtnik_profiles entry with initial plan
     const { error: profileError } = await supabase
@@ -111,14 +123,22 @@ async function postHandler(request: NextRequest) {
     
     // Send welcome email using Resend
     const resend = getResendClient()
-    if (resend) {
+    if (resend && welcomeRateLimit.allowed) {
       try {
+        await writeEmailLog({
+          email: validatedData.email,
+          type: 'welcome_email',
+          status: 'pending',
+          userId,
+          metadata: { endpoint: '/api/registracija-mojster' },
+        })
+
         const planName = validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : 'START (10% provizija)'
-        const safeFirstName = escapeHtml(validatedData.firstName)
-        const safeLastName = escapeHtml(validatedData.lastName)
-        const safeCompanyName = escapeHtml(validatedData.companyName)
-        const safeSpecialization = escapeHtml(validatedData.specialization)
-        const safePlanName = escapeHtml(planName)
+        const safeFirstName = escapeHtml(sanitizeText(validatedData.firstName, 120))
+        const safeLastName = escapeHtml(sanitizeText(validatedData.lastName, 120))
+        const safeCompanyName = escapeHtml(sanitizeText(validatedData.companyName, 160))
+        const safeSpecialization = escapeHtml(sanitizeText(validatedData.specialization, 120))
+        const safePlanName = escapeHtml(sanitizeText(planName, 120))
 
         const response = await resend.emails.send({
           from: getDefaultFrom(),
@@ -159,9 +179,34 @@ async function postHandler(request: NextRequest) {
         })
 
         if (response.error) {
+          await writeEmailLog({
+            email: validatedData.email,
+            type: 'welcome_email',
+            status: 'failed',
+            userId,
+            errorMessage: response.error.message,
+            metadata: { endpoint: '/api/registracija-mojster' },
+          })
           console.error('[v0] Welcome email provider error:', response.error.message)
+        } else {
+          await writeEmailLog({
+            email: validatedData.email,
+            type: 'welcome_email',
+            status: 'sent',
+            userId,
+            resendEmailId: response.data?.id,
+            metadata: { endpoint: '/api/registracija-mojster' },
+          })
         }
       } catch (emailError) {
+        await writeEmailLog({
+          email: validatedData.email,
+          type: 'welcome_email',
+          status: 'failed',
+          userId,
+          errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
+          metadata: { endpoint: '/api/registracija-mojster' },
+        })
         console.error('[v0] Welcome email error:', emailError)
         // Don't fail registration if email fails
       }
