@@ -47,26 +47,18 @@ function PrijavaContent() {
       return
     }
 
-    const { data: profileDataById } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
       .maybeSingle()
 
-    const { data: profileDataByAuthUserId } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('auth_user_id', userId)
-      .maybeSingle()
-
-    const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
-
-    if (!profile) {
-      router.push('/registracija')
+    if (profile?.role === 'obrtnik') {
+      router.push('/partner-dashboard')
       return
     }
 
-    router.push(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+    router.push('/dashboard')
   }
 
   const handleGoogleLogin = async () => {
@@ -149,7 +141,7 @@ function PrijavaContent() {
       await new Promise(resolve => setTimeout(resolve, 500))
       await routeAuthenticatedUser(data.user.id)
     } catch {
-      router.push('/registracija')
+      setStrankaError('Napaka pri prijavi. Poskusite znova.')
     } finally {
       setStrankaLoading(false)
     }

@@ -4,6 +4,7 @@ export type Stranka = {
   priimek: string
   email: string
   telefon?: string
+  lokacija?: string
   createdAt: Date
   status: 'AKTIVEN' | 'NEAKTIVEN' | 'SUSPENDIRAN'
   narocil: number

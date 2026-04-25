@@ -3,7 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { type NextRequest, NextResponse } from 'next/server'
 
 const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
-  'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard', 'obrtnik', 'prijava', 'registracija',
+  'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard',
+  'partner-dashboard', 'obrtnik', 'prijava', 'registracija',
 ])
 
 function isCategoryCityPath(pathname: string) {
@@ -17,10 +18,10 @@ function isCategoryCityPath(pathname: string) {
 }
 
 export async function proxy(request: NextRequest) {
-  // Block common WordPress/scanner attack paths
+  // Block common scanner/attack paths
   const blockedPaths = [
-    '/wp-login.php', '/wp-admin', '/xmlrpc.php', 
-    '/.env', '/admin.php', '/phpmyadmin', '/wp-content', '/wp-includes'
+    '/wp-login.php', '/wp-admin', '/xmlrpc.php',
+    '/.env', '/admin.php', '/phpmyadmin', '/wp-content', '/wp-includes',
   ]
   if (blockedPaths.some(p => request.nextUrl.pathname.startsWith(p))) {
     return new NextResponse(null, { status: 404 })
@@ -73,42 +74,26 @@ export async function proxy(request: NextRequest) {
   let user = null
   try {
     const { data: { user: authUser }, error } = await supabase.auth.getUser()
-    
-    // Handle expired/invalid refresh token
-    if (error?.code === 'refresh_token_not_found' ||
-        error?.message?.includes('Refresh Token Not Found') ||
-        error?.message?.includes('Invalid Refresh Token')) {
-      // Clear invalid session and redirect to login
-      const response = NextResponse.redirect(
-        new URL('/prijava', request.url)
-      )
+
+    if (
+      error?.code === 'refresh_token_not_found' ||
+      error?.message?.includes('Refresh Token Not Found') ||
+      error?.message?.includes('Invalid Refresh Token')
+    ) {
+      const response = NextResponse.redirect(new URL('/prijava', request.url))
       response.cookies.delete('sb-access-token')
       response.cookies.delete('sb-refresh-token')
       return response
     }
-    
+
     user = authUser
   } catch (e) {
-    // Silent fail — don't crash middleware
-    console.error('[v0] Proxy middleware error:', e instanceof Error ? e.message : String(e))
+    console.error('[proxy] Auth error:', e instanceof Error ? e.message : String(e))
   }
 
   const path = request.nextUrl.pathname
 
-  // ── API ROUTES AUTH CHECK ───────────────────────────────
-  // Protect all /api routes with auth validation
-  if (path.startsWith('/api/') && !path.startsWith('/api/public/')) {
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Nepooblaščen dostop - Prosim, se prijavite.' },
-        { status: 401 }
-      )
-    }
-  }
-
-  // ── NAROČNIK dashboard zaščita ──────────────────────────
-  // Vse pod /dashboard, /povprasevanja, /profil, /obvestila, /ocena
-  // ki niso pod /admin ali /obrtnik
+  // ── NAROČNIK zaščita (/dashboard, /povprasevanja, ...) ──
   const narocnikPaths = [
     '/dashboard',
     '/povprasevanja',
@@ -117,59 +102,35 @@ export async function proxy(request: NextRequest) {
     '/obvestila',
     '/ocena',
   ]
-
-  const isNarocnikPath = narocnikPaths.some(p => path.startsWith(p))
-
-  if (isNarocnikPath) {
+  if (narocnikPaths.some(p => path.startsWith(p))) {
     if (!user) {
-      return NextResponse.redirect(
-        new URL(`/prijava?redirect=${path}`, request.url)
-      )
+      return NextResponse.redirect(new URL(`/prijava?redirect=${path}`, request.url))
     }
-
-    // Preveri da je res naročnik (ne obrtnik, ne admin)
     try {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle()
-
+        .from('profiles').select('role').eq('id', user.id).maybeSingle()
       if (profile?.role === 'obrtnik') {
-        return NextResponse.redirect(
-          new URL('/obrtnik/dashboard', request.url)
-        )
+        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
       }
     } catch (e) {
-      console.error('[v0] Profile check error:', e instanceof Error ? e.message : String(e))
+      console.error('[proxy] Naročnik profile check error:', e instanceof Error ? e.message : String(e))
     }
   }
 
-  // ── OBRTNIK dashboard zaščita ───────────────────────────
-  if (path.startsWith('/obrtnik')) {
+  // ── OBRTNIK zaščita (/partner-dashboard in /obrtnik/*) ──
+  if (path.startsWith('/partner-dashboard') || path.startsWith('/obrtnik')) {
     if (!user) {
-      return NextResponse.redirect(
-        new URL('/prijava?redirect=/obrtnik/dashboard', request.url)
-      )
+      return NextResponse.redirect(new URL('/prijava?redirect=/partner-dashboard', request.url))
     }
-
     try {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle()
-
+        .from('profiles').select('role').eq('id', user.id).maybeSingle()
       if (!profile || profile.role !== 'obrtnik') {
-        return NextResponse.redirect(
-          new URL('/prijava?error=not_obrtnik', request.url)
-        )
+        return NextResponse.redirect(new URL('/prijava?error=not_obrtnik', request.url))
       }
     } catch (e) {
-      console.error('[v0] Obrtnik check error:', e instanceof Error ? e.message : String(e))
-      return NextResponse.redirect(
-        new URL('/prijava?error=auth_failed', request.url)
-      )
+      console.error('[proxy] Obrtnik profile check error:', e instanceof Error ? e.message : String(e))
+      return NextResponse.redirect(new URL('/prijava?error=auth_failed', request.url))
     }
   }
 
@@ -180,7 +141,6 @@ export async function proxy(request: NextRequest) {
       loginUrl.searchParams.set('redirectTo', path)
       return NextResponse.redirect(loginUrl)
     }
-
     try {
       const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
@@ -193,58 +153,46 @@ export async function proxy(request: NextRequest) {
         loginUrl.searchParams.set('redirectTo', path)
         return NextResponse.redirect(loginUrl)
       }
-      
-      // ✅ Admin is verified — keep supabaseResponse so auth cookies stay in sync
+
       return supabaseResponse
     } catch (e) {
-      console.error('[v0] Admin check error:', e instanceof Error ? e.message : String(e))
-      return NextResponse.redirect(
-        new URL('/', request.url)
-      )
+      console.error('[proxy] Admin check error:', e instanceof Error ? e.message : String(e))
+      return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
-  // ── Preusmeritev prijavljenih stran od /prijava ─────────
-  if (path === '/prijava') {
+  // ── Preusmeritev prijavljenih od /prijava in /registracija ──
+  if (path === '/prijava' || path === '/registracija') {
     if (!user) return NextResponse.next()
-    
+
     const redirectTo = request.nextUrl.searchParams.get('redirectTo')
     if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
       return NextResponse.redirect(new URL(redirectTo, request.url))
     }
-    
-    // Check for admin first
+
+    // Admin ima prednost
     try {
       const { data: adminUser } = await supabaseAdmin
-        .from('admin_users')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .maybeSingle()
-
+        .from('admin_users').select('id').eq('auth_user_id', user.id).maybeSingle()
       if (adminUser) {
         return NextResponse.redirect(new URL('/admin', request.url))
       }
     } catch (e) {
-      console.error('[v0] Admin check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+      console.error('[proxy] Admin check error in prijava:', e instanceof Error ? e.message : String(e))
     }
 
-    // Check for partner
+    // Obrtnik ali naročnik
     try {
-      const { data: partner } = await supabase
-        .from('partners')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (partner) {
+      const { data: profile } = await supabase
+        .from('profiles').select('role').eq('id', user.id).maybeSingle()
+      if (profile?.role === 'obrtnik') {
         return NextResponse.redirect(new URL('/partner-dashboard', request.url))
       }
     } catch (e) {
-      console.error('[v0] Partner check error in prijava redirect:', e instanceof Error ? e.message : String(e))
+      console.error('[proxy] Profile check error in prijava:', e instanceof Error ? e.message : String(e))
     }
 
-    // Default fallback to home
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return supabaseResponse
@@ -252,13 +200,16 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/:category((?!api|_next|icons|images|fonts|admin|dashboard|obrtnik|prijava|registracija)[^/]+)/:city',
+    '/:category((?!api|_next|icons|images|fonts|admin|dashboard|partner-dashboard|obrtnik|prijava|registracija)[^/]+)/:city',
+    '/dashboard',
     '/dashboard/:path*',
     '/povprasevanja/:path*',
     '/novo-povprasevanje/:path*',
     '/profil/:path*',
     '/obvestila/:path*',
     '/ocena/:path*',
+    '/partner-dashboard',
+    '/partner-dashboard/:path*',
     '/obrtnik/:path*',
     '/admin/:path*',
     '/prijava',
