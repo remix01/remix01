@@ -1,8 +1,8 @@
 import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const resend = getResendClient()
 
 export async function GET(
   req: Request,
@@ -81,8 +81,8 @@ export async function PATCH(
     if (obrtnik?.email && resend) {
       try {
         await resend.emails.send({
-          from: 'LiftGO <info@liftgo.net>',
-          to: obrtnik.email,
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(obrtnik.email).to,
           subject: `LiftGO — Dodeljeno vam je novo povpraševanje`,
           html: `
             <h2>Pozdravljeni ${obrtnik.ime},</h2>

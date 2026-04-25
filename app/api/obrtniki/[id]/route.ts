@@ -1,8 +1,8 @@
 import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const resend = getResendClient()
 
 export async function PATCH(
   req: Request,
@@ -41,8 +41,8 @@ export async function PATCH(
   if (body.status === 'verified' && current.email && resend) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: current.email,
+        from: getDefaultFrom(),
+        to: resolveEmailRecipients(current.email).to,
         subject: '✓ Vaš profil je verificiran na LiftGO!',
         html: `
           <h2>Čestitamo ${current.ime}!</h2>
@@ -60,8 +60,8 @@ export async function PATCH(
   if (body.status === 'blocked' && current.email && resend) {
     try {
       await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: current.email,
+        from: getDefaultFrom(),
+        to: resolveEmailRecipients(current.email).to,
         subject: 'LiftGO — Vaš račun je bil blokiran',
         html: `
           <p>Žal vam sporočamo, da je bil vaš račun blokiran.</p>

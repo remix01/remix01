@@ -6,6 +6,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 import { sendAlert as slackSendAlert } from '@/lib/slack'
 
 type AlertType =
@@ -69,11 +70,11 @@ export const alerting = {
 
   async _sendEmail(alert: AlertPayload): Promise<void> {
     if (!process.env.RESEND_API_KEY || !process.env.ADMIN_EMAIL) return
-    const { Resend } = await import('resend')
-    const resend = new Resend(process.env.RESEND_API_KEY)
+    const resend = getResendClient()
+    if (!resend) return
     await resend.emails.send({
-      from: 'LiftGO Alerts <noreply@liftgo.net>',
-      to: process.env.ADMIN_EMAIL,
+      from: getDefaultFrom('LiftGO Alerts'),
+      to: resolveEmailRecipients(process.env.ADMIN_EMAIL).to,
       subject: `[LiftGO ${alert.severity.toUpperCase()}] ${alert.type}`,
       text: [
         `Alert: ${alert.type}`,

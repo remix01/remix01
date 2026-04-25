@@ -6,6 +6,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 import { agentLogger } from './agentLogger'
 
 // ── TYPES ──────────────────────────────────────────────────────────────────────
@@ -182,11 +183,11 @@ class AnomalyDetector {
     // Send email via Resend
     if (resendKey && adminEmail) {
       try {
-        const { Resend } = await import('resend')
-        const resend = new Resend(resendKey)
+        const resend = getResendClient()
+        if (!resend) return
         await resend.emails.send({
-          from: 'LiftGO Alerts <noreply@liftgo.net>',
-          to: adminEmail,
+          from: getDefaultFrom('LiftGO Alerts'),
+          to: resolveEmailRecipients(adminEmail).to,
           subject: `[LiftGO Agent ${alert.severity.toUpperCase()}] ${alert.type}`,
           text: [
             `Alert Type: ${alert.type}`,
