@@ -37,11 +37,6 @@ export default async function NarocnikLayout({
     redirect('/obrtnik/dashboard')
   }
 
-  // Admini ne sodijo sem
-  if (profile?.role === 'admin') {
-    redirect('/admin')
-  }
-
   const fullName = profile?.full_name ?? user.email?.split('@')[0] ?? null
 
   return (
