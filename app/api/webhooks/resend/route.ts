@@ -164,6 +164,11 @@ export async function POST(request: NextRequest) {
           eventType,
           resendEmailId,
         })
+
+        return NextResponse.json(
+          { error: 'Failed to persist webhook event' },
+          { status: 503 }
+        )
       }
     }
 

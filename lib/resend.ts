@@ -22,8 +22,16 @@ export function getDefaultFrom(senderName: string = FROM_NAME): string {
 function isNonProductionEnvironment(): boolean {
   const nodeEnv = process.env.NODE_ENV
   const vercelEnv = process.env.VERCEL_ENV
+  const appEnv = process.env.APP_ENV || process.env.ENVIRONMENT || process.env.STAGE
+  const hasEmailSafetyOverrides = Boolean(
+    env.EMAIL_DEV_REDIRECT_TO.trim() || env.EMAIL_ALLOWED_RECIPIENTS.trim()
+  )
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
 
+  if (appEnv) return !['production', 'prod'].includes(appEnv.toLowerCase())
   if (vercelEnv) return vercelEnv !== 'production'
+  if (hasEmailSafetyOverrides) return true
+  if (/(localhost|127\.0\.0\.1|staging|preview|dev)/i.test(appUrl)) return true
   return nodeEnv !== 'production'
 }
 
