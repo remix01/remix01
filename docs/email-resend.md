@@ -20,6 +20,42 @@ Legacy fallbacki (kompatibilnost):
 - `RESEND_FROM`
 - `NEXT_PUBLIC_FROM_EMAIL` (legacy fallback; ni priporočeno kot primarni vir)
 
+## Rate limit pravila (email flowi)
+
+`lib/email/security.ts` uvaja dodatni Upstash rate limit sloj po IP/email/user_id:
+
+- `contact_inquiry`
+  - **3 / 10 min po IP**
+  - **2 / 10 min po email naslovu**
+  - **3 / 10 min po user_id** (če je podan)
+- `signup_welcome`
+  - **5 / 10 min po IP**
+  - **5 / 10 min po user_id** (če je podan)
+- `admin_test`
+  - **3 / 10 min po IP**
+  - **3 / 10 min po user_id** (če je podan)
+
+Password reset ostaja pod Supabase Auth rate limitingom.
+
+## Spam zaščite
+
+Za javne inquiry/contact flowe:
+- Honeypot polji: `website` ali `company_url`
+- Če je honeypot izpolnjen: endpoint vrne success, email pa se ne pošlje
+- Disposable email blokada za domene:
+  - `mailinator.com`
+  - `10minutemail.com`
+  - `temp-mail.org`
+  - `guerrillamail.com`
+  - `yopmail.com`
+
+Osnovna validacija:
+- Zod schema validacija request body
+- Email format validation
+- Max length limiti na stringe
+- `trim()` normalizacija
+- `escapeHtml()` za interpolacije v HTML template-ih
+
 ## Centralizacija
 
 Resend client + sender standard sta centralizirana v `lib/resend.ts`:
@@ -27,13 +63,34 @@ Resend client + sender standard sta centralizirana v `lib/resend.ts`:
 - `getDefaultFrom(senderName?)`
 - `resolveEmailRecipients(to)`
 
+Dodatna anti-spam/abuse logika je v:
+- `lib/email/security.ts`
+- `lib/email/email-logs.ts`
+
+Kompatibilnost endpointi za customer/narocnik flow:
+- `POST /api/povprasevanje` (primarni)
+- `POST /api/narocnik/povprasevanje` (alias)
+- `POST /api/stranka/povprasevanje` (alias)
+
 ## Dev/staging recipient safety
 
 Pravila v `resolveEmailRecipients`:
 1. Produkcija: pošiljanje normalno.
 2. Non-production + `EMAIL_ALLOWED_RECIPIENTS`: dovoljeni so samo prejemniki iz allowlist.
 3. Non-production + `EMAIL_DEV_REDIRECT_TO`: vsi prejemniki se preusmerijo na ta naslov.
-4. Original recipient se zabeleži v warning log (ne v subjectu produkcijskih emailov).
+4. Original recipient se logira samo server-side (`console.warn`).
+
+## Email event logging (`email_logs`)
+
+Flowi zapisujejo statuse:
+- `pending`
+- `sent`
+- `failed`
+- `blocked`
+- `rate_limited`
+- `honeypot`
+
+Webhook `POST /api/webhooks/resend` dodatno upserta delivery evente (`sent`, `delivered`, `bounced`, ...).
 
 ## Webhook endpoint
 
@@ -52,62 +109,77 @@ URL za Resend dashboard:
 - `email.opened`
 - `email.clicked`
 
-### Kaj endpoint dela
-- prebere raw body (`request.text()`)
-- preveri podpis, če je `RESEND_WEBHOOK_SECRET` nastavljen
-- ob napačnem podpisu vrne `401`
-- ob veljavnem eventu vrne `200`
-- neznane evente varno ignorira (`200`, `ignored: true`)
-- logira `eventType` in `resendEmailId`
-- upserta `email_logs` po `resend_email_id`
+## Kako testirati
 
-## Kako ustvariti webhook v Resend dashboardu
+1. Nastavi env (`RESEND_API_KEY`, `EMAIL_FROM`, opcijsko `EMAIL_DEV_REDIRECT_TO`, `EMAIL_ALLOWED_RECIPIENTS`).
+2. Testiraj `POST /api/povprasevanje/public` z valid payload.
+3. Ponovi isti request večkrat in preveri `429` + `Retry-After`.
+4. Testiraj honeypot (`website` ali `company_url`) in preveri success brez pošiljanja.
+5. Testiraj disposable email (npr. `user@mailinator.com`) in preveri `400`.
+6. Testiraj webhook iz Resend dashboarda.
+7. Preveri zapise v `email_logs`.
 
-1. Resend Dashboard → **Webhooks** → **Create Webhook**.
-2. Endpoint URL: `https://YOUR_DOMAIN.com/api/webhooks/resend`.
-3. Označi evente iz seznama zgoraj.
-4. Shrani `signing secret` v `RESEND_WEBHOOK_SECRET`.
-5. Deploy in pošlji testni webhook iz dashboarda.
+## API-first onboarding/broadcast skripte (priporočeno)
 
-## Kako testirati webhook
+Za ponovljive flowe uporabljaj skripte namesto ročnega UI:
 
-1. Lokalno/deploy nastavi `RESEND_WEBHOOK_SECRET`.
-2. Iz dashboarda pošlji test event (npr. `email.sent`).
-3. Preveri response `200`.
-4. Preveri loge aplikacije (`eventType`, `resendEmailId`).
-5. Preveri `email_logs` zapis (status + metadata).
-6. Pošlji request z napačnim podpisom in preveri `401`.
+- Skript: `scripts/setup-broadcast.ts`
+- Default sender: `LiftGO <noreply@liftgo.net>`
+- Reply-To: `support@liftgo.net`
 
-## Kako debugirati bounce/complaint
+Primeri:
 
-1. Preveri webhook event (`email.bounced` ali `email.complained`) v logih.
-2. V `email_logs` preveri `status`, `error_message`, `metadata`.
-3. Odstrani/blacklistaj problematične prejemnike iz kampanj/flowov.
-4. Preveri SPF/DKIM/DMARC in domain reputation.
+```bash
+# 1) Povabi prvih 20-50 testerjev (dry-run)
+pnpm tsx scripts/setup-broadcast.ts invite-testers --limit=30 --dry-run
 
-## Dodajanje novega email template-a
+# 2) Dejanski invite (po preverjenem dry-runu)
+pnpm tsx scripts/setup-broadcast.ts invite-testers --limit=30
 
-1. Dodaj template v obstoječe `lib/email/*templates.ts`.
-2. Uporabi centralni sender (`getDefaultFrom`) in client (`getResendClient`).
-3. Dinamične HTML vrednosti escapaj.
-4. Vključi `eventType` pri pošiljanju zaradi lažjega sledenja.
+# 3) Onboarding flow (automation + event trigger)
+pnpm tsx scripts/setup-broadcast.ts onboarding-flow --audience-id=aud_xxx --user-email=tester@example.com --user-id=user_123 --dry-run
+
+# 4) Broadcast neaktivnim izvajalcem (7 dni)
+pnpm tsx scripts/setup-broadcast.ts broadcast-inactive --inactive-days=7 --limit=50 --dry-run
+
+# 5) Sync kontaktov iz Supabase v Resend Audience
+pnpm tsx scripts/setup-broadcast.ts sync-audience --audience-id=aud_xxx --limit=50 --dry-run
+```
+
+UI (dashboard) uporabljaj samo za:
+- prvi vizualni pregled predloge,
+- hitro enkratno obvestilo.
+
+## Kako debugirati `429`
+
+- Preveri response:
+  - `code = EMAIL_RATE_LIMITED`
+  - `reason` (`ip`, `email`, `user_id`)
+  - `retryAfter`
+  - `Retry-After` header
+- Preveri Upstash env:
+  - `KV_REST_API_URL` / `KV_REST_API_TOKEN` ali
+  - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`
+- Če Redis ni dosegljiv, app preklopi na lokalni in-memory fallback (ni distribuiran).
+
+## Kako preveriti spam/honeypot loge
+
+SQL primer:
+
+```sql
+select created_at, email, type, status, error_message, metadata
+from public.email_logs
+where status in ('blocked', 'honeypot', 'rate_limited')
+order by created_at desc
+limit 200;
+```
 
 ## Migration: email_logs
 
-Projekt uporablja `supabase/migrations`, zato je dodana migracija:
+V projektu že obstaja migracija:
 - `supabase/migrations/2026042501_create_email_logs.sql`
 
-Tabela `email_logs` vsebuje:
-- `id` uuid pk
-- `user_id` uuid null
-- `email` text not null
-- `type` text not null
-- `status` text not null
-- `resend_email_id` text unique null
-- `error_message` text null
-- `metadata` jsonb null
-- `created_at` timestamptz default now()
-- `updated_at` timestamptz default now()
+Če tabela ni aplicirana, zaženi migrations (Supabase CLI ali CI pipeline), sicer logging helper varno degradira (warning log + brez crasha).
 
 ## Produkcijski checklist
 
