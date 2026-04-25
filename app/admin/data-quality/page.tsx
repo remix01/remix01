@@ -4,6 +4,7 @@ import {
   getProblematicniUporabniki,
   setUserRole,
   createObrtnikProfile,
+  addAsZaposleni,
 } from '../actions'
 import { ProblematicniPanel } from './ProblematicniPanel'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -72,6 +73,7 @@ export default async function DataQualityPage() {
         obrtnikiBrezProfila={obrtnikiBrezProfila}
         setUserRole={setUserRole}
         createObrtnikProfile={createObrtnikProfile}
+        addAsZaposleni={addAsZaposleni}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">

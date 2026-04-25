@@ -799,7 +799,7 @@ export async function dodajPartnerja(data: {
 export async function getProblematicniUporabniki() {
   await ensureAdminAccess()
 
-  const [nullRoleRes, allObrtnikiRes, existingProfilesRes] = await Promise.all([
+  const [nullRoleRes, allObrtnikiRes, existingProfilesRes, adminUsersRes] = await Promise.all([
     supabaseAdmin
       .from('profiles')
       .select('id, email, full_name, created_at')
@@ -811,21 +811,59 @@ export async function getProblematicniUporabniki() {
       .eq('role', 'obrtnik')
       .order('created_at', { ascending: false }),
     supabaseAdmin.from('obrtnik_profiles').select('id'),
+    supabaseAdmin.from('admin_users').select('auth_user_id'),
   ])
 
-  const existingIds = new Set((existingProfilesRes.data || []).map((p: any) => p.id))
+  const existingObrtnikIds = new Set((existingProfilesRes.data || []).map((p: any) => p.id))
+  // Exclude users already registered as admins — their NULL role is intentional
+  const adminIds = new Set((adminUsersRes.data || []).map((a: any) => a.auth_user_id))
+
   const obrtnikiBrezProfila = (allObrtnikiRes.data || []).filter(
-    (o: any) => !existingIds.has(o.id)
+    (o: any) => !existingObrtnikIds.has(o.id)
   )
 
   return {
-    nullRoleUsers: (nullRoleRes.data || []) as {
+    nullRoleUsers: (nullRoleRes.data || []).filter((u: any) => !adminIds.has(u.id)) as {
       id: string; email: string; full_name: string | null; created_at: string
     }[],
     obrtnikiBrezProfila: obrtnikiBrezProfila as {
       id: string; email: string; full_name: string | null; created_at: string
     }[],
   }
+}
+
+export async function addAsZaposleni(
+  id: string,
+  vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', id)
+    .single()
+
+  if (!profile) return { success: false, error: 'Profil ne obstaja' }
+
+  const nameParts = (profile.full_name || '').trim().split(' ')
+  const ime = nameParts[0] || profile.email?.split('@')[0] || 'Zaposleni'
+  const priimek = nameParts.slice(1).join(' ') || '—'
+
+  const { error } = await supabaseAdmin.from('admin_users').insert({
+    auth_user_id: id,
+    email: profile.email,
+    ime,
+    priimek,
+    vloga,
+    aktiven: true,
+  })
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/data-quality')
+  revalidatePath('/admin/zaposleni')
+  return { success: true }
 }
 
 export async function setUserRole(
