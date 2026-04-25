@@ -547,7 +547,7 @@ export async function updatePovprasevanjeAdmin(
   await ensureAdminAccess()
   const updates: Record<string, any> = {}
   if (data.status !== undefined) updates.status = data.status
-  if (data.assigned_to !== undefined) updates.obrtnik_id = data.assigned_to || null
+  if (data.assigned_to !== undefined) updates.assigned_to = data.assigned_to || null
   if (data.urgency !== undefined) updates.urgency = data.urgency
   if (data.budget_min !== undefined) updates.budget_min = data.budget_min
   if (data.budget_max !== undefined) updates.budget_max = data.budget_max
