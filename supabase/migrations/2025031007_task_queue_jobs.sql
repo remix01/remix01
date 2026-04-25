@@ -13,11 +13,23 @@ CREATE TABLE IF NOT EXISTS task_queue_jobs (
   next_attempt_at TIMESTAMPTZ DEFAULT NOW(),
   error_message TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  completed_at TIMESTAMPTZ,
-  
-  CONSTRAINT fk_task_id FOREIGN KEY (task_id) 
-    REFERENCES service_requests(id) ON DELETE CASCADE
+  completed_at TIMESTAMPTZ
 );
+
+DO $$
+BEGIN
+  IF to_regclass('public.service_requests') IS NOT NULL THEN
+    ALTER TABLE task_queue_jobs
+      ADD CONSTRAINT fk_task_id
+      FOREIGN KEY (task_id) REFERENCES service_requests(id) ON DELETE CASCADE;
+  ELSIF to_regclass('public.povprasevanja') IS NOT NULL THEN
+    ALTER TABLE task_queue_jobs
+      ADD CONSTRAINT fk_task_id
+      FOREIGN KEY (task_id) REFERENCES povprasevanja(id) ON DELETE CASCADE;
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Row Level Security — only service role can access
 ALTER TABLE task_queue_jobs ENABLE ROW LEVEL SECURITY;
@@ -38,11 +50,16 @@ CREATE INDEX idx_tqj_job_type ON task_queue_jobs(job_type)
 -- pending → matching → matched → offer_sent → accepted → in_progress → completed
 -- Any state can transition to: expired, cancelled
 
--- Add task_queue_jobs reference to service_requests if not exists
-ALTER TABLE service_requests
-ADD COLUMN IF NOT EXISTS guarantee_activated BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS guarantee_activated_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS offer_amount DECIMAL(10, 2),
-ADD COLUMN IF NOT EXISTS customer_email TEXT,
-ADD COLUMN IF NOT EXISTS title TEXT;
+-- Add queue-related columns only if service_requests exists (legacy schema)
+DO $$
+BEGIN
+  IF to_regclass('public.service_requests') IS NOT NULL THEN
+    ALTER TABLE service_requests
+      ADD COLUMN IF NOT EXISTS guarantee_activated BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS guarantee_activated_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS offer_amount DECIMAL(10, 2),
+      ADD COLUMN IF NOT EXISTS customer_email TEXT,
+      ADD COLUMN IF NOT EXISTS title TEXT;
+  END IF;
+END $$;
