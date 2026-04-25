@@ -36,13 +36,15 @@ function PrijavaContent() {
       return
     }
 
-    let adminRes = await fetch('/api/admin/me')
-    if (!adminRes.ok) {
-      await new Promise(resolve => setTimeout(resolve, 300))
-      adminRes = await fetch('/api/admin/me')
-    }
+    // Check admin status directly via client session (avoids cookie-timing issues with fetch)
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', userId)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (adminRes.ok) {
+    if (adminUser) {
       router.push('/admin')
       return
     }
