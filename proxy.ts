@@ -165,8 +165,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // ── Preusmeritev prijavljenih od /prijava in /registracija ──
-  if (path === '/prijava' || path === '/registracija') {
+  // ── Preusmeritev prijavljenih od /prijava ──────────────────
+  // /registracija ostane dostopna — prijavljeni z nepopolnimi profili jo potrebujejo
+  if (path === '/prijava') {
     if (!user) return NextResponse.next()
 
     const redirectTo = request.nextUrl.searchParams.get('redirectTo')

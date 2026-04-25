@@ -477,15 +477,14 @@ export async function updatePartner(
   if (data.telefon !== undefined) profileUpdates.phone = data.telefon || null
   if (data.lokacija !== undefined) profileUpdates.location_city = data.lokacija || null
 
-  const ops: Promise<any>[] = []
-  if (Object.keys(obrtnikUpdates).length)
-    ops.push(supabaseAdmin.from('obrtnik_profiles').update(obrtnikUpdates).eq('id', id))
-  if (Object.keys(profileUpdates).length)
-    ops.push(supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id))
-
-  const results = await Promise.all(ops)
-  const err = results.find((r) => r.error)?.error
-  if (err) return { success: false, error: err.message }
+  if (Object.keys(obrtnikUpdates).length) {
+    const { error } = await supabaseAdmin.from('obrtnik_profiles').update(obrtnikUpdates).eq('id', id)
+    if (error) return { success: false, error: error.message }
+  }
+  if (Object.keys(profileUpdates).length) {
+    const { error } = await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id)
+    if (error) return { success: false, error: error.message }
+  }
   revalidatePath(`/admin/partnerji/${id}`)
   return { success: true }
 }
