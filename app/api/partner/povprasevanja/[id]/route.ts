@@ -1,9 +1,11 @@
 import { getPartner } from '@/lib/supabase-partner'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
+import { writeEmailLog } from '@/lib/email/email-logs'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const resend = getResendClient()
 
 /**
  * PATCH — partner accepts/rejects/completes inquiry
@@ -61,42 +63,154 @@ export async function PATCH(
 
   // Email stranka on accept
   if (status === 'sprejeto' && inquiry.stranka_email && resend) {
-    try {
-      await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: inquiry.stranka_email,
-        subject: `✓ ${partner.ime} je sprejel vaše povpraševanje`,
-        html: `
-          <h2>Dobra novica!</h2>
-          <p><strong>${partner.ime} ${partner.priimek}</strong> je sprejel vaše povpraševanje za <strong>${inquiry.storitev}</strong>.</p>
-          ${cena_ocena_min ? `<p><strong>Ocenjena cena:</strong> ${cena_ocena_min}–${cena_ocena_max} EUR</p>` : ''}
-          <p>Mojster vas bo kmalu kontaktiral za potrditev termina.</p>
-          <p style="color:#64748b;font-size:12px">LiftGO — Tvoj lokalni mojster, takoj pri roki.</p>
-        `,
+    const acceptRateLimit = await checkEmailRateLimit({
+      request: req,
+      action: 'admin_test',
+      email: inquiry.stranka_email,
+      userId: partner.id,
+    })
+
+    if (!acceptRateLimit.allowed) {
+      await writeEmailLog({
+        email: inquiry.stranka_email,
+        type: 'partner_to_customer_status_update',
+        status: 'rate_limited',
+        userId: partner.id,
+        errorMessage: `Rate limited by ${acceptRateLimit.reason}`,
+        metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'sprejeto' },
       })
-    } catch (emailError) {
-      console.log('[v0] Email send failed silently')
+    } else {
+      try {
+        await writeEmailLog({
+          email: inquiry.stranka_email,
+          type: 'partner_to_customer_status_update',
+          status: 'pending',
+          userId: partner.id,
+          metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'sprejeto' },
+        })
+
+        const safePartnerName = escapeHtml(sanitizeText(`${partner.ime} ${partner.priimek}`.trim(), 160))
+        const safePartnerFirstName = sanitizeText(partner.ime || 'Mojster', 120)
+        const safeService = escapeHtml(sanitizeText(inquiry.storitev || inquiry.title || 'storitev', 120))
+
+        const response = await resend.emails.send({
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(inquiry.stranka_email).to,
+          subject: `✓ ${safePartnerFirstName} je sprejel vaše povpraševanje`,
+          html: `
+            <h2>Dobra novica!</h2>
+            <p><strong>${safePartnerName}</strong> je sprejel vaše povpraševanje za <strong>${safeService}</strong>.</p>
+            ${cena_ocena_min ? `<p><strong>Ocenjena cena:</strong> ${cena_ocena_min}–${cena_ocena_max} EUR</p>` : ''}
+            <p>Mojster vas bo kmalu kontaktiral za potrditev termina.</p>
+            <p style="color:#64748b;font-size:12px">LiftGO — Tvoj lokalni mojster, takoj pri roki.</p>
+          `,
+        })
+
+        if (response.error) {
+          await writeEmailLog({
+            email: inquiry.stranka_email,
+            type: 'partner_to_customer_status_update',
+            status: 'failed',
+            userId: partner.id,
+            errorMessage: response.error.message,
+            metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'sprejeto' },
+          })
+        } else {
+          await writeEmailLog({
+            email: inquiry.stranka_email,
+            type: 'partner_to_customer_status_update',
+            status: 'sent',
+            userId: partner.id,
+            resendEmailId: response.data?.id,
+            metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'sprejeto' },
+          })
+        }
+      } catch (emailError) {
+        await writeEmailLog({
+          email: inquiry.stranka_email,
+          type: 'partner_to_customer_status_update',
+          status: 'failed',
+          userId: partner.id,
+          errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
+          metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'sprejeto' },
+        })
+        console.log('[v0] Email send failed silently')
+      }
     }
   }
 
   // Email stranka on reject
   if (status === 'zavrnjeno' && inquiry.stranka_email && resend) {
-    try {
-      await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: inquiry.stranka_email,
-        subject: 'LiftGO — Iščemo vam novega mojstra',
-        html: `
-          <h2>Obveščamo vas</h2>
-          <p>Izbrani mojster trenutno ni na voljo za vaše povpraševanje.</p>
-          <p>Naša ekipa vam bo v kratkem dodelila novega mojstra.</p>
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/povprasevanje">
-            Oddajte novo povpraševanje →
-          </a>
-        `,
+    const rejectRateLimit = await checkEmailRateLimit({
+      request: req,
+      action: 'admin_test',
+      email: inquiry.stranka_email,
+      userId: partner.id,
+    })
+
+    if (!rejectRateLimit.allowed) {
+      await writeEmailLog({
+        email: inquiry.stranka_email,
+        type: 'partner_to_customer_status_update',
+        status: 'rate_limited',
+        userId: partner.id,
+        errorMessage: `Rate limited by ${rejectRateLimit.reason}`,
+        metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'zavrnjeno' },
       })
-    } catch (emailError) {
-      console.log('[v0] Email send failed silently')
+    } else {
+      try {
+        await writeEmailLog({
+          email: inquiry.stranka_email,
+          type: 'partner_to_customer_status_update',
+          status: 'pending',
+          userId: partner.id,
+          metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'zavrnjeno' },
+        })
+
+        const response = await resend.emails.send({
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(inquiry.stranka_email).to,
+          subject: 'LiftGO — Iščemo vam novega mojstra',
+          html: `
+            <h2>Obveščamo vas</h2>
+            <p>Izbrani mojster trenutno ni na voljo za vaše povpraševanje.</p>
+            <p>Naša ekipa vam bo v kratkem dodelila novega mojstra.</p>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/povprasevanje">
+              Oddajte novo povpraševanje →
+            </a>
+          `,
+        })
+
+        if (response.error) {
+          await writeEmailLog({
+            email: inquiry.stranka_email,
+            type: 'partner_to_customer_status_update',
+            status: 'failed',
+            userId: partner.id,
+            errorMessage: response.error.message,
+            metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'zavrnjeno' },
+          })
+        } else {
+          await writeEmailLog({
+            email: inquiry.stranka_email,
+            type: 'partner_to_customer_status_update',
+            status: 'sent',
+            userId: partner.id,
+            resendEmailId: response.data?.id,
+            metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'zavrnjeno' },
+          })
+        }
+      } catch (emailError) {
+        await writeEmailLog({
+          email: inquiry.stranka_email,
+          type: 'partner_to_customer_status_update',
+          status: 'failed',
+          userId: partner.id,
+          errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
+          metadata: { endpoint: '/api/partner/povprasevanja/[id]', inquiryId: id, status: 'zavrnjeno' },
+        })
+        console.log('[v0] Email send failed silently')
+      }
     }
   }
 

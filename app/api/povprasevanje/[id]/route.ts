@@ -1,8 +1,10 @@
 import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
+import { writeEmailLog } from '@/lib/email/email-logs'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const resend = getResendClient()
 
 export async function GET(
   req: Request,
@@ -79,27 +81,86 @@ export async function PATCH(
       .single()
 
     if (obrtnik?.email && resend) {
-      try {
-        await resend.emails.send({
-          from: 'LiftGO <info@liftgo.net>',
-          to: obrtnik.email,
-          subject: `LiftGO — Dodeljeno vam je novo povpraševanje`,
-          html: `
-            <h2>Pozdravljeni ${obrtnik.ime},</h2>
-            <p>Admin vam je dodelil novo povpraševanje.</p>
-            <p><strong>Storitev:</strong> ${current.storitev}</p>
-            <p><strong>Lokacija:</strong> ${current.lokacija}</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/povprasevanja/${id}">
-              Oglejte si podrobnosti →
-            </a>
-          `,
+      const notificationRateLimit = await checkEmailRateLimit({
+        request: req,
+        action: 'admin_test',
+        email: obrtnik.email,
+        userId: admin.id,
+      })
+
+      if (!notificationRateLimit.allowed) {
+        await writeEmailLog({
+          email: obrtnik.email,
+          type: 'partner_assignment_notification',
+          status: 'rate_limited',
+          userId: admin.id,
+          errorMessage: `Rate limited by ${notificationRateLimit.reason}`,
+          metadata: { endpoint: '/api/povprasevanje/[id]', inquiryId: id },
         })
-        await supabaseAdmin
-          .from('povprasevanja')
-          .update({ notifikacija_poslana: true, notifikacija_cas: new Date().toISOString() })
-          .eq('id', id)
-      } catch (emailError) {
-        console.log('[v0] Email send skipped')
+      } else {
+        try {
+          await writeEmailLog({
+            email: obrtnik.email,
+            type: 'partner_assignment_notification',
+            status: 'pending',
+            userId: admin.id,
+            metadata: { endpoint: '/api/povprasevanje/[id]', inquiryId: id },
+          })
+
+          const safeName = escapeHtml(sanitizeText(obrtnik.ime || '', 120))
+          const safeService = escapeHtml(sanitizeText(current.storitev || '', 120))
+          const safeLocation = escapeHtml(sanitizeText(current.lokacija || '', 120))
+
+          const response = await resend.emails.send({
+            from: getDefaultFrom(),
+            to: resolveEmailRecipients(obrtnik.email).to,
+            subject: 'LiftGO — Dodeljeno vam je novo povpraševanje',
+            html: `
+              <h2>Pozdravljeni ${safeName},</h2>
+              <p>Admin vam je dodelil novo povpraševanje.</p>
+              <p><strong>Storitev:</strong> ${safeService}</p>
+              <p><strong>Lokacija:</strong> ${safeLocation}</p>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/povprasevanja/${id}">
+                Oglejte si podrobnosti →
+              </a>
+            `,
+          })
+
+          if (response.error) {
+            await writeEmailLog({
+              email: obrtnik.email,
+              type: 'partner_assignment_notification',
+              status: 'failed',
+              userId: admin.id,
+              errorMessage: response.error.message,
+              metadata: { endpoint: '/api/povprasevanje/[id]', inquiryId: id },
+            })
+          } else {
+            await writeEmailLog({
+              email: obrtnik.email,
+              type: 'partner_assignment_notification',
+              status: 'sent',
+              userId: admin.id,
+              resendEmailId: response.data?.id,
+              metadata: { endpoint: '/api/povprasevanje/[id]', inquiryId: id },
+            })
+
+            await supabaseAdmin
+              .from('povprasevanja')
+              .update({ notifikacija_poslana: true, notifikacija_cas: new Date().toISOString() })
+              .eq('id', id)
+          }
+        } catch (emailError) {
+          await writeEmailLog({
+            email: obrtnik.email,
+            type: 'partner_assignment_notification',
+            status: 'failed',
+            userId: admin.id,
+            errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
+            metadata: { endpoint: '/api/povprasevanje/[id]', inquiryId: id },
+          })
+          console.log('[v0] Email send skipped')
+        }
       }
     }
   }

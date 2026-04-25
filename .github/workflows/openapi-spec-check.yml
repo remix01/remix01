@@ -7,7 +7,6 @@ on:
       - 'lib/api/schemas/**'
       - 'lib/openapi/**'
       - 'scripts/generate-openapi.ts'
-      - 'docs/openapi.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
   push:
@@ -32,7 +31,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
       # Avoid intermittent failures in pnpm/action-setup on hosted runners by
       # activating a pinned pnpm via Corepack after Node is installed.

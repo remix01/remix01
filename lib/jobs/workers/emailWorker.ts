@@ -11,6 +11,7 @@
 
 import { Job } from '../queue'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
 interface EmailJobPayload {
   transactionId?: string
@@ -64,7 +65,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
         return
       }
 
-      const resend = await getResendClient()
+      const resend = getResendClient()
       if (!resend) {
         console.error('[EMAIL] Resend client not initialized')
         return
@@ -73,8 +74,8 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       const htmlBody = buildPovprasevanjeConfirmationEmail(fullName || 'Naročnik', title || '', category || '', location || '', urgency || '', budget)
 
       await resend.emails.send({
-        from: 'LiftGO <info@liftgo.net>',
-        to: emailAddress,
+        from: getDefaultFrom(),
+        to: resolveEmailRecipients(emailAddress).to,
         subject: `✅ Povpraševanje oddano: ${title}`,
         html: htmlBody,
       })
@@ -196,21 +197,6 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
   //   html: htmlBody,
   // })
   // if (error) throw new Error(`Email send failed: ${error.message}`)
-}
-
-// ── GET RESEND CLIENT
-async function getResendClient() {
-  try {
-    const { Resend } = await import('resend')
-    if (!process.env.RESEND_API_KEY) {
-      console.error('[EMAIL] RESEND_API_KEY is not set')
-      return null
-    }
-    return new Resend(process.env.RESEND_API_KEY)
-  } catch (error) {
-    console.error('[EMAIL] Failed to initialize Resend client:', error)
-    return null
-  }
 }
 
 // ── EMAIL TEMPLATES

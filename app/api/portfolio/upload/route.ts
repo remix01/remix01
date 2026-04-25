@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { uploadLimiter } from '@/lib/rate-limit/limiters'
 
 /**
  * POST /api/portfolio/upload
@@ -14,7 +16,7 @@ import { createClient } from '@/lib/supabase/server'
  *   - 400 Bad Request (validation errors)
  *   - 500 Server error during upload
  */
-export async function POST(request: Request) {
+async function postHandler(request: NextRequest) {
   try {
     // 1. Auth check
     const supabase = await createClient()
@@ -120,3 +122,5 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export const POST = withRateLimit(uploadLimiter, postHandler)

@@ -46,7 +46,7 @@ export function useTaskRpc(functionName: string, options?: UseTaskRpcOptions) {
         console.log(`[v0] Calling RPC: ${functionName}`, params)
 
         const { data: result, error: rpcError } = await supabase.rpc(
-          functionName,
+          functionName as any,
           params
         )
 

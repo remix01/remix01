@@ -4,10 +4,22 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 export type EscrowStatus =
   | 'pending' | 'paid' | 'released'
   | 'refunded' | 'disputed' | 'cancelled'
+  | 'releasing' | 'resolving'
 
 export type AuditEventType =
   | 'created' | 'paid' | 'released' | 'refunded'
   | 'dispute_opened' | 'dispute_resolved' | 'cancelled'
+
+const ALLOWED_ESCROW_TRANSITIONS: Record<EscrowStatus, EscrowStatus[]> = {
+  pending: ['paid', 'cancelled'],
+  paid: ['released', 'refunded', 'disputed', 'releasing'],
+  released: [],
+  refunded: [],
+  disputed: ['released', 'refunded', 'resolving'],
+  cancelled: [],
+  releasing: ['paid', 'released'],
+  resolving: ['disputed', 'released', 'refunded'],
+}
 
 // ── AUDIT LOG
 /**
@@ -93,7 +105,19 @@ export async function updateEscrowStatus(params: {
 }): Promise<void> {
   // Preberi trenutno stanje
   const current = await getEscrowTransaction(params.transactionId)
+  if (!current) {
+    throw new Error('[ESCROW] updateStatus: transaction not found')
+  }
+
   const statusBefore = current.status as EscrowStatus
+
+  const allowedTransitions = ALLOWED_ESCROW_TRANSITIONS[statusBefore] ?? []
+  const isSameStatus = statusBefore === params.newStatus
+  if (!isSameStatus && !allowedTransitions.includes(params.newStatus)) {
+    throw new Error(
+      `[ESCROW] Invalid transition: ${statusBefore} -> ${params.newStatus}`
+    )
+  }
 
   // Posodobi v DB
   const { error } = await supabaseAdmin

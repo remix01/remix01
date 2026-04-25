@@ -10,6 +10,30 @@ process.env.QSTASH_NEXT_SIGNING_KEY ||= 'development-next-signing-key'
 process.env.QSTASH_TOKEN ||= 'development-qstash-token'
 
 // Cache bust: 2026-03-23
+
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://us.i.posthog.com https://app.posthog.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://maps.gstatic.com https://maps.googleapis.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://eu.i.posthog.com https://app.posthog.com",
+  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ')
+
+const SECURITY_HEADERS = [
+  { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=(https://js.stripe.com)' },
+  { key: 'Content-Security-Policy', value: CSP },
+]
+
 const nextConfig: NextConfig = {
   // ═══════════════════════════════════════════════════════════════════════════
   // IMAGES - OPTIMIZED
@@ -113,6 +137,10 @@ const nextConfig: NextConfig = {
       {
         source: '/:category/:city',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=120' }],
+      },
+      {
+        source: '/(.*)',
+        headers: SECURITY_HEADERS,
       },
     ]
   },

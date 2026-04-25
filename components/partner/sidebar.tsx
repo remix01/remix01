@@ -23,7 +23,7 @@ import { getPartnerDesktopNav } from '@/components/partner/nav-config'
 interface PartnerSidebarProps {
   partner: {
     business_name: string
-    subscription_tier: 'start' | 'pro' | 'elite'
+    subscription_tier: 'start' | 'pro' | 'elite' | null
     avg_rating: number
     is_verified: boolean
   }
@@ -46,7 +46,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
   const [aiResponse, setAiResponse] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
 
-  const navItems = useMemo(() => getPartnerDesktopNav(partner.subscription_tier), [partner.subscription_tier])
+  const navItems = useMemo(() => getPartnerDesktopNav(partner.subscription_tier ?? 'start'), [partner.subscription_tier])
 
   const quickAiLinks: Array<{ href: string; icon: LucideIcon; label: string }> = [
     { href: '/partner-dashboard/crm', icon: TrendingUp, label: 'CRM orodja' },
@@ -226,7 +226,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-foreground">{partner.business_name || 'Moj portal'}</p>
-                <p className="hidden text-xs text-muted-foreground sm:block">{partner.subscription_tier.toUpperCase()}</p>
+                <p className="hidden text-xs text-muted-foreground sm:block">{(partner.subscription_tier ?? 'start').toUpperCase()}</p>
               </div>
             </Link>
           </div>
@@ -270,7 +270,7 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             {partner.is_verified && '✓'} {partner.avg_rating.toFixed(1)} ⭐
           </p>
-          <p className="mt-2 text-xs font-medium text-primary">{partner.subscription_tier.toUpperCase()} plan</p>
+          <p className="mt-2 text-xs font-medium text-primary">{(partner.subscription_tier ?? 'start').toUpperCase()} plan</p>
         </div>
 
         <NavList />

@@ -40,7 +40,7 @@ async function getPortfolioItems(obrtnikId: string) {
     const supabase = createClient()
     const { data } = await supabase
       .from('portfolio_items')
-      .select('id, title, image_url, created_at')
+      .select('id, title, image_urls, created_at')
       .eq('obrtnik_id', obrtnikId)
       .order('created_at', { ascending: false })
       .limit(6)
@@ -279,11 +279,11 @@ export default async function ObrtnikProfilePage(props: Props) {
             <div className="max-w-4xl mx-auto px-4">
               <h2 className="text-2xl font-bold mb-6">Portfolio</h2>
               <div className="grid md:grid-cols-3 gap-4">
-                {portfolioItems.map((item: { id: string; title: string; image_url: string | null; created_at: string }) => (
+                {portfolioItems.map((item: { id: string; title: string; image_urls: string[]; created_at: string }) => (
                   <div key={item.id} className="rounded-lg overflow-hidden bg-slate-100 aspect-square flex items-center justify-center">
-                    {item.image_url ? (
+                    {item.image_urls?.[0] ? (
                       <img
-                        src={item.image_url}
+                        src={item.image_urls[0]}
                         alt={item.title}
                         className="w-full h-full object-cover"
                       />

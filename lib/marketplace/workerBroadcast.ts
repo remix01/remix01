@@ -9,9 +9,9 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
-import { Resend } from 'resend'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const resend = getResendClient()
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
 
 export const workerBroadcast = {
@@ -178,8 +178,8 @@ export const workerBroadcast = {
     }
     if (!resend) return
     await resend.emails.send({
-      from: 'LiftGO <info@liftgo.net>',
-      to: params.to,
+      from: getDefaultFrom(),
+      to: resolveEmailRecipients(params.to).to,
       subject: params.subject,
       html: params.html,
     })

@@ -34,11 +34,13 @@ export async function POST(
     }
 
     // Call backend RPC function for assignment
-    const { data: result, error: rpcError } = await supabase.rpc('assign_task', {
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('assign_task', {
       task_id: taskId,
       worker_id,
       auto_assign: auto_assign || false,
     })
+
+    const result = rpcResult as { success: boolean; message?: string; assignment_id?: string; task?: unknown } | null
 
     if (rpcError) {
       console.error('[v0] RPC error in assign_task:', rpcError)

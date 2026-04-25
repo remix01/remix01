@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { type NextRequest, NextResponse } from 'next/server'
+import { validateCsrfOrigin, isCsrfExempt, csrfForbidden } from '@/lib/csrf'
 
 const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
   'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard',
@@ -27,16 +28,19 @@ export async function proxy(request: NextRequest) {
     return new NextResponse(null, { status: 404 })
   }
 
-  // Force canonical domain
+  // Force canonical domain for page traffic only.
+  // Never redirect API requests because browser fetch() calls to preview domains
+  // can become cross-origin and fail with "TypeError: Failed to fetch".
   const host = request.headers.get('host') || ''
-  if (host.includes('vercel.app') && !host.includes('localhost')) {
+  const pathname = request.nextUrl.pathname
+  const isApiRoute = pathname.startsWith('/api/')
+  if (host.includes('vercel.app') && !host.includes('localhost') && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.host = 'liftgo.net'
     url.protocol = 'https'
     return NextResponse.redirect(url, { status: 301 })
   }
 
-  const pathname = request.nextUrl.pathname
   const retry = request.nextUrl.searchParams.get('retry')
   const userAgent = request.headers.get('user-agent')?.toLowerCase() || ''
   const isCrawler = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|linkedinbot/.test(userAgent)

@@ -1,9 +1,11 @@
 import Stripe from 'stripe'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { getStripePriceId, isValidPlan, type PlanType } from '@/lib/stripe/config'
 import { createClient } from '@/lib/supabase/server'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { paymentLimiter } from '@/lib/rate-limit/limiters'
 
 function getBaseUrl(req: Request): string {
   if (env.NEXT_PUBLIC_APP_URL) {
@@ -21,7 +23,7 @@ function getBaseUrl(req: Request): string {
   return 'https://liftgo.net'
 }
 
-export async function POST(req: Request) {
+async function postHandler(req: NextRequest) {
   try {
     const { plan, email, successPath, cancelPath } = await req.json()
 
@@ -102,3 +104,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(paymentLimiter, postHandler)
