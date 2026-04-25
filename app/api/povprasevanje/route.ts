@@ -8,6 +8,28 @@ import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { inquiryLimiter } from '@/lib/rate-limit/limiters'
+import { z } from 'zod'
+import {
+  checkEmailRateLimit,
+  isDisposableEmail,
+  isHoneypotTriggered,
+  sanitizeText,
+} from '@/lib/email/security'
+import { writeEmailLog } from '@/lib/email/email-logs'
+
+const authenticatedInquirySchema = z.object({
+  title: z.string().trim().min(2).max(120).optional(),
+  storitev: z.string().trim().min(2).max(120).optional(),
+  location_city: z.string().trim().min(2).max(120).optional(),
+  lokacija: z.string().trim().min(2).max(120).optional(),
+  description: z.string().trim().max(2000).optional(),
+  opis: z.string().trim().max(2000).optional(),
+  stranka_ime: z.string().trim().max(120).optional(),
+  stranka_email: z.string().trim().email().optional(),
+  stranka_telefon: z.string().trim().max(32).optional(),
+  website: z.string().trim().max(300).optional(),
+  company_url: z.string().trim().max(300).optional(),
+}).passthrough()
 
 async function postHandler(req: NextRequest) {
   try {
@@ -20,12 +42,71 @@ async function postHandler(req: NextRequest) {
     }
 
     const body = await req.json()
+    const parsedBody = authenticatedInquirySchema.safeParse(body)
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: parsedBody.error.issues[0]?.message || 'Invalid request body' },
+        { status: 400 }
+      )
+    }
+
+    const safeBody = parsedBody.data
+    const honeypot = safeBody.website ?? safeBody.company_url
+    const candidateEmail = safeBody.stranka_email?.trim()
+
+    if (isHoneypotTriggered(honeypot)) {
+      await writeEmailLog({
+        email: candidateEmail || user.email || 'unknown@unknown.local',
+        type: 'inquiry_authenticated',
+        status: 'honeypot',
+        userId: user.id,
+        metadata: { endpoint: '/api/povprasevanje' },
+      })
+      return NextResponse.json({ success: true, id: null, status: 'ignored' }, { status: 200 })
+    }
+
+    if (candidateEmail && isDisposableEmail(candidateEmail)) {
+      await writeEmailLog({
+        email: candidateEmail,
+        type: 'inquiry_authenticated',
+        status: 'blocked',
+        userId: user.id,
+        errorMessage: 'Disposable email domain blocked',
+        metadata: { endpoint: '/api/povprasevanje' },
+      })
+      return NextResponse.json(
+        { error: 'Za oddajo povpraševanja uporabite trajni e-poštni naslov.' },
+        { status: 400 }
+      )
+    }
+
+    const securityRateLimit = await checkEmailRateLimit({
+      request: req,
+      action: 'contact_inquiry',
+      email: candidateEmail ?? null,
+      userId: user.id,
+    })
+
+    if (!securityRateLimit.allowed) {
+      await writeEmailLog({
+        email: candidateEmail || user.email || 'unknown@unknown.local',
+        type: 'inquiry_authenticated',
+        status: 'rate_limited',
+        userId: user.id,
+        errorMessage: `Rate limited by ${securityRateLimit.reason}`,
+        metadata: { endpoint: '/api/povprasevanje', retryAfter: securityRateLimit.retryAfter },
+      })
+      return securityRateLimit.response
+    }
 
     // Map legacy field names to database column names
     // Support both old (storitev, lokacija, opis) and new (title, location_city, description) field names
-    const title = body.title || body.storitev
-    const locationCity = body.location_city || body.lokacija
-    const description = body.description || body.opis
+    const titleRaw = safeBody.title || safeBody.storitev
+    const locationRaw = safeBody.location_city || safeBody.lokacija
+    const descriptionRaw = safeBody.description || safeBody.opis
+    const title = typeof titleRaw === 'string' ? sanitizeText(titleRaw, 120) : titleRaw
+    const locationCity = typeof locationRaw === 'string' ? sanitizeText(locationRaw, 120) : locationRaw
+    const description = typeof descriptionRaw === 'string' ? sanitizeText(descriptionRaw, 2000) : descriptionRaw
 
     // Extract other fields
     const {
@@ -44,7 +125,11 @@ async function postHandler(req: NextRequest) {
       preferred_date_from,
       preferred_date_to,
       attachment_urls
-    } = body
+    } = safeBody
+    const normalizedCategoryName = typeof categoryName === 'string' ? categoryName : null
+    const normalizedAttachmentUrls = Array.isArray(attachment_urls)
+      ? attachment_urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      : null
 
     // Validate required fields
     if (!title || !locationCity) {
@@ -55,7 +140,7 @@ async function postHandler(req: NextRequest) {
     }
 
     // Handle category auto-creation if categoryName provided
-    let finalCategoryId = category_id
+    let finalCategoryId: string | null = typeof category_id === 'string' ? category_id : null
     const requestedCategoryName =
       (typeof categoryName === 'string' && categoryName.trim().length > 0
         ? categoryName
@@ -120,7 +205,7 @@ async function postHandler(req: NextRequest) {
       location_notes: location_notes || null,
       preferred_date_from: preferred_date_from || null,
       preferred_date_to: preferred_date_to || null,
-      attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,
+      attachment_urls: normalizedAttachmentUrls,
       // CRITICAL FIX: Ensure status is 'odprto' so craftsmen can see it
       status: obrtnik_id ? 'dodeljeno' : 'odprto',
       created_at: new Date().toISOString()
@@ -177,7 +262,7 @@ async function postHandler(req: NextRequest) {
         povprasevanjeId: data.id,
         narocnikId: data.narocnik_id,
         title: data.title,
-        category: finalCategoryId ? categoryName : null,
+        category: finalCategoryId ? normalizedCategoryName : null,
         location: data.location_city,
         urgency: data.urgency,
         budget: data.budget_max,
