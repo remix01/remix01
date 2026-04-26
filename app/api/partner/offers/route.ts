@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   }
 
   const body: CreateOfferPayload = await req.json()
-  const { povprasevanje_id, message, price_estimate, price_type, available_date } = body
+  const { povprasevanje_id, title, message, price_estimate, price_type, available_date } = body
 
   if (!povprasevanje_id) {
     return NextResponse.json({ error: 'Povpraševanje je obvezno.' }, { status: 400 })
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
     .insert({
       povprasevanje_id,
       obrtnik_id: user.id,
+      title: title?.trim() ?? null,
       message: message.trim(),
       price_estimate,
       price_type: price_type ?? 'ocena',

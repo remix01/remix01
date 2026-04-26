@@ -33,6 +33,7 @@ export function OffersList({
   const [saving, setSaving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [formState, setFormState] = useState({
+    title: '',
     message: '',
     price_estimate: '',
     available_date: '',
@@ -42,6 +43,7 @@ export function OffersList({
     setError(null)
     setEditing(offer.id)
     setFormState({
+      title: offer.title || '',
       message: offer.message || '',
       price_estimate: offer.price_estimate ? String(offer.price_estimate) : '',
       available_date: offer.available_date ? String(offer.available_date).slice(0, 10) : '',
@@ -52,6 +54,7 @@ export function OffersList({
     setEditing(null)
     setError(null)
     setFormState({
+      title: '',
       message: '',
       price_estimate: '',
       available_date: '',
@@ -96,6 +99,7 @@ export function OffersList({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          title: formState.title.trim() || undefined,
           message: formState.message.trim(),
           price_estimate: parsedPrice,
           available_date: formState.available_date || null,
@@ -139,6 +143,15 @@ export function OffersList({
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2 sm:col-span-2">
+                      <Label htmlFor={`offer-title-${offer.id}`}>Naslov ponudbe</Label>
+                      <Input
+                        id={`offer-title-${offer.id}`}
+                        value={formState.title}
+                        onChange={(e) => setFormState((prev) => ({ ...prev, title: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="grid gap-2 sm:col-span-2">
                       <Label htmlFor={`offer-message-${offer.id}`}>Sporočilo</Label>
                       <Textarea
                         id={`offer-message-${offer.id}`}
@@ -176,7 +189,7 @@ export function OffersList({
                 <>
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      {offer.message?.split('\n')[0]?.slice(0, 60) || 'Ponudba'}
+                      {offer.title || offer.message?.split('\n')[0]?.slice(0, 60) || 'Ponudba'}
                     </h3>
                     <StatusBadge status={offer.status} />
                   </div>

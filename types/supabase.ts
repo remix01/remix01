@@ -593,11 +593,16 @@ export interface Database {
           id: string
           povprasevanje_id: string
           obrtnik_id: string
+          title: string | null
           message: string
+          description: string | null
+          notes: string | null
           price_estimate: number | null
           price_type: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date: string | null
+          validity_days: number | null
           estimated_duration: string | null
+          attachments: string[] | null
           status: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
           accepted_at: string | null
           stripe_payment_intent_id: string | null
@@ -610,11 +615,16 @@ export interface Database {
           id?: string
           povprasevanje_id: string
           obrtnik_id: string
+          title?: string | null
           message: string
+          description?: string | null
+          notes?: string | null
           price_estimate?: number | null
           price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date?: string | null
+          validity_days?: number | null
           estimated_duration?: string | null
+          attachments?: string[] | null
           status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
           accepted_at?: string | null
           stripe_payment_intent_id?: string | null

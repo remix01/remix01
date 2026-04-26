@@ -21,6 +21,7 @@ interface Category {
 
 interface FormState {
   povprasevanje_id: string
+  title: string
   description: string
   category: string
   price: string
@@ -30,6 +31,7 @@ interface FormState {
 
 const EMPTY_FORM: FormState = {
   povprasevanje_id: '',
+  title: '',
   description: '',
   category: '',
   price: '',
@@ -106,6 +108,7 @@ export function OfferForm({
 
     const payload: CreateOfferPayload = {
       povprasevanje_id: form.povprasevanje_id,
+      title: form.title || undefined,
       message,
       price_estimate: price,
     }
@@ -157,6 +160,17 @@ export function OfferForm({
               )}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="title">Naslov ponudbe</Label>
+          <Input
+            id="title"
+            name="title"
+            placeholder="npr. Montaža novih oken"
+            value={form.title}
+            onChange={handleChange}
+          />
         </div>
 
         <div className="grid gap-2">
