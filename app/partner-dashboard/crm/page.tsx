@@ -61,8 +61,8 @@ export default function CRMPage() {
       reader.readAsDataURL(file)
     })
 
-    setMediaUrl(fileUrl)
-    appendMediaItem(fileUrl, file.name)
+    setMediaAlbum((prev) => [{ id: crypto.randomUUID(), url: fileUrl, addedAt: new Date().toISOString(), name: file.name }, ...prev])
+    setMediaUrl('')
     event.target.value = ''
   }
 
