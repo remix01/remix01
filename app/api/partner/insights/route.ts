@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { normalizeTier, tierHasFeature } from '@/lib/plans'
 import { executeAgent } from '@/lib/ai/orchestrator'
 
 export async function GET() {
@@ -7,6 +8,17 @@ export async function GET() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+
+    const { data: profile } = await supabase
+      .from('obrtnik_profiles')
+      .select('subscription_tier')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const tier = normalizeTier(profile?.subscription_tier)
+    if (!tierHasFeature(tier, 'insights')) {
+      return NextResponse.json({ success: false, error: 'PRO paket obvezen.' }, { status: 403 })
+    }
 
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const { data: offers } = await supabase

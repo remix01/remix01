@@ -1,239 +1,52 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { PartnerSidebar } from '@/components/partner/sidebar'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Calendar, DollarSign, TrendingUp, Clock, Users, AlertCircle, Images, Video, Sparkles, Camera } from 'lucide-react'
-import Link from 'next/link'
+import { Calendar, DollarSign, TrendingUp, Clock, Users, Images, Video, Sparkles } from 'lucide-react'
+import { TierGate } from '@/components/partner/tier-gate'
+import type { CRMData, CRMStats, CRMPipelineStage, CRMActivityItem } from '@/app/api/partner/crm/route'
 
-interface CRMStats {
-  inquiriesThisMonth: number
-  offersSentThisMonth: number
-  conversionRate: number
-  revenueThisMonth: number
-  avgResponseTime: number
+const STAGE_LABELS: Record<string, string> = {
+  poslana: 'Poslane ponudbe',
+  sprejeta: 'Sprejete',
+  zavrnjena: 'Zavrnjene',
 }
 
-interface Lead {
-  id: string
-  customer_name: string
-  service_type: string
-  location: string
-  value: number
-  stage: 'new' | 'in_progress' | 'awaiting_payment' | 'completed'
-  daysInStage: number
-  created_at: string
-}
-
-interface ActivityItem {
-  id: string
-  type: string
-  timestamp: string
-  description: string
-  customer_name: string
-  amount?: number
+function timeAgoMinutes(timestamp: string) {
+  const minutes = Math.floor((Date.now() - new Date(timestamp).getTime()) / 60_000)
+  if (minutes < 60) return `${minutes} min nazaj`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h nazaj`
+  return `${Math.floor(hours / 24)} dni nazaj`
 }
 
 export default function CRMPage() {
-  const router = useRouter()
-  const supabase = createClient()
-  const [partner, setPartner] = useState<any>(null)
-  const [paket, setPaket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<CRMStats>({
-    inquiriesThisMonth: 0,
-    offersSentThisMonth: 0,
-    conversionRate: 0,
-    revenueThisMonth: 0,
-    avgResponseTime: 0,
-  })
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [forbidden, setForbidden] = useState(false)
+  const [data, setData] = useState<CRMData | null>(null)
+
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaAlbum, setMediaAlbum] = useState<Array<{ id: string; url: string; addedAt: string; name?: string }>>([])
   const [videoDiagnosis, setVideoDiagnosis] = useState('')
   const [videoDiagnosisLoading, setVideoDiagnosisLoading] = useState(false)
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          router.push('/partner-auth/login')
-          return
-        }
-
-        // Get partner info
-        const { data: partnerData } = await supabase
-          .from('obrtnik_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        if (!partnerData) {
-          router.push('/partner-auth/login')
-          return
-        }
-
-        setPartner(partnerData)
-
-        const paketData = { paket: partnerData.subscription_tier || 'start' }
-        setPaket(paketData)
-
-        // Only load CRM data if PRO
-        if (paketData.paket === 'pro' || paketData.paket === 'elite') {
-          await loadCRMData(partnerData.id)
-        }
-      } catch (error) {
-        console.error('[v0] Error loading CRM:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadData()
+    fetch('/api/partner/crm')
+      .then(async (res) => {
+        if (res.status === 403) { setForbidden(true); return }
+        const json = await res.json()
+        if (json.success) setData(json.data)
+      })
+      .catch((err) => console.error('[CRM] fetch error:', err))
+      .finally(() => setLoading(false))
   }, [])
-
-  const loadCRMData = async (partnerId: string) => {
-    try {
-      // Load ponudbe (offers) sent by this obrtnik
-      const { data: offers } = await supabase
-        .from('ponudbe')
-        .select('*')
-        .eq('obrtnik_id', partnerId)
-        .order('created_at', { ascending: false })
-
-      // Use ponudbe as inquiries proxy for CRM stats
-      const inquiries = offers
-
-      // Load escrow transactions
-      const { data: escrows } = await supabase
-        .from('escrow_transactions')
-        .select('*')
-        .eq('partner_id', partnerId)
-        .order('created_at', { ascending: false })
-
-      // Calculate stats
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-
-      const inquiriesThisMonth = (inquiries || []).filter(
-        (i: any) => new Date(i.created_at) >= monthStart
-      ).length
-
-      const offersSentThisMonth = (offers || []).filter(
-        (o: any) => new Date(o.created_at) >= monthStart
-      ).length
-
-      const offersAcceptedThisMonth = (offers || []).filter(
-        (o: any) => o.status === 'sprejeta' && new Date(o.created_at) >= monthStart
-      ).length
-      const conversionRate = offersSentThisMonth > 0 
-        ? Math.round((offersAcceptedThisMonth / offersSentThisMonth) * 100)
-        : 0
-
-      const escrowsThisMonth = (escrows || []).filter(
-        (e: any) => new Date(e.created_at) >= monthStart
-      )
-      const revenueThisMonth = escrowsThisMonth.reduce(
-        (sum: number, e: any) => sum + (e.amount_cents || 0),
-        0
-      ) / 100
-
-      setStats({
-        inquiriesThisMonth,
-        offersSentThisMonth,
-        conversionRate,
-        revenueThisMonth,
-        avgResponseTime: 24, // TODO: Calculate from actual data
-      })
-
-      // Build leads from inquiries
-      const leadsData: Lead[] = (inquiries || []).map((inq: any) => ({
-        id: inq.id,
-        customer_name: inq.customer_name || 'Unknown',
-        service_type: inq.service_type || '',
-        location: inq.location || '',
-        value: inq.budget || 0,
-        stage: inq.stage || 'new',
-        daysInStage: Math.floor((now.getTime() - new Date(inq.created_at).getTime()) / (1000 * 60 * 60 * 24)),
-        created_at: inq.created_at,
-      }))
-
-      setLeads(leadsData)
-
-      // Build activity feed
-      const activityItems: ActivityItem[] = []
-
-      // Add inquiry events
-      ;(inquiries || []).slice(0, 10).forEach((inq: any) => {
-        activityItems.push({
-          id: `inquiry-${inq.id}`,
-          type: 'inquiry_received',
-          timestamp: inq.created_at,
-          description: `Novo povpraševanje prejeto`,
-          customer_name: inq.customer_name || 'Unknown',
-          amount: inq.budget,
-        })
-      })
-
-      // Add offer events
-      ;(offers || []).slice(0, 10).forEach((off: any) => {
-        activityItems.push({
-          id: `offer-${off.id}`,
-          type: 'offer_sent',
-          timestamp: off.created_at,
-          description: `Ponudba poslana`,
-          customer_name: off.customer_name || 'Unknown',
-          amount: off.price,
-        })
-      })
-
-      // Add escrow events
-      ;(escrows || []).slice(0, 10).forEach((esc: any) => {
-        activityItems.push({
-          id: `escrow-${esc.id}`,
-          type: esc.status,
-          timestamp: esc.created_at,
-          description: `Depozitni račun ${esc.status}`,
-          customer_name: esc.customer_name || 'Unknown',
-          amount: esc.amount_cents / 100,
-        })
-      })
-
-      // Sort by timestamp
-      activityItems.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )
-
-      setActivity(activityItems.slice(0, 20))
-    } catch (error) {
-      console.error('[v0] Error loading CRM data:', error)
-    }
-  }
-
-  const appendMediaItem = (url: string, name?: string) => {
-    setMediaAlbum((prev) => [
-      {
-        id: crypto.randomUUID(),
-        url,
-        addedAt: new Date().toISOString(),
-        name,
-      },
-      ...prev,
-    ])
-  }
 
   const handleAddMedia = () => {
     if (!mediaUrl.trim()) return
-
-    appendMediaItem(mediaUrl.trim())
+    setMediaAlbum((prev) => [{ id: crypto.randomUUID(), url: mediaUrl.trim(), addedAt: new Date().toISOString() }, ...prev])
     setMediaUrl('')
   }
 
@@ -256,23 +69,17 @@ export default function CRMPage() {
   const handleVideoDiagnosis = async () => {
     const latestUrl = mediaAlbum[0]?.url
     if (!latestUrl) return
-
     setVideoDiagnosisLoading(true)
     setVideoDiagnosis('')
     try {
       const res = await fetch('/api/ai/analyze-media', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl: latestUrl,
-          inquiryText: 'Diagnoza vsebine za CRM naslednji korak in pripravo ponudbe.',
-        }),
+        body: JSON.stringify({ imageUrl: latestUrl, inquiryText: 'Diagnoza vsebine za CRM naslednji korak in pripravo ponudbe.' }),
       })
-
-      const data = await res.json()
-      setVideoDiagnosis(data?.analysis || 'AI analiza ni bila vrnjena.')
-    } catch (error) {
-      console.error('[v0] video diagnosis failed', error)
+      const json = await res.json()
+      setVideoDiagnosis(json?.analysis || 'AI analiza ni bila vrnjena.')
+    } catch {
       setVideoDiagnosis('Analiza ni uspela. Poskusite znova čez nekaj trenutkov.')
     } finally {
       setVideoDiagnosisLoading(false)
@@ -281,245 +88,158 @@ export default function CRMPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex flex-1 items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="text-muted-foreground">Nalagam CRM...</p>
         </div>
       </div>
     )
   }
 
-  // Show upgrade prompt if not PRO
-  if (paket?.paket !== 'pro' && paket?.paket !== 'elite') {
+  if (forbidden) {
     return (
-      <div className="flex h-screen bg-background">
-        <PartnerSidebar partner={partner} />
-        <main className="flex-1 flex items-center justify-center p-6 pb-20 md:pb-6">
-          <Card className="max-w-md p-8 text-center border-amber-200 bg-amber-50">
-            <AlertCircle className="h-12 w-12 text-amber-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-foreground mb-2">PRO Paket Obvezen</h2>
-            <p className="text-muted-foreground mb-6">
-              CRM in generator ponudb sta na voljo samo za PRO partnernike.
-            </p>
-            <Button asChild className="w-full">
-              <Link href="/cenik">Nadgradi v PRO</Link>
-            </Button>
-          </Card>
-        </main>
-        <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
-      </div>
+      <TierGate
+        requiredTier="pro"
+        description="CRM in generator ponudb sta na voljo samo za PRO partnerje."
+      />
     )
   }
 
+  const stats = data?.stats
+  const pipeline = data?.pipeline ?? []
+  const activity = data?.recentActivity ?? []
+
   return (
-    <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-6 lg:p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground">CRM Portal</h1>
-            <p className="text-muted-foreground">
-              Upravljajte svoje stranke in ponudbe
-            </p>
+    <div className="p-6 lg:p-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground">CRM Portal</h1>
+        <p className="text-muted-foreground">Upravljajte svoje stranke in ponudbe</p>
+      </div>
+
+      {/* Media Center */}
+      <Card className="mb-8 border-primary/20 bg-primary/5 p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">CRM Media Center (foto album + video diagnoza)</h2>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Dodajte URL slike ali videa stranke, nato zaženite AI diagnozo za hitrejši odgovor in pripravo ponudbe.
+        </p>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+          <Input
+            placeholder="https://... (slika ali video stranke)"
+            value={mediaUrl}
+            onChange={(e) => setMediaUrl(e.target.value)}
+          />
+          <Button type="button" onClick={handleAddMedia} className="gap-2">
+            <Images className="h-4 w-4" />
+            Dodaj v album
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleVideoDiagnosis}
+            disabled={videoDiagnosisLoading || mediaAlbum.length === 0}
+            className="gap-2"
+          >
+            <Video className="h-4 w-4" />
+            {videoDiagnosisLoading ? 'Analiziram...' : 'Video diagnoza'}
+          </Button>
+        </div>
+        {mediaAlbum.length > 0 && (
+          <div className="mb-4 grid gap-2 sm:grid-cols-2">
+            {mediaAlbum.slice(0, 6).map((item) => (
+              <a key={item.id} href={item.url} target="_blank" rel="noreferrer" className="rounded-md border bg-background p-3 text-sm hover:bg-muted">
+                <p className="truncate font-medium">{item.url}</p>
+                <p className="text-xs text-muted-foreground">Dodano: {new Date(item.addedAt).toLocaleString()}</p>
+              </a>
+            ))}
           </div>
+        )}
+        {videoDiagnosis && (
+          <div className="rounded-md border bg-background p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">AI DIAGNOZA</p>
+            <p className="whitespace-pre-wrap text-sm">{videoDiagnosis}</p>
+          </div>
+        )}
+      </Card>
 
-          <Card className="mb-8 border-primary/20 bg-primary/5 p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">CRM Media Center (foto album + video diagnoza)</h2>
-            </div>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Dodajte URL slike ali videa stranke, nato zaženite AI diagnozo za hitrejši odgovor in pripravo ponudbe.
-            </p>
-
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-              <Input
-                placeholder="https://... (slika ali video stranke)"
-                value={mediaUrl}
-                onChange={(e) => setMediaUrl(e.target.value)}
-              />
-              <Button type="button" onClick={handleAddMedia} className="gap-2">
-                <Images className="h-4 w-4" />
-                Dodaj v album
-              </Button>
-              <label className="inline-flex">
-                <Input
-                  type="file"
-                  accept="image/*,video/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={handleMediaFileSelect}
-                />
-                <span className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                  <Camera className="mr-2 h-4 w-4" />
-                  Kamera / datoteka
-                </span>
-              </label>
-              <Button type="button" variant="outline" onClick={handleVideoDiagnosis} disabled={videoDiagnosisLoading || mediaAlbum.length === 0} className="gap-2">
-                <Video className="h-4 w-4" />
-                {videoDiagnosisLoading ? 'Analiziram...' : 'Video diagnoza'}
-              </Button>
-            </div>
-
-            {mediaAlbum.length > 0 && (
-              <div className="mb-4 grid gap-2 sm:grid-cols-2">
-                {mediaAlbum.slice(0, 6).map((item) => (
-                  <a
-                    key={item.id}
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-md border bg-background p-3 text-sm hover:bg-muted"
-                  >
-                    <p className="truncate font-medium">{item.name || item.url}</p>
-                    {item.name && <p className="truncate text-xs text-muted-foreground">{item.url.slice(0, 64)}...</p>}
-                    <p className="text-xs text-muted-foreground">
-                      Dodano: {new Date(item.addedAt).toLocaleString()}
-                    </p>
-                  </a>
-                ))}
+      {/* Stats */}
+      <div className="mb-8 grid gap-4 md:grid-cols-4">
+        {[
+          { label: 'Ponudbe (ta mesec)', value: stats?.offersThisMonth ?? 0, icon: <Users className="h-6 w-6 text-blue-500" /> },
+          { label: 'Sprejete (ta mesec)', value: stats?.acceptedThisMonth ?? 0, icon: <TrendingUp className="h-6 w-6 text-green-500" /> },
+          { label: 'Konverzija', value: `${stats?.conversionRate ?? 0}%`, icon: <TrendingUp className="h-6 w-6 text-purple-500" /> },
+          { label: 'Zaslužek (ta mesec)', value: `€${(stats?.revenueThisMonth ?? 0).toFixed(0)}`, icon: <DollarSign className="h-6 w-6 text-amber-500" /> },
+        ].map(({ label, value, icon }) => (
+          <Card key={label} className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="mt-1 text-2xl font-bold">{value}</p>
               </div>
-            )}
-
-            {videoDiagnosis && (
-              <div className="rounded-md border bg-background p-3">
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">AI DIAGNOZA</p>
-                <p className="whitespace-pre-wrap text-sm">{videoDiagnosis}</p>
-              </div>
-            )}
+              {icon}
+            </div>
           </Card>
+        ))}
+      </div>
 
-          {/* Stats Bar */}
-          <div className="grid gap-4 mb-8 md:grid-cols-5">
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Povpraševanja (ta mesec)</p>
-                  <p className="text-2xl font-bold mt-1">{stats.inquiriesThisMonth}</p>
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Pipeline */}
+        <div className="lg:col-span-2">
+          <h2 className="mb-4 text-xl font-bold">Vodovod prodaje</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {pipeline.map((stage: CRMPipelineStage) => (
+              <Card key={stage.stage} className="p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">{STAGE_LABELS[stage.stage] ?? stage.stage}</h3>
+                  <Badge>{stage.count}</Badge>
                 </div>
-                <Users className="h-6 w-6 text-blue-500" />
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Ponudbe (ta mesec)</p>
-                  <p className="text-2xl font-bold mt-1">{stats.offersSentThisMonth}</p>
-                </div>
-                <TrendingUp className="h-6 w-6 text-green-500" />
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Konverzija</p>
-                  <p className="text-2xl font-bold mt-1">{stats.conversionRate}%</p>
-                </div>
-                <TrendingUp className="h-6 w-6 text-purple-500" />
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Zaslužek (ta mesec)</p>
-                  <p className="text-2xl font-bold mt-1">€{stats.revenueThisMonth.toFixed(0)}</p>
-                </div>
-                <DollarSign className="h-6 w-6 text-amber-500" />
-              </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Povp. odziv</p>
-                  <p className="text-2xl font-bold mt-1">{stats.avgResponseTime}h</p>
-                </div>
-                <Clock className="h-6 w-6 text-cyan-500" />
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid gap-8 lg:grid-cols-3">
-            {/* Pipeline View */}
-            <div className="lg:col-span-2">
-              <h2 className="text-xl font-bold mb-4">Vodovod prodaje</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {(['new', 'in_progress', 'awaiting_payment', 'completed'] as const).map(stage => {
-                  const stageName = {
-                    new: 'Nova povpraševanja',
-                    in_progress: 'V napredku',
-                    awaiting_payment: 'Čakam plačilo',
-                    completed: 'Zaključena',
-                  }[stage]
-
-                  const stageLeads = leads.filter(l => l.stage === stage)
-
-                  return (
-                    <Card key={stage} className="p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-sm">{stageName}</h3>
-                        <Badge>{stageLeads.length}</Badge>
-                      </div>
-                      <div className="space-y-2">
-                        {stageLeads.slice(0, 3).map(lead => (
-                          <div key={lead.id} className="p-2 bg-muted rounded text-xs">
-                            <p className="font-medium truncate">{lead.customer_name}</p>
-                            <p className="text-muted-foreground truncate">{lead.service_type}</p>
-                            <p className="text-muted-foreground">€{lead.value}</p>
-                          </div>
-                        ))}
-                        {stageLeads.length > 3 && (
-                          <p className="text-xs text-muted-foreground p-2">
-                            +{stageLeads.length - 3} več
-                          </p>
-                        )}
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Activity Feed */}
-            <div>
-              <h2 className="text-xl font-bold mb-4">Nedavna aktivnost</h2>
-              <Card className="p-4">
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {activity.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Brez aktivnosti
-                    </p>
-                  ) : (
-                    activity.map(item => (
-                      <div key={item.id} className="text-xs border-b pb-3 last:border-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium">{item.description}</p>
-                            <p className="text-muted-foreground">{item.customer_name}</p>
-                          </div>
-                          {item.amount && (
-                            <span className="font-semibold text-green-600 whitespace-nowrap">
-                              €{item.amount.toFixed(0)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-muted-foreground text-xs mt-1">
-                          {Math.floor((new Date().getTime() - new Date(item.timestamp).getTime()) / (1000 * 60))} min nazaj
-                        </p>
-                      </div>
-                    ))
+                <div className="space-y-2">
+                  {stage.offers.map((offer) => (
+                    <div key={offer.id} className="rounded bg-muted p-2 text-xs">
+                      <p className="truncate font-medium">Ponudba #{offer.id.slice(0, 8)}</p>
+                      {offer.price_estimate != null && (
+                        <p className="text-muted-foreground">€{offer.price_estimate}</p>
+                      )}
+                    </div>
+                  ))}
+                  {stage.count > 5 && (
+                    <p className="p-2 text-xs text-muted-foreground">+{stage.count - 5} več</p>
                   )}
                 </div>
               </Card>
-            </div>
+            ))}
           </div>
         </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
+
+        {/* Activity Feed */}
+        <div>
+          <h2 className="mb-4 text-xl font-bold">Nedavna aktivnost</h2>
+          <Card className="p-4">
+            <div className="max-h-96 space-y-3 overflow-y-auto">
+              {activity.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">Brez aktivnosti</p>
+              ) : (
+                activity.map((item: CRMActivityItem) => (
+                  <div key={item.id} className="border-b pb-3 text-xs last:border-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{item.description}</p>
+                      {item.amount != null && (
+                        <span className="whitespace-nowrap font-semibold text-green-600">
+                          €{item.amount.toFixed(0)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-muted-foreground">{timeAgoMinutes(item.timestamp)}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

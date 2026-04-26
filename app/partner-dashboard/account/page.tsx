@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PartnerSidebar } from '@/components/partner/sidebar'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -260,10 +258,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="flex h-screen">
-      <PartnerSidebar partner={(partner || { business_name: 'Moj portal', subscription_tier: 'start', avg_rating: 0, is_verified: false }) as any} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="mx-auto max-w-3xl p-6 lg:p-8">
+    <div className="mx-auto max-w-3xl p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Moj račun</h1>
             <p className="text-muted-foreground mt-2">Uredite podatke svojega profila in naročnino</p>
@@ -494,9 +489,6 @@ export default function AccountPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: partner?.subscription_tier || 'start' }} />
     </div>
   )
 }

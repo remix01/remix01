@@ -61,14 +61,14 @@ export default function PartnerSporocila() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Sporočila</h1>
-        <p className="text-slate-600 mt-1">Komunicirajte s strankami</p>
+    <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
+      <div className="mb-4 shrink-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Sporočila</h1>
+        <p className="text-muted-foreground mt-1">Komunicirajte s strankami</p>
       </div>
 
       {/* Mobile: Show chat if selected, list otherwise */}
-      <div className="md:hidden">
+      <div className="flex-1 md:hidden overflow-hidden">
         {showMobileChat && selectedPovprasevanje && selectedReceiver ? (
           <div className="space-y-4">
             <Button
@@ -100,8 +100,8 @@ export default function PartnerSporocila() {
       </div>
 
       {/* Desktop: 2-panel layout */}
-      <div className="hidden md:flex gap-4 h-[calc(100vh-240px)]">
-        <div className="w-[30%] min-w-[280px]">
+      <div className="hidden md:flex gap-4 flex-1 min-h-0">
+        <div className="w-[30%] min-w-[280px] overflow-y-auto">
           <ConversationList
             currentUserId={currentUser.id}
             selectedConversation={selectedPovprasevanje}
@@ -132,3 +132,4 @@ export default function PartnerSporocila() {
     </div>
   )
 }
+

@@ -8,12 +8,24 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Trash2, Edit2 } from 'lucide-react'
+import type { Offer } from '@/lib/types/offer'
+
+const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
+  poslana: { label: 'Poslana', variant: 'default' },
+  sprejeta: { label: 'Sprejeta', variant: 'default' },
+  zavrnjena: { label: 'Zavrnjena', variant: 'destructive' },
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_MAP[status] ?? { label: status, variant: 'secondary' as const }
+  return <Badge variant={s.variant}>{s.label}</Badge>
+}
 
 export function OffersList({
   offers,
   onUpdate,
 }: {
-  offers: any[]
+  offers: Offer[]
   onUpdate: () => void
 }) {
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -27,7 +39,7 @@ export function OffersList({
     available_date: '',
   })
 
-  const startEditing = (offer: any) => {
+  const startEditing = (offer: Offer) => {
     setError(null)
     setEditing(offer.id)
     setFormState({
@@ -101,8 +113,8 @@ export function OffersList({
 
       cancelEditing()
       onUpdate()
-    } catch (err: any) {
-      setError(err?.message || 'Napaka pri urejanju ponudbe.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Napaka pri urejanju ponudbe.')
     } finally {
       setSaving(null)
     }
@@ -126,9 +138,7 @@ export function OffersList({
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">Uredi ponudbo</h3>
-                    <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
-                      {offer.status === 'poslana' ? 'Poslana' : offer.status}
-                    </Badge>
+                    <StatusBadge status={offer.status} />
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -181,9 +191,7 @@ export function OffersList({
                     <h3 className="text-lg font-semibold text-foreground">
                       {offer.title}
                     </h3>
-                    <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
-                      {offer.status === 'poslana' ? 'Poslana' : offer.status}
-                    </Badge>
+                    <StatusBadge status={offer.status} />
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
                     {offer.message}
