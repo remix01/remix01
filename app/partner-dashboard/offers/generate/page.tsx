@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Copy, Send, Edit2, Check } from 'lucide-react'
+import { AlertCircle, Copy, Send, Edit2, Check, Camera } from 'lucide-react'
 import Link from 'next/link'
 
 const CATEGORIES = [
@@ -255,6 +255,21 @@ export default function OfferGeneratorPage() {
     }
   }
 
+  const handleMediaFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const fileUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(new Error('Branje datoteke ni uspelo.'))
+      reader.readAsDataURL(file)
+    })
+
+    setFormData((prev) => ({ ...prev, mediaUrl: fileUrl }))
+    event.target.value = ''
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -408,6 +423,19 @@ export default function OfferGeneratorPage() {
                       value={formData.mediaUrl}
                       onChange={(e) => setFormData(prev => ({ ...prev, mediaUrl: e.target.value }))}
                     />
+                    <label className="inline-flex">
+                      <Input
+                        type="file"
+                        accept="image/*,video/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleMediaFileSelect}
+                      />
+                      <span className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <Camera className="mr-2 h-4 w-4" />
+                        Kamera / datoteka
+                      </span>
+                    </label>
                     <Button type="button" variant="outline" onClick={handleAnalyzeMedia} disabled={mediaLoading || !formData.mediaUrl}>
                       {mediaLoading ? 'Analiziram slike...' : 'Analiziraj slike z AI'}
                     </Button>

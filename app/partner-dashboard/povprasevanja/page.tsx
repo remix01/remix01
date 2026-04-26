@@ -7,6 +7,7 @@ import { ArrowRight, MapPin, Banknote, Clock } from 'lucide-react'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { PartnerSidebar } from '@/components/partner/sidebar'
 import { MobileInquiryFilters } from '@/components/partner/mobile-inquiry-filters'
+import { ListSyncToolbar } from '@/components/partner/list-sync-toolbar'
 import { redirect } from 'next/navigation'
 
 interface PovprasevanjePageProps {
@@ -202,6 +203,8 @@ export default async function PovprasevanjePage({ searchParams }: PovprasevanjeP
                 : 'Preglejte povpraševanja naročnikov in pošljite svoje ponudbe'}
             </p>
           </div>
+
+          <ListSyncToolbar />
 
           <MobileInquiryFilters
             categories={categoryOptions}

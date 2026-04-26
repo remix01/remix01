@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { PartnerSidebar } from '@/components/partner/sidebar'
+import { ListSyncToolbar } from '@/components/partner/list-sync-toolbar'
 
 export default async function PartnerNotificationsPage() {
   const supabase = await createClient()
@@ -43,6 +44,7 @@ export default async function PartnerNotificationsPage() {
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0 w-full">
         <div className="max-w-2xl mx-auto p-4 md:p-6">
           <h1 className="text-2xl font-bold mb-6">Obvestila</h1>
+          <ListSyncToolbar />
           
           {(!notifications || notifications.length === 0) ? (
             <div className="text-center py-12 text-muted-foreground">
