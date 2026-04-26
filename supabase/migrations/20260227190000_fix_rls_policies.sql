@@ -3,90 +3,101 @@
 -- Date: 2026-02-27
 -- Issue: auth_rls_initplan warnings (37 critical issues)
 -- Reference: Using subquery syntax for RLS to enable InitPlan optimization
+-- NOTE: Sections for data_records, partners, offers, payouts are guarded
+--       because those tables are not created in this migration chain.
+--       profiles/obrtnik_profiles policies use 'id' (not 'user_id').
 
 BEGIN;
 
 -- ============================================================================
--- PROFILES TABLE - Fix 4 policies
+-- PROFILES TABLE - Fix 4 policies (column is 'id', not 'user_id')
 -- ============================================================================
 
 DROP POLICY IF EXISTS "profiles_select_own" ON profiles;
 CREATE POLICY "profiles_select_own" ON profiles
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
 CREATE POLICY "profiles_insert_own" ON profiles
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
 CREATE POLICY "profiles_update_own" ON profiles
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "profiles_delete_own" ON profiles;
 CREATE POLICY "profiles_delete_own" ON profiles
-FOR DELETE USING ((SELECT auth.uid()) = user_id);
+FOR DELETE USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
--- DATA_RECORDS TABLE - Fix 4 policies
+-- DATA_RECORDS TABLE - skipped (table does not exist)
 -- ============================================================================
-
-DROP POLICY IF EXISTS "data_records_select_own" ON data_records;
-CREATE POLICY "data_records_select_own" ON data_records
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS "data_records_insert_own" ON data_records;
-CREATE POLICY "data_records_insert_own" ON data_records
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS "data_records_update_own" ON data_records;
-CREATE POLICY "data_records_update_own" ON data_records
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS "data_records_delete_own" ON data_records;
-CREATE POLICY "data_records_delete_own" ON data_records
-FOR DELETE USING ((SELECT auth.uid()) = user_id);
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'data_records') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "data_records_select_own" ON data_records$$;
+  EXECUTE $$CREATE POLICY "data_records_select_own" ON data_records FOR SELECT USING ((SELECT auth.uid()) = user_id)$$;
+  EXECUTE $$DROP POLICY IF EXISTS "data_records_insert_own" ON data_records$$;
+  EXECUTE $$CREATE POLICY "data_records_insert_own" ON data_records FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id)$$;
+  EXECUTE $$DROP POLICY IF EXISTS "data_records_update_own" ON data_records$$;
+  EXECUTE $$CREATE POLICY "data_records_update_own" ON data_records FOR UPDATE USING ((SELECT auth.uid()) = user_id)$$;
+  EXECUTE $$DROP POLICY IF EXISTS "data_records_delete_own" ON data_records$$;
+  EXECUTE $$CREATE POLICY "data_records_delete_own" ON data_records FOR DELETE USING ((SELECT auth.uid()) = user_id)$$;
+END $guard$;
 
 -- ============================================================================
--- PARTNERS TABLE - Fix 3 policies
+-- PARTNERS TABLE - skipped (table does not exist)
 -- ============================================================================
-
-DROP POLICY IF EXISTS "partners_select_own" ON partners;
-CREATE POLICY "partners_select_own" ON partners
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS "partners_insert_own" ON partners;
-CREATE POLICY "partners_insert_own" ON partners
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS "partners_update_own" ON partners;
-CREATE POLICY "partners_update_own" ON partners
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
-
--- ============================================================================
--- OFFERS TABLE - Fix 3 policies
--- ============================================================================
-
-DROP POLICY IF EXISTS "offers_select_own" ON offers;
-CREATE POLICY "offers_select_own" ON offers
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS "offers_insert_own" ON offers;
-CREATE POLICY "offers_insert_own" ON offers
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
-
-DROP POLICY IF EXISTS "offers_update_own" ON offers;
-CREATE POLICY "offers_update_own" ON offers
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'partners') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "partners_select_own" ON partners$$;
+  EXECUTE $$CREATE POLICY "partners_select_own" ON partners FOR SELECT USING ((SELECT auth.uid()) = user_id)$$;
+  EXECUTE $$DROP POLICY IF EXISTS "partners_insert_own" ON partners$$;
+  EXECUTE $$CREATE POLICY "partners_insert_own" ON partners FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id)$$;
+  EXECUTE $$DROP POLICY IF EXISTS "partners_update_own" ON partners$$;
+  EXECUTE $$CREATE POLICY "partners_update_own" ON partners FOR UPDATE USING ((SELECT auth.uid()) = user_id)$$;
+END $guard$;
 
 -- ============================================================================
--- PAYOUTS TABLE - Fix 1 policy
+-- OFFERS TABLE - skipped (table does not exist)
 -- ============================================================================
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'offers') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "offers_select_own" ON offers$$;
+  EXECUTE $$CREATE POLICY "offers_select_own" ON offers FOR SELECT USING ((SELECT auth.uid()) = user_id)$$;
+  EXECUTE $$DROP POLICY IF EXISTS "offers_insert_own" ON offers$$;
+  EXECUTE $$CREATE POLICY "offers_insert_own" ON offers FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id)$$;
+  EXECUTE $$DROP POLICY IF EXISTS "offers_update_own" ON offers$$;
+  EXECUTE $$CREATE POLICY "offers_update_own" ON offers FOR UPDATE USING ((SELECT auth.uid()) = user_id)$$;
+END $guard$;
 
-DROP POLICY IF EXISTS "payouts_select_own" ON payouts;
-CREATE POLICY "payouts_select_own" ON payouts
-FOR SELECT USING ((SELECT auth.uid()) IN (
-  SELECT user_id FROM offers WHERE id = offer_id
-));
+-- ============================================================================
+-- PAYOUTS TABLE - skipped (table does not exist)
+-- ============================================================================
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payouts') THEN
+    RETURN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'offers') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "payouts_select_own" ON payouts$$;
+  EXECUTE $$
+    CREATE POLICY "payouts_select_own" ON payouts
+    FOR SELECT USING (
+      (SELECT auth.uid()) IN (SELECT user_id FROM offers WHERE id = offer_id)
+    )
+  $$;
+END $guard$;
 
 -- ============================================================================
 -- INQUIRIES TABLE - Fix 2 policies (will be merged in next migration)
@@ -94,13 +105,13 @@ FOR SELECT USING ((SELECT auth.uid()) IN (
 
 DROP POLICY IF EXISTS "Users can read own inquiries" ON inquiries;
 CREATE POLICY "Users can read own inquiries" ON inquiries
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING (auth.email() = email);
 
 DROP POLICY IF EXISTS "Admins can read all inquiries" ON inquiries;
 CREATE POLICY "Admins can read all inquiries" ON inquiries
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   )
 );
 
@@ -112,7 +123,7 @@ DROP POLICY IF EXISTS "Super admins can view all admin users" ON admin_users;
 CREATE POLICY "Super admins can view all admin users" ON admin_users
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
@@ -120,7 +131,7 @@ DROP POLICY IF EXISTS "Super admins can insert admin users" ON admin_users;
 CREATE POLICY "Super admins can insert admin users" ON admin_users
 FOR INSERT WITH CHECK (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
@@ -128,7 +139,7 @@ DROP POLICY IF EXISTS "Super admins can update admin users" ON admin_users;
 CREATE POLICY "Super admins can update admin users" ON admin_users
 FOR UPDATE USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
@@ -136,25 +147,25 @@ DROP POLICY IF EXISTS "Super admins can delete admin users" ON admin_users;
 CREATE POLICY "Super admins can delete admin users" ON admin_users
 FOR DELETE USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin'
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN'
   )
 );
 
 DROP POLICY IF EXISTS "Admins can view own record" ON admin_users;
 CREATE POLICY "Admins can view own record" ON admin_users
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = auth_user_id);
 
 -- ============================================================================
--- OBRTNIK_PROFILES TABLE - Fix 2 policies
+-- OBRTNIK_PROFILES TABLE - Fix 2 policies (column is 'id', not 'user_id')
 -- ============================================================================
 
 DROP POLICY IF EXISTS "Obrtniki can insert own profile" ON obrtnik_profiles;
 CREATE POLICY "Obrtniki can insert own profile" ON obrtnik_profiles
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "Obrtniki can update own profile" ON obrtnik_profiles;
 CREATE POLICY "Obrtniki can update own profile" ON obrtnik_profiles
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- CATEGORIES TABLE - Fix 1 policy (will be merged in next migration)
@@ -164,7 +175,7 @@ DROP POLICY IF EXISTS "Admin can manage categories" ON categories;
 CREATE POLICY "Admin can manage categories" ON categories
 FOR ALL USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   )
 );
 
@@ -236,7 +247,7 @@ DROP POLICY IF EXISTS "Admins see all logs" ON agent_logs;
 CREATE POLICY "Admins see all logs" ON agent_logs
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   )
 );
 

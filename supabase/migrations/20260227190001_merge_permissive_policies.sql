@@ -17,10 +17,10 @@ DROP POLICY IF EXISTS "Super admins can view all admin users" ON admin_users;
 CREATE POLICY "admin_users_select_combined" ON admin_users
 FOR SELECT USING (
   -- Super admin vidi vse
-  (SELECT user_id FROM admin_users WHERE user_id = (SELECT auth.uid()) AND vloga = 'super_admin') IS NOT NULL
+  (SELECT auth_user_id FROM admin_users WHERE auth_user_id = (SELECT auth.uid()) AND vloga = 'SUPER_ADMIN') IS NOT NULL
   OR
   -- Admin vidi svoj zapis
-  (SELECT auth.uid()) = user_id
+  (SELECT auth.uid()) = auth_user_id
 );
 
 -- ============================================================================
@@ -34,45 +34,49 @@ DROP POLICY IF EXISTS "Admins can read all inquiries" ON inquiries;
 CREATE POLICY "inquiries_select_combined" ON inquiries
 FOR SELECT USING (
   -- User vidi svoje inquiries
-  (SELECT auth.uid()) = user_id
+  auth.email() = email
   OR
   -- Admin vidi vse
   (SELECT EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   ))
 );
 
 -- ============================================================================
--- OFFERS TABLE - Merge 2 SELECT policies into 1
+-- OFFERS TABLE - Merge 2 SELECT policies into 1 (skipped if table absent)
 -- ============================================================================
--- Replaces: "offers_select_own" and "offers_view_all"
--- Note: Keeping original logic for user-owned or public offers
-
-DROP POLICY IF EXISTS "offers_select_own" ON offers;
-DROP POLICY IF EXISTS "offers_view_all" ON offers;
-
-CREATE POLICY "offers_select_combined" ON offers
-FOR SELECT USING (
-  (SELECT auth.uid()) = user_id 
-  OR 
-  is_public = true
-);
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'offers') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "offers_select_own" ON offers$$;
+  EXECUTE $$DROP POLICY IF EXISTS "offers_view_all" ON offers$$;
+  EXECUTE $$
+    CREATE POLICY "offers_select_combined" ON offers
+    FOR SELECT USING (
+      (SELECT auth.uid()) = user_id OR is_public = true
+    )
+  $$;
+END $guard$;
 
 -- ============================================================================
--- PARTNERS TABLE - Merge 2 SELECT policies into 1
+-- PARTNERS TABLE - Merge 2 SELECT policies into 1 (skipped if table absent)
 -- ============================================================================
--- Replaces: "partners_select_own" and "partners_select_all"
--- Note: Keeping original logic for user-owned or active partners
-
-DROP POLICY IF EXISTS "partners_select_own" ON partners;
-DROP POLICY IF EXISTS "partners_select_all" ON partners;
-
-CREATE POLICY "partners_select_combined" ON partners
-FOR SELECT USING (
-  (SELECT auth.uid()) = user_id 
-  OR 
-  status = 'active'
-);
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'partners') THEN
+    RETURN;
+  END IF;
+  EXECUTE $$DROP POLICY IF EXISTS "partners_select_own" ON partners$$;
+  EXECUTE $$DROP POLICY IF EXISTS "partners_select_all" ON partners$$;
+  EXECUTE $$
+    CREATE POLICY "partners_select_combined" ON partners
+    FOR SELECT USING (
+      (SELECT auth.uid()) = user_id OR status = 'active'
+    )
+  $$;
+END $guard$;
 
 -- ============================================================================
 -- CATEGORIES TABLE - Merge 2 SELECT policies into 1
@@ -87,7 +91,7 @@ FOR SELECT USING (
   is_active = true
   OR
   (SELECT EXISTS (
-    SELECT 1 FROM admin_users WHERE user_id = (SELECT auth.uid())
+    SELECT 1 FROM admin_users WHERE auth_user_id = (SELECT auth.uid())
   ))
 );
 
