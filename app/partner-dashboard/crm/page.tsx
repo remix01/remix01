@@ -29,7 +29,7 @@ export default function CRMPage() {
   const [data, setData] = useState<CRMData | null>(null)
 
   const [mediaUrl, setMediaUrl] = useState('')
-  const [mediaAlbum, setMediaAlbum] = useState<Array<{ id: string; url: string; addedAt: string }>>([])
+  const [mediaAlbum, setMediaAlbum] = useState<Array<{ id: string; url: string; addedAt: string; name?: string }>>([])
   const [videoDiagnosis, setVideoDiagnosis] = useState('')
   const [videoDiagnosisLoading, setVideoDiagnosisLoading] = useState(false)
 
@@ -48,6 +48,22 @@ export default function CRMPage() {
     if (!mediaUrl.trim()) return
     setMediaAlbum((prev) => [{ id: crypto.randomUUID(), url: mediaUrl.trim(), addedAt: new Date().toISOString() }, ...prev])
     setMediaUrl('')
+  }
+
+  const handleMediaFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const fileUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(new Error('Branje datoteke ni uspelo.'))
+      reader.readAsDataURL(file)
+    })
+
+    setMediaUrl(fileUrl)
+    appendMediaItem(fileUrl, file.name)
+    event.target.value = ''
   }
 
   const handleVideoDiagnosis = async () => {

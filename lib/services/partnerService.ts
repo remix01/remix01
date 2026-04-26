@@ -37,10 +37,11 @@ export const partnerService = {
     const limit = options?.limit || 10
     const offset = (page - 1) * limit
 
+    // Canonical column is obrtnik_id; fall back to partner_id for legacy rows
     let query = supabaseAdmin
       .from('povprasevanja')
       .select('*', { count: 'exact' })
-      .eq('partner_id', partnerId)
+      .eq('obrtnik_id', partnerId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 

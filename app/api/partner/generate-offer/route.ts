@@ -14,12 +14,39 @@ export async function POST(req: Request) {
       )
     }
 
-    // Get obrtnik profile to verify they exist and check package
-    const { data: obrtnikProfile } = await supabase
+    // Get obrtnik profile — canonical: id = auth.uid()
+    let obrtnikProfile: { id: string; subscription_tier: string | null } | null = null
+
+    const { data: canonicalProfile } = await supabase
       .from('obrtnik_profiles')
       .select('id, subscription_tier')
-      .eq('user_id', user.id)
+      .eq('id', user.id)
       .maybeSingle()
+
+    if (canonicalProfile) {
+      obrtnikProfile = canonicalProfile
+    } else {
+      // Fallback: legacy user_id column
+      const { data: legacyProfile } = await (supabase as any)
+        .from('obrtnik_profiles')
+        .select('id, subscription_tier')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (legacyProfile) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            code: 'PARTNER_ID_MAPPING_FALLBACK',
+            path: 'obrtnik_profiles.user_id',
+            userId: user.id,
+            endpoint: '/api/partner/generate-offer',
+            message: 'Resolved via legacy user_id — migrate row to canonical id path',
+          })
+        )
+        obrtnikProfile = legacyProfile
+      }
+    }
 
     if (!obrtnikProfile) {
       return new Response(

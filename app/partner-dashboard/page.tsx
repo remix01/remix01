@@ -11,6 +11,7 @@ import { PaymentsSection } from '@/components/partner/payments-section'
 import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
 import { ReferralSection } from '@/components/partner/ReferralSection'
 import { RouteOptimizerCard } from '@/components/partner/RouteOptimizerCard'
+import { ListSyncToolbar } from '@/components/partner/list-sync-toolbar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -313,6 +314,7 @@ function PartnerDashboardInner() {
             <TabsContent value="offers" className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Vaše ponudbe</h2>
+                <ListSyncToolbar className="mb-4" />
                 <OffersList offers={offers} onUpdate={() => handleOfferCreated(partner.id)} />
               </Card>
             </TabsContent>

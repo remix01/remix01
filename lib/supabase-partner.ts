@@ -6,7 +6,11 @@ import { env } from './env'
 import { supabaseAdmin } from './supabase-admin'
 
 /**
- * Get current logged-in partner from session
+ * Get current logged-in partner from session.
+ *
+ * Resolution order (spec section 1 — transitional dual-read):
+ *   1. obrtnik_profiles.id = user.id  (canonical)
+ *   2. legacy partners table           (compatibility fallback, emits warning)
  */
 export async function getPartner() {
   const cookieStore = await cookies()
@@ -34,13 +38,35 @@ export async function getPartner() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
 
-  const { data: partner } = await supabaseAdmin
+  // Step 1: canonical path
+  const { data: canonical } = await supabaseAdmin
+    .from('obrtnik_profiles')
+    .select('id, business_name, description, subscription_tier, stripe_customer_id, is_verified, avg_rating, hourly_rate, years_experience, tagline')
+    .eq('id', session.user.id)
+    .maybeSingle()
+
+  if (canonical) {
+    return { ...canonical, user_id: session.user.id }
+  }
+
+  // Step 2: legacy fallback — emit structured warning so migrations can be tracked
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      code: 'PARTNER_ID_MAPPING_FALLBACK',
+      path: 'partners.user_id',
+      userId: session.user.id,
+      message: 'Resolved via legacy partners table — canonical obrtnik_profiles row missing',
+    })
+  )
+
+  const { data: legacy } = await supabaseAdmin
     .from('partners')
     .select('*, partner_paketi(*)')
     .eq('user_id', session.user.id)
     .maybeSingle()
 
-  return partner
+  return legacy
 }
 
 /**
