@@ -11,7 +11,6 @@ export interface CRMStats {
 
 export interface CRMPipelineItem {
   id: string
-  title: string | null
   price_estimate: number | null
   created_at: string
   povprasevanje_id: string | null
@@ -68,7 +67,7 @@ export async function GET() {
       .gte('created_at', monthStart),
     supabase
       .from('ponudbe')
-      .select('id, title, status, price_estimate, created_at, povprasevanje_id')
+      .select('id, status, price_estimate, created_at, povprasevanje_id')
       .eq('obrtnik_id', user.id)
       .order('created_at', { ascending: false })
       .limit(40),
@@ -76,8 +75,7 @@ export async function GET() {
       .from('escrow_transactions')
       .select('amount_cents')
       .eq('partner_id', user.id)
-      .gte('created_at', monthStart)
-      .limit(100),
+      .gte('created_at', monthStart),
   ])
 
   if (monthErr) console.error('[GET /api/partner/crm] monthOffers error:', monthErr.message)
@@ -102,7 +100,6 @@ export async function GET() {
       count: stageOffers.length,
       offers: stageOffers.slice(0, 5).map((o) => ({
         id: o.id,
-        title: o.title,
         price_estimate: o.price_estimate,
         created_at: o.created_at,
         povprasevanje_id: o.povprasevanje_id,

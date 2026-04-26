@@ -199,7 +199,7 @@ export default function CRMPage() {
                 <div className="space-y-2">
                   {stage.offers.map((offer) => (
                     <div key={offer.id} className="rounded bg-muted p-2 text-xs">
-                      <p className="truncate font-medium">{offer.title ?? 'Ponudba'}</p>
+                      <p className="truncate font-medium">Ponudba #{offer.id.slice(0, 8)}</p>
                       {offer.price_estimate != null && (
                         <p className="text-muted-foreground">€{offer.price_estimate}</p>
                       )}

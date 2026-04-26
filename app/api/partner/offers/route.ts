@@ -18,6 +18,9 @@ export async function POST(req: Request) {
   if (!povprasevanje_id) {
     return NextResponse.json({ error: 'Povpraševanje je obvezno.' }, { status: 400 })
   }
+  if (typeof title !== 'string' || !title.trim()) {
+    return NextResponse.json({ error: 'Naslov je obvezen.' }, { status: 400 })
+  }
   if (!message?.trim()) {
     return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
   }

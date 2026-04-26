@@ -16,8 +16,10 @@ interface Props {
   totalCount: number
 }
 
+const ALL = '__all__'
+
 const URGENCY_OPTIONS = [
-  { value: '', label: 'Vse' },
+  { value: ALL, label: 'Vse' },
   { value: 'nujno', label: 'Nujno' },
   { value: 'ta_teden', label: 'Ta teden' },
 ] as const
@@ -46,14 +48,14 @@ export function PovprasevanjaFilters({ categories, activeCategory, activeUrgency
     <div className="mb-6 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <Select
-          value={activeCategory ?? ''}
-          onValueChange={(val) => update('category', val)}
+          value={activeCategory ?? ALL}
+          onValueChange={(val) => update('category', val === ALL ? '' : val)}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Vse kategorije" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Vse kategorije</SelectItem>
+            <SelectItem value={ALL}>Vse kategorije</SelectItem>
             {categories.map((cat) => (
               <SelectItem key={cat.id} value={cat.id}>
                 {cat.name}
@@ -64,13 +66,14 @@ export function PovprasevanjaFilters({ categories, activeCategory, activeUrgency
 
         <div className="flex gap-1.5">
           {URGENCY_OPTIONS.map(({ value, label }) => {
-            const isActive = (activeUrgency ?? '') === value
+            const paramValue = value === ALL ? '' : value
+            const isActive = (activeUrgency ?? '') === paramValue
             return (
               <Button
                 key={label}
                 size="sm"
                 variant={isActive ? 'default' : 'outline'}
-                onClick={() => update('urgency', value)}
+                onClick={() => update('urgency', paramValue)}
               >
                 {label}
               </Button>
