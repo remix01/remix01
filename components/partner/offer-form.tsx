@@ -99,7 +99,6 @@ export function OfferForm({
     }
 
     const message = [
-      `Naslov: ${form.title}`,
       `Kategorija: ${form.category || 'Ni določeno'}`,
       `Trajanje: ${duration} dni`,
       '',
@@ -109,7 +108,7 @@ export function OfferForm({
 
     const payload: CreateOfferPayload = {
       povprasevanje_id: form.povprasevanje_id,
-      title: form.title,
+      title: form.title || undefined,
       message,
       price_estimate: price,
     }
@@ -171,7 +170,6 @@ export function OfferForm({
             placeholder="npr. Montaža novih oken"
             value={form.title}
             onChange={handleChange}
-            required
           />
         </div>
 

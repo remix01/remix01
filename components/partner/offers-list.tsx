@@ -99,7 +99,7 @@ export function OffersList({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: formState.title.trim(),
+          title: formState.title.trim() || undefined,
           message: formState.message.trim(),
           price_estimate: parsedPrice,
           available_date: formState.available_date || null,
@@ -189,7 +189,7 @@ export function OffersList({
                 <>
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      {offer.title}
+                      {offer.title || offer.message?.split('\n')[0]?.slice(0, 60) || 'Ponudba'}
                     </h3>
                     <StatusBadge status={offer.status} />
                   </div>
