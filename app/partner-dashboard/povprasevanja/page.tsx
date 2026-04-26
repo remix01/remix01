@@ -78,7 +78,7 @@ export default async function PovprasevanjePage({
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
       if (params.category) q = q.eq('category_id', params.category)
-      if (params.urgency) q = q.eq('urgency', params.urgency)
+      if (params.urgency) q = q.eq('urgency', params.urgency as 'normalno' | 'kmalu' | 'nujno')
 
       return q
     })(),
