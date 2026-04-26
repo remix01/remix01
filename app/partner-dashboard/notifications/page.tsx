@@ -1,18 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
-import { PartnerSidebar } from '@/components/partner/sidebar'
 
 export default async function PartnerNotificationsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/partner-auth/login')
-
-  const { data: partner } = await supabase
-    .from('obrtnik_profiles')
-    .select('id, subscription_tier, business_name, avg_rating, is_verified')
-    .eq('id', user.id)
-    .maybeSingle()
 
   const { data: notifications } = await supabase
     .from('notifications')
@@ -31,17 +25,7 @@ export default async function PartnerNotificationsPage() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <PartnerSidebar
-        partner={{
-          business_name: partner?.business_name || 'Moj portal',
-          subscription_tier: partner?.subscription_tier === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start',
-          avg_rating: partner?.avg_rating || 0,
-          is_verified: !!partner?.is_verified,
-        }}
-      />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0 w-full">
-        <div className="max-w-2xl mx-auto p-4 md:p-6">
+    <div className="max-w-2xl mx-auto p-4 md:p-6">
           <h1 className="text-2xl font-bold mb-6">Obvestila</h1>
           
           {(!notifications || notifications.length === 0) ? (
@@ -69,9 +53,6 @@ export default async function PartnerNotificationsPage() {
               })}
             </div>
           )}
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: (partner?.subscription_tier as string) === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

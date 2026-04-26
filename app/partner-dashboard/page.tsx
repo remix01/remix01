@@ -4,8 +4,6 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { PartnerSidebar } from '@/components/partner/sidebar'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { OfferForm } from '@/components/partner/offer-form'
 import { OffersList } from '@/components/partner/offers-list'
 import { PartnerStats } from '@/components/partner/partner-stats'
@@ -17,6 +15,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
+import type { Offer } from '@/lib/types/offer'
 
 function PartnerDashboardInner() {
   const router = useRouter()
@@ -25,7 +24,7 @@ function PartnerDashboardInner() {
   const initialTab = 'overview'
   const [partner, setPartner] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [offers, setOffers] = useState<any[]>([])
+  const [offers, setOffers] = useState<Offer[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
@@ -195,10 +194,7 @@ function PartnerDashboardInner() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-4 md:p-6 lg:p-8">
+    <div className="p-4 md:p-6 lg:p-8">
           {/* Header with business name and subscription badge */}
           <div className="mb-8 flex items-start justify-between">
             <div>
@@ -340,9 +336,6 @@ function PartnerDashboardInner() {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: partner?.subscription_tier === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

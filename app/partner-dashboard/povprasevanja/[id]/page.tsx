@@ -10,8 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ArrowLeft, MapPin, Clock, Banknote, Tag } from 'lucide-react'
 import Link from 'next/link'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
-import { PartnerSidebar } from '@/components/partner/sidebar'
 
 interface Povprasevanje {
   id: string
@@ -37,12 +35,6 @@ export default function PovprasevanjeDetailPage() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paket, setPaket] = useState<'start' | 'pro' | 'elite'>('start')
-  const [partnerMeta, setPartnerMeta] = useState({
-    business_name: 'Moj portal',
-    subscription_tier: 'start' as 'start' | 'pro' | 'elite',
-    avg_rating: 0,
-    is_verified: false,
-  })
 
   const [message, setMessage] = useState('')
   const [priceEstimate, setPriceEstimate] = useState('')
@@ -84,27 +76,8 @@ export default function PovprasevanjeDetailPage() {
 
       if (partnerData?.subscription_tier === 'elite') {
         setPaket('elite')
-        setPartnerMeta({
-          business_name: partnerData.business_name || 'Moj portal',
-          subscription_tier: 'elite',
-          avg_rating: partnerData.avg_rating || 0,
-          is_verified: !!partnerData.is_verified,
-        })
       } else if (partnerData?.subscription_tier === 'pro') {
         setPaket('pro')
-        setPartnerMeta({
-          business_name: partnerData.business_name || 'Moj portal',
-          subscription_tier: 'pro',
-          avg_rating: partnerData.avg_rating || 0,
-          is_verified: !!partnerData.is_verified,
-        })
-      } else {
-        setPartnerMeta({
-          business_name: partnerData?.business_name || 'Moj portal',
-          subscription_tier: 'start',
-          avg_rating: partnerData?.avg_rating || 0,
-          is_verified: !!partnerData?.is_verified,
-        })
       }
 
       const { data, error } = await supabase
@@ -260,10 +233,7 @@ export default function PovprasevanjeDetailPage() {
   const categoryName = (povprasevanje.categories as any)?.name ?? 'Splošno'
 
   return (
-    <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partnerMeta} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto">
           {/* Back */}
           <Link href="/partner-dashboard/povprasevanja" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
             <ArrowLeft className="w-4 h-4" />
@@ -418,9 +388,6 @@ export default function PovprasevanjeDetailPage() {
               </form>
             </Card>
           )}
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket }} />
     </div>
   )
 }
