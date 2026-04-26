@@ -6,9 +6,53 @@ import Link from 'next/link'
 import { ArrowRight, MapPin, Banknote, Clock } from 'lucide-react'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { PartnerSidebar } from '@/components/partner/sidebar'
+import { MobileInquiryFilters } from '@/components/partner/mobile-inquiry-filters'
 import { redirect } from 'next/navigation'
 
-export default async function PovprasevanjePage() {
+interface PovprasevanjePageProps {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}
+
+const matchesBudgetFilter = (min: number | null, max: number | null, budgetFilter: string) => {
+  const minValue = min ?? 0
+  const maxValue = max ?? minValue
+
+  switch (budgetFilter) {
+    case 'do-500':
+      return minValue <= 500
+    case '500-1500':
+      return maxValue >= 500 && minValue <= 1500
+    case '1500-plus':
+      return maxValue >= 1500
+    default:
+      return true
+  }
+}
+
+const matchesUrgencyFilter = (urgency: string | null, createdAt: string, urgencyFilter: string) => {
+  if (urgencyFilter === 'nujno' || urgencyFilter === 'ta_teden') {
+    return urgency === urgencyFilter
+  }
+
+  if (urgencyFilter === 'novo') {
+    const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
+    return hoursAgo < 2
+  }
+
+  return true
+}
+
+export default async function PovprasevanjePage({ searchParams }: PovprasevanjePageProps) {
+  const resolvedSearchParams = (await searchParams) || {}
+  const selectedCategory =
+    typeof resolvedSearchParams.category === 'string' ? resolvedSearchParams.category : ''
+  const selectedLocation =
+    typeof resolvedSearchParams.location === 'string' ? resolvedSearchParams.location : ''
+  const selectedUrgency =
+    typeof resolvedSearchParams.urgency === 'string' ? resolvedSearchParams.urgency : ''
+  const selectedBudget =
+    typeof resolvedSearchParams.budget === 'string' ? resolvedSearchParams.budget : ''
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,6 +110,50 @@ export default async function PovprasevanjePage() {
 
   const requests = povprasevanja || []
 
+  const categoryCounts = new Map<string, { label: string; count: number }>()
+  const locationCounts = new Map<string, { label: string; count: number }>()
+
+  for (const request of requests) {
+    const categoryName = (request.categories as any)?.name ?? 'Splošno'
+    const categoryKey = categoryName.toLowerCase()
+    const existingCategory = categoryCounts.get(categoryKey)
+    categoryCounts.set(categoryKey, {
+      label: categoryName,
+      count: (existingCategory?.count ?? 0) + 1,
+    })
+
+    if (request.location_city) {
+      const locationKey = request.location_city.toLowerCase()
+      const existingLocation = locationCounts.get(locationKey)
+      locationCounts.set(locationKey, {
+        label: request.location_city,
+        count: (existingLocation?.count ?? 0) + 1,
+      })
+    }
+  }
+
+  const categoryOptions = Array.from(categoryCounts.entries())
+    .map(([value, data]) => ({ value, label: data.label, count: data.count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12)
+
+  const locationOptions = Array.from(locationCounts.entries())
+    .map(([value, data]) => ({ value, label: data.label, count: data.count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12)
+
+  const filteredRequests = requests.filter((request) => {
+    const categoryName = ((request.categories as any)?.name ?? 'Splošno').toLowerCase()
+    const locationName = request.location_city?.toLowerCase() ?? ''
+
+    if (selectedCategory && categoryName !== selectedCategory) return false
+    if (selectedLocation && locationName !== selectedLocation) return false
+    if (selectedBudget && !matchesBudgetFilter(request.budget_min, request.budget_max, selectedBudget)) return false
+    if (selectedUrgency && !matchesUrgencyFilter(request.urgency, request.created_at, selectedUrgency)) return false
+
+    return true
+  })
+
   // Urgency badge — prioritizira urgency polje iz baze, fallback na starost
   const getUrgencyBadge = (urgency: string | null, createdAt: string) => {
     if (urgency === 'nujno') return { label: 'Nujno', color: 'bg-red-100 text-red-800' }
@@ -109,27 +197,36 @@ export default async function PovprasevanjePage() {
               Nova povpraševanja
             </h1>
             <p className="text-muted-foreground mt-1">
-              {requests.length > 0
-                ? `${requests.length} odprtih povpraševanj čaka na vašo ponudbo`
+              {filteredRequests.length > 0
+                ? `${filteredRequests.length} odprtih povpraševanj čaka na vašo ponudbo`
                 : 'Preglejte povpraševanja naročnikov in pošljite svoje ponudbe'}
             </p>
           </div>
 
-          {requests.length === 0 ? (
+          <MobileInquiryFilters
+            categories={categoryOptions}
+            locations={locationOptions}
+            selectedCategory={selectedCategory}
+            selectedLocation={selectedLocation}
+            selectedUrgency={selectedUrgency}
+            selectedBudget={selectedBudget}
+          />
+
+          {filteredRequests.length === 0 ? (
             <Card className="p-12 text-center">
               <p className="text-lg text-muted-foreground mb-2">
-                Trenutno ni novih povpraševanj
+                Ni rezultatov za izbrane filtre
               </p>
               <p className="text-sm text-muted-foreground mb-6">
-                Preverite ponovno čez nekaj časa ali se naročite na obvestila
+                Poskusite razširiti filtre ali preverite ponovno čez nekaj časa
               </p>
-              <Link href="/partner-dashboard">
-                <Button variant="outline">Nazaj na dashboard</Button>
+              <Link href="/partner-dashboard/povprasevanja">
+                <Button variant="outline">Počisti filtre</Button>
               </Link>
             </Card>
           ) : (
             <div className="grid gap-4">
-              {requests.map((request) => {
+              {filteredRequests.map((request) => {
                 // description je nullable v bazi
                 const desc = request.description ?? ''
                 const descriptionPreview = desc.length > 120
