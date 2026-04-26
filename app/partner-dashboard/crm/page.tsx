@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Calendar, DollarSign, TrendingUp, Clock, Users, AlertCircle, Images, Video, Sparkles } from 'lucide-react'
+import { Calendar, DollarSign, TrendingUp, Clock, Users, AlertCircle, Images, Video, Sparkles, Camera } from 'lucide-react'
 import Link from 'next/link'
 
 interface CRMStats {
@@ -56,7 +56,7 @@ export default function CRMPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [mediaUrl, setMediaUrl] = useState('')
-  const [mediaAlbum, setMediaAlbum] = useState<Array<{ id: string; url: string; addedAt: string }>>([])
+  const [mediaAlbum, setMediaAlbum] = useState<Array<{ id: string; url: string; addedAt: string; name?: string }>>([])
   const [videoDiagnosis, setVideoDiagnosis] = useState('')
   const [videoDiagnosisLoading, setVideoDiagnosisLoading] = useState(false)
 
@@ -218,18 +218,39 @@ export default function CRMPage() {
     }
   }
 
-  const handleAddMedia = () => {
-    if (!mediaUrl.trim()) return
-
+  const appendMediaItem = (url: string, name?: string) => {
     setMediaAlbum((prev) => [
       {
         id: crypto.randomUUID(),
-        url: mediaUrl.trim(),
+        url,
         addedAt: new Date().toISOString(),
+        name,
       },
       ...prev,
     ])
+  }
+
+  const handleAddMedia = () => {
+    if (!mediaUrl.trim()) return
+
+    appendMediaItem(mediaUrl.trim())
     setMediaUrl('')
+  }
+
+  const handleMediaFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const fileUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(new Error('Branje datoteke ni uspelo.'))
+      reader.readAsDataURL(file)
+    })
+
+    setMediaUrl(fileUrl)
+    appendMediaItem(fileUrl, file.name)
+    event.target.value = ''
   }
 
   const handleVideoDiagnosis = async () => {
@@ -322,6 +343,19 @@ export default function CRMPage() {
                 <Images className="h-4 w-4" />
                 Dodaj v album
               </Button>
+              <label className="inline-flex">
+                <Input
+                  type="file"
+                  accept="image/*,video/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleMediaFileSelect}
+                />
+                <span className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                  <Camera className="mr-2 h-4 w-4" />
+                  Kamera / datoteka
+                </span>
+              </label>
               <Button type="button" variant="outline" onClick={handleVideoDiagnosis} disabled={videoDiagnosisLoading || mediaAlbum.length === 0} className="gap-2">
                 <Video className="h-4 w-4" />
                 {videoDiagnosisLoading ? 'Analiziram...' : 'Video diagnoza'}
@@ -338,7 +372,8 @@ export default function CRMPage() {
                     rel="noreferrer"
                     className="rounded-md border bg-background p-3 text-sm hover:bg-muted"
                   >
-                    <p className="truncate font-medium">{item.url}</p>
+                    <p className="truncate font-medium">{item.name || item.url}</p>
+                    {item.name && <p className="truncate text-xs text-muted-foreground">{item.url.slice(0, 64)}...</p>}
                     <p className="text-xs text-muted-foreground">
                       Dodano: {new Date(item.addedAt).toLocaleString()}
                     </p>
