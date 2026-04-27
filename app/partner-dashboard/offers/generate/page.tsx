@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Copy, Send, Edit2, Check } from 'lucide-react'
+import { Copy, Send, Edit2, Check, Camera } from 'lucide-react'
 import { TierGate } from '@/components/partner/tier-gate'
 
 const CATEGORIES = [

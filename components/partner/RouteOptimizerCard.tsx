@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 interface RouteOptimizerCardProps {
-  visits: Array<{ id: string; title?: string; location_city?: string; created_at?: string }>
+  visits: Array<{ id: string; title?: string | null; location_city?: string | null; created_at?: string | null }>
 }
 
 export function RouteOptimizerCard({ visits }: RouteOptimizerCardProps) {
