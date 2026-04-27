@@ -8,7 +8,26 @@ import { getAgentDefinition } from '@/lib/agents/ai-definitions'
 import { AGENT_META, isAgentAccessible, getAgentDailyLimit } from '@/lib/agents/ai-router'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 
-const MAX_TOKENS = 800
+// ── Configuration Constants ────────────────────────────────────────────────
+/**
+ * Time-based configuration constants
+ */
+const TIME_CONSTANTS = {
+  /** 24 hours in milliseconds for daily limit reset */
+  DAILY_RESET_WINDOW_MS: 24 * 60 * 60 * 1000,
+} as const
+
+/**
+ * AI model and token configuration
+ */
+const AI_CONFIG = {
+  /** Maximum tokens allowed per API request */
+  MAX_TOKENS: 800,
+  /** Number of previous messages to keep for context window efficiency */
+  HISTORY_CONTEXT_LIMIT: 20,
+  /** Maximum characters to store from user messages in logs */
+  MESSAGE_LOG_PREVIEW_LENGTH: 500,
+} as const
 
 type StoredMessage = {
   role: 'user' | 'agent'
@@ -93,7 +112,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Reset counter if 24h passed
     let usedToday = profile?.ai_messages_used_today ?? 0
     const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
-    if (Date.now() - resetAt.getTime() > 24 * 60 * 60 * 1000) {
+    if (Date.now() - resetAt.getTime() > TIME_CONSTANTS.DAILY_RESET_WINDOW_MS) {
       usedToday = 0
       await supabaseAdmin
         .from('profiles')
@@ -132,8 +151,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
 
-    // Keep last 20 messages for context window efficiency
-    const claudeMessages = history.slice(-20).map(m => ({
+    // Keep last N messages for context window efficiency
+    const claudeMessages = history.slice(-AI_CONFIG.HISTORY_CONTEXT_LIMIT).map(m => ({
       role: (m.role === 'agent' ? 'assistant' : 'user') as 'user' | 'assistant',
       content: m.content,
     }))
@@ -171,7 +190,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const response = await client.messages.create({
       model: modelSelection.modelId,
-      max_tokens: MAX_TOKENS,
+      max_tokens: AI_CONFIG.MAX_TOKENS,
       system: systemPrompt,
       messages: [...claudeMessages, { role: 'user', content: message }],
     })
@@ -260,7 +279,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
 }
 
-// ── helpers ────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────[...]
 
 async function persistConversation(
   userId: string,
@@ -316,7 +335,7 @@ async function logUsage(
     cost_usd: costUsd,
     response_cached: modelShortName === 'cached',
     message_hash: cacheKey,
-    user_message: message.slice(0, 500),
+    user_message: message.slice(0, AI_CONFIG.MESSAGE_LOG_PREVIEW_LENGTH),
     response_time_ms: responseMs,
     agent_type: agentType,
   })
