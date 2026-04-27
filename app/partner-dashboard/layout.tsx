@@ -26,7 +26,7 @@ export default async function PartnerDashboardLayout({ children }: { children: R
         : ('start' as const)
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background lg:flex lg:h-screen">
       <PartnerSidebar
         partner={{
           business_name: partner.business_name || 'Moj portal',
@@ -35,7 +35,7 @@ export default async function PartnerDashboardLayout({ children }: { children: R
           is_verified: partner.is_verified ?? false,
         }}
       />
-      <main className="flex flex-col flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
+      <main className="w-full min-w-0 flex flex-1 flex-col pb-20 md:pb-0 lg:overflow-y-auto">{children}</main>
       <PartnerBottomNav paket={{ paket: tier }} />
     </div>
   )

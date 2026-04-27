@@ -1,0 +1,60 @@
+name: Partner Dashboard Mobile Shell Regression
+
+on:
+  pull_request:
+    paths:
+      - 'app/partner-dashboard/**'
+      - 'components/partner/**'
+      - 'playwright.config.mjs'
+      - 'tests/mobile/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+
+jobs:
+  mobile-shell-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm dlx playwright install --with-deps chromium
+
+      - name: Write optional storage state
+        if: ${{ secrets.PLAYWRIGHT_STORAGE_STATE != '' }}
+        run: |
+          mkdir -p .auth
+          printf '%s' '${{ secrets.PLAYWRIGHT_STORAGE_STATE }}' > .auth/partner-storage-state.json
+
+      - name: Run mobile shell regression
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_STORAGE_STATE: ${{ secrets.PLAYWRIGHT_STORAGE_STATE != '' && '.auth/partner-storage-state.json' || '' }}
+        run: pnpm test:mobile:shell
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-mobile-shell-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { ListSyncToolbar } from '@/components/partner/list-sync-toolbar'
 
 export default async function PartnerNotificationsPage() {
   const supabase = await createClient()
