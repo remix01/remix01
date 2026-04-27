@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Redirect to appropriate profile page
     const profileUrl = role === 'narocnik'
-      ? '/narocnik/profil?calendar=connected'
+      ? '/profil?calendar=connected'
       : '/(obrtnik)/profil?calendar=connected'
 
     return NextResponse.redirect(

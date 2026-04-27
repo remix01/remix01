@@ -80,6 +80,8 @@ export default async function InquiriesPage() {
                 const location = inquiry.location_city || inquiry.lokacija || 'Lokacija ni navedena'
 
                 return (
+                  // TODO(route-consolidation): keep legacy detail route until
+                  // canonical detail parity is fully validated.
                   <Link
                     key={inquiry.id}
                     href={`/dashboard/stranka/povprasevanja/${inquiry.id}`}

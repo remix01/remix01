@@ -129,6 +129,8 @@ export default async function DashboardPage() {
         ) : (
           <div className="divide-y divide-slate-200">
             {recentInquiries.map((inquiry) => (
+              {/* TODO(route-consolidation): keep legacy detail route until
+                  canonical detail parity is fully validated. */}
               <Link
                 key={inquiry.id}
                 href={`/dashboard/stranka/povprasevanja/${inquiry.id}`}

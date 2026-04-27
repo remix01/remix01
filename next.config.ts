@@ -85,6 +85,27 @@ const nextConfig: NextConfig = {
   // ═══════════════════════════════════════════════════════════════════════════
   async redirects() {
     return [
+      // Customer route consolidation: legacy /dashboard/stranka routes with
+      // confirmed canonical replacements now redirect to flat customer routes.
+      {
+        source: '/dashboard/stranka',
+        destination: '/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/stranka/povprasevanja',
+        destination: '/povprasevanja',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/stranka/sporocila',
+        destination: '/sporocila',
+        permanent: true,
+      },
+      // TODO(route-consolidation): Keep legacy detail/profile routes until
+      // canonical parity is confirmed:
+      // - /dashboard/stranka/povprasevanja/:id
+      // - /dashboard/stranka/profil
       {
         source: '/apple-touch-icon.png',
         destination: '/icons/icon-180x180.png',
