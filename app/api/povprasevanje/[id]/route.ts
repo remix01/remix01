@@ -6,12 +6,35 @@ import { writeEmailLog } from '@/lib/email/email-logs'
 
 const resend = getResendClient()
 
+function successResponse<T extends Record<string, unknown>>(legacy: T, status = 200) {
+  return NextResponse.json(
+    {
+      ok: true,
+      data: legacy,
+      ...legacy,
+    },
+    { status }
+  )
+}
+
+function errorResponse(message: string, status: number, code: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      data: null,
+      error: message,
+      error_details: { code, message },
+    },
+    { status }
+  )
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return errorResponse('Unauthorized', 401, 'UNAUTHORIZED')
 
   const { id } = await params
 
@@ -21,9 +44,9 @@ export async function GET(
     .eq('id', id)
     .single()
 
-  if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (error || !data) return errorResponse('Not found', 404, 'NOT_FOUND')
 
-  return NextResponse.json(data)
+  return successResponse(data)
 }
 
 export async function PATCH(
@@ -31,7 +54,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin) return errorResponse('Unauthorized', 401, 'UNAUTHORIZED')
 
   const { id } = await params
   const body = await req.json()
@@ -46,7 +69,7 @@ export async function PATCH(
     .eq('id', id)
     .single()
 
-  if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (!current) return errorResponse('Not found', 404, 'NOT_FOUND')
 
   const updates: Record<string, unknown> = {}
   if (status !== undefined) updates.status = status
@@ -67,7 +90,7 @@ export async function PATCH(
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return errorResponse(error.message, 500, 'DB_UPDATE_FAILED')
 
   // Log the action
   await logAction(admin.id, 'UPDATE', 'povprasevanja', id, current, updates)
@@ -165,5 +188,5 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json(data)
+  return successResponse(data as Record<string, unknown>)
 }

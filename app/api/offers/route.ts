@@ -3,13 +3,34 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 import { offerService, handleServiceError } from '@/lib/services'
 
+function successResponse<T>(data: T) {
+  return NextResponse.json({
+    ok: true,
+    success: true,
+    data,
+  })
+}
+
+function errorResponse(message: string, status: number, code: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      success: false,
+      data: null,
+      error: message,
+      error_details: { code, message },
+    },
+    { status }
+  )
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED')
     }
 
     // Check user's role
@@ -27,7 +48,7 @@ export async function GET(request: Request) {
     // Delegate to service layer
     const offers = await offerService.getOffers(user.id, userRole, partnerId)
 
-    return NextResponse.json({ success: true, data: offers })
+    return successResponse(offers)
   } catch (error: unknown) {
     console.error('[API] Error fetching offers:', error)
     return handleServiceError(error)
@@ -40,7 +61,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED')
     }
 
     const body = await request.json()
@@ -48,7 +69,7 @@ export async function POST(request: Request) {
     // Delegate to service layer
     const offer = await offerService.createOffer(user.id, body)
 
-    return NextResponse.json({ success: true, data: offer })
+    return successResponse(offer)
   } catch (error: unknown) {
     console.error('[API] Error creating offer:', error)
     return handleServiceError(error)
