@@ -4,19 +4,38 @@ import { createClient } from '@/lib/supabase/server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+function success(payload: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, data: payload, ...payload })
+}
+
+function fail(message: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      canonical_error: {
+        code,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
+    { status }
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
     }
 
     const { keywords, category, existingDescription } = await req.json()
     if (!keywords?.trim()) {
-      return NextResponse.json({ error: 'Ključne besede so obvezne.' }, { status: 400 })
+      return fail('Ključne besede so obvezne.', 400, 'VALIDATION_ERROR')
     }
 
     const systemPrompt = `Si LiftGO asistent za pomoč pri opisovanju del v Sloveniji.
@@ -59,7 +78,7 @@ Pripravi JSON z naslednjo strukturo:
       parsed = JSON.parse(text)
     } catch {
       // Fallback if JSON parsing fails
-      return NextResponse.json({
+      return success({
         variants: {
           kratek: text.slice(0, 200),
           podroben: text,
@@ -70,9 +89,9 @@ Pripravi JSON z naslednjo strukturo:
       })
     }
 
-    return NextResponse.json(parsed)
+    return success(parsed)
   } catch (error) {
     console.error('[agent/task-description] error:', error)
-    return NextResponse.json({ error: 'Napaka pri generiranju opisa.' }, { status: 500 })
+    return fail('Napaka pri generiranju opisa.', 500, 'INTERNAL_ERROR')
   }
 }
