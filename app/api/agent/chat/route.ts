@@ -8,6 +8,24 @@ import { handleAuthError } from '@/lib/api/auth-errors'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { apiLimiter } from '@/lib/rate-limit/limiters'
 
+function success(payload: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, data: payload, ...payload })
+}
+
+function fail(message: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      canonical_error: {
+        code,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
+    { status }
+  )
+}
 
 function anthropicErrorMessage(error: unknown): string {
   if (error instanceof Anthropic.APIError) {
@@ -135,7 +153,7 @@ export async function GET(req: NextRequest) {
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
     }
 
     const { data } = await supabaseAdmin
@@ -144,7 +162,7 @@ export async function GET(req: NextRequest) {
       .eq('user_id', user.id)
       .maybeSingle()
 
-    return NextResponse.json({ messages: data?.messages ?? [] })
+    return success({ messages: data?.messages ?? [] })
   } catch (error) {
     console.error('[agent/chat] GET error:', error)
     return handleAuthError(error)
@@ -162,7 +180,7 @@ export async function DELETE(req: NextRequest) {
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
     }
 
     await supabaseAdmin
@@ -170,7 +188,7 @@ export async function DELETE(req: NextRequest) {
       .delete()
       .eq('user_id', user.id)
 
-    return NextResponse.json({ success: true })
+    return success({ success: true })
   } catch (error) {
     console.error('[agent/chat] DELETE error:', error)
     return handleAuthError(error)
@@ -192,16 +210,16 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
     }
 
     const { message } = await req.json()
     if (!message?.trim()) {
-      return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
+      return fail('Sporočilo je obvezno.', 400, 'VALIDATION_ERROR')
     }
 
     // Load profile: subscription tier + daily usage
@@ -227,14 +245,11 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
 
     // Hard limit check
     if (usedToday >= dailyLimit) {
-      return NextResponse.json(
-        {
-          error: `Dnevni limit dosežen (${dailyLimit}). ${tier === 'start' ? 'Nadgradite na PRO za 100 sporočil/dan.' : 'Poskusite jutri.'}`,
-          limit_reached: true,
-          used: usedToday,
-          limit: dailyLimit,
-        },
-        { status: 429 }
+      return fail(
+        `Dnevni limit dosežen (${dailyLimit}). ${tier === 'start' ? 'Nadgradite na PRO za 100 sporočil/dan.' : 'Poskusite jutri.'}`,
+        429,
+        'LIMIT_REACHED',
+        { limit_reached: true, used: usedToday, limit: dailyLimit }
       )
     }
 
@@ -288,7 +303,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
           { onConflict: 'user_id' }
         )
 
-      return NextResponse.json({
+      return success({
         message: cached,
         cached: true,
         ...(softLimitWarning ? { warning: softLimitWarning } : {}),
@@ -392,7 +407,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
 
     console.log(`[agent/chat] model=${modelSelection.modelId} reason=${modelSelection.reason} tokens=${inputTokens}+${outputTokens} cost=$${costUsd.toFixed(6)}`)
 
-    return NextResponse.json({
+    return success({
       message: assistantText,
       cached: false,
       model: modelSelection.modelId,
@@ -409,7 +424,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     
     const msg = anthropicErrorMessage(error)
     const status = error instanceof Anthropic.APIError ? error.status : 500
-    return NextResponse.json({ error: msg }, { status })
+    return fail(msg, status, error instanceof Anthropic.APIError ? 'AI_API_ERROR' : 'INTERNAL_ERROR')
   }
 }
 

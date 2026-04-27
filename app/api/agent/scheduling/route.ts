@@ -6,17 +6,36 @@ import { confirmSchedulingRequest } from '@/lib/agent/scheduling/confirmAppointm
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+function success(payload: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, data: payload, ...payload })
+}
+
+function fail(message: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      canonical_error: {
+        code,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
+    { status }
+  )
+}
+
 // POST /api/agent/scheduling
 // Suggests appointment slots and creates appointment via existing calendar system
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     const { ponudbaId, preferredDates, preferredTimeOfDay, notes } = await req.json()
     if (!ponudbaId) {
-      return NextResponse.json({ error: 'ID ponudbe je obvezen.' }, { status: 400 })
+      return fail('ID ponudbe je obvezen.', 400, 'VALIDATION_ERROR')
     }
 
     // Load ponudba with related data
@@ -42,11 +61,11 @@ export async function POST(req: NextRequest) {
       .eq('id', ponudbaId)
       .single()
 
-    if (!ponudba) return NextResponse.json({ error: 'Ponudba ni najdena.' }, { status: 404 })
+    if (!ponudba) return fail('Ponudba ni najdena.', 404, 'NOT_FOUND')
 
     const pov = ponudba.povprasevanje as any
     if (pov?.narocnik_id !== user.id) {
-      return NextResponse.json({ error: 'Ni dovoljenja.' }, { status: 403 })
+      return fail('Ni dovoljenja.', 403, 'FORBIDDEN')
     }
 
     // Check if appointment already exists
@@ -57,7 +76,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (existingAppt && existingAppt.status === 'scheduled') {
-      return NextResponse.json({
+      return success({
         alreadyScheduled: true,
         appointment: existingAppt,
       })
@@ -128,7 +147,7 @@ Predlagaj 3 konkretne termine v naslednjih 14 dneh. Vrni JSON:
       suggestions = { slots: [], message: text, calendarIntegration: false }
     }
 
-    return NextResponse.json({
+    return success({
       suggestions,
       narocnikHasCalendar: !!narocnikCal,
       obrtnikHasCalendar: !!obrtnikCal,
@@ -136,7 +155,7 @@ Predlagaj 3 konkretne termine v naslednjih 14 dneh. Vrni JSON:
     })
   } catch (error) {
     console.error('[agent/scheduling] error:', error)
-    return NextResponse.json({ error: 'Napaka pri pripravi urnika.' }, { status: 500 })
+    return fail('Napaka pri pripravi urnika.', 500, 'INTERNAL_ERROR')
   }
 }
 
@@ -146,11 +165,11 @@ export async function PUT(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     return confirmSchedulingRequest(req)
   } catch (error) {
     console.error('[agent/scheduling PUT] error:', error)
-    return NextResponse.json({ error: 'Napaka pri potrditvi termina.' }, { status: 500 })
+    return fail('Napaka pri potrditvi termina.', 500, 'INTERNAL_ERROR')
   }
 }
