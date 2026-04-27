@@ -28,6 +28,29 @@ type PublicInquiryBody = {
   user_id?: unknown
 }
 
+function successResponse<T extends Record<string, unknown>>(legacy: T, status = 200) {
+  return NextResponse.json(
+    {
+      ok: true,
+      data: legacy,
+      ...legacy,
+    },
+    { status }
+  )
+}
+
+function errorResponse(message: string, status: number, code: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      data: null,
+      error: message,
+      error_details: { code, message },
+    },
+    { status }
+  )
+}
+
 function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim()
@@ -211,10 +234,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await parseJsonBody(request)
     if (!body) {
-      return NextResponse.json(
-        { error: 'Neveljavno JSON telo zahtevka' },
-        { status: 400 }
-      )
+      return errorResponse('Neveljavno JSON telo zahtevka', 400, 'INVALID_JSON')
     }
 
     const honeypot = toOptionalString(body.website) ?? toOptionalString(body.company_url)
@@ -230,7 +250,7 @@ export async function POST(request: NextRequest) {
         metadata: { requestId, endpoint: '/api/povprasevanje/public' },
       })
 
-      return NextResponse.json({ success: true, id: null })
+      return successResponse({ success: true, id: null })
     }
 
     if (incomingEmail && isDisposableEmail(incomingEmail)) {
@@ -243,10 +263,7 @@ export async function POST(request: NextRequest) {
         metadata: { requestId, endpoint: '/api/povprasevanje/public' },
       })
 
-      return NextResponse.json(
-        { error: 'Za oddajo povpraševanja uporabite trajni e-poštni naslov.' },
-        { status: 400 }
-      )
+      return errorResponse('Za oddajo povpraševanja uporabite trajni e-poštni naslov.', 400, 'DISPOSABLE_EMAIL_BLOCKED')
     }
 
     const rl = await checkEmailRateLimit({
@@ -278,16 +295,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (!parsedInput.success) {
-      return NextResponse.json(
-        { error: parsedInput.error.issues[0]?.message || 'Neveljavni vhodni podatki' },
-        { status: 400 }
-      )
+      return errorResponse(parsedInput.error.issues[0]?.message || 'Neveljavni vhodni podatki', 400, 'INVALID_INPUT')
     }
 
     const { storitev, lokacija, opis, stranka_email, stranka_telefon, stranka_ime } = parsedInput.data
 
     if (!storitev || !lokacija) {
-      return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
+      return errorResponse('Manjkajo obvezna polja', 400, 'MISSING_REQUIRED_FIELDS')
     }
 
     const normalizedLocation = await resolveLocationName(lokacija)
@@ -300,10 +314,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (isDuplicate) {
-      return NextResponse.json(
-        { error: 'Podobno povpraševanje je bilo pravkar oddano. Prosimo počakajte trenutek.' },
-        { status: 409 }
-      )
+      return errorResponse('Podobno povpraševanje je bilo pravkar oddano. Prosimo počakajte trenutek.', 409, 'DUPLICATE_INQUIRY')
     }
 
     const category_id = await resolveCategoryIdFromService(storitev)
@@ -338,7 +349,7 @@ export async function POST(request: NextRequest) {
         error.code === '23514')
 
     if (shouldRetryWithLegacySchema) {
-      console.warn('[public] Retrying insert with legacy schema payload', {
+      console.warn('[public][TODO:remove-after-schema-convergence] Retrying insert with legacy schema payload', {
         requestId,
         code: error?.code,
         message: error?.message,
@@ -372,7 +383,7 @@ export async function POST(request: NextRequest) {
         message: error.message,
         details: error.details,
       })
-      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
+      return errorResponse('Napaka pri shranjevanju', 500, 'DB_INSERT_FAILED')
     }
 
     const resend = getResendClient()
@@ -498,13 +509,13 @@ export async function POST(request: NextRequest) {
 
     if (!data) {
       console.error('[public] Insert succeeded without row data', { requestId })
-      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
+      return errorResponse('Napaka pri shranjevanju', 500, 'MISSING_INSERT_ROW')
     }
 
-    return NextResponse.json({ success: true, id: data.id })
+    return successResponse({ success: true, id: data.id })
   } catch (err) {
     console.error('[public] Unexpected error:', { requestId, error: err })
-    return NextResponse.json({ error: 'Napaka strežnika' }, { status: 500 })
+    return errorResponse('Napaka strežnika', 500, 'INTERNAL_SERVER_ERROR')
   }
 }
 

@@ -22,7 +22,7 @@ export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse
  */
 export function apiSuccess<T>(data: T, status: number = 200): NextResponse<ApiSuccessResponse<T>> {
   return NextResponse.json(
-    { success: true, data },
+    { ok: true, success: true, data },
     { status }
   )
 }
@@ -31,8 +31,25 @@ export function apiSuccess<T>(data: T, status: number = 200): NextResponse<ApiSu
  * Return error response
  */
 export function apiError(error: string, status: number = 400): NextResponse<ApiErrorResponse> {
+  const codeByStatus: Record<number, string> = {
+    400: 'BAD_REQUEST',
+    401: 'UNAUTHORIZED',
+    403: 'FORBIDDEN',
+    404: 'NOT_FOUND',
+    409: 'CONFLICT',
+    429: 'RATE_LIMITED',
+    500: 'INTERNAL_SERVER_ERROR',
+  }
+  const code = codeByStatus[status] || 'ERROR'
+
   return NextResponse.json(
-    { success: false, error },
+    {
+      ok: false,
+      success: false,
+      data: null,
+      error,
+      error_details: { code, message: error },
+    },
     { status }
   )
 }

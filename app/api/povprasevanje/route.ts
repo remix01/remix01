@@ -17,6 +17,33 @@ import {
 } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
 
+function successResponse<T extends Record<string, unknown>>(legacy: T, status = 200) {
+  return NextResponse.json(
+    {
+      ok: true,
+      data: legacy,
+      ...legacy,
+    },
+    { status }
+  )
+}
+
+function errorResponse(
+  message: string,
+  status: number,
+  code: string
+) {
+  return NextResponse.json(
+    {
+      ok: false,
+      data: null,
+      error: message,
+      error_details: { code, message },
+    },
+    { status }
+  )
+}
+
 const authenticatedInquirySchema = z.object({
   title: z.string().trim().min(2).max(120).optional(),
   storitev: z.string().trim().min(2).max(120).optional(),
@@ -38,16 +65,13 @@ async function postHandler(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED')
     }
 
     const body = await req.json()
     const parsedBody = authenticatedInquirySchema.safeParse(body)
     if (!parsedBody.success) {
-      return NextResponse.json(
-        { error: parsedBody.error.issues[0]?.message || 'Invalid request body' },
-        { status: 400 }
-      )
+      return errorResponse(parsedBody.error.issues[0]?.message || 'Invalid request body', 400, 'BAD_REQUEST')
     }
 
     const safeBody = parsedBody.data
@@ -75,7 +99,15 @@ async function postHandler(req: NextRequest) {
         metadata: { endpoint: '/api/povprasevanje' },
       })
       return NextResponse.json(
-        { error: 'Za oddajo povpraševanja uporabite trajni e-poštni naslov.' },
+        {
+          ok: false,
+          data: null,
+          error: 'Za oddajo povpraševanja uporabite trajni e-poštni naslov.',
+          error_details: {
+            code: 'DISPOSABLE_EMAIL_BLOCKED',
+            message: 'Za oddajo povpraševanja uporabite trajni e-poštni naslov.',
+          },
+        },
         { status: 400 }
       )
     }
@@ -133,10 +165,7 @@ async function postHandler(req: NextRequest) {
 
     // Validate required fields
     if (!title || !locationCity) {
-      return NextResponse.json(
-        { error: 'Title and location are required' },
-        { status: 400 }
-      )
+      return errorResponse('Title and location are required', 400, 'MISSING_REQUIRED_FIELDS')
     }
 
     // Handle category auto-creation if categoryName provided
@@ -161,10 +190,19 @@ async function postHandler(req: NextRequest) {
         })
         return NextResponse.json(
           {
+            ok: false,
+            data: null,
             error:
               catError instanceof Error
                 ? catError.message
                 : 'Ustvarjanje kategorije ni uspelo. Prosimo poskusite ponovno.',
+            error_details: {
+              code: 'CATEGORY_AUTO_CREATE_FAILED',
+              message:
+                catError instanceof Error
+                  ? catError.message
+                  : 'Ustvarjanje kategorije ni uspelo. Prosimo poskusite ponovno.',
+            },
           },
           { status: 400 }
         )
@@ -234,7 +272,7 @@ async function postHandler(req: NextRequest) {
 
     if (error) {
       console.error('[v0] Supabase insert error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return errorResponse(error.message, 500, 'DB_INSERT_FAILED')
     }
 
     console.log('[v0] Povprasevanje created:', {
@@ -272,10 +310,10 @@ async function postHandler(req: NextRequest) {
       console.error('[v0] Error with notifications:', notifyErr)
     }
 
-    return NextResponse.json({ id: data.id, status: data.status }, { status: 201 })
+    return successResponse({ id: data.id, status: data.status }, 201)
   } catch (err) {
     console.error('[v0] Unhandled error in povprasevanje endpoint:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return errorResponse('Internal server error', 500, 'INTERNAL_SERVER_ERROR')
   }
 }
 
@@ -287,7 +325,7 @@ export async function GET(req: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return errorResponse('Unauthorized', 401, 'UNAUTHORIZED')
     }
 
     const { searchParams } = new URL(req.url)
@@ -315,12 +353,12 @@ export async function GET(req: Request) {
     const { data, count, error } = await query
     if (error) {
       console.error('[v0] GET povprasevanja error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return errorResponse(error.message, 500, 'DB_QUERY_FAILED')
     }
 
-    return NextResponse.json({ data, count, page, limit })
+    return successResponse({ data, count, page, limit })
   } catch (err) {
     console.error('[v0] Unhandled error in GET povprasevanje:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return errorResponse('Internal server error', 500, 'INTERNAL_SERVER_ERROR')
   }
 }
