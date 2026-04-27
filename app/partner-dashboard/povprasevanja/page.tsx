@@ -11,7 +11,7 @@ const PAGE_SIZE = 12
 type SearchParams = {
   page?: string
   category?: string
-  urgency?: 'normalno' | 'kmalu' | 'nujno' | string
+  urgency?: 'normalno' | 'kmalu' | 'nujno' | 'ta_teden' | string
 }
 
 function getUrgencyBadge(urgency: string | null, createdAt: string) {
@@ -80,6 +80,10 @@ export default async function PovprasevanjePage({
       if (params.category) q = q.eq('category_id', params.category)
       if (params.urgency === 'normalno' || params.urgency === 'kmalu' || params.urgency === 'nujno') {
         q = q.eq('urgency', params.urgency)
+      } else if (params.urgency === 'ta_teden') {
+        // NOTE: keep `filter` here to allow values that may be present in DB
+        // even if generated TS unions lag behind enum changes.
+        q = q.filter('urgency', 'eq', 'ta_teden')
       }
 
       return q
