@@ -18,7 +18,8 @@ export function PaymentsSection({ partnerId }: PaymentsSectionProps) {
       try {
         const response = await fetch('/api/craftsman/earnings')
         if (response.ok) {
-          const earnings = await response.json()
+          const payload = await response.json()
+          const earnings = payload?.ok ? payload.data : (payload?.data ?? payload)
           setData(earnings)
         }
       } catch (error) {
