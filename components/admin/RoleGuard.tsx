@@ -3,6 +3,7 @@
 import { useAdminRole, type Vloga } from '@/hooks/use-admin-role';
 import { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { PermissionDeniedState } from '@/components/dashboard/PermissionDeniedState';
 
 interface RoleGuardProps {
   requiredRole: Vloga | Vloga[];
@@ -28,10 +29,11 @@ export function RoleGuard({
   if (!hasPermission(requiredRole)) {
     return (
       fallback || (
-        <div className="rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-          <p className="font-medium">Access Denied</p>
-          <p className="mt-1">You don't have permission to access this content.</p>
-        </div>
+        <PermissionDeniedState
+          title="Access Denied"
+          description="You don't have permission to access this content."
+          className="min-h-0"
+        />
       )
     );
   }

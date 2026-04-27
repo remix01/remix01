@@ -135,9 +135,9 @@ export async function acceptPonudbaAction(
     // ════════════════════════════════════════════════════════════════════
     // STEP 6: Revalidate paths
     // ════════════════════════════════════════════════════════════════════
-    revalidatePath(`/narocnik/povprasevanja/${povprasevanjeId}`)
-    revalidatePath('/narocnik/povprasevanja')
-    revalidatePath('/narocnik/dashboard')
+    revalidatePath(`/povprasevanja/${povprasevanjeId}`)
+    revalidatePath('/povprasevanja')
+    revalidatePath('/dashboard')
 
     return { success: true }
   } catch (error) {
