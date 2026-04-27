@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin(['super_admin'])
     const { userId, tier } = await request.json()
 
     if (!userId || !tier) {
       return NextResponse.json(
-        { error: 'Missing userId or tier' },
+        {
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Missing userId or tier' },
+          legacy_error: 'Missing userId or tier',
+        },
         { status: 400 }
       )
     }
@@ -16,7 +22,11 @@ export async function POST(request: NextRequest) {
     const validTiers = ['start', 'pro', 'elite', 'enterprise']
     if (!validTiers.includes(tier)) {
       return NextResponse.json(
-        { error: 'Invalid tier' },
+        {
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid tier' },
+          legacy_error: 'Invalid tier',
+        },
         { status: 400 }
       )
     }
@@ -48,13 +58,34 @@ export async function POST(request: NextRequest) {
     if (auditError) console.error('Audit log error:', auditError)
 
     return NextResponse.json({
+      ok: true,
       success: true,
       message: `User upgraded to ${tier} tier`,
     })
   } catch (error) {
     console.error('[v0] Upgrade user error:', error)
+    const authFailure = toAdminAuthFailure(error)
+    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: authFailure.code,
+            message: authFailure.message,
+          },
+          legacy_error: authFailure.message,
+        },
+        { status: authFailure.status }
+      )
+    }
+
+    const message = error instanceof Error ? error.message : 'Internal server error'
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      {
+        ok: false,
+        error: { code: 'INTERNAL_ERROR', message },
+        legacy_error: message,
+      },
       { status: 500 }
     )
   }

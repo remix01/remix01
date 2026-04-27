@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(['super_admin'])
     const supabase = createAdminClient()
-
-    // Verify admin access
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
 
     // Fetch subscriptions with user details - use only existing columns
     const { data: subscriptions, error: subError } = await supabase
@@ -91,6 +84,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({
+      ok: true,
       totalRevenue,
       totalCommissions,
       pendingPayouts,
@@ -117,8 +111,31 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[v0] Monetization API error:', error)
+    const authFailure = toAdminAuthFailure(error)
+    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: authFailure.code,
+            message: authFailure.message,
+          },
+          legacy_error: authFailure.message,
+        },
+        { status: authFailure.status }
+      )
+    }
+
+    const message = error instanceof Error ? error.message : 'Internal server error'
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      {
+        ok: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message,
+        },
+        legacy_error: message,
+      },
       { status: 500 }
     )
   }
