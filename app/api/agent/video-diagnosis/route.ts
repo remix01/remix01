@@ -8,14 +8,33 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
 type SupportedMediaType = typeof SUPPORTED_TYPES[number]
 
+function success(payload: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, data: payload, ...payload })
+}
+
+function fail(message: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      canonical_error: {
+        code,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
+    { status }
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
     }
 
     const formData = await req.formData()
@@ -23,20 +42,22 @@ export async function POST(req: NextRequest) {
     const additionalContext = (formData.get('context') as string) || ''
 
     if (!file) {
-      return NextResponse.json({ error: 'Datoteka je obvezna.' }, { status: 400 })
+      return fail('Datoteka je obvezna.', 400, 'VALIDATION_ERROR')
     }
 
     // Validate file type
     const mediaType = file.type as SupportedMediaType
     if (!SUPPORTED_TYPES.includes(mediaType)) {
-      return NextResponse.json({
-        error: 'Podprti formati: JPEG, PNG, GIF, WebP. Za video prosimo zajemite posnetek zaslona.',
-      }, { status: 400 })
+      return fail(
+        'Podprti formati: JPEG, PNG, GIF, WebP. Za video prosimo zajemite posnetek zaslona.',
+        400,
+        'VALIDATION_ERROR'
+      )
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Datoteka je prevelika. Maksimalna velikost je 5MB.' }, { status: 400 })
+      return fail('Datoteka je prevelika. Maksimalna velikost je 5MB.', 400, 'VALIDATION_ERROR')
     }
 
     const arrayBuffer = await file.arrayBuffer()
@@ -111,12 +132,12 @@ Vrni JSON z naslednjo strukturo:
       }
     }
 
-    return NextResponse.json({ diagnosis })
+    return success({ diagnosis })
   } catch (error) {
     console.error('[agent/video-diagnosis] error:', error)
     if (error instanceof Anthropic.APIError) {
-      return NextResponse.json({ error: `AI napaka: ${error.message}` }, { status: error.status })
+      return fail(`AI napaka: ${error.message}`, error.status, 'AI_API_ERROR')
     }
-    return NextResponse.json({ error: 'Napaka pri analizi slike.' }, { status: 500 })
+    return fail('Napaka pri analizi slike.', 500, 'INTERNAL_ERROR')
   }
 }
