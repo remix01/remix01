@@ -302,85 +302,83 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
         {isAiSidebarOpen ? <X className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
       </button>
 
-      <aside
-        className={`fixed inset-y-0 right-0 z-40 w-full max-w-sm border-l bg-background shadow-xl transition-transform duration-300 ${
-          isAiSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b p-4">
-            <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">AI CRM pomočnik</h3>
-            </div>
-            <Button type="button" variant="ghost" size="icon" onClick={() => setIsAiSidebarOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="space-y-4 overflow-y-auto p-4">
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs font-semibold text-muted-foreground">HITRA ORODJA</p>
-              <div className="mt-2 space-y-2">
-                {quickAiLinks.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsAiSidebarOpen(false)}
-                    className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted"
-                  >
-                    <item.icon className="h-4 w-4 text-primary" />
-                    {item.label}
-                  </Link>
-                ))}
+      {isAiSidebarOpen && (
+        <aside className="fixed inset-y-0 right-0 z-40 w-full max-w-sm border-l bg-background shadow-xl">
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b p-4">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">AI CRM pomočnik</h3>
               </div>
-            </div>
-
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs font-semibold text-muted-foreground">AI AKCIJE</p>
-              <div className="mt-2 grid gap-2">
-                {quickAiActions.map((action) => (
-                  <Button
-                    key={action.id}
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => handleAiAction(action)}
-                    disabled={aiLoading}
-                  >
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    {action.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <form onSubmit={handleAiSubmit} className="space-y-2">
-              <label className="text-sm font-medium" htmlFor="ai-sidebar-prompt">
-                Vprašajte AI (CRM, ponudbe, komunikacija)
-              </label>
-              <textarea
-                id="ai-sidebar-prompt"
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Npr. pripravi odgovor za stranko ali predlagaj naslednji CRM korak"
-                className="min-h-28 w-full rounded-md border p-2 text-sm"
-              />
-              <Button type="submit" disabled={aiLoading || !prompt.trim()} className="w-full gap-2">
-                {aiLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                {aiLoading ? 'AI razmišlja...' : 'Pošlji AI pomočniku'}
+              <Button type="button" variant="ghost" size="icon" onClick={() => setIsAiSidebarOpen(false)}>
+                <X className="h-4 w-4" />
               </Button>
-            </form>
+            </div>
 
-            {aiResponse && (
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">AI ODGOVOR</p>
-                <p className="whitespace-pre-wrap text-sm">{aiResponse}</p>
+            <div className="space-y-4 overflow-y-auto p-4">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs font-semibold text-muted-foreground">HITRA ORODJA</p>
+                <div className="mt-2 space-y-2">
+                  {quickAiLinks.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsAiSidebarOpen(false)}
+                      className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted"
+                    >
+                      <item.icon className="h-4 w-4 text-primary" />
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
-            )}
+
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs font-semibold text-muted-foreground">AI AKCIJE</p>
+                <div className="mt-2 grid gap-2">
+                  {quickAiActions.map((action) => (
+                    <Button
+                      key={action.id}
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      onClick={() => handleAiAction(action)}
+                      disabled={aiLoading}
+                    >
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={handleAiSubmit} className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="ai-sidebar-prompt">
+                  Vprašajte AI (CRM, ponudbe, komunikacija)
+                </label>
+                <textarea
+                  id="ai-sidebar-prompt"
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  placeholder="Npr. pripravi odgovor za stranko ali predlagaj naslednji CRM korak"
+                  className="min-h-28 w-full rounded-md border p-2 text-sm"
+                />
+                <Button type="submit" disabled={aiLoading || !prompt.trim()} className="w-full gap-2">
+                  {aiLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {aiLoading ? 'AI razmišlja...' : 'Pošlji AI pomočniku'}
+                </Button>
+              </form>
+
+              {aiResponse && (
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <p className="mb-2 text-xs font-semibold text-muted-foreground">AI ODGOVOR</p>
+                  <p className="whitespace-pre-wrap text-sm">{aiResponse}</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
+      )}
     </>
   )
 }
