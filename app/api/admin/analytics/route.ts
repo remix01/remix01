@@ -1,30 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { createAdminClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
 async function getAnalyticsData() {
   try {
-    const supabase = createAdminClient()
-    
-    // Check admin access
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return { error: 'Unauthorized', status: 401 }
-    }
-
-    const { data: admin, error: adminError } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
-
-    if (adminError || !admin) {
-      return { error: 'Forbidden', status: 403 }
-    }
-
     // Fetch all analytics data in parallel
     const [
       revenueData,
@@ -245,6 +226,7 @@ async function getAnalyticsData() {
     const topUsers = await Promise.all(topUsersList)
 
     return {
+      ok: true,
       kpis: {
         monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
         completedJobs,
@@ -275,19 +257,38 @@ async function getAnalyticsData() {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
+    await requireAdmin()
     const data = await getAnalyticsData()
-    
-    if ('error' in data) {
-      return NextResponse.json(data, { status: data.status })
-    }
 
     return NextResponse.json(data)
   } catch (error) {
     console.error('[v0] GET /api/admin/analytics error:', error)
+    const authFailure = toAdminAuthFailure(error)
+    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: authFailure.message,
+          canonical_error: {
+            code: authFailure.code,
+            message: authFailure.message,
+          },
+        },
+        { status: authFailure.status }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Napaka pri pridobivanju analitike' },
+      {
+        ok: false,
+        error: 'Napaka pri pridobivanju analitike',
+        canonical_error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Napaka pri pridobivanju analitike',
+        },
+      },
       { status: 500 }
     )
   }

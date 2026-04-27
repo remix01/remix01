@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 export async function GET() {
   try {
@@ -9,40 +9,28 @@ export async function GET() {
       return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
     }
 
-    const supabase = await createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const adminCtx = await requireAdmin()
 
-    if (userError) {
-      console.error('[admin/me] Error:', userError)
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      )
-    }
-
-    // No auth user - return 401 (not authenticated)
-    if (!user?.id) {
-      console.log('[v0] Admin check: No authenticated user')
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      )
-    }
-
-    console.log('[v0] Admin check: Checking user', user.id)
-
-    // Fetch admin from admin_users table by auth_user_id
+    // Fetch admin from admin_users table by admin id
     const { data: admin, error: adminError } = await supabaseAdmin
       .from('admin_users')
       .select('*')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
+      .eq('id', adminCtx.adminUserId)
       .maybeSingle()
 
     if (adminError) {
       console.error('[admin/me] Error:', adminError)
       return NextResponse.json(
-        { error: 'Internal server error', details: adminError.message },
+        {
+          ok: false,
+          error: 'Internal server error',
+          canonical_error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Internal server error',
+            details: adminError.message,
+          },
+          details: adminError.message,
+        },
         { status: 500 }
       )
     }
@@ -51,7 +39,14 @@ export async function GET() {
     if (!admin) {
       console.log('[v0] Admin check: User is not an active admin')
       return NextResponse.json(
-        { error: 'Not an active admin' },
+        {
+          ok: false,
+          error: 'Not an active admin',
+          canonical_error: {
+            code: 'FORBIDDEN',
+            message: 'Not an active admin',
+          },
+        },
         { status: 403 }
       )
     }
@@ -59,6 +54,7 @@ export async function GET() {
     // User is an active admin - return 200 (success)
     console.log('[v0] Admin check: User is admin', admin.id)
     return NextResponse.json({
+      ok: true,
       admin: {
         id: admin.id,
         email: admin.email,
@@ -68,8 +64,30 @@ export async function GET() {
     }, { status: 200 })
   } catch (error) {
     console.error('[admin/me] Error:', error)
+    const authFailure = toAdminAuthFailure(error)
+    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: authFailure.status === 401 ? 'Not authenticated' : 'Not an active admin',
+          canonical_error: {
+            code: authFailure.code,
+            message: authFailure.status === 401 ? 'Not authenticated' : 'Not an active admin',
+          },
+        },
+        { status: authFailure.status }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        ok: false,
+        error: 'Internal server error',
+        canonical_error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+        },
+      },
       { status: 500 }
     )
   }

@@ -1,26 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 export async function GET() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: admin, error: adminError } = await supabaseAdmin
-      .from('admin_users')
-      .select('*')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
-
-    if (adminError || !admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    await requireAdmin()
 
     const { data: disputes, error } = await supabaseAdmin
       .from('job')
@@ -39,6 +23,7 @@ export async function GET() {
     if (error) throw new Error(error.message)
 
     const result = (disputes || []).map((job: any) => ({
+      ok: true,
       id: job.id,
       jobId: job.id,
       jobTitle: job.title,
@@ -55,6 +40,31 @@ export async function GET() {
     return NextResponse.json(result)
   } catch (error) {
     console.error('[API] Failed to fetch disputes:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const authFailure = toAdminAuthFailure(error)
+    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: authFailure.message,
+          canonical_error: {
+            code: authFailure.code,
+            message: authFailure.message,
+          },
+        },
+        { status: authFailure.status }
+      )
+    }
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Internal server error',
+        canonical_error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+        },
+      },
+      { status: 500 }
+    )
   }
 }
