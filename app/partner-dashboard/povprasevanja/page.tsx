@@ -11,7 +11,7 @@ const PAGE_SIZE = 12
 type SearchParams = {
   page?: string
   category?: string
-  urgency?: string
+  urgency?: 'normalno' | 'kmalu' | 'nujno' | string
 }
 
 function getUrgencyBadge(urgency: string | null, createdAt: string) {
@@ -78,7 +78,9 @@ export default async function PovprasevanjePage({
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
       if (params.category) q = q.eq('category_id', params.category)
-      if (params.urgency) q = q.eq('urgency', params.urgency)
+      if (params.urgency === 'normalno' || params.urgency === 'kmalu' || params.urgency === 'nujno') {
+        q = q.eq('urgency', params.urgency)
+      }
 
       return q
     })(),
