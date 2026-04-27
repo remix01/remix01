@@ -1,20 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
-import { commissionService } from '@/lib/services/commissionService'
+import { NextRequest } from "next/server";
+import { ok, fail } from "@/lib/api/response";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { commissionService } from "@/lib/services/commissionService";
 
 const querySchema = z.object({
   months: z.coerce.number().optional().default(3),
-})
+});
 
 /**
  * GET /api/partner/commissions
- * 
+ *
  * Get authenticated partner's commission history and summary
- * 
+ *
  * Query params:
  * - months: number of months to include (default: 3)
- * 
+ *
  * Returns:
  * - total_jobs: number of completed jobs
  * - total_gross_eur: total job amounts
@@ -28,48 +29,50 @@ const querySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return fail("UNAUTHORIZED", "Unauthorized", 401);
     }
 
     // Parse query params
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(request.url);
     const validation = querySchema.safeParse({
-      months: searchParams.get('months'),
-    })
+      months: searchParams.get("months"),
+    });
 
     if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Invalid query parameters', details: validation.error.errors },
-        { status: 400 }
-      )
+      return fail(
+        "INVALID_QUERY",
+        "Invalid query parameters",
+        400,
+        validation.error.errors,
+      );
     }
 
-    const { months } = validation.data
+    const { months } = validation.data;
 
     // Get commission summary for authenticated partner
-    const summary = await commissionService.getPartnerCommissions(user.id, months)
+    const summary = await commissionService.getPartnerCommissions(
+      user.id,
+      months,
+    );
 
-    return NextResponse.json({
-      success: true,
-      data: summary,
+    return ok({
+      ...summary,
       period_months: months,
-    })
-
+    });
   } catch (error) {
-    console.error('[GET /api/partner/commissions]:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch commissions',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    console.error("[GET /api/partner/commissions]:", error);
+    return fail(
+      "COMMISSIONS_FETCH_FAILED",
+      "Failed to fetch commissions",
+      500,
+      error instanceof Error ? error.message : "Unknown error",
+    );
   }
 }

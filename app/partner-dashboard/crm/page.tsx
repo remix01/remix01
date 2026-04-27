@@ -38,7 +38,7 @@ export default function CRMPage() {
       .then(async (res) => {
         if (res.status === 403) { setForbidden(true); return }
         const json = await res.json()
-        if (json.success) setData(json.data)
+        if (json?.ok || json?.success) setData(json.data)
       })
       .catch((err) => console.error('[CRM] fetch error:', err))
       .finally(() => setLoading(false))

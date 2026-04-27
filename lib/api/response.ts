@@ -1,72 +1,114 @@
+import { NextResponse } from "next/server";
+import { CURRENT_VERSION } from "./versions";
+
+export interface CanonicalSuccessResponse<T = unknown> {
+  ok: true;
+  data: T;
+  meta?: Record<string, unknown>;
+}
+
+export interface CanonicalErrorShape {
+  code: string;
+  message: string;
+  details?: unknown;
+}
+
+export interface CanonicalErrorResponse {
+  ok: false;
+  error: CanonicalErrorShape;
+}
+
+export type CanonicalApiResponse<T = unknown> =
+  | CanonicalSuccessResponse<T>
+  | CanonicalErrorResponse;
+
 /**
- * Standardized API Response Helpers
- * Provides consistent response format across all API endpoints
- * 
- * USAGE EXAMPLE (opt-in for existing routes):
- * 
- * import { withApiVersion } from '@/lib/api/versioning'
- * import { withRequestLogger } from '@/lib/logger/request-logger'
- * import { apiSuccess, apiError } from '@/lib/api/response'
- * 
- * export const GET = withRequestLogger(withApiVersion(async (req) => {
- *   try {
- *     const data = await fetchData()
- *     return apiSuccess(data)
- *   } catch (error) {
- *     return apiError('Napaka pri pridobivanju podatkov', 'FETCH_ERROR', 500)
- *   }
- * }))
+ * Canonical API envelope helper (success)
  */
+export function ok<T>(
+  data: T,
+  meta?: Record<string, unknown>,
+  status = 200,
+): NextResponse<CanonicalSuccessResponse<T>> {
+  return NextResponse.json(
+    { ok: true, data, ...(meta ? { meta } : {}) },
+    { status },
+  );
+}
 
-import { NextResponse } from 'next/server'
-import { CURRENT_VERSION } from './versions'
+/**
+ * Canonical API envelope helper (error)
+ */
+export function fail(
+  code: string,
+  message: string,
+  status = 400,
+  details?: unknown,
+): NextResponse<CanonicalErrorResponse> {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: {
+        code,
+        message,
+        ...(details !== undefined ? { details } : {}),
+      },
+    },
+    { status },
+  );
+}
 
+// -----------------------------------------------------------------------------
+// Deprecated helpers kept for backwards compatibility
+// -----------------------------------------------------------------------------
+
+/** @deprecated Use `ok(data, meta?, status?)` instead. */
 export interface ApiSuccessResponse<T = unknown> {
-  success: true
-  data: T
+  success: true;
+  data: T;
   meta: {
-    version: string
-    requestId?: string
-    timestamp: string
-  }
+    version: string;
+    requestId?: string;
+    timestamp: string;
+  };
 }
 
+/** @deprecated Use `fail(code, message, status?, details?)` instead. */
 export interface ApiErrorResponse {
-  success: false
-  error: string
-  code: string
-  details?: unknown
+  success: false;
+  error: string;
+  code: string;
+  details?: unknown;
   meta: {
-    version: string
-    requestId?: string
-    timestamp: string
-  }
+    version: string;
+    requestId?: string;
+    timestamp: string;
+  };
 }
 
+/** @deprecated Use `ok(data, meta?, status?)` instead. */
 export interface ApiPaginatedResponse<T = unknown> {
-  success: true
-  data: T[]
+  success: true;
+  data: T[];
   pagination: {
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-    hasMore: boolean
-  }
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
   meta: {
-    version: string
-    requestId?: string
-    timestamp: string
-  }
+    version: string;
+    requestId?: string;
+    timestamp: string;
+  };
 }
 
-/**
- * Create a successful API response
- */
+/** @deprecated Use `ok(data, meta?, status?)` instead. */
 export function apiSuccess<T>(
   data: T,
   status = 200,
-  requestId?: string
+  requestId?: string,
 ): NextResponse<ApiSuccessResponse<T>> {
   const response: ApiSuccessResponse<T> = {
     success: true,
@@ -76,20 +118,18 @@ export function apiSuccess<T>(
       requestId,
       timestamp: new Date().toISOString(),
     },
-  }
+  };
 
-  return NextResponse.json(response, { status })
+  return NextResponse.json(response, { status });
 }
 
-/**
- * Create an error API response
- */
+/** @deprecated Use `fail(code, message, status?, details?)` instead. */
 export function apiError(
   message: string,
   code: string,
   status = 500,
   details?: unknown,
-  requestId?: string
+  requestId?: string,
 ): NextResponse<ApiErrorResponse> {
   const response: ApiErrorResponse = {
     success: false,
@@ -101,23 +141,21 @@ export function apiError(
       requestId,
       timestamp: new Date().toISOString(),
     },
-  }
+  };
 
-  return NextResponse.json(response, { status })
+  return NextResponse.json(response, { status });
 }
 
-/**
- * Create a paginated API response
- */
+/** @deprecated Use `ok(data, meta?, status?)` instead. */
 export function apiPaginated<T>(
   items: T[],
   total: number,
   page: number,
   limit: number,
-  requestId?: string
+  requestId?: string,
 ): NextResponse<ApiPaginatedResponse<T>> {
-  const totalPages = Math.ceil(total / limit)
-  const hasMore = page < totalPages
+  const totalPages = Math.ceil(total / limit);
+  const hasMore = page < totalPages;
 
   const response: ApiPaginatedResponse<T> = {
     success: true,
@@ -134,7 +172,7 @@ export function apiPaginated<T>(
       requestId,
       timestamp: new Date().toISOString(),
     },
-  }
+  };
 
-  return NextResponse.json(response, { status: 200 })
+  return NextResponse.json(response, { status: 200 });
 }

@@ -1,18 +1,18 @@
-import { getAuthenticatedPartner } from '@/lib/partner/resolver'
-import { canonicalPartnerService } from '@/lib/partner/service'
-import { NextResponse } from 'next/server'
+import { getAuthenticatedPartner } from "@/lib/partner/resolver";
+import { canonicalPartnerService } from "@/lib/partner/service";
+import { ok, fail } from "@/lib/api/response";
 
 /**
  * GET — partner's personal KPI stats (canonical: obrtnik_id queries)
  */
 export async function GET() {
-  const partner = await getAuthenticatedPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const partner = await getAuthenticatedPartner();
+  if (!partner) return fail("UNAUTHORIZED", "Unauthorized", 401);
 
-  const stats = await canonicalPartnerService.getStats(partner.partnerId)
+  const stats = await canonicalPartnerService.getStats(partner.partnerId);
 
-  return NextResponse.json({
+  return ok({
     ...stats,
-    paket: partner.profile.subscription_tier ?? 'start',
-  })
+    paket: partner.profile.subscription_tier ?? "start",
+  });
 }

@@ -23,7 +23,7 @@ export default function InsightsClient() {
     fetch('/api/partner/insights')
       .then(async (res) => {
         const payload = await res.json()
-        if (payload.success) {
+        if (payload?.ok || payload?.success) {
           setMetrics(payload.data.metrics)
           setRecommendations(payload.data.recommendations)
         }
