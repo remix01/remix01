@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Calendar, DollarSign, TrendingUp, Clock, Users, Images, Video, Sparkles } from 'lucide-react'
 import { TierGate } from '@/components/partner/tier-gate'
-import type { CRMData, CRMStats, CRMPipelineStage, CRMActivityItem } from '@/app/api/partner/crm/route'
+import type { CRMData, CRMPipelineStage, CRMActivityItem } from '@/lib/partner/crm/types'
 
 const STAGE_LABELS: Record<string, string> = {
   poslana: 'Poslane ponudbe',

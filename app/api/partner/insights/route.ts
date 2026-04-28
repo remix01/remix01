@@ -1,6 +1,6 @@
 import { ok, fail } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeTier, tierHasFeature } from "@/lib/plans";
+import { canAccessFeature } from "@/lib/access-policy";
 import { executeAgent } from "@/lib/ai/orchestrator";
 
 export async function GET() {
@@ -17,8 +17,8 @@ export async function GET() {
       .eq("id", user.id)
       .maybeSingle();
 
-    const tier = normalizeTier(profile?.subscription_tier);
-    if (!tierHasFeature(tier, "insights")) {
+    const featureAccess = canAccessFeature(profile?.subscription_tier, "insights");
+    if (!featureAccess.allowed) {
       return fail("TIER_REQUIRED", "PRO paket obvezen.", 403);
     }
 
