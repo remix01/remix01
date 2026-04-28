@@ -72,7 +72,10 @@ export function OffersList({
       })
       const result = await response.json()
       if (!response.ok) {
-        throw new Error(result?.error || 'Napaka pri brisanju ponudbe.')
+        const errorMessage = typeof result?.error === 'string'
+          ? result.error
+          : result?.error?.message || result?.error?.code || 'Napaka pri brisanju ponudbe.'
+        throw new Error(errorMessage)
       }
 
       onUpdate()
@@ -108,7 +111,10 @@ export function OffersList({
 
       const result = await response.json()
       if (!response.ok) {
-        throw new Error(result?.error || 'Napaka pri urejanju ponudbe.')
+        const errorMessage = typeof result?.error === 'string'
+          ? result.error
+          : result?.error?.message || result?.error?.code || 'Napaka pri urejanju ponudbe.'
+        throw new Error(errorMessage)
       }
 
       cancelEditing()

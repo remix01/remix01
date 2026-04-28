@@ -122,7 +122,10 @@ export function OfferForm({
       })
       const result = await res.json()
       if (!res.ok) {
-        setError(result?.error || 'Prišlo je do napake pri oddaji ponudbe.')
+        const errorMessage = typeof result?.error === 'string'
+          ? result.error
+          : result?.error?.message || result?.error?.code || 'Prišlo je do napake pri oddaji ponudbe.'
+        setError(errorMessage)
         return
       }
       setForm(EMPTY_FORM)
