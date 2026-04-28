@@ -109,6 +109,8 @@ const ENDPOINT_INVENTORY = {
       POST: {
         successTopLevelFields: ['material_list', 'usage'],
         errorShape: '{ error }',
+        canonicalSuccess: ['ok', 'data'],
+        canonicalError: ['ok', 'canonical_error'],
         authDeniedShape: '{ error } @ 401',
       },
     },
@@ -118,6 +120,8 @@ const ENDPOINT_INVENTORY = {
       POST: {
         successTopLevelFields: ['report_text', 'usage'],
         errorShape: '{ error }',
+        canonicalSuccess: ['ok', 'data'],
+        canonicalError: ['ok', 'canonical_error'],
         authDeniedShape: '{ error } @ 401',
       },
     },
@@ -127,6 +131,8 @@ const ENDPOINT_INVENTORY = {
       POST: {
         successTopLevelFields: ['draft_text', 'usage'],
         errorShape: '{ error }',
+        canonicalSuccess: ['ok', 'data'],
+        canonicalError: ['ok', 'canonical_error'],
         authDeniedShape: '{ error } @ 401',
       },
     },
@@ -215,7 +221,7 @@ describe('Agent endpoint inventory contract (success/error/auth + plain JSON)', 
 
   it('all scoped endpoints keep legacy { error } branches and explicit 401 auth denied shape', () => {
     for (const [name, source] of Object.entries(routeSrc)) {
-      if (['chat', 'scheduling', 'offerComparison', 'taskDescription', 'videoDiagnosis', 'genericAgent'].includes(name)) {
+      if (['chat', 'scheduling', 'offerComparison', 'taskDescription', 'videoDiagnosis', 'materials', 'jobSummary', 'quoteGenerator', 'genericAgent'].includes(name)) {
         expect(source).toMatch(/error:\s*message/)
       } else {
         expect(source).toMatch(/NextResponse\.json\(\{\s*error:/)
@@ -224,13 +230,13 @@ describe('Agent endpoint inventory contract (success/error/auth + plain JSON)', 
       // chat has brace-wrapped auth branch, others mostly one-line return
       if (name === 'chat') {
         expect(source).toMatch(/if \(!user\) \{\s*return fail\('Nepooblaščen dostop\.', 401, 'UNAUTHORIZED'\)/)
-      } else if (name === 'scheduling' || ['offerComparison', 'taskDescription', 'videoDiagnosis', 'genericAgent'].includes(name)) {
+      } else if (name === 'scheduling' || ['offerComparison', 'taskDescription', 'videoDiagnosis', 'materials', 'jobSummary', 'quoteGenerator', 'genericAgent'].includes(name)) {
         expect(source).toMatch(/if \(!user\) return fail\('Nepooblaščen dostop\.', 401, 'UNAUTHORIZED'\)/)
       } else {
         expect(source).toMatch(/if \(!user\) return NextResponse\.json\(\{ error: 'Nepooblaščen dostop\.'/)
       }
 
-      if (['chat', 'scheduling', 'offerComparison', 'taskDescription', 'videoDiagnosis', 'genericAgent'].includes(name)) {
+      if (['chat', 'scheduling', 'offerComparison', 'taskDescription', 'videoDiagnosis', 'materials', 'jobSummary', 'quoteGenerator', 'genericAgent'].includes(name)) {
         expect(source).toMatch(/fail\('Nepooblaščen dostop\.', 401, 'UNAUTHORIZED'\)/)
       } else {
         expect(source).toMatch(/status:\s*401/)
@@ -360,6 +366,31 @@ describe('Phase-1 dual-shape compatibility (offer-comparison/task-description/vi
       expect(source).not.toMatch(/ai_usage_logs/)
       expect(source).not.toMatch(/upsert_agent_cost_summary/)
       expect(source).not.toMatch(/estimateCost\(/)
+    }
+  })
+})
+
+describe('Scoped endpoint dual-shape compatibility (materials/job-summary/quote-generator)', () => {
+  it('success responses preserve legacy top-level fields and add ok/data', () => {
+    expect(routeSrc.materials).toMatch(/return success\(\{\s*material_list:/)
+    expect(routeSrc.jobSummary).toMatch(/return success\(\{\s*report_text:/)
+    expect(routeSrc.quoteGenerator).toMatch(/return success\(\{\s*draft_text:/)
+
+    for (const name of ['materials', 'jobSummary', 'quoteGenerator']) {
+      const source = routeSrc[name]
+      expect(source).toMatch(/ok:\s*true/)
+      expect(source).toMatch(/data:\s*payload/)
+    }
+  })
+
+  it('error responses keep legacy error string and include canonical_error', () => {
+    for (const name of ['materials', 'jobSummary', 'quoteGenerator']) {
+      const source = routeSrc[name]
+      expect(source).toMatch(/ok:\s*false/)
+      expect(source).toMatch(/error:\s*message/)
+      expect(source).toMatch(/canonical_error:\s*\{/)
+      expect(source).toMatch(/code,/)
+      expect(source).toMatch(/message,/)
     }
   })
 })

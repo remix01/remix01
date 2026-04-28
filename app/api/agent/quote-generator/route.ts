@@ -7,14 +7,33 @@ import { getAgentDefinition } from '@/lib/agents/ai-definitions'
 import { isAgentAccessible, getAgentDailyLimit } from '@/lib/agents/ai-router'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 
+function success(payload: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, data: payload, ...payload })
+}
+
+function fail(message: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      canonical_error: {
+        code,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
+    { status }
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     const { povprasevanje_id, extra_notes } = await req.json()
-    if (!povprasevanje_id) return NextResponse.json({ error: 'povprasevanje_id je obvezen.' }, { status: 400 })
+    if (!povprasevanje_id) return fail('povprasevanje_id je obvezen.', 400, 'VALIDATION_ERROR')
 
     // Get obrtnik profile linked to this user
     const { data: obrtnik } = await supabaseAdmin
@@ -22,11 +41,11 @@ export async function POST(req: NextRequest) {
       .select('id, business_name, description, hourly_rate, years_experience, subscription_tier, avg_rating')
       .eq('id', user.id)
       .maybeSingle()
-    if (!obrtnik) return NextResponse.json({ error: 'Profil obrtnika ni najden.' }, { status: 404 })
+    if (!obrtnik) return fail('Profil obrtnika ni najden.', 404, 'NOT_FOUND')
 
     const tier = obrtnik.subscription_tier ?? 'start'
     if (!isAgentAccessible('quote_generator' as AIAgentType, tier)) {
-      return NextResponse.json({ error: 'Ni dostopa.', upgrade_required: true }, { status: 403 })
+      return fail('Ni dostopa.', 403, 'FORBIDDEN', { upgrade_required: true })
     }
 
     const dailyLimit = getAgentDailyLimit('quote_generator' as AIAgentType, tier)
@@ -38,7 +57,7 @@ export async function POST(req: NextRequest) {
     const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
     const effectiveUsed = Date.now() - resetAt.getTime() > 86_400_000 ? 0 : usedToday
     if (effectiveUsed >= dailyLimit) {
-      return NextResponse.json({ error: `Dnevni limit dosežen (${dailyLimit}).`, limit_reached: true }, { status: 429 })
+      return fail(`Dnevni limit dosežen (${dailyLimit}).`, 429, 'LIMIT_REACHED', { limit_reached: true })
     }
 
     // Load povpraševanje
@@ -47,7 +66,7 @@ export async function POST(req: NextRequest) {
       .select('id, title, description, location_city, urgency, budget_min, budget_max, preferred_date_from, preferred_date_to')
       .eq('id', povprasevanje_id)
       .maybeSingle()
-    if (!pov) return NextResponse.json({ error: 'Povpraševanje ni najdeno.' }, { status: 404 })
+    if (!pov) return fail('Povpraševanje ni najdeno.', 404, 'NOT_FOUND')
 
     const agentDef = await getAgentDefinition('quote_generator')
     const context = {
@@ -97,13 +116,13 @@ export async function POST(req: NextRequest) {
       response_time_ms: Date.now() - startTime,
     }) as any).catch(() => {})
 
-    return NextResponse.json({
+    return success({
       draft_text: draftText,
       draft_id: draft?.id,
       usage: { used: effectiveUsed + 1, limit: dailyLimit },
     })
   } catch (error) {
     console.error('[agent/quote-generator] POST:', error)
-    return NextResponse.json({ error: 'Napaka pri generiranju ponudbe.' }, { status: 500 })
+    return fail('Napaka pri generiranju ponudbe.', 500, 'INTERNAL_ERROR')
   }
 }
