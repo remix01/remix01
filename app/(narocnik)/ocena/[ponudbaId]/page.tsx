@@ -151,7 +151,7 @@ export default function OcenaPage({ params }: Props) {
 
       setSuccessMessage('Ocena oddana! Preusmerim vas...')
       setTimeout(() => {
-        router.push('/narocnik/povprasevanja')
+        router.push('/povprasevanja')
       }, 2000)
     } catch (err) {
       console.error('[v0] Error submitting ocena:', err)
@@ -311,7 +311,7 @@ export default function OcenaPage({ params }: Props) {
           </Button>
 
           {/* Skip Link */}
-          <Link href="/narocnik/povprasevanja">
+          <Link href="/povprasevanja">
             <p className="text-center text-sm text-gray-600 hover:text-teal-600">
               Preskoči
             </p>

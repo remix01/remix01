@@ -128,39 +128,43 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-200">
-            {recentInquiries.map((inquiry) => (
-              <Link
-                key={inquiry.id}
-                href={`/dashboard/stranka/povprasevanja/${inquiry.id}`}
-                className="block p-6 hover:bg-slate-50 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-semibold text-slate-900 truncate">
-                        {inquiry.title}
-                      </h3>
-                      <Badge className={statusBadgeColors[inquiry.status as keyof typeof statusBadgeColors]}>
-                        {inquiry.status}
-                      </Badge>
+            {recentInquiries.map((inquiry) => {
+              // TODO(route-consolidation): keep legacy detail route until
+              // canonical detail parity is fully validated.
+              return (
+                <Link
+                  key={inquiry.id}
+                  href={`/dashboard/stranka/povprasevanja/${inquiry.id}`}
+                  className="block p-6 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="font-semibold text-slate-900 truncate">
+                          {inquiry.title}
+                        </h3>
+                        <Badge className={statusBadgeColors[inquiry.status as keyof typeof statusBadgeColors]}>
+                          {inquiry.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">{inquiry.location_city || 'Lokacija ni navedena'}</p>
                     </div>
-                    <p className="text-sm text-slate-500 mt-1">{inquiry.location_city || 'Lokacija ni navedena'}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    {inquiry.budget_min != null && inquiry.budget_max != null ? (
-                      <p className="text-sm font-medium text-slate-900">
-                        €{inquiry.budget_min}–€{inquiry.budget_max}
+                    <div className="text-right flex-shrink-0">
+                      {inquiry.budget_min != null && inquiry.budget_max != null ? (
+                        <p className="text-sm font-medium text-slate-900">
+                          €{inquiry.budget_min}–€{inquiry.budget_max}
+                        </p>
+                      ) : (
+                        <p className="text-sm font-medium text-slate-500">Brez proračuna</p>
+                      )}
+                      <p className="text-xs text-slate-500 mt-1">
+                        {new Date(inquiry.created_at).toLocaleDateString('sl-SI')}
                       </p>
-                    ) : (
-                      <p className="text-sm font-medium text-slate-500">Brez proračuna</p>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1">
-                      {new Date(inquiry.created_at).toLocaleDateString('sl-SI')}
-                    </p>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         )}
       </Card>
