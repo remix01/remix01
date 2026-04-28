@@ -7,6 +7,8 @@ import { selectModel, estimateCost } from '@/lib/model-router'
 import { handleAuthError } from '@/lib/api/auth-errors'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { apiLimiter } from '@/lib/rate-limit/limiters'
+import { loadAiUsageProfile, normalizeDailyUsageWindow, incrementDailyUsage } from '@/lib/agents/route-access-policy'
+import { logAgentUsage } from '@/lib/agents/usage-logging'
 
 function success(payload: Record<string, unknown>) {
   return NextResponse.json({ ok: true, data: payload, ...payload })
@@ -222,26 +224,11 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       return fail('Sporočilo je obvezno.', 400, 'VALIDATION_ERROR')
     }
 
-    // Load profile: subscription tier + daily usage
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_tier, ai_messages_used_today, ai_messages_reset_at')
-      .eq('id', user.id)
-      .maybeSingle()
-
+    // Load profile: subscription tier + daily usage via shared access policy
+    const profile = await loadAiUsageProfile(user.id)
     const tier = (profile?.subscription_tier ?? 'start') as string
     const dailyLimit = TIER_LIMITS[tier] ?? TIER_LIMITS.start
-
-    // Reset counter if 24h have passed
-    let usedToday: number = profile?.ai_messages_used_today ?? 0
-    const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
-    if (Date.now() - resetAt.getTime() > 24 * 60 * 60 * 1000) {
-      usedToday = 0
-      await supabaseAdmin
-        .from('profiles')
-        .update({ ai_messages_used_today: 0, ai_messages_reset_at: new Date().toISOString() })
-        .eq('id', user.id)
-    }
+    const usedToday = await normalizeDailyUsageWindow(user.id, profile)
 
     // Hard limit check
     if (usedToday >= dailyLimit) {
@@ -264,21 +251,19 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     const cached = await getCachedResponse(cacheKey)
     if (cached) {
       // Increment usage counter even for cached responses
-      await supabaseAdmin
-        .from('profiles')
-        .update({ ai_messages_used_today: usedToday + 1 })
-        .eq('id', user.id)
+      await incrementDailyUsage(user.id, usedToday + 1)
 
       // Log cached usage
-      await supabaseAdmin.from('ai_usage_logs').insert({
-        user_id: user.id,
-        model_used: 'cached',
-        tokens_input: 0,
-        tokens_output: 0,
-        cost_usd: 0,
-        response_cached: true,
-        message_hash: cacheKey,
-        user_message: message.slice(0, 500),
+      await logAgentUsage({
+        userId: user.id,
+        modelUsed: 'cached',
+        tokensInput: 0,
+        tokensOutput: 0,
+        costUsd: 0,
+        responseCached: true,
+        messageHash: cacheKey,
+        userMessage: message,
+        messagePreviewLimit: 500,
       })
 
       // Persist to conversation
@@ -352,10 +337,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     await setCachedResponse(cacheKey, assistantText)
 
     // Update profile usage counters
-    await supabaseAdmin
-      .from('profiles')
-      .update({ ai_messages_used_today: usedToday + 1 })
-      .eq('id', user.id)
+    await incrementDailyUsage(user.id, usedToday + 1)
 
     // Increment lifetime totals (best-effort, non-blocking)
     Promise.resolve(supabaseAdmin
@@ -379,15 +361,16 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     const modelShortName = modelSelection.modelId.includes('haiku') ? 'haiku-4' : 'sonnet-4'
 
     // Log usage
-    await supabaseAdmin.from('ai_usage_logs').insert({
-      user_id: user.id,
-      model_used: modelShortName,
-      tokens_input: inputTokens,
-      tokens_output: outputTokens,
-      cost_usd: costUsd,
-      response_cached: false,
-      message_hash: cacheKey,
-      user_message: message.slice(0, 500),
+    await logAgentUsage({
+      userId: user.id,
+      modelUsed: modelShortName,
+      tokensInput: inputTokens,
+      tokensOutput: outputTokens,
+      costUsd,
+      responseCached: false,
+      messageHash: cacheKey,
+      userMessage: message,
+      messagePreviewLimit: 500,
     })
 
     // Persist conversation

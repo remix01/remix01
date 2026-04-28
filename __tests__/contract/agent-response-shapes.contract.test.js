@@ -366,24 +366,24 @@ describe('Phase-1 dual-shape compatibility (offer-comparison/task-description/vi
 
 describe('Usage logging / cost tracking side-effect contract', () => {
   it('chat keeps ai usage log + cost estimation side-effects', () => {
-    expect(routeSrc.chat).toMatch(/from\('ai_usage_logs'\)\.insert\(/)
+    expect(routeSrc.chat).toMatch(/from\('ai_usage_logs'\)\.insert\(|logAgentUsage\(/)
     expect(routeSrc.chat).toMatch(/ai_total_tokens_used/)
     expect(routeSrc.chat).toMatch(/estimateCost\(/)
   })
 
   it('generic agent route keeps ai usage log + cost estimation side-effects', () => {
-    expect(routeSrc.genericAgent).toMatch(/from\('ai_usage_logs'\)\.insert\(/)
+    expect(routeSrc.genericAgent).toMatch(/from\('ai_usage_logs'\)\.insert\(|logAgentUsage\(/)
     expect(routeSrc.genericAgent).toMatch(/estimateCost\(/)
   })
 
   it('materials / job-summary / quote-generator keep cost summary + usage log side-effects', () => {
     expect(routeSrc.materials).toMatch(/upsert_agent_cost_summary/)
-    expect(routeSrc.materials).toMatch(/from\('ai_usage_logs'\)\.insert\(/)
+    expect(routeSrc.materials).toMatch(/from\('ai_usage_logs'\)\.insert\(|logAgentUsage\(/)
 
     expect(routeSrc.jobSummary).toMatch(/upsert_agent_cost_summary/)
-    expect(routeSrc.jobSummary).toMatch(/from\('ai_usage_logs'\)\.insert\(/)
+    expect(routeSrc.jobSummary).toMatch(/from\('ai_usage_logs'\)\.insert\(|logAgentUsage\(/)
 
     expect(routeSrc.quoteGenerator).toMatch(/upsert_agent_cost_summary/)
-    expect(routeSrc.quoteGenerator).toMatch(/from\('ai_usage_logs'\)\.insert\(/)
+    expect(routeSrc.quoteGenerator).toMatch(/from\('ai_usage_logs'\)\.insert\(|logAgentUsage\(/)
   })
 })

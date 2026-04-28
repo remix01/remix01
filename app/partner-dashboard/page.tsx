@@ -1,22 +1,47 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { OfferForm } from '@/components/partner/offer-form'
-import { OffersList } from '@/components/partner/offers-list'
 import { PartnerStats } from '@/components/partner/partner-stats'
-import { PaymentsSection } from '@/components/partner/payments-section'
-import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
-import { ReferralSection } from '@/components/partner/ReferralSection'
 import { RouteOptimizerCard } from '@/components/partner/RouteOptimizerCard'
-import { ListSyncToolbar } from '@/components/partner/list-sync-toolbar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
 import type { Offer } from '@/lib/types/offer'
+
+const OfferForm = dynamic(
+  () => import('@/components/partner/offer-form').then((m) => m.OfferForm),
+  { loading: () => null }
+)
+
+const OffersList = dynamic(
+  () => import('@/components/partner/offers-list').then((m) => m.OffersList),
+  { loading: () => null }
+)
+
+const PaymentsSection = dynamic(
+  () => import('@/components/partner/payments-section').then((m) => m.PaymentsSection),
+  { loading: () => null }
+)
+
+const NotificationPreferences = dynamic(
+  () => import('@/components/liftgo/NotificationPreferences').then((m) => m.NotificationPreferences),
+  { loading: () => null }
+)
+
+const ReferralSection = dynamic(
+  () => import('@/components/partner/ReferralSection').then((m) => m.ReferralSection),
+  { loading: () => null }
+)
+
+const ListSyncToolbar = dynamic(
+  () => import('@/components/partner/list-sync-toolbar').then((m) => m.ListSyncToolbar),
+  { loading: () => null }
+)
 
 function PartnerDashboardInner() {
   const router = useRouter()
@@ -80,32 +105,22 @@ function PartnerDashboardInner() {
       if (partnerData) {
         setPartner(partnerData)
 
-        // Check completion status
-        const status = await getCompletionStatus(partnerData.id)
-        if (status) {
-          setCompletionStatus(status)
-        }
+        const [status, offersRes, openCountRes] = await Promise.all([
+          getCompletionStatus(partnerData.id),
+          sb
+            .from('ponudbe')
+            .select('*')
+            .eq('obrtnik_id', partnerData.id)
+            .order('created_at', { ascending: false }),
+          sb
+            .from('povprasevanja')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'odprto'),
+        ])
 
-        // Fetch offers
-        const { data: offersData } = await sb
-          .from('ponudbe')
-          .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .order('created_at', { ascending: false })
-
-        if (offersData) {
-          setOffers(offersData)
-        }
-
-        // Fetch open requests count
-        const { count: openCount } = await sb
-          .from('povprasevanja')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'odprto')
-
-        if (openCount !== null) {
-          setOpenRequestsCount(openCount)
-        }
+        if (status) setCompletionStatus(status)
+        if (offersRes.data) setOffers(offersRes.data)
+        if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
       }
 
       setLoading(false)
@@ -125,31 +140,41 @@ function PartnerDashboardInner() {
 
   const getCompletionStatus = async (partnerId: string) => {
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from('obrtnik_profiles')
-        .select('description, hourly_rate, subscription_tier')
-        .eq('id', partnerId)
-        .maybeSingle()
+      const [profileRes, userByIdRes, userByAuthIdRes, offersRes] = await Promise.all([
+        supabase
+          .from('obrtnik_profiles')
+          .select('description, hourly_rate, subscription_tier')
+          .eq('id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('phone')
+          .eq('auth_user_id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('ponudbe')
+          .select('id', { count: 'exact', head: true })
+          .eq('obrtnik_id', partnerId),
+      ])
 
-      const { data: userProfileById, error: userByIdError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', partnerId)
-        .maybeSingle()
+      const profile = profileRes.data
+      const profileError = profileRes.error
 
-      const { data: userProfileByAuthUserId, error: userByAuthUserIdError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('auth_user_id', partnerId)
-        .maybeSingle()
+      const userProfileById = userByIdRes.data
+      const userByIdError = userByIdRes.error
+
+      const userProfileByAuthUserId = userByAuthIdRes.data
+      const userByAuthUserIdError = userByAuthIdRes.error
+      const offersCount = offersRes.count
+      const offersError = offersRes.error
 
       const userProfile = userProfileById ?? userProfileByAuthUserId
       const userError = userByIdError ?? userByAuthUserIdError
-
-      const { count: offersCount, error: offersError } = await supabase
-        .from('ponudbe')
-        .select('id', { count: 'exact', head: true })
-        .eq('obrtnik_id', partnerId)
 
       if (!profileError && !userError && !offersError) {
         const hasDescription = profile?.description != null

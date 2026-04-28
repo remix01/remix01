@@ -5,18 +5,17 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
 import { selectModel, estimateCost } from '@/lib/model-router'
 import { getAgentDefinition } from '@/lib/agents/ai-definitions'
-import { AGENT_META, isAgentAccessible, getAgentDailyLimit } from '@/lib/agents/ai-router'
+import { AGENT_META } from '@/lib/agents/ai-router'
 import type { AIAgentType } from '@/lib/agents/ai-router'
+import {
+  loadAiUsageProfile,
+  normalizeDailyUsageWindow,
+  evaluateAgentTierAccess,
+  incrementDailyUsage,
+} from '@/lib/agents/route-access-policy'
+import { logAgentUsage } from '@/lib/agents/usage-logging'
 
 // ── Configuration Constants ────────────────────────────────────────────────
-/**
- * Time-based configuration constants
- */
-const TIME_CONSTANTS = {
-  /** 24 hours in milliseconds for daily limit reset */
-  DAILY_RESET_WINDOW_MS: 24 * 60 * 60 * 1000,
-} as const
-
 /**
  * AI model and token configuration
  */
@@ -81,17 +80,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       return fail('Sporočilo je obvezno.', 400, 'VALIDATION_ERROR')
     }
 
-    // Load user profile
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_tier, ai_messages_used_today, ai_messages_reset_at')
-      .eq('id', user.id)
-      .maybeSingle()
-
+    // Load user profile + normalize daily window via shared access policy
+    const profile = await loadAiUsageProfile(user.id)
     const tier = (profile?.subscription_tier ?? 'start') as string
+    const usedToday = await normalizeDailyUsageWindow(user.id, profile)
 
     // Tier access check
-    if (!isAgentAccessible(agentType as AIAgentType, tier)) {
+    const access = evaluateAgentTierAccess(agentType as AIAgentType, tier)
+    if (!access.allowed) {
       return fail(
         'Ta agent je na voljo samo za PRO naročnike.',
         403,
@@ -104,20 +100,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     // Daily limit check
-    const dailyLimit = getAgentDailyLimit(agentType as AIAgentType, tier)
+    const dailyLimit = access.dailyLimit
     if (dailyLimit === 0) {
       return fail('Ta agent ni dostopen z vašim paketom.', 403, 'FORBIDDEN', { upgrade_required: true })
-    }
-
-    // Reset counter if 24h passed
-    let usedToday = profile?.ai_messages_used_today ?? 0
-    const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
-    if (Date.now() - resetAt.getTime() > TIME_CONSTANTS.DAILY_RESET_WINDOW_MS) {
-      usedToday = 0
-      await supabaseAdmin
-        .from('profiles')
-        .update({ ai_messages_used_today: 0, ai_messages_reset_at: new Date().toISOString() })
-        .eq('id', user.id)
     }
 
     if (usedToday >= dailyLimit) {
@@ -322,21 +307,19 @@ async function logUsage(
   cacheKey: string | null,
   message: string,
 ) {
-  await supabaseAdmin
-    .from('profiles')
-    .update({ ai_messages_used_today: usedToday + 1 })
-    .eq('id', userId)
+  await incrementDailyUsage(userId, usedToday + 1)
 
-  await supabaseAdmin.from('ai_usage_logs').insert({
-    user_id: userId,
-    model_used: modelShortName,
-    tokens_input: inputTokens,
-    tokens_output: outputTokens,
-    cost_usd: costUsd,
-    response_cached: modelShortName === 'cached',
-    message_hash: cacheKey,
-    user_message: message.slice(0, AI_CONFIG.MESSAGE_LOG_PREVIEW_LENGTH),
-    response_time_ms: responseMs,
-    agent_type: agentType,
+  await logAgentUsage({
+    userId,
+    modelUsed: modelShortName,
+    tokensInput: inputTokens,
+    tokensOutput: outputTokens,
+    costUsd,
+    responseCached: modelShortName === 'cached',
+    messageHash: cacheKey,
+    userMessage: message,
+    responseTimeMs: responseMs,
+    agentType,
+    messagePreviewLimit: AI_CONFIG.MESSAGE_LOG_PREVIEW_LENGTH,
   })
 }
