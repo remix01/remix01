@@ -82,6 +82,8 @@ export default async function InquiriesPage() {
                 // TODO(route-consolidation): keep legacy detail route until
                 // canonical detail parity is fully validated.
                 return (
+                  // TODO(route-consolidation): keep legacy detail route until
+                  // canonical detail parity is fully validated.
                   <Link
                     key={inquiry.id}
                     href={`/dashboard/stranka/povprasevanja/${inquiry.id}`}
