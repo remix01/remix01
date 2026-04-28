@@ -163,12 +163,31 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       throw new Error(`Unknown email job type: ${type}`)
   }
 
-  // Send email via Resend or similar provider
+  // Send email via Resend
   console.log(`[EMAIL] Sending ${type} to ${recipientEmail}`, {
     subject,
     transactionId,
     metadata,
   })
+
+  if (recipientEmail) {
+    const resend = getResendClient()
+    if (!resend) {
+      console.warn('[EMAIL] Resend not configured, skipping escrow email:', type)
+    } else {
+      const { to: resolvedTo } = resolveEmailRecipients(recipientEmail)
+      const result = await resend.emails.send({
+        from: getDefaultFrom(),
+        to: resolvedTo,
+        subject,
+        html: htmlBody,
+      })
+      if (result.error) {
+        throw new Error(`[EMAIL] Resend error for ${type}: ${result.error.message}`)
+      }
+      console.log(`[EMAIL] Sent ${type} to ${recipientEmail}`, { messageId: result.data?.id })
+    }
+  }
 
   // Insert notification record if we have a user ID
   if (recipientUserId && notificationType) {
@@ -189,14 +208,6 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     }
   }
 
-  // TODO: Integrate with Resend or your email provider
-  // const { error } = await resend.emails.send({
-  //   from: 'noreply@liftgo.com',
-  //   to: recipientEmail,
-  //   subject,
-  //   html: htmlBody,
-  // })
-  // if (error) throw new Error(`Email send failed: ${error.message}`)
 }
 
 // ── EMAIL TEMPLATES

@@ -40,6 +40,14 @@
     {
       "path": "/api/cron/backfill-embeddings",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/daily-review-reminders",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-provider-digest",
+      "schedule": "0 8 * * 1"
     }
   ]
 }
