@@ -1,72 +1,55 @@
-import { ok, fail } from "@/lib/api/response";
-import { createClient } from "@/lib/supabase/server";
-import type { CreateOfferPayload } from "@/lib/types/offer";
+import { ok, fail } from '@/lib/api/response'
+import { createClient } from '@/lib/supabase/server'
+import type { CreateOfferPayload } from '@/lib/types/offer'
+import {
+  partnerOfferService,
+  PartnerOfferServiceError,
+} from '@/lib/partner/offers/service'
 
-export async function POST(req: Request) {
-  const supabase = await createClient();
+async function withPartnerAuth() {
+  const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    return fail("UNAUTHORIZED", "Unauthorized", 401);
+    return { error: fail('UNAUTHORIZED', 'Unauthorized', 401) }
   }
 
-  const body: CreateOfferPayload = await req.json();
-  const {
-    povprasevanje_id,
-    title,
-    message,
-    price_estimate,
-    price_type,
-    available_date,
-  } = body;
+  return { supabase, userId: user.id }
+}
 
-  if (!povprasevanje_id) {
-    return fail("MISSING_INQUIRY_ID", "Povpraševanje je obvezno.", 400);
-  }
-  if (!message?.trim()) {
-    return fail("MISSING_MESSAGE", "Sporočilo je obvezno.", 400);
-  }
-  if (!Number.isFinite(price_estimate) || price_estimate <= 0) {
-    return fail("INVALID_PRICE", "Cena mora biti večja od 0.", 400);
+function handleRouteError(error: unknown, routeTag: string) {
+  if (error instanceof PartnerOfferServiceError) {
+    return fail(error.code, error.message, error.status)
   }
 
-  // Prevent duplicate offers for the same inquiry
-  const { data: existing } = await supabase
-    .from("ponudbe")
-    .select("id")
-    .eq("povprasevanje_id", povprasevanje_id)
-    .eq("obrtnik_id", user.id)
-    .maybeSingle();
+  console.error(`[${routeTag}] unexpected error:`, error)
+  return fail('INTERNAL_ERROR', 'Prišlo je do nepričakovane napake.', 500)
+}
 
-  if (existing) {
-    return fail(
-      "DUPLICATE_OFFER",
-      "Za to povpraševanje ste že oddali ponudbo.",
-      409,
-    );
+export async function GET() {
+  const auth = await withPartnerAuth()
+  if ('error' in auth) return auth.error
+
+  try {
+    const offers = await partnerOfferService.list(auth.supabase, auth.userId)
+    return ok(offers)
+  } catch (error) {
+    return handleRouteError(error, 'GET /api/partner/offers')
   }
+}
 
-  const { data, error } = await supabase
-    .from("ponudbe")
-    .insert({
-      povprasevanje_id,
-      obrtnik_id: user.id,
-      title: title?.trim() ?? null,
-      message: message.trim(),
-      price_estimate,
-      price_type: price_type ?? "ocena",
-      status: "poslana",
-      available_date: available_date ?? null,
-    })
-    .select("*")
-    .single();
+export async function POST(req: Request) {
+  const auth = await withPartnerAuth()
+  if ('error' in auth) return auth.error
 
-  if (error) {
-    console.error("[POST /api/partner/offers] insert error:", error.message);
-    return fail("OFFER_CREATE_FAILED", error.message, 500);
+  try {
+    const body: CreateOfferPayload = await req.json()
+    const created = await partnerOfferService.create(auth.supabase, auth.userId, body)
+
+    return ok(created, undefined, 201)
+  } catch (error) {
+    return handleRouteError(error, 'POST /api/partner/offers')
   }
-
-  return ok(data, undefined, 201);
 }

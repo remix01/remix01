@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { ok, fail } from "@/lib/api/response";
+import { canAccessFeature } from "@/lib/access-policy";
 
 export async function POST(req: Request) {
   try {
@@ -57,11 +58,12 @@ export async function POST(req: Request) {
       return fail("PROFILE_NOT_FOUND", "Profil obrtnika ni najden", 403);
     }
 
-    // AI offer generation requires PRO or ELITE package
-    if (
-      obrtnikProfile.subscription_tier !== "pro" &&
-      (obrtnikProfile.subscription_tier as string) !== "elite"
-    ) {
+    // AI offer generation requires offerGenerator feature (PRO/ELITE)
+    const featureAccess = canAccessFeature(
+      obrtnikProfile.subscription_tier,
+      "offerGenerator",
+    );
+    if (!featureAccess.allowed) {
       return fail(
         "TIER_REQUIRED",
         "PRO ali ELITE paket je obvezen za AI generiranje ponudb",
