@@ -22,49 +22,48 @@ import { handleTaskStarted } from './workers/taskProcessor'
 import { handleRequestReview } from './workers/taskProcessor'
 import { handleAgentSchedulePropose } from './workers/agentSchedulePropose'
 import { handleAgentVideoAnalyze } from './workers/agentVideoAnalyze'
+import { handleStripeJob } from './workers/stripeWorker'
+
+type JobHandler = (job: Job) => Promise<void>
+
+const notImplementedHandler = (jobType: JobType): JobHandler => {
+  return async () => {
+    throw new Error(`[JOBS] Handler not implemented for active job type: ${jobType}`)
+  }
+}
+
+const jobHandlers: Record<JobType, JobHandler> = {
+  stripeCapture: handleStripeCapture,
+  stripeRelease: handleStripeRelease,
+  stripeCancel: handleStripeCancel,
+  sendEmail: (job) => handleEmailJob({ ...job, type: 'sendEmail' }),
+  auditLog: handleAuditLog,
+  webhook: handleWebhook,
+  send_dispute_email: (job) => handleEmailJob({ ...job, type: 'send_dispute_email' }),
+  send_refund_email: (job) => handleEmailJob({ ...job, type: 'send_refund_email' }),
+  send_release_email: (job) => handleEmailJob({ ...job, type: 'send_release_email' }),
+  webhook_escrow_status_changed: handleWebhook,
+  match_request: handleMatchRequest,
+  notify_partners: handleNotifyPartners,
+  create_escrow: handleCreateEscrow,
+  release_escrow: handleReleaseEscrow,
+  cancel_escrow: handleCancelEscrow,
+  activate_guarantee: handleActivateGuarantee,
+  task_started: handleTaskStarted,
+  request_review: handleRequestReview,
+  agent_schedule_propose: handleAgentSchedulePropose,
+  agent_video_analyze: handleAgentVideoAnalyze,
+  stripe_refund_payment: (job) => handleStripeJob({ ...job, type: 'stripe_refund_payment' }),
+  stripe_capture_payment: (job) => handleStripeJob({ ...job, type: 'stripe_capture_payment' }),
+  stripe_release_payment: notImplementedHandler('stripe_release_payment'),
+  send_payment_confirmed_email: (job) => handleEmailJob({ ...job, type: 'send_payment_confirmed_email' }),
+  notify_dispute_resolved: notImplementedHandler('notify_dispute_resolved'),
+}
 
 /**
  * Route a job to its processor function
  */
 export async function processJob(jobType: JobType, job: Job): Promise<void> {
-  switch (jobType) {
-    case 'stripeCapture':
-      return handleStripeCapture(job)
-    case 'stripeRelease':
-      return handleStripeRelease(job)
-    case 'stripeCancel':
-      return handleStripeCancel(job)
-    case 'sendEmail':
-    case 'send_dispute_email':
-    case 'send_refund_email':
-    case 'send_release_email':
-    case 'send_payment_confirmed_email':
-      return handleEmailJob({ ...job, type: jobType })
-    case 'auditLog':
-      return handleAuditLog(job)
-    case 'webhook':
-      return handleWebhook(job)
-    case 'match_request':
-      return handleMatchRequest(job)
-    case 'notify_partners':
-      return handleNotifyPartners(job)
-    case 'create_escrow':
-      return handleCreateEscrow(job)
-    case 'release_escrow':
-      return handleReleaseEscrow(job)
-    case 'cancel_escrow':
-      return handleCancelEscrow(job)
-    case 'activate_guarantee':
-      return handleActivateGuarantee(job)
-    case 'task_started':
-      return handleTaskStarted(job)
-    case 'request_review':
-      return handleRequestReview(job)
-    case 'agent_schedule_propose':
-      return handleAgentSchedulePropose(job)
-    case 'agent_video_analyze':
-      return handleAgentVideoAnalyze(job)
-    default:
-      throw new Error(`Unknown job type: ${jobType}`)
-  }
+  const handler = jobHandlers[jobType]
+  return handler(job)
 }

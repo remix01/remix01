@@ -15,7 +15,7 @@
  */
 
 import { Client } from '@upstash/qstash'
-import { env, hasQStash } from '../env'
+import { assertQStashProductionEnv, env, hasQStash } from '../env'
 
 // ── TYPES
 export type JobType =
@@ -73,6 +73,10 @@ export interface AgentVideoAnalyzePayload {
 let qstash: Client | null = null
 
 function getQStash(): Client | null {
+  if (env.NODE_ENV === 'production') {
+    assertQStashProductionEnv()
+  }
+
   if (!hasQStash()) {
     return null
   }
@@ -98,13 +102,30 @@ export async function enqueue<T extends Record<string, any>>(
   const client = getQStash()
   const baseUrl = env.NEXT_PUBLIC_APP_URL
 
+  const correlationId =
+    (payload as any)?.correlationId ??
+    (payload as any)?.jobId ??
+    (payload as any)?.job_id ??
+    globalThis.crypto?.randomUUID?.() ??
+    `job_${Date.now()}`
+  const jobId = (payload as any)?.jobId ?? (payload as any)?.job_id ?? correlationId
+
+
   if (!client) {
     if (env.NODE_ENV === 'production') {
       throw new Error(`[Queue] QStash not configured in production — cannot enqueue job: ${jobType}`)
     }
-    console.warn(`[Queue] QStash not configured — job skipped: ${jobType}`, payload)
+    console.warn('[Queue] QStash not configured — job skipped', { jobType })
     if (env.NODE_ENV === 'development') {
-      console.log('[Queue] In development: job would execute:', jobType, payload)
+      console.log('[Queue] In development: job would execute', {
+        jobType,
+        transactionId: (payload as any)?.transactionId ?? null,
+        escrowId: (payload as any)?.escrowId ?? null,
+        taskId: (payload as any)?.taskId ?? null,
+        inquiryId: (payload as any)?.inquiryId ?? (payload as any)?.povprasevanjeId ?? null,
+        jobId,
+        correlationId,
+      })
     }
     return 'no-op'
   }
@@ -119,12 +140,26 @@ export async function enqueue<T extends Record<string, any>>(
 
   const result = await client.publishJSON({
     url: `${baseUrl}/api/jobs/process`,
-    body: { jobType, payload, enqueuedAt: Date.now() },
+    body: {
+      jobType,
+      payload,
+      metadata: { correlationId, jobId },
+      enqueuedAt: Date.now(),
+    },
     retries: options?.retries ?? 3,
     delay: options?.delay,
   })
 
-  console.log(`[JOB ENQUEUED] ${jobType} (${result.messageId})`, { payload })
+  console.log('[JOB ENQUEUED]', {
+    jobType,
+    messageId: result.messageId,
+    transactionId: (payload as any)?.transactionId ?? null,
+    escrowId: (payload as any)?.escrowId ?? null,
+    taskId: (payload as any)?.taskId ?? null,
+    inquiryId: (payload as any)?.inquiryId ?? (payload as any)?.povprasevanjeId ?? null,
+    jobId,
+    correlationId,
+  })
   return result.messageId
 }
 
