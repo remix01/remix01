@@ -43,6 +43,14 @@ function getCronEnvDiagnostics() {
   }
 }
 
+function getRequestDiagnostics(req: NextRequest) {
+  return {
+    path: req.nextUrl.pathname,
+    method: req.method,
+    requestId: req.headers.get('x-vercel-id') || req.headers.get('x-request-id') || 'unknown',
+  }
+}
+
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
   const cronSecret = process.env.CRON_SECRET
@@ -69,6 +77,7 @@ export async function GET(req: NextRequest) {
     console.log('[v0] SLA task expiry cron job started', {
       timestamp: new Date().toISOString(),
       diagnostics: getCronEnvDiagnostics(),
+      request: getRequestDiagnostics(req),
     })
 
     // Find all tasks that:
@@ -91,7 +100,7 @@ export async function GET(req: NextRequest) {
     if (queryError) {
       console.error('[v0] Error querying overdue tasks:', {
         now,
-        diagnostics: getCronEnvDiagnostics(),
+        request: getRequestDiagnostics(req),
         queryError,
       })
       return NextResponse.json(
@@ -154,6 +163,7 @@ export async function GET(req: NextRequest) {
     console.error('[v0] SLA task expiry cron job failed:', {
       error: serializeError(error),
       diagnostics: getCronEnvDiagnostics(),
+      request: getRequestDiagnostics(req),
     })
     return NextResponse.json(
       {
