@@ -27,7 +27,8 @@ ${JSON.stringify(logs)}
       useTools: false,
     })
 
-    const parsed = JSON.parse((ai.response.match(/\{[\s\S]*\}/) || [])[0] || '{"tips":[]}')
+    const jsonMatch = ai.response.match(/\{[\s\S]*\}/)
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : '{"tips":[]}')
     return NextResponse.json({ success: true, data: parsed })
   } catch (error) {
     console.error('[home-advisor] error:', error)

@@ -1,33 +1,27 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { Search, Star, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { HomeStats } from './types'
 
-const CATEGORIES = [
-  'Vodovodar',
-  'Električar',
-  'Slikopleskar',
-  'Mizar',
-  'Keramičar',
-  'Klima servis',
-]
-
 interface HeroSectionProps {
   stats: HomeStats
+  categories?: Array<{ label: string; slug: string }>
 }
 
-export function HeroSection({ stats }: HeroSectionProps) {
+export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return CATEGORIES
-    return CATEGORIES.filter((item) => item.toLowerCase().includes(query.toLowerCase()))
-  }, [query])
+    if (!query.trim()) return categories.slice(0, 6)
+    return categories.filter((c) => c.label.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
+  }, [query, categories])
 
   const redirectHref = useMemo(() => {
     const category = (selectedCategory || query).trim()
@@ -35,6 +29,11 @@ export function HeroSection({ stats }: HeroSectionProps) {
     if (category) params.set('kategorija', category)
     return `/povprasevanje/novo?${params.toString()}`
   }, [query, selectedCategory])
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    router.push(redirectHref)
+  }
 
   return (
     <section className="relative overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background pb-10 pt-20 sm:pb-16 sm:pt-28">
@@ -48,7 +47,7 @@ export function HeroSection({ stats }: HeroSectionProps) {
             Vpišite težavo, AI predlaga kategorijo, vi pa v minuti oddate povpraševanje.
           </p>
 
-          <div className="mt-6 rounded-xl border bg-background p-3">
+          <form onSubmit={handleSubmit} className="mt-6 rounded-xl border bg-background p-3">
             <label htmlFor="hero-search" className="sr-only">Kaj potrebujete?</label>
             <div className="flex items-center gap-2">
               <Search className="h-4 w-4 text-muted-foreground" />
@@ -64,24 +63,28 @@ export function HeroSection({ stats }: HeroSectionProps) {
               />
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              {filtered.slice(0, 6).map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory(category)
-                    setQuery(category)
-                  }}
-                  className="min-h-11 rounded-full border px-3 py-2 text-sm hover:bg-muted"
-                >
-                  {category}
-                </button>
-              ))}
+              {filtered.length > 0 ? (
+                filtered.map((category) => (
+                  <button
+                    key={category.slug}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(category.label)
+                      setQuery(category.label)
+                    }}
+                    className="min-h-11 rounded-full border px-3 py-2 text-sm hover:bg-muted"
+                  >
+                    {category.label}
+                  </button>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Ni ujemajočih kategorij.</p>
+              )}
             </div>
-            <Button asChild size="lg" className="mt-4 h-12 w-full text-base">
-              <Link href={redirectHref}>Poišči mojstra</Link>
+            <Button type="submit" size="lg" className="mt-4 h-12 w-full text-base">
+              Poišči mojstra
             </Button>
-          </div>
+          </form>
         </div>
 
         <div className="rounded-2xl border bg-card/90 p-5 shadow-sm sm:p-8">

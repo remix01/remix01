@@ -88,15 +88,16 @@ export default function MojsterDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const profile = obrtnik.profiles[0]
+  const profile = Array.isArray(obrtnik.profiles) ? obrtnik.profiles[0] : obrtnik.profiles
   const daysOfWeek = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned']
   const categories = obrtnik.obrtnik_categories?.map((oc: any) => oc.categories) || []
   const reviews = obrtnik.ocene || []
   const portfolio = obrtnik.portfolio_items || []
   const availability = obrtnik.obrtnik_availability || []
 
-  const initials = profile.full_name
+  const initials = (profile?.full_name ?? '')
     .split(' ')
+    .filter(Boolean)
     .map((n: string) => n[0])
     .join('')
     .toUpperCase()

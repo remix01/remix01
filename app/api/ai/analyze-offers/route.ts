@@ -58,7 +58,8 @@ ${JSON.stringify(offers)}
       useTools: false,
     })
 
-    const parsed = JSON.parse((ai.response.match(/\{[\s\S]*\}/) || [])[0] || '{}')
+    const jsonMatch = ai.response.match(/\{[\s\S]*\}/)
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : '{}')
 
     await executeRedisOperation(
       (redis) => redis.set(cacheKey, JSON.stringify(parsed), { ex: 60 * 30 }),

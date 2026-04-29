@@ -42,7 +42,31 @@ const faqSchema = {
       name: 'Kako deluje LiftGO?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Oddajte brezplačno povpraševanje, mi pa vas povežemo s preverjenimi obrtniki v vaši okolici.',
+        text: 'Oddajte brezplačno povpraševanje, mi pa vas povežemo s preverjenimi obrtniki v vaši okolici. Ponudbe prejmete v 24 urah.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Ali je oddaja povpraševanja brezplačna?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Da, oddaja povpraševanja je za stranke popolnoma brezplačna. Plačate šele, ko se dogovorite z izbranim mojstrom.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Kako so preverjeni mojstri na LiftGO?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Vsak obrtnik gre skozi postopek preverjanja identitete in poklicnih referenc. Na platformi so prikazani samo verificirani mojstri.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Kako hitro dobim ponudbe?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Večina strank prejme prve ponudbe v 24 urah po oddaji povpraševanja.',
       },
     },
   ],
@@ -61,7 +85,7 @@ interface ReviewRow {
 interface ActivityRow {
   id: string
   location_city: string | null
-  kategorija: string | null
+  categories: { name: string } | null
   created_at: string
 }
 
@@ -74,7 +98,7 @@ async function getHomeData(): Promise<{
   try {
     const [activeCraftsmenQuery, reviewsQuery, activityQuery, categoriesQuery] = await Promise.all([
       supabaseAdmin
-        .from('craftworker_profile')
+        .from('obrtnik_profiles')
         .select('id', { count: 'exact', head: true })
         .eq('is_verified', true),
       supabaseAdmin
@@ -86,7 +110,7 @@ async function getHomeData(): Promise<{
         .limit(6),
       supabaseAdmin
         .from('povprasevanja')
-        .select('id,location_city,kategorija,created_at')
+        .select('id, location_city, categories(name), created_at')
         .order('created_at', { ascending: false })
         .limit(8),
       getActiveCategoriesPublic(),
@@ -94,7 +118,7 @@ async function getHomeData(): Promise<{
 
     const stats: HomeStats = {
       rating: 4.9,
-      reviews: reviewsQuery.data?.length ? reviewsQuery.data.length * 120 : 1234,
+      reviews: 1234,
       activeCraftsmen: activeCraftsmenQuery.count || 342,
     }
 
@@ -118,7 +142,7 @@ async function getHomeData(): Promise<{
     const activity: HomeActivityItem[] = ((activityQuery.data as ActivityRow[] | null) || []).map((item) => ({
       id: item.id,
       city: item.location_city || 'neznano mesto',
-      category: item.kategorija || 'splošno storitev',
+      category: item.categories?.name || 'splošno storitev',
       createdAt: item.created_at,
     }))
 
@@ -154,7 +178,7 @@ export default async function Page() {
       <JsonLd data={faqSchema} />
       <Navbar />
       <main className="flex-1 pb-20 sm:pb-0">
-        <HeroSection stats={stats} />
+        <HeroSection stats={stats} categories={featuredCategories} />
         <LiveActivityTicker initialItems={activity} />
         <HowItWorksTabs />
         <CategoryCityGrid categories={featuredCategories} />
