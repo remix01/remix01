@@ -1,16 +1,15 @@
-// @ts-expect-error vi is not exported from @jest/globals in this config
-import { describe, it, expect, beforeEach, vi } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
 // Mock Redis before importing the module under test
-const mockMget = vi.fn()
-const mockIncr = vi.fn()
-const mockIncrby = vi.fn()
-const mockExpire = vi.fn()
-const mockSet = vi.fn()
-const mockGet = vi.fn()
+const mockMget: any = jest.fn()
+const mockIncr: any = jest.fn()
+const mockIncrby: any = jest.fn()
+const mockExpire: any = jest.fn()
+const mockSet: any = jest.fn()
+const mockGet: any = jest.fn()
 
-vi.mock('@upstash/redis', () => ({
-  Redis: vi.fn().mockImplementation(() => ({
+jest.mock('@upstash/redis', () => ({
+  Redis: jest.fn().mockImplementation(() => ({
     mget: mockMget,
     incr: mockIncr,
     incrby: mockIncrby,
@@ -20,8 +19,8 @@ vi.mock('@upstash/redis', () => ({
   })),
 }))
 
-vi.mock('../../../lib/cache/redis-client', () => ({
-  getRedis: vi.fn().mockReturnValue({
+jest.mock('../../../lib/cache/redis-client', () => ({
+  getRedis: jest.fn().mockReturnValue({
     mget: mockMget,
     incr: mockIncr,
     incrby: mockIncrby,
@@ -29,7 +28,7 @@ vi.mock('../../../lib/cache/redis-client', () => ({
     set: mockSet,
     get: mockGet,
   }),
-  executeRedisOperation: vi.fn(async (fn: (redis: unknown) => unknown) =>
+  executeRedisOperation: jest.fn(async (fn: (redis: unknown) => unknown) =>
     fn({
       mget: mockMget,
       incr: mockIncr,
@@ -41,7 +40,7 @@ vi.mock('../../../lib/cache/redis-client', () => ({
   ),
 }))
 
-vi.mock('../../../lib/cache/cache-keys', () => ({
+jest.mock('../../../lib/cache/cache-keys', () => ({
   CACHE_KEYS: {
     jobStatus: (id: string) => `queue:job:${id}`,
   },
@@ -54,7 +53,7 @@ import { getQueueStatistics } from '../../../lib/queue/job-monitoring'
 
 describe('getQueueStatistics', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   it('returns zero averageProcessingTime when no completed jobs', async () => {
@@ -115,7 +114,7 @@ describe('getQueueStatistics', () => {
 
     const { executeRedisOperation } = await import('../../../lib/cache/redis-client')
     // When Redis fails, executeRedisOperation returns the fallback value
-    ;(executeRedisOperation as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ;(executeRedisOperation as ReturnType<typeof jest.fn>).mockResolvedValueOnce({
       pending: 0,
       processing: 0,
       completed: 0,
