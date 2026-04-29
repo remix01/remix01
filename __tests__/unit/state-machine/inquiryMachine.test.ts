@@ -1,12 +1,11 @@
-// @ts-expect-error vi is not exported from @jest/globals in this config
-import { describe, it, expect, beforeEach, vi } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { assertInquiryTransition } from '@/lib/agent/state-machine/inquiryMachine'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 // Mock Supabase
-vi.mock('@/lib/supabase-admin', () => ({
+jest.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: {
-    from: vi.fn(),
+    from: jest.fn(),
   },
 }))
 
@@ -14,18 +13,18 @@ describe('InquiryMachine', () => {
   let mockSelect: any
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
 
     mockSelect = {
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: (jest.fn() as any).mockResolvedValue({
         data: { status: 'pending', id: 'test-inquiry-1' },
         error: null,
       }),
     }
 
     ;(supabaseAdmin.from as any).mockImplementation((table: string) => ({
-      select: vi.fn().mockReturnValue(mockSelect),
+      select: jest.fn().mockReturnValue(mockSelect),
     }))
   })
 
@@ -200,7 +199,7 @@ describe('InquiryMachine', () => {
     })
 
     it('fetches inquiry correctly with proper SQL', async () => {
-      const selectFn = vi.fn().mockReturnValue(mockSelect)
+      const selectFn = jest.fn().mockReturnValue(mockSelect)
       ;(supabaseAdmin.from as any).mockReturnValue({
         select: selectFn,
       })
