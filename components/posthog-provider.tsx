@@ -8,6 +8,8 @@ import { POSTHOG_CONFIG } from '@/lib/posthog/config'
 
 const POSTHOG_KEY = POSTHOG_CONFIG.apiKey
 const POSTHOG_HOST = POSTHOG_CONFIG.apiHost
+const POSTHOG_UI_HOST = POSTHOG_CONFIG.uiHost
+const POSTHOG_DEFAULTS = POSTHOG_CONFIG.defaults
 
 type PostHogFlaggedWindow = Window & {
   __POSTHOG_INITIALIZED__?: boolean
@@ -30,6 +32,8 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     posthog.init(POSTHOG_KEY, {
       ...POSTHOG_CONFIG.initialization,
       api_host: POSTHOG_HOST,
+      ui_host: POSTHOG_UI_HOST,
+      defaults: POSTHOG_DEFAULTS,
       loaded: (ph) => {
         if (flaggedWindow) flaggedWindow.__POSTHOG_INITIALIZED__ = true
         if (process.env.NODE_ENV === 'development') {

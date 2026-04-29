@@ -12,6 +12,8 @@ declare module 'posthog-js' {
 
   export interface PostHogConfig {
     api_host?: string
+    ui_host?: string
+    defaults?: string
     person_profiles?: 'always' | 'never' | 'identified_only'
     capture_pageview?: boolean
     capture_pageleave?: boolean

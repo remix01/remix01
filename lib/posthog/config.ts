@@ -7,7 +7,10 @@ import type { PostHogConfig } from 'posthog-js'
 export const POSTHOG_CONFIG = {
   // ─── CREDENTIALS ────────────────────────────────────────────────────
   apiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY ?? 'phc_tVJxRQ6czM2AqiX9CGkQEwpgowmcv9bzHwcMyXeMbSeY',
-  apiHost: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
+  // Use Next.js reverse proxy (/ingest) to bypass ad-blockers.
+  // The proxy forwards to eu.i.posthog.com via next.config.ts rewrites.
+  apiHost: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? '/ingest',
+  uiHost: 'https://eu.posthog.com',
   defaults: process.env.NEXT_PUBLIC_POSTHOG_DEFAULTS ?? '2026-01-30',
 
   // ─── INITIALIZATION CONFIG ──────────────────────────────────────────

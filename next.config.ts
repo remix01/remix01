@@ -13,11 +13,11 @@ process.env.QSTASH_TOKEN ||= 'development-qstash-token'
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://us.i.posthog.com https://app.posthog.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://us.i.posthog.com https://eu.i.posthog.com https://eu-assets.i.posthog.com https://app.posthog.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://maps.gstatic.com https://maps.googleapis.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://eu.i.posthog.com https://app.posthog.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://eu.i.posthog.com https://eu-assets.i.posthog.com https://app.posthog.com",
   "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
   "object-src 'none'",
   "base-uri 'self'",
@@ -78,6 +78,24 @@ const nextConfig: NextConfig = {
   // ═══════════════════════════════════════════════════════════════════════════
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // POSTHOG REVERSE PROXY
+  // Proxies PostHog traffic through /ingest to bypass ad-blockers.
+  // api_host in posthog.init should be '/ingest'.
+  // ═══════════════════════════════════════════════════════════════════════════
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://eu-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://eu.i.posthog.com/:path*',
+      },
+    ]
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
