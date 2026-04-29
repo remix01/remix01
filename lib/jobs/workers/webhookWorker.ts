@@ -51,7 +51,14 @@ export async function handleWebhook(job: Job<WebhookJobPayload>): Promise<void> 
   }
 
   try {
-    console.log(`[WEBHOOK] Sending webhook to ${webhookUrl}`, payload_data)
+    const destinationHost = new URL(webhookUrl).host
+    console.log('[WEBHOOK] Sending webhook', {
+      transactionId,
+      statusBefore,
+      statusAfter,
+      destinationHost,
+      hasMetadata: Boolean(metadata),
+    })
 
     const body = JSON.stringify(payload_data)
     const response = await fetch(webhookUrl, {
@@ -67,9 +74,16 @@ export async function handleWebhook(job: Job<WebhookJobPayload>): Promise<void> 
       throw new Error(`Webhook failed: ${response.status} ${response.statusText}`)
     }
 
-    console.log(`[WEBHOOK] Webhook sent successfully to ${webhookUrl}`)
+    console.log('[WEBHOOK] Webhook sent successfully', { transactionId, destinationHost })
   } catch (error: unknown) {
-    console.error(`[WEBHOOK] Failed to send webhook to ${webhookUrl}:`, error)
+    const destinationHost = new URL(webhookUrl).host
+    console.error('[WEBHOOK] Failed to send webhook', {
+      transactionId,
+      statusBefore,
+      statusAfter,
+      destinationHost,
+      message: error instanceof Error ? error.message : 'Unknown error',
+    })
     throw error // Retry
   }
 }

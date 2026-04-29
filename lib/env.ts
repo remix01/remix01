@@ -88,6 +88,38 @@ export const env = {
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 } as const
 
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+export function assertQStashProductionEnv(): void {
+  if (env.NODE_ENV !== 'production') return
+
+  const missing: string[] = []
+  if (!env.QSTASH_TOKEN) missing.push('QSTASH_TOKEN')
+  if (!env.QSTASH_CURRENT_SIGNING_KEY) missing.push('QSTASH_CURRENT_SIGNING_KEY')
+  if (!env.QSTASH_NEXT_SIGNING_KEY) missing.push('QSTASH_NEXT_SIGNING_KEY')
+
+  const rawPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  const hasExplicitAppUrl = typeof rawPublicAppUrl === 'string' && rawPublicAppUrl.trim().length > 0
+  if (!hasExplicitAppUrl) {
+    missing.push('NEXT_PUBLIC_APP_URL')
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`[ENV] Missing required production QStash env vars: ${missing.join(', ')}`)
+  }
+
+  if (!isValidHttpUrl(env.NEXT_PUBLIC_APP_URL)) {
+    throw new Error('[ENV] NEXT_PUBLIC_APP_URL must be a valid http(s) URL in production')
+  }
+}
 export function assertEnv() {
   if (!env.STRIPE_SECRET_KEY) {
     throw new Error('Missing STRIPE_SECRET_KEY')
