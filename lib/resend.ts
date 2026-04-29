@@ -40,9 +40,15 @@ export function resolveEmailRecipients(to: string | string[]): {
   originalTo: string[]
   redirected: boolean
 } {
-  const recipients = (Array.isArray(to) ? to : [to])
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const recipients = Array.from(new Set((Array.isArray(to) ? to : [to])
     .map((value) => value.trim())
-    .filter(Boolean)
+    .filter(Boolean)))
+
+  const invalidRecipients = recipients.filter((recipient) => !emailRegex.test(recipient))
+  if (invalidRecipients.length > 0) {
+    throw new Error(`[email-safety] Invalid recipient email format: ${invalidRecipients.join(', ')}`)
+  }
 
   const originalTo = [...recipients]
 
