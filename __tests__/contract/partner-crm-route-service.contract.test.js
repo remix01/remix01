@@ -28,7 +28,7 @@ describe('Partner CRM route/service contract', () => {
   })
 
   it('tier denied behavior is preserved in service with same semantic (crm feature required)', () => {
-    expect(serviceSource).toMatch(/tierHasFeature\(tier, 'crm'\)/)
+    expect(serviceSource).toMatch(/canAccessFeature\(profile\?\.subscription_tier, 'crm'\)/)
     expect(serviceSource).toMatch(/new PartnerCRMServiceError\('TIER_REQUIRED', 'PRO paket obvezen\.', 403\)/)
   })
 

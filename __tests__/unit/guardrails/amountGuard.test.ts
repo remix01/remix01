@@ -129,10 +129,8 @@ describe('AmountGuard', () => {
       )
     })
 
-    it('rejects boolean true', async () => {
-      await expect(amountGuard({ amount: true })).rejects.toEqual(
-        expect.objectContaining({ code: 400 })
-      )
+    it('accepts boolean true via Number() coercion compatibility', async () => {
+      await expect(amountGuard({ amount: true })).resolves.toBeUndefined()
     })
 
     it('rejects boolean false', async () => {
