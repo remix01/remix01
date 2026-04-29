@@ -14,6 +14,10 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
 interface EmailJobPayload {
+  to?: string | string[]
+  template?: string
+  escrowId?: string
+  customData?: Record<string, any>
   transactionId?: string
   recipientEmail?: string
   recipientName?: string
@@ -38,7 +42,12 @@ interface EmailJobPayload {
 export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string }): Promise<void> {
   const type = (job as any).type
   const payload = job.data
-  const { jobType, povprasevanjeId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
+  const { to, template, escrowId, customData, jobType, povprasevanjeId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
+
+  const resend = getResendClient()
+  if (!resend) {
+    throw new Error('[EMAIL] Resend client not initialized - missing RESEND_API_KEY')
+  }
 
   // Handle povprasevanje confirmation (both authenticated and public)
   if ((jobType === 'povprasevanje_confirmation' || jobType === 'povprasevanje_confirmation_public') && povprasevanjeId) {
@@ -60,32 +69,61 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
         }
       }
 
-      if (!emailAddress) {
-        console.error('[EMAIL] No email address found for povprasevanje:', povprasevanjeId)
-        return
-      }
-
-      const resend = getResendClient()
-      if (!resend) {
-        console.error('[EMAIL] Resend client not initialized')
-        return
-      }
+      if (!emailAddress) throw new Error(`[EMAIL] No email address found for povprasevanje: ${povprasevanjeId}`)
 
       const htmlBody = buildPovprasevanjeConfirmationEmail(fullName || 'Naročnik', title || '', category || '', location || '', urgency || '', budget)
-
-      await resend.emails.send({
+      const resolvedRecipients = resolveEmailRecipients(emailAddress)
+      if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
+      const emailResult = await resend.emails.send({
         from: getDefaultFrom(),
-        to: resolveEmailRecipients(emailAddress).to,
-        subject: `✅ Povpraševanje oddano: ${title}`,
+        to: resolvedRecipients.to,
+        subject: `✅ Povpraševanje oddano: ${escapeHtml(title || 'Novo povpraševanje')}`,
         html: htmlBody,
-      })
+      } as any, { idempotencyKey: `povprasevanje:${povprasevanjeId}:confirmation` })
 
-      console.log(`[EMAIL] Povprasevanje confirmation sent to ${emailAddress}`)
+      console.log('[EMAIL] Sent', {
+        type: jobType,
+        povprasevanjeId,
+        resendMessageId: emailResult?.data?.id ?? null,
+        recipientsCount: resolvedRecipients.to.length,
+        redirected: resolvedRecipients.redirected,
+      })
       return
     } catch (error) {
       console.error('[EMAIL] Error sending povprasevanje confirmation:', error)
       throw error
     }
+  }
+
+  if (type === 'sendEmail') {
+    const effectiveTemplate = template || jobType
+    let recipient = to
+    if (!recipient && narocnikEmail) recipient = narocnikEmail
+    if (!recipient && narocnikId) {
+      const { data: profile } = await supabaseAdmin.from('profiles').select('email').eq('id', narocnikId).single()
+      recipient = profile?.email
+    }
+    if (!recipient) throw new Error('[EMAIL] Missing recipient for sendEmail job')
+    if (!effectiveTemplate) throw new Error('[EMAIL] Missing template/jobType for sendEmail job')
+    const resolvedRecipients = resolveEmailRecipients(recipient)
+    if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
+    const emailContent = buildGenericEmailContent(effectiveTemplate, { escrowId, ...customData, ...payload })
+    const idempotencySource = povprasevanjeId || escrowId || transactionId || 'generic'
+    const emailResult = await resend.emails.send({
+      from: getDefaultFrom(),
+      to: resolvedRecipients.to,
+      subject: emailContent.subject,
+      html: emailContent.html,
+    } as any, { idempotencyKey: `${effectiveTemplate}:${idempotencySource}` })
+    console.log('[EMAIL] Sent', {
+      type,
+      template: effectiveTemplate,
+      id: idempotencySource,
+      resendMessageId: emailResult?.data?.id ?? null,
+      recipientsCount: resolvedRecipients.to.length,
+      redirected: resolvedRecipients.redirected,
+    })
+    return
   }
 
   // Handle escrow emails (existing logic)
@@ -115,8 +153,8 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     case 'send_release_email':
       subject = `Payment Released - Transaction ${transactionId.slice(0, 8)}`
       htmlBody = buildReleaseEmail(
-        recipientName || 'Valued Customer',
-        partnerName || 'Partner',
+        escapeHtml(recipientName || 'Valued Customer'),
+        escapeHtml(partnerName || 'Partner'),
         amount || escrow.amount_cents
       )
       notificationType = 'escrow_released'
@@ -127,9 +165,9 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     case 'send_refund_email':
       subject = `Refund Processed - Transaction ${transactionId.slice(0, 8)}`
       htmlBody = buildRefundEmail(
-        recipientName || 'Valued Customer',
+        escapeHtml(recipientName || 'Valued Customer'),
         amount || escrow.amount_cents,
-        reason || 'Your request'
+        escapeHtml(reason || 'Your request')
       )
       notificationType = 'escrow_released'
       notificationTitle = 'Refund Processed'
@@ -139,19 +177,19 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     case 'send_dispute_email':
       subject = `Dispute Notification - Transaction ${transactionId.slice(0, 8)}`
       htmlBody = buildDisputeEmail(
-        recipientName || 'Valued Customer',
-        reason || 'A dispute has been opened'
+        escapeHtml(recipientName || 'Valued Customer'),
+        escapeHtml(reason || 'A dispute has been opened')
       )
       notificationType = 'dispute_opened'
       notificationTitle = 'Dispute Opened'
-      notificationBody = reason || 'A dispute has been opened on your transaction.'
+      notificationBody = escapeHtml(reason || 'A dispute has been opened on your transaction.')
       break
 
     case 'send_payment_confirmed_email':
       subject = `Payment Confirmed - Transaction ${transactionId.slice(0, 8)}`
       htmlBody = buildPaymentConfirmedEmail(
-        recipientName || 'Valued Customer',
-        partnerName || 'Partner',
+        escapeHtml(recipientName || 'Valued Customer'),
+        escapeHtml(partnerName || 'Partner'),
         amount || escrow.amount_cents
       )
       notificationType = 'escrow_captured'
@@ -163,11 +201,22 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       throw new Error(`Unknown email job type: ${type}`)
   }
 
-  // Send email via Resend or similar provider
-  console.log(`[EMAIL] Sending ${type} to ${recipientEmail}`, {
+  if (!recipientEmail) throw new Error(`[EMAIL] Missing recipientEmail for ${type}`)
+  const resolvedRecipients = resolveEmailRecipients(recipientEmail)
+  if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
+  const eventType = type.replace('send_', '').replace('_email', '')
+  const emailResult = await resend.emails.send({
+    from: getDefaultFrom(),
+    to: resolvedRecipients.to,
     subject,
+    html: htmlBody,
+  } as any, { idempotencyKey: `escrow:${transactionId}:${eventType}` })
+  console.log('[EMAIL] Sent', {
+    type,
     transactionId,
-    metadata,
+    resendMessageId: emailResult?.data?.id ?? null,
+    recipientsCount: resolvedRecipients.to.length,
+    redirected: resolvedRecipients.redirected,
   })
 
   // Insert notification record if we have a user ID
@@ -189,14 +238,35 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     }
   }
 
-  // TODO: Integrate with Resend or your email provider
-  // const { error } = await resend.emails.send({
-  //   from: 'noreply@liftgo.com',
-  //   to: recipientEmail,
-  //   subject,
-  //   html: htmlBody,
-  // })
-  // if (error) throw new Error(`Email send failed: ${error.message}`)
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function buildGenericEmailContent(template: string, data: Record<string, any>): { subject: string; html: string } {
+  switch (template) {
+    case 'povprasevanje_confirmation_public':
+    case 'povprasevanje_confirmation':
+      return {
+        subject: `✅ Povpraševanje oddano: ${escapeHtml(data.title || data.storitev || 'Novo povpraševanje')}`,
+        html: buildPovprasevanjeConfirmationEmail(
+          escapeHtml(data.narocnikName || data.stranka_ime || 'Naročnik'),
+          escapeHtml(data.title || data.storitev || ''),
+          escapeHtml(data.category || data.kategorija || ''),
+          escapeHtml(data.location || data.lokacija || ''),
+          escapeHtml(data.urgency || ''),
+          data.budget
+        ),
+      }
+    default:
+      throw new Error(`Unknown email template: ${template}`)
+  }
 }
 
 // ── EMAIL TEMPLATES

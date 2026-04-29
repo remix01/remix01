@@ -9,7 +9,7 @@ import { Job, JobType } from './queue'
 import { handleStripeCapture } from './workers/stripeCapture'
 import { handleStripeRelease } from './workers/stripeRelease'
 import { handleStripeCancel } from './workers/stripeCancel'
-import { handleSendEmail } from './workers/sendEmail'
+import { handleEmailJob } from './workers/emailWorker'
 import { handleAuditLog } from './workers/auditLogger'
 import { handleWebhook } from './workers/webhookWorker'
 import { handleMatchRequest } from './workers/taskProcessor'
@@ -35,7 +35,11 @@ export async function processJob(jobType: JobType, job: Job): Promise<void> {
     case 'stripeCancel':
       return handleStripeCancel(job)
     case 'sendEmail':
-      return handleSendEmail(job)
+    case 'send_dispute_email':
+    case 'send_refund_email':
+    case 'send_release_email':
+    case 'send_payment_confirmed_email':
+      return handleEmailJob({ ...job, type: jobType })
     case 'auditLog':
       return handleAuditLog(job)
     case 'webhook':
@@ -64,4 +68,3 @@ export async function processJob(jobType: JobType, job: Job): Promise<void> {
       throw new Error(`Unknown job type: ${jobType}`)
   }
 }
-

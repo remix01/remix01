@@ -27,7 +27,14 @@ async function handler(req: NextRequest) {
       )
     }
 
-    console.log(`[API] Processing job: ${jobType}`, { payload })
+    console.log('[API] Processing job', {
+      jobType,
+      transactionId: payload?.transactionId ?? null,
+      escrowId: payload?.escrowId ?? null,
+      povprasevanjeId: payload?.povprasevanjeId ?? null,
+      jobId: payload?.jobId ?? payload?.job_id ?? null,
+      retryCount: req.headers.get('upstash-retries') ?? null,
+    })
 
     // Process the job
     await processJob(jobType as JobType, { data: payload })

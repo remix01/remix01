@@ -99,6 +99,9 @@ export async function enqueue<T extends Record<string, any>>(
   const baseUrl = env.NEXT_PUBLIC_APP_URL
 
   if (!client) {
+    if (env.NODE_ENV === 'production') {
+      throw new Error(`[Queue] QStash not configured in production — cannot enqueue job: ${jobType}`)
+    }
     console.warn(`[Queue] QStash not configured — job skipped: ${jobType}`, payload)
     if (env.NODE_ENV === 'development') {
       console.log('[Queue] In development: job would execute:', jobType, payload)
@@ -107,6 +110,9 @@ export async function enqueue<T extends Record<string, any>>(
   }
 
   if (!baseUrl) {
+    if (env.NODE_ENV === 'production') {
+      throw new Error('[Queue] NEXT_PUBLIC_APP_URL not configured in production — cannot enqueue job')
+    }
     console.warn(`[Queue] NEXT_PUBLIC_APP_URL not configured — job skipped`)
     return 'no-op'
   }
@@ -178,4 +184,3 @@ export async function getQueueStats(): Promise<{
 export async function clearQueue(type: JobType): Promise<void> {
   console.warn(`[CLEAR QUEUE] QStash doesn't support manual queue clearing`)
 }
-
