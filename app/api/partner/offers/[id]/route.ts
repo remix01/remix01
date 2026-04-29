@@ -15,7 +15,7 @@ async function withPartnerAuth() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: fail('UNAUTHORIZED', 'Unauthorized', 401) as const }
+    return { error: fail('UNAUTHORIZED', 'Unauthorized', 401) }
   }
 
   return { supabase, userId: user.id }

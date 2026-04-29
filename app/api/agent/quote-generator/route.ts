@@ -4,8 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { estimateCost } from '@/lib/model-router'
 import { getAgentDefinition } from '@/lib/agents/ai-definitions'
-import { isAgentAccessible, getAgentDailyLimit } from '@/lib/agents/ai-router'
 import type { AIAgentType } from '@/lib/agents/ai-router'
+import { loadAiUsageProfile, normalizeDailyUsageWindow, evaluateAgentTierAccess, incrementDailyUsage } from '@/lib/agents/route-access-policy'
+import { logAgentUsage } from '@/lib/agents/usage-logging'
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,18 +26,14 @@ export async function POST(req: NextRequest) {
     if (!obrtnik) return NextResponse.json({ error: 'Profil obrtnika ni najden.' }, { status: 404 })
 
     const tier = obrtnik.subscription_tier ?? 'start'
-    if (!isAgentAccessible('quote_generator' as AIAgentType, tier)) {
+    const access = evaluateAgentTierAccess('quote_generator' as AIAgentType, tier)
+    if (!access.allowed) {
       return NextResponse.json({ error: 'Ni dostopa.', upgrade_required: true }, { status: 403 })
     }
 
-    const dailyLimit = getAgentDailyLimit('quote_generator' as AIAgentType, tier)
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('ai_messages_used_today, ai_messages_reset_at')
-      .eq('id', user.id).maybeSingle()
-    const usedToday = profile?.ai_messages_used_today ?? 0
-    const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
-    const effectiveUsed = Date.now() - resetAt.getTime() > 86_400_000 ? 0 : usedToday
+    const dailyLimit = access.dailyLimit
+    const profile = await loadAiUsageProfile(user.id)
+    const effectiveUsed = await normalizeDailyUsageWindow(user.id, profile)
     if (effectiveUsed >= dailyLimit) {
       return NextResponse.json({ error: `Dnevni limit dosežen (${dailyLimit}).`, limit_reached: true }, { status: 429 })
     }
@@ -85,17 +82,22 @@ export async function POST(req: NextRequest) {
       .select('id')
       .single()
 
-    await supabaseAdmin.from('profiles').update({ ai_messages_used_today: effectiveUsed + 1 }).eq('id', user.id)
+    await incrementDailyUsage(user.id, effectiveUsed + 1)
     await (supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
       p_user_id: user.id, p_agent_type: 'quote_generator',
       p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
     }) as any).catch(() => {})
-    await (supabaseAdmin.from('ai_usage_logs').insert({
-      user_id: user.id, model_used: 'sonnet-4', tokens_input: inputTokens,
-      tokens_output: outputTokens, cost_usd: costUsd, response_cached: false,
-      agent_type: 'quote_generator', user_message: `quote for: ${pov.title?.slice(0,100)}`,
-      response_time_ms: Date.now() - startTime,
-    }) as any).catch(() => {})
+    await logAgentUsage({
+      userId: user.id,
+      modelUsed: 'sonnet-4',
+      tokensInput: inputTokens,
+      tokensOutput: outputTokens,
+      costUsd,
+      responseCached: false,
+      agentType: 'quote_generator',
+      userMessage: `quote for: ${pov.title?.slice(0,100)}` ,
+      responseTimeMs: Date.now() - startTime,
+    }).catch(() => {})
 
     return NextResponse.json({
       draft_text: draftText,
