@@ -15,8 +15,16 @@ export const FROM_EMAIL =
 
 export const FROM_NAME = 'LiftGO'
 
+export function extractEmailAddress(sender: string): string {
+  const trimmed = sender.trim()
+  const match = trimmed.match(/<\s*([^<>\s]+@[^<>\s]+)\s*>/)
+  if (match?.[1]) return match[1]
+  return trimmed
+}
+
 export function getDefaultFrom(senderName: string = FROM_NAME): string {
-  return `${senderName} <${FROM_EMAIL}>`
+  const emailAddress = extractEmailAddress(FROM_EMAIL)
+  return `${senderName} <${emailAddress}>`
 }
 
 function isNonProductionEnvironment(): boolean {
