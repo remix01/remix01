@@ -34,6 +34,20 @@ function serializeError(error: unknown) {
   }
 }
 
+function serializeDbError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return serializeError(error)
+  }
+
+  const dbError = error as Record<string, unknown>
+  return {
+    message: typeof dbError.message === 'string' ? dbError.message : undefined,
+    details: typeof dbError.details === 'string' ? dbError.details : undefined,
+    hint: typeof dbError.hint === 'string' ? dbError.hint : undefined,
+    code: typeof dbError.code === 'string' ? dbError.code : undefined,
+  }
+}
+
 function getCronEnvDiagnostics() {
   return {
     nodeEnv: process.env.NODE_ENV,
@@ -60,13 +74,19 @@ function verifyCronSecret(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   try {
+    const requestId =
+      req.headers.get('x-request-id') ||
+      req.headers.get('x-vercel-id') ||
+      'unknown'
+
     // Verify cron authorization
     if (!verifyCronSecret(req)) {
-      console.error('[v0] Unauthorized cron request')
+      console.error('[v0] Unauthorized cron request', { requestId })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     console.log('[v0] SLA task expiry cron job started', {
+      requestId,
       timestamp: new Date().toISOString(),
       diagnostics: getCronEnvDiagnostics(),
     })
@@ -90,12 +110,13 @@ export async function GET(req: NextRequest) {
 
     if (queryError) {
       console.error('[v0] Error querying overdue tasks:', {
+        requestId,
         now,
         diagnostics: getCronEnvDiagnostics(),
-        queryError,
+        queryError: serializeDbError(queryError),
       })
       return NextResponse.json(
-        { error: 'Failed to query tasks', details: queryError },
+        { error: 'Failed to query tasks', details: serializeDbError(queryError), requestId },
         { status: 500 }
       )
     }
@@ -147,11 +168,15 @@ export async function GET(req: NextRequest) {
       message: `Expired ${expiredIds.length} of ${overdueTasks.length} overdue tasks`,
     }
 
-    console.log('[v0] SLA task expiry cron job completed:', summary)
+    console.log('[v0] SLA task expiry cron job completed:', { requestId, ...summary })
 
     return NextResponse.json(summary)
   } catch (error) {
     console.error('[v0] SLA task expiry cron job failed:', {
+      requestId:
+        req.headers.get('x-request-id') ||
+        req.headers.get('x-vercel-id') ||
+        'unknown',
       error: serializeError(error),
       diagnostics: getCronEnvDiagnostics(),
     })
