@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     await (supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
       p_user_id: user.id, p_agent_type: 'materials_agent',
       p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
-    }) as any).catch(() => {})
+    }) as any).catch((err: unknown) => { console.error('[agent/materials] cost summary:', err) })
     await logAgentUsage({
       userId: user.id,
       modelUsed: 'sonnet-4',
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       agentType: 'materials_agent',
       userMessage: work_description,
       messagePreviewLimit: 200,
-    }).catch(() => {})
+    }).catch((err: unknown) => { console.error('[agent/materials] usage log:', err) })
 
     return NextResponse.json({
       material_list: parsed.material_list ?? [],
