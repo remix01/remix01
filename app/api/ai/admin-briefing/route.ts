@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { Redis } from '@upstash/redis'
-import { requireAdmin } from '@/lib/admin-auth'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { chat } from '@/lib/ai/providers'
 
 const CACHE_KEY = 'admin:ai:dnevni-pregled:v1'
 const TTL_SECONDS = 60 * 60
+const FALLBACK_BRIEFING = 'Dnevni AI briefing trenutno ni na voljo. Osveži stran kasneje.'
 
 function getRedis() {
   const url = process.env.UPSTASH_REDIS_REST_URL
@@ -14,15 +15,34 @@ function getRedis() {
   return new Redis({ url, token })
 }
 
+function countFromResult(result: any): number {
+  if (!result || result.error) return 0
+  return result.count || 0
+}
+
+function rowsFromResult<T = any>(result: any): T[] {
+  if (!result || result.error || !Array.isArray(result.data)) return []
+  return result.data
+}
+
 export async function GET() {
   try {
     await requireAdmin()
+  } catch (error: unknown) {
+    const failure = toAdminAuthFailure(error)
+    return NextResponse.json({ ok: false, error: 'Napaka pri AI briefingu.', code: failure.code, briefing: FALLBACK_BRIEFING, cached: false, fallback: true }, { status: failure.status })
+  }
 
+  try {
     const redis = getRedis()
     if (redis) {
-      const cached = await redis.get<string>(CACHE_KEY)
-      if (cached) {
-        return NextResponse.json({ briefing: cached, cached: true })
+      try {
+        const cached = await redis.get<string>(CACHE_KEY)
+        if (cached) {
+          return NextResponse.json({ ok: true, briefing: cached, cached: true, fallback: false })
+        }
+      } catch (cacheError) {
+        console.warn('[admin-briefing] cache read failed', cacheError)
       }
     }
 
@@ -39,10 +59,13 @@ export async function GET() {
       supabaseAdmin.from('povprasevanja').select('kategorija').gte('created_at', last24h.toISOString()).limit(500),
     ])
 
-    const currentRevenue = (revenueRows.data || []).filter((r: any) => new Date(r.created_at) >= last24h).reduce((s: number, r: any) => s + Number(r.amount || 0), 0)
-    const previousRevenue = (revenueRows.data || []).filter((r: any) => new Date(r.created_at) < last24h).reduce((s: number, r: any) => s + Number(r.amount || 0), 0)
+    const revenueData = rowsFromResult<any>(revenueRows)
+    const categoryData = rowsFromResult<any>(topCategoryRows)
 
-    const categoryCounts = (topCategoryRows.data || []).reduce((acc: Record<string, number>, row: any) => {
+    const currentRevenue = revenueData.filter((r) => new Date(r.created_at) >= last24h).reduce((s, r) => s + Number(r.amount || 0), 0)
+    const previousRevenue = revenueData.filter((r) => new Date(r.created_at) < last24h).reduce((s, r) => s + Number(r.amount || 0), 0)
+
+    const categoryCounts = categoryData.reduce((acc: Record<string, number>, row: any) => {
       const key = row.kategorija || 'neznano'
       acc[key] = (acc[key] || 0) + 1
       return acc
@@ -51,10 +74,10 @@ export async function GET() {
 
     const briefingPrompt = `Pripravi kratek dnevni briefing za admin portal v slovenščini.
 Podatki:
-- Novi uporabniki (24h): ${newUsers.count || 0}
-- Nova povpraševanja (24h): ${newInquiries.count || 0}
-- Povpraševanja (prejšnjih 24h): ${prevInquiries.count || 0}
-- Odprti spori: ${openDisputes.count || 0}
+- Novi uporabniki (24h): ${countFromResult(newUsers)}
+- Nova povpraševanja (24h): ${countFromResult(newInquiries)}
+- Povpraševanja (prejšnjih 24h): ${countFromResult(prevInquiries)}
+- Odprti spori: ${countFromResult(openDisputes)}
 - Prihodki 24h: €${currentRevenue.toFixed(2)}
 - Prihodki prejšnjih 24h: €${previousRevenue.toFixed(2)}
 - Top kategorija: ${topCategory}
@@ -65,15 +88,22 @@ Format:
 - Opozorila z emoji ⚠️ če zaznaš padec konverzije ali prihodkov.
 Bodi konkreten in kratek.`
 
-    const ai = await chat([{ role: 'user', content: briefingPrompt }], { temperature: 0.2, maxTokens: 500 })
-
-    if (redis) {
-      await redis.set(CACHE_KEY, ai.content, { ex: TTL_SECONDS })
+    try {
+      const ai = await chat([{ role: 'user', content: briefingPrompt }], { temperature: 0.2, maxTokens: 500 })
+      if (redis) {
+        try {
+          await redis.set(CACHE_KEY, ai.content, { ex: TTL_SECONDS })
+        } catch (cacheWriteError) {
+          console.warn('[admin-briefing] cache write failed', cacheWriteError)
+        }
+      }
+      return NextResponse.json({ ok: true, briefing: ai.content, cached: false, fallback: false })
+    } catch (aiError: any) {
+      console.error('[admin-briefing] AI unavailable', aiError)
+      return NextResponse.json({ ok: true, briefing: FALLBACK_BRIEFING, cached: false, fallback: true, error: 'AI_BRIEFING_UNAVAILABLE' })
     }
-
-    return NextResponse.json({ briefing: ai.content, cached: false })
   } catch (error: any) {
-    const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500
-    return NextResponse.json({ error: 'Napaka pri AI briefingu.' }, { status })
+    console.error('[admin-briefing] unexpected error', error)
+    return NextResponse.json({ ok: true, briefing: FALLBACK_BRIEFING, cached: false, fallback: true, error: 'AI_BRIEFING_UNAVAILABLE' })
   }
 }
