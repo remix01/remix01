@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { CANONICAL_TABLES, CANONICAL_PROVIDER_RELATIONSHIP } from '@/lib/db/schema-contract'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
+import { assertCanAccessProviderDashboard, OnboardingGuardError } from '@/lib/onboarding/guards'
 
 function isMissingColumnError(error: { code?: string; message?: string; details?: string }, field: string): boolean {
   const code = error.code?.toUpperCase() ?? ''
@@ -27,6 +28,15 @@ export async function GET() {
         { error: 'Unauthorized' },
         { status: 401 }
       )
+    }
+
+    try {
+      await assertCanAccessProviderDashboard(user.id)
+    } catch (error) {
+      if (error instanceof OnboardingGuardError) {
+        return NextResponse.json({ error: error.message, state: error.state, redirectTo: error.redirectTo }, { status: 403 })
+      }
+      throw error
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin

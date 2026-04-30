@@ -7,6 +7,7 @@ import { NotificationBellClient } from '@/components/liftgo/NotificationBellClie
 import { ProjectAssistant } from '@/components/customer/ProjectAssistant'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { assertCanAccessBuyerDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
@@ -35,6 +36,12 @@ export default async function NarocnikLayout({
   // Obrtniki ne sodijo sem
   if (profile?.role === 'obrtnik') {
     redirect('/obrtnik/dashboard')
+  }
+
+  try {
+    await assertCanAccessBuyerDashboard(user.id)
+  } catch (error) {
+    redirectForOnboardingGuard(error)
   }
 
   const fullName = profile?.full_name ?? user.email?.split('@')[0] ?? null
