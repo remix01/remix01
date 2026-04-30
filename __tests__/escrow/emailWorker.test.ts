@@ -128,4 +128,17 @@ describe('handleEmailJob', () => {
       handleEmailJob({ type: 'send_release_email', data: { transactionId: 't1', recipientEmail: 'a@example.com' } } as any)
     ).rejects.toThrow(/resend down/)
   })
+
+  it('uses distinct idempotency keys for reminder sends', async () => {
+    await handleEmailJob({
+      type: 'sendEmail',
+      data: {
+        template: 'marketplace_offer_received',
+        povprasevanjeId: 'p_55',
+        to: 'customer@example.com',
+        customData: { reminder: '24h' },
+      },
+    } as any)
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'marketplace_offer_received:p_55:24h' })
+  })
 })

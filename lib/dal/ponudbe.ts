@@ -138,7 +138,15 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
       // Don't fail the whole operation if notification fails
     })
 
-    const customerEmail = (result.povprasevanje as any)?.stranka_email
+    let customerEmail = (result.povprasevanje as any)?.stranka_email as string | undefined
+    if (!customerEmail && result.povprasevanje?.narocnik_id) {
+      const { data: narocnikProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('email')
+        .eq('id', result.povprasevanje.narocnik_id)
+        .maybeSingle()
+      customerEmail = narocnikProfile?.email || undefined
+    }
     const craftsmanName = result.obrtnik.profile.full_name
     const baseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
     if (customerEmail) {
