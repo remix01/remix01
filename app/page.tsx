@@ -110,7 +110,7 @@ async function getHomeData(): Promise<{
         .limit(6),
       // Single-row aggregate — no row data shipped, just count + avg
       supabaseAdmin
-        .rpc('get_ratings_summary') as Promise<{ data: { total: number; avg: number } | null; error: unknown }>,
+        .rpc('get_ratings_summary'),
       supabaseAdmin
         .from('povprasevanja')
         .select('id, location_city, categories(name), created_at')

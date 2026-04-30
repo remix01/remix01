@@ -528,19 +528,21 @@ export async function POST(request: NextRequest) {
       sendPushToObrtnikiByCategory({
         categoryId: category_id,
         title: '📋 Novo povpraševanje!',
-        body: `${storitev} — ${normalizedLocation}`,
-        data: { povprasevanjeId: data.id, type: 'nova_povprasevanje' },
+        message: `${storitev} — ${normalizedLocation}`,
+        link: '/obrtnik/povprasevanja',
       }).catch((err: Error) => console.error('[public] Push notify error:', err))
 
       const resend = getResendClient()
       if (resend) {
-        supabaseAdmin
-          .from('obrtnik_profiles')
-          .select('user_id, profiles:profiles!obrtnik_profiles_user_id_fkey(email)')
-          .eq('is_verified', true)
-          .contains('service_category_ids', [category_id])
-          .limit(50)
-          .then(({ data: obrtniks }) => {
+        void (async () => {
+          try {
+            const { data: obrtniks } = await supabaseAdmin
+              .from('obrtnik_profiles')
+              .select('user_id, profiles:profiles!obrtnik_profiles_user_id_fkey(email)')
+              .eq('is_verified', true)
+              .contains('service_category_ids', [category_id])
+              .limit(50)
+
             if (!obrtniks?.length) return
             const template = newRequestMatchedEmail(storitev, data.id)
             for (const op of obrtniks) {
@@ -553,8 +555,10 @@ export async function POST(request: NextRequest) {
                 html: template.html,
               }).catch(() => {})
             }
-          })
-          .catch((err: Error) => console.error('[public] Obrtnik email error:', err))
+          } catch (err) {
+            console.error('[public] Obrtnik email error:', err)
+          }
+        })()
       }
     }
 
