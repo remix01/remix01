@@ -13,6 +13,8 @@ export const LEGACY_TABLES = {
 export type CanonicalRole = 'narocnik' | 'obrtnik'
 export type LegacyRole = 'CUSTOMER' | 'CRAFTWORKER'
 
+const LEGACY_ADMIN_ROLE = 'ADMIN'
+
 const CANONICAL_TO_LEGACY_ROLE: Record<CanonicalRole, LegacyRole> = {
   narocnik: 'CUSTOMER',
   obrtnik: 'CRAFTWORKER',
@@ -41,6 +43,9 @@ export function isCanonicalProviderTable(tableName: string): boolean {
 export function toCanonicalRole(role: string | null | undefined): CanonicalRole | null {
   if (!role) return null
   if (role === 'narocnik' || role === 'obrtnik') return role
+  // ADMIN exists in legacy user.role but is intentionally excluded from canonical
+  // profiles.role domain (narocnik|obrtnik only).
+  if (role === LEGACY_ADMIN_ROLE || role === 'admin') return null
   if (role === 'CUSTOMER' || role === 'CRAFTWORKER') {
     return LEGACY_TO_CANONICAL_ROLE[role]
   }
