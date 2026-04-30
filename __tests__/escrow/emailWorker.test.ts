@@ -1,13 +1,15 @@
 const sendMock = jest.fn()
 
 jest.mock('@/lib/resend', () => ({
-  getResendClient: jest.fn(() => ({ emails: { send: sendMock } })),
-  getDefaultFrom: jest.fn(() => 'LiftGO <noreply@liftgo.net>'),
   resolveEmailRecipients: jest.fn((to: string | string[]) => {
     const list = Array.isArray(to) ? to : [to]
     if (list.some((v) => !v.includes('@'))) throw new Error('invalid recipient')
     return { to: ['redirect@example.com'], originalTo: list, redirected: true }
   }),
+}))
+const getEmailProviderMock = jest.fn(() => ({ name: 'resend', send: sendMock }))
+jest.mock('@/lib/email/provider', () => ({
+  getEmailProvider: () => getEmailProviderMock(),
 }))
 
 jest.mock('@/lib/supabase-admin', () => ({
@@ -22,7 +24,6 @@ jest.mock('@/lib/supabase-admin', () => ({
 }))
 
 import { handleEmailJob } from '@/lib/jobs/workers/emailWorker'
-import { getResendClient } from '@/lib/resend'
 
 describe('handleEmailJob', () => {
   beforeEach(() => {
@@ -42,7 +43,7 @@ describe('handleEmailJob', () => {
     } as any)
 
     expect(sendMock).toHaveBeenCalledTimes(1)
-    expect(sendMock.mock.calls[0][1]).toEqual({ idempotencyKey: 'escrow:escrow_1:release' })
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'escrow:escrow_1:release' })
   })
 
   it('supports sendEmail povprasevanje payload contract', async () => {
@@ -58,7 +59,7 @@ describe('handleEmailJob', () => {
     } as any)
 
     expect(sendMock).toHaveBeenCalledTimes(1)
-    expect(sendMock.mock.calls[0][1]).toEqual({ idempotencyKey: 'povprasevanje:p_1:confirmation' })
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'povprasevanje:p_1:confirmation' })
   })
 
   it('sends refund email via resend with idempotency key', async () => {
@@ -74,7 +75,7 @@ describe('handleEmailJob', () => {
     } as any)
 
     expect(sendMock).toHaveBeenCalledTimes(1)
-    expect(sendMock.mock.calls[0][1]).toEqual({ idempotencyKey: 'escrow:escrow_2:refund' })
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'escrow:escrow_2:refund' })
   })
 
   it('sends dispute email via resend with idempotency key', async () => {
@@ -89,7 +90,7 @@ describe('handleEmailJob', () => {
     } as any)
 
     expect(sendMock).toHaveBeenCalledTimes(1)
-    expect(sendMock.mock.calls[0][1]).toEqual({ idempotencyKey: 'escrow:escrow_3:dispute' })
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'escrow:escrow_3:dispute' })
   })
 
   it('sends payment confirmed email via resend with idempotency key', async () => {
@@ -105,14 +106,14 @@ describe('handleEmailJob', () => {
     } as any)
 
     expect(sendMock).toHaveBeenCalledTimes(1)
-    expect(sendMock.mock.calls[0][1]).toEqual({ idempotencyKey: 'escrow:escrow_4:payment_confirmed' })
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'escrow:escrow_4:payment_confirmed' })
   })
 
-  it('throws when resend client is missing', async () => {
-    ;(getResendClient as jest.Mock).mockReturnValueOnce(null)
+  it('throws when provider is missing', async () => {
+    getEmailProviderMock.mockImplementationOnce(() => { throw new Error('No email provider configured') })
     await expect(
       handleEmailJob({ type: 'send_release_email', data: { transactionId: 't1', recipientEmail: 'a@example.com' } } as any)
-    ).rejects.toThrow(/Resend client not initialized/)
+    ).rejects.toThrow(/No email provider configured/)
   })
 
   it('throws for invalid recipient', async () => {
@@ -126,5 +127,41 @@ describe('handleEmailJob', () => {
     await expect(
       handleEmailJob({ type: 'send_release_email', data: { transactionId: 't1', recipientEmail: 'a@example.com' } } as any)
     ).rejects.toThrow(/resend down/)
+  })
+
+  it('uses distinct idempotency keys for reminder sends', async () => {
+    await handleEmailJob({
+      type: 'sendEmail',
+      data: {
+        template: 'marketplace_offer_received',
+        povprasevanjeId: 'p_55',
+        to: 'customer@example.com',
+        customData: { reminder: '24h' },
+      },
+    } as any)
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'marketplace_offer_received:p_55:24h:customer@example.com' })
+  })
+
+  it('includes recipient in idempotency key to avoid cross-recipient dedupe', async () => {
+    await handleEmailJob({
+      type: 'sendEmail',
+      data: {
+        template: 'marketplace_match_new_request',
+        povprasevanjeId: 'p_88',
+        to: 'first@example.com',
+      },
+    } as any)
+
+    await handleEmailJob({
+      type: 'sendEmail',
+      data: {
+        template: 'marketplace_match_new_request',
+        povprasevanjeId: 'p_88',
+        to: 'second@example.com',
+      },
+    } as any)
+
+    expect(sendMock.mock.calls[0][0].idempotencyKey).toBe('marketplace_match_new_request:p_88:initial:first@example.com')
+    expect(sendMock.mock.calls[1][0].idempotencyKey).toBe('marketplace_match_new_request:p_88:initial:second@example.com')
   })
 })

@@ -11,7 +11,8 @@
 
 import { Job } from '../queue'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { resolveEmailRecipients } from '@/lib/resend'
+import { getEmailProvider } from '@/lib/email/provider'
 
 interface EmailJobPayload {
   to?: string | string[]
@@ -44,10 +45,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
   const payload = job.data
   const { to, template, escrowId, customData, jobType, povprasevanjeId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
 
-  const resend = getResendClient()
-  if (!resend) {
-    throw new Error('[EMAIL] Resend client not initialized - missing RESEND_API_KEY')
-  }
+  const provider = getEmailProvider()
 
   // Handle povprasevanje confirmation (both authenticated and public)
   if ((jobType === 'povprasevanje_confirmation' || jobType === 'povprasevanje_confirmation_public') && povprasevanjeId) {
@@ -74,17 +72,18 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       const htmlBody = buildPovprasevanjeConfirmationEmail(fullName || 'Naročnik', title || '', category || '', location || '', urgency || '', budget)
       const resolvedRecipients = resolveEmailRecipients(emailAddress)
       if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
-      const emailResult = await resend.emails.send({
-        from: getDefaultFrom(),
+      const emailResult = await provider.send({
         to: resolvedRecipients.to,
         subject: `✅ Povpraševanje oddano: ${escapeHtml(title || 'Novo povpraševanje')}`,
         html: htmlBody,
-      } as any, { idempotencyKey: `povprasevanje:${povprasevanjeId}:confirmation` })
+        idempotencyKey: `povprasevanje:${povprasevanjeId}:confirmation`,
+      })
 
       console.log('[EMAIL] Sent', {
         type: jobType,
         povprasevanjeId,
-        resendMessageId: emailResult?.data?.id ?? null,
+        provider: provider.name,
+        resendMessageId: emailResult?.id ?? null,
         recipientsCount: resolvedRecipients.to.length,
         redirected: resolvedRecipients.redirected,
       })
@@ -109,17 +108,23 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
     const emailContent = buildGenericEmailContent(effectiveTemplate, { escrowId, ...customData, ...payload })
     const idempotencySource = povprasevanjeId || escrowId || transactionId || 'generic'
-    const emailResult = await resend.emails.send({
-      from: getDefaultFrom(),
+    const reminderSuffix = customData?.reminder ? `:${customData.reminder}` : ':initial'
+    const recipientScope = resolvedRecipients.originalTo
+      .map((value) => value.trim().toLowerCase())
+      .sort()
+      .join(',')
+    const emailResult = await provider.send({
       to: resolvedRecipients.to,
       subject: emailContent.subject,
       html: emailContent.html,
-    } as any, { idempotencyKey: `${effectiveTemplate}:${idempotencySource}` })
+      idempotencyKey: `${effectiveTemplate}:${idempotencySource}${reminderSuffix}:${recipientScope}`,
+    })
     console.log('[EMAIL] Sent', {
       type,
       template: effectiveTemplate,
       id: idempotencySource,
-      resendMessageId: emailResult?.data?.id ?? null,
+      provider: provider.name,
+      resendMessageId: emailResult?.id ?? null,
       recipientsCount: resolvedRecipients.to.length,
       redirected: resolvedRecipients.redirected,
     })
@@ -205,16 +210,17 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
   const resolvedRecipients = resolveEmailRecipients(recipientEmail)
   if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
   const eventType = type.replace('send_', '').replace('_email', '')
-  const emailResult = await resend.emails.send({
-    from: getDefaultFrom(),
+  const emailResult = await provider.send({
     to: resolvedRecipients.to,
     subject,
     html: htmlBody,
-  } as any, { idempotencyKey: `escrow:${transactionId}:${eventType}` })
+    idempotencyKey: `escrow:${transactionId}:${eventType}`,
+  })
   console.log('[EMAIL] Sent', {
     type,
     transactionId,
-    resendMessageId: emailResult?.data?.id ?? null,
+    provider: provider.name,
+    resendMessageId: emailResult?.id ?? null,
     recipientsCount: resolvedRecipients.to.length,
     redirected: resolvedRecipients.redirected,
   })
@@ -263,6 +269,26 @@ function buildGenericEmailContent(template: string, data: Record<string, any>): 
           escapeHtml(data.urgency || ''),
           data.budget
         ),
+      }
+    case 'marketplace_match_new_request':
+      return {
+        subject: `Novo povpraševanje: ${escapeHtml(data.category || data.title || 'Storitev')} v ${escapeHtml(data.location || 'vaši okolici')}`,
+        html: `
+          <p>${escapeHtml(data.customer_name || 'Naročnik')} potrebuje ${escapeHtml(data.category || data.title || 'storitev')} v ${escapeHtml(data.location || 'vaši okolici')}.</p>
+          <p>Dela: ${escapeHtml(data.description || '—')}</p>
+          <p>Budget: ${escapeHtml(String(data.budget || 'Po dogovoru'))}</p>
+          <p>Pošlji ponudbo: <a href="${escapeHtml(data.link || '#')}">${escapeHtml(data.link || 'Odpri povpraševanje')}</a></p>
+        `
+      }
+    case 'marketplace_offer_received':
+      return {
+        subject: 'Prejeli ste novo ponudbo',
+        html: `
+          <p>${escapeHtml(data.craftsman_name || 'Obrtnik')} vam je poslal ponudbo za vaše povpraševanje.</p>
+          <p>Cena: ${escapeHtml(String(data.price || 'Po dogovoru'))}</p>
+          <p>Sporočilo: ${escapeHtml(data.message || '—')}</p>
+          <p>Preglej ponudbo: <a href="${escapeHtml(data.link || '#')}">${escapeHtml(data.link || 'Odpri ponudbo')}</a></p>
+        `
       }
     default:
       throw new Error(`Unknown email template: ${template}`)
