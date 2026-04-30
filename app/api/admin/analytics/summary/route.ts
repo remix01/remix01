@@ -136,7 +136,7 @@ export async function GET(_request: NextRequest) {
       .lt('created_at', tomorrowStart.toISOString())
 
     if (todayEventsError) {
-      todayEventsCount = todayInquiries.count + funnelOffers.count + todayConversions.count
+      todayEventsCount = todayInquiries.count + todayConversions.count
     } else {
       todayEventsCount = rawTodayEvents ?? 0
     }
