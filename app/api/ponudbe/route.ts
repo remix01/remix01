@@ -4,6 +4,10 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { validateAmount, validateEnum, validateRequiredString, collectErrors } from '@/lib/validation'
 import { apiSuccess, badRequest, unauthorized, forbidden, tooManyRequests, internalError } from '@/lib/api-response'
 import { offerService, handleServiceError } from '@/lib/services'
+import { analytics } from '@/lib/analytics/tracker'
+import { sendNotification } from '@/lib/notifications'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,6 +62,58 @@ export async function POST(request: NextRequest) {
       price_type,
       available_date,
     } as any)
+
+    analytics.track('offer_sent', {
+      ponudba_id: ponudba?.id,
+      povprasevanje_id,
+      obrtnik_id,
+      price_type: price_type ?? 'ocena',
+    }, user.id)
+
+    // Notify naročnik about new ponudba
+    supabaseAdmin
+      .from('povprasevanja')
+      .select('narocnik_id, title, profiles:profiles!povprasevanja_narocnik_id_fkey(email, full_name)')
+      .eq('id', povprasevanje_id)
+      .maybeSingle()
+      .then(async ({ data: pov }) => {
+        if (!pov?.narocnik_id) return
+
+        await sendNotification({
+          userId: pov.narocnik_id,
+          type: 'nova_ponudba',
+          title: 'Nova ponudba za vaše povpraševanje',
+          message: `Mojster je poslal ponudbo za: ${pov.title}`,
+          link: `/povprasevanja/${povprasevanje_id}`,
+        })
+
+        const narocnikEmail = (pov.profiles as any)?.email
+        const narocnikName = (pov.profiles as any)?.full_name || 'Naročnik'
+        const resend = getResendClient()
+        if (narocnikEmail && resend) {
+          resend.emails.send({
+            from: getDefaultFrom(),
+            to: resolveEmailRecipients(narocnikEmail).to,
+            subject: `Nova ponudba za vaše povpraševanje`,
+            html: `
+              <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#0d9488;">Prejeli ste novo ponudbo!</h2>
+                <p>Pozdravljeni ${narocnikName},</p>
+                <p>Mojster je poslal ponudbo za vaše povpraševanje: <strong>${pov.title}</strong></p>
+                <div style="margin:24px 0;">
+                  <a href="https://liftgo.net/povprasevanja/${povprasevanje_id}"
+                     style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+                    Poglej ponudbo →
+                  </a>
+                </div>
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+                <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="https://liftgo.net" style="color:#0d9488;">liftgo.net</a></p>
+              </div>
+            `,
+          }).catch((err: Error) => console.error('[ponudbe] Email error:', err))
+        }
+      })
+      .catch((err: Error) => console.error('[ponudbe] Notify error:', err))
 
     return apiSuccess(ponudba)
   } catch (error) {
