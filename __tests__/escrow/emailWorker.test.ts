@@ -134,12 +134,13 @@ describe('handleEmailJob', () => {
       type: 'sendEmail',
       data: {
         template: 'marketplace_offer_received',
+        ponudbaId: 'offer_55',
         povprasevanjeId: 'p_55',
         to: 'customer@example.com',
         customData: { reminder: '24h' },
       },
     } as any)
-    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'marketplace_offer_received:p_55:24h:customer@example.com' })
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'marketplace_offer_received:offer_55:24h:customer@example.com' })
   })
 
   it('includes recipient in idempotency key to avoid cross-recipient dedupe', async () => {

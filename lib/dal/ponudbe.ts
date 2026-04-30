@@ -154,6 +154,7 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
       const emailPayload = {
         to: customerEmail,
         template: 'marketplace_offer_received',
+        ponudbaId: result.id,
         povprasevanjeId: result.povprasevanje.id,
         craftsman_name: craftsmanName,
         price: result.price_estimate ? `€${result.price_estimate}` : 'Po dogovoru',

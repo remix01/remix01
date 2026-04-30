@@ -39,13 +39,13 @@ The LiftGO email system provides:
 
 ## Required Environment Variables
 
-- `EMAIL_PROVIDER` (`resend` | `sendgrid` | `ses`). If omitted, provider auto-selects configured key (`RESEND_API_KEY` first, then `SENDGRID_API_KEY`).
+- `EMAIL_PROVIDER` (`resend` | `sendgrid`). If omitted, provider auto-selects configured key (`RESEND_API_KEY` first, then `SENDGRID_API_KEY`).
 - `FROM_EMAIL` sender address used in transactional emails (example: `LiftGO <noreply@liftgo.net>`).
 - `APP_BASE_URL` absolute app URL for deep links in templates (fallback: `NEXT_PUBLIC_APP_URL`).
 - Provider credentials:
   - Resend: `RESEND_API_KEY`
   - SendGrid: `SENDGRID_API_KEY`
-  - AWS SES: `AWS_SES_REGION`, `AWS_SES_ACCESS_KEY_ID`, `AWS_SES_SECRET_ACCESS_KEY`
+  - AWS SES keys may exist in env, but SES is not selectable until adapter wiring is implemented.
 
 ---
 

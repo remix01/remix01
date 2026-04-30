@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 import { env } from '@/lib/env'
 import { extractEmailAddress } from '@/lib/resend'
 
-export type EmailProviderName = 'resend' | 'sendgrid' | 'ses'
+export type EmailProviderName = 'resend' | 'sendgrid'
 
 export interface SendEmailInput {
   to: string[]
@@ -69,13 +69,6 @@ class SendGridProvider implements EmailProvider {
   }
 }
 
-class SesProvider implements EmailProvider {
-  readonly name: EmailProviderName = 'ses'
-  async send(): Promise<{ id: string | null }> {
-    throw new Error('[EMAIL][ses] SES adapter is not configured in this deployment. Use resend/sendgrid or add AWS SES SDK wiring.')
-  }
-}
-
 export function getFromEmail(): string {
   const from = process.env.FROM_EMAIL || env.EMAIL_FROM || env.DEFAULT_FROM_EMAIL || env.RESEND_FROM || 'noreply@liftgo.net'
   return from.includes('<') ? from : `LiftGO <${from}>`
@@ -85,7 +78,9 @@ export function getEmailProvider(): EmailProvider {
   const selected = (process.env.EMAIL_PROVIDER || '').trim().toLowerCase() as EmailProviderName | ''
 
   if (selected === 'sendgrid') return new SendGridProvider()
-  if (selected === 'ses') return new SesProvider()
+  if (selected === 'ses') {
+    throw new Error('[EMAIL] EMAIL_PROVIDER=ses is not supported in this deployment. Use resend or sendgrid.')
+  }
   if (selected === 'resend') return new ResendProvider()
 
   if (env.RESEND_API_KEY) return new ResendProvider()
