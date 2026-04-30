@@ -67,7 +67,10 @@ function buyerRedirectFor(state: OnboardingGuardState): string {
   }
 }
 
-export async function assertCanAccessProviderDashboard(userId: string): Promise<void> {
+export async function assertCanAccessProviderDashboard(
+  userId: string,
+  options?: { allowStates?: OnboardingGuardState[] }
+): Promise<void> {
   if (!ENABLE_ONBOARDING_GUARDS) return
 
   const { data: provider } = await supabaseAdmin
@@ -77,7 +80,8 @@ export async function assertCanAccessProviderDashboard(userId: string): Promise<
     .maybeSingle<ProviderRow>()
 
   const state = evaluateProviderState(provider)
-  if (state !== 'completed') {
+  const allowStates = new Set<OnboardingGuardState>(['completed', ...(options?.allowStates ?? [])])
+  if (!allowStates.has(state)) {
     throw new OnboardingGuardError(state, providerRedirectFor(state))
   }
 }

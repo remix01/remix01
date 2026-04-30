@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      await assertCanAccessProviderDashboard(user.id)
+      await assertCanAccessProviderDashboard(user.id, { allowStates: ['payout_incomplete'] })
     } catch (error) {
       if (error instanceof OnboardingGuardError) {
         return NextResponse.json({ error: error.message, state: error.state, redirectTo: error.redirectTo }, { status: 403 })
