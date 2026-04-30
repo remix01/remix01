@@ -96,7 +96,7 @@ async function getHomeData(): Promise<{
   featuredCategories: Array<{ label: string; slug: string }>
 }> {
   try {
-    const [activeCraftsmenQuery, reviewsQuery, allRatingsQuery, activityQuery, categoriesQuery] = await Promise.all([
+    const [activeCraftsmenQuery, reviewsQuery, ratingsAggQuery, activityQuery, categoriesQuery] = await Promise.all([
       supabaseAdmin
         .from('obrtnik_profiles')
         .select('id', { count: 'exact', head: true })
@@ -108,9 +108,9 @@ async function getHomeData(): Promise<{
         .not('comment', 'is', null)
         .order('created_at', { ascending: false })
         .limit(6),
+      // Single-row aggregate — no row data shipped, just count + avg
       supabaseAdmin
-        .from('ocene')
-        .select('rating', { count: 'exact' }),
+        .rpc('get_ratings_summary') as Promise<{ data: { total: number; avg: number } | null; error: unknown }>,
       supabaseAdmin
         .from('povprasevanja')
         .select('id, location_city, categories(name), created_at')
@@ -119,13 +119,13 @@ async function getHomeData(): Promise<{
       getActiveCategoriesPublic(),
     ])
 
-    const totalReviews = allRatingsQuery.count ?? 0
     const MIN_REVIEWS_FOR_RATING = 10
-    let avgRating: number | null = null
-    if (totalReviews >= MIN_REVIEWS_FOR_RATING && allRatingsQuery.data) {
-      const sum = (allRatingsQuery.data as { rating: number }[]).reduce((acc, r) => acc + r.rating, 0)
-      avgRating = Math.round((sum / allRatingsQuery.data.length) * 10) / 10
-    }
+    const totalReviews = (ratingsAggQuery.data as any)?.total ?? 0
+    const rawAvg = (ratingsAggQuery.data as any)?.avg ?? null
+    const avgRating: number | null =
+      totalReviews >= MIN_REVIEWS_FOR_RATING && rawAvg != null
+        ? Math.round(Number(rawAvg) * 10) / 10
+        : null
 
     const stats: HomeStats = {
       rating: avgRating,

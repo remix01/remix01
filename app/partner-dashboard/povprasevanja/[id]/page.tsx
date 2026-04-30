@@ -104,12 +104,19 @@ export default function PovprasevanjeDetailPage() {
       } else {
         setPovprasevanje(data as Povprasevanje)
         if (data && user) {
+          const sessionId =
+            (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('analytics_session_id')) ||
+            `session_${Date.now()}_${Math.random().toString(36).slice(2)}`
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('analytics_session_id', sessionId)
+          }
           fetch('/api/v1/analytics/track', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               events: [{
                 name: 'povprasevanje_viewed_by_obrtnik',
+                sessionId,
                 properties: { povprasevanje_id: data.id, obrtnik_id: user.id },
               }],
             }),
