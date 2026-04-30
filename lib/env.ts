@@ -49,6 +49,12 @@ export const env = {
 
   // ─── Email & Notifications ───
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? '',
+  FROM_EMAIL: process.env.FROM_EMAIL ?? '',
+  SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ?? '',
+  AWS_SES_REGION: process.env.AWS_SES_REGION ?? '',
+  AWS_SES_ACCESS_KEY_ID: process.env.AWS_SES_ACCESS_KEY_ID ?? '',
+  AWS_SES_SECRET_ACCESS_KEY: process.env.AWS_SES_SECRET_ACCESS_KEY ?? '',
   RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET ?? '',
   EMAIL_FROM: process.env.EMAIL_FROM ?? '',
   DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL ?? '',
@@ -82,6 +88,7 @@ export const env = {
 
   // ─── App Config ───
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net',
+  APP_BASE_URL: process.env.APP_BASE_URL ?? '',
   NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID ?? '',
   CRON_SECRET: process.env.CRON_SECRET ?? '',
   EMBEDDING_BACKFILL_MAX_PER_RUN: process.env.EMBEDDING_BACKFILL_MAX_PER_RUN ?? '10',
