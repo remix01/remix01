@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendPushToUser } from '@/lib/push-notifications'
 
 export type NotificationType = 
@@ -35,9 +36,11 @@ export async function sendNotification(params: {
   metadata?: Record<string, unknown>
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createClient()
-
-    const { error } = await (supabase as any)
+    // Must use supabaseAdmin: notifications RLS has no INSERT policy for regular users.
+    // sendNotification() always writes on behalf of another user (e.g. naročnik gets
+    // notified when an obrtnik submits a ponudba). Using the caller's session client
+    // would violate RLS and silently fail.
+    const { error } = await supabaseAdmin
       .from('notifications')
       .insert({
         user_id: params.userId,
