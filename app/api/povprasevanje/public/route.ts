@@ -529,7 +529,7 @@ export async function POST(request: NextRequest) {
         categoryId: category_id,
         title: '📋 Novo povpraševanje!',
         message: `${storitev} — ${normalizedLocation}`,
-        link: `/obrtnik/povprasevanja/${data.id}`,
+        link: '/obrtnik/povprasevanja',
       }).catch((err: Error) => console.error('[public] Push notify error:', err))
 
       const resend = getResendClient()
