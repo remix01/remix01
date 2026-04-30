@@ -38,12 +38,13 @@ interface EmailJobPayload {
   location?: string
   urgency?: string
   budget?: number
+  ponudbaId?: string
 }
 
 export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string }): Promise<void> {
   const type = (job as any).type
   const payload = job.data
-  const { to, template, escrowId, customData, jobType, povprasevanjeId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
+  const { to, template, escrowId, customData, jobType, povprasevanjeId, ponudbaId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
 
   const provider = getEmailProvider()
 
@@ -107,12 +108,20 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     const resolvedRecipients = resolveEmailRecipients(recipient)
     if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
     const emailContent = buildGenericEmailContent(effectiveTemplate, { escrowId, ...customData, ...payload })
-    const idempotencySource = povprasevanjeId || escrowId || transactionId || 'generic'
+    const idempotencySource =
+      effectiveTemplate === 'marketplace_offer_received'
+        ? (ponudbaId || povprasevanjeId || escrowId || transactionId || 'generic')
+        : (povprasevanjeId || escrowId || transactionId || 'generic')
+    const reminderSuffix = customData?.reminder ? `:${customData.reminder}` : ':initial'
+    const recipientScope = resolvedRecipients.originalTo
+      .map((value) => value.trim().toLowerCase())
+      .sort()
+      .join(',')
     const emailResult = await provider.send({
       to: resolvedRecipients.to,
       subject: emailContent.subject,
       html: emailContent.html,
-      idempotencyKey: `${effectiveTemplate}:${idempotencySource}`,
+      idempotencyKey: `${effectiveTemplate}:${idempotencySource}${reminderSuffix}:${recipientScope}`,
     })
     console.log('[EMAIL] Sent', {
       type,

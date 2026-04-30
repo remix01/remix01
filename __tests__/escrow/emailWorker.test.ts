@@ -128,4 +128,41 @@ describe('handleEmailJob', () => {
       handleEmailJob({ type: 'send_release_email', data: { transactionId: 't1', recipientEmail: 'a@example.com' } } as any)
     ).rejects.toThrow(/resend down/)
   })
+
+  it('uses distinct idempotency keys for reminder sends', async () => {
+    await handleEmailJob({
+      type: 'sendEmail',
+      data: {
+        template: 'marketplace_offer_received',
+        ponudbaId: 'offer_55',
+        povprasevanjeId: 'p_55',
+        to: 'customer@example.com',
+        customData: { reminder: '24h' },
+      },
+    } as any)
+    expect(sendMock.mock.calls[0][0]).toMatchObject({ idempotencyKey: 'marketplace_offer_received:offer_55:24h:customer@example.com' })
+  })
+
+  it('includes recipient in idempotency key to avoid cross-recipient dedupe', async () => {
+    await handleEmailJob({
+      type: 'sendEmail',
+      data: {
+        template: 'marketplace_match_new_request',
+        povprasevanjeId: 'p_88',
+        to: 'first@example.com',
+      },
+    } as any)
+
+    await handleEmailJob({
+      type: 'sendEmail',
+      data: {
+        template: 'marketplace_match_new_request',
+        povprasevanjeId: 'p_88',
+        to: 'second@example.com',
+      },
+    } as any)
+
+    expect(sendMock.mock.calls[0][0].idempotencyKey).toBe('marketplace_match_new_request:p_88:initial:first@example.com')
+    expect(sendMock.mock.calls[1][0].idempotencyKey).toBe('marketplace_match_new_request:p_88:initial:second@example.com')
+  })
 })
