@@ -4,6 +4,18 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { CANONICAL_TABLES, CANONICAL_PROVIDER_RELATIONSHIP } from '@/lib/db/schema-contract'
 
+function isMissingColumnError(error: { code?: string; message?: string; details?: string }, field: string): boolean {
+  const code = error.code?.toUpperCase() ?? ''
+  const haystack = `${error.message ?? ''} ${error.details ?? ''}`.toLowerCase()
+  return code === '42703' ||
+    code === 'PGRST204' ||
+    haystack.includes(`column "${field.toLowerCase()}"`) ||
+    haystack.includes(`'${field.toLowerCase()}'`) ||
+    haystack.includes('schema cache') ||
+    haystack.includes('could not find the') ||
+    haystack.includes('not found in the schema cache')
+}
+
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -86,7 +98,7 @@ export async function GET() {
         .update({ [field]: value })
         .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
       if (error) {
-        if (error.message?.toLowerCase().includes(`column "${field}"`)) {
+        if (isMissingColumnError(error, field)) {
           skippedFields.push(field)
           continue
         }
