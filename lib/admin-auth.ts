@@ -71,21 +71,7 @@ export async function requireAdmin(allowedRoles?: AdminRole[]): Promise<AdminCon
     throw new AdminAuthError('FORBIDDEN')
   }
 
-  let adminUser = adminByAuthUserId
-  if (!adminUser) {
-    const { data: adminByLegacyUserId, error: adminByLegacyUserIdError } = await supabaseAdmin
-      .from('admin_users')
-      .select('id, vloga, aktiven')
-      .eq('user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
-
-    if (adminByLegacyUserIdError) {
-      throw new AdminAuthError('FORBIDDEN')
-    }
-
-    adminUser = adminByLegacyUserId
-  }
+  const adminUser = adminByAuthUserId
 
   if (!adminUser) {
     throw new AdminAuthError('FORBIDDEN')

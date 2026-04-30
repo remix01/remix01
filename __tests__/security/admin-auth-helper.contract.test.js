@@ -6,9 +6,9 @@ const file = 'lib/admin-auth.ts'
 const source = fs.readFileSync(path.join(process.cwd(), file), 'utf8')
 
 describe('Admin auth helper contract', () => {
-  it('maps auth user to admin_users via auth_user_id first and legacy user_id fallback', () => {
+  it('maps auth user to admin_users via canonical auth_user_id only', () => {
     expect(source).toMatch(/\.eq\('auth_user_id', user\.id\)/)
-    expect(source).toMatch(/\.eq\('user_id', user\.id\)/)
+    expect(source).not.toMatch(/\.eq\('user_id', user\.id\)/)
   })
 
   it('uses explicit typed errors for unauthorized/forbidden states', () => {

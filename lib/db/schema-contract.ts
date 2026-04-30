@@ -3,12 +3,6 @@ export const CANONICAL_TABLES = {
   provider: 'obrtnik_profiles',
 } as const
 
-export const LEGACY_TABLES = {
-  user: 'user',
-  provider: 'craftworker_profile',
-  partners: 'partners',
-  allProvidersView: 'all_obrtniki',
-} as const
 
 export type CanonicalRole = 'narocnik' | 'obrtnik'
 export type LegacyRole = 'CUSTOMER' | 'CRAFTWORKER'

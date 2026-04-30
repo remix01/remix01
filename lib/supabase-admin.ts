@@ -31,17 +31,7 @@ export async function verifyAdmin(request: Request) {
     .eq('aktiven', true)
     .maybeSingle()
 
-  if (adminByAuthUserId) return adminByAuthUserId
-
-  // Backward compatibility for legacy schemas where admin_users uses user_id.
-  const { data: adminByLegacyUserId } = await supabaseAdmin
-    .from('admin_users')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('aktiven', true)
-    .maybeSingle()
-
-  return adminByLegacyUserId
+  return adminByAuthUserId
 }
 
 // Helper: log admin action
