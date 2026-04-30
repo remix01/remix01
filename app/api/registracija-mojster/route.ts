@@ -9,6 +9,7 @@ import { authLimiter } from '@/lib/rate-limit/limiters'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
+import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -103,6 +104,12 @@ async function postHandler(request: NextRequest) {
     if (profileError) {
       console.error('[v0] Profile creation error:', profileError)
       // Don't fail completely if profile creation fails
+    }
+
+    try {
+      await transitionOnboardingState(userId)
+    } catch (onboardingError) {
+      console.error('[v0] onboarding transition failed after signup:', onboardingError)
     }
     
     // Process referral code if provided

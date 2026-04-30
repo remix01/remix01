@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { CANONICAL_TABLES, CANONICAL_PROVIDER_RELATIONSHIP } from '@/lib/db/schema-contract'
+import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 
 function isMissingColumnError(error: { code?: string; message?: string; details?: string }, field: string): boolean {
   const code = error.code?.toUpperCase() ?? ''
@@ -107,6 +108,12 @@ export async function GET() {
       }
     }
     if (updateError) throw new Error(updateError.message || 'Failed to persist Stripe status')
+
+    try {
+      await transitionOnboardingState(user.id)
+    } catch (onboardingError) {
+      console.error('[stripe-status] Failed onboarding transition:', onboardingError)
+    }
 
     // Determine if more info is needed
     const needsInfo = account.details_submitted === false || 

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ok, fail } from "@/lib/api/response";
+import { transitionOnboardingState } from "@/lib/onboarding/state-machine";
 
 const isSchemaCompatibilityError = (error: any) => {
   const code = String(error?.code || "");
@@ -41,6 +42,12 @@ export async function POST(req: Request) {
       .single();
 
     if (!canonicalError) {
+      try {
+        await transitionOnboardingState(user_id);
+      } catch (onboardingError) {
+        console.error('[v0] Onboarding transition failed after canonical partner create:', onboardingError);
+      }
+
       return ok(
         {
           id: canonicalData.id,
@@ -91,6 +98,12 @@ export async function POST(req: Request) {
     if (error) {
       console.error("[v0] Legacy partner creation error:", error);
       return fail("PARTNER_CREATE_FAILED", error.message, 500);
+    }
+
+    try {
+      await transitionOnboardingState(user_id);
+    } catch (onboardingError) {
+      console.error('[v0] Onboarding transition failed after legacy partner create:', onboardingError);
     }
 
     return ok(data, undefined, 201);
