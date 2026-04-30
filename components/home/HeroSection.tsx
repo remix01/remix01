@@ -101,18 +101,22 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
           </Button>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border p-4">
-              <p className="flex items-center gap-2 text-sm font-medium">
-                <Star className="h-4 w-4 text-amber-500" />
-                {stats.rating.toFixed(1)} ★ ({stats.reviews.toLocaleString('sl-SI')}+ ocen)
-              </p>
-            </div>
-            <div className="rounded-xl border p-4">
-              <p className="flex items-center gap-2 text-sm font-medium">
-                <Wrench className="h-4 w-4 text-primary" />
-                {stats.activeCraftsmen.toLocaleString('sl-SI')} aktivnih mojstrov
-              </p>
-            </div>
+            {stats.rating !== null && stats.reviews !== null && (
+              <div className="rounded-xl border p-4">
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <Star className="h-4 w-4 text-amber-500" />
+                  {stats.rating.toFixed(1)} ★ ({stats.reviews.toLocaleString('sl-SI')}+ ocen)
+                </p>
+              </div>
+            )}
+            {stats.activeCraftsmen !== null && (
+              <div className="rounded-xl border p-4">
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <Wrench className="h-4 w-4 text-primary" />
+                  {stats.activeCraftsmen.toLocaleString('sl-SI')} aktivnih mojstrov
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
