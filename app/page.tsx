@@ -96,7 +96,7 @@ async function getHomeData(): Promise<{
   featuredCategories: Array<{ label: string; slug: string }>
 }> {
   try {
-    const [activeCraftsmenQuery, reviewsQuery, activityQuery, categoriesQuery] = await Promise.all([
+    const [activeCraftsmenQuery, reviewsQuery, allRatingsQuery, activityQuery, categoriesQuery] = await Promise.all([
       supabaseAdmin
         .from('obrtnik_profiles')
         .select('id', { count: 'exact', head: true })
@@ -109,6 +109,9 @@ async function getHomeData(): Promise<{
         .order('created_at', { ascending: false })
         .limit(6),
       supabaseAdmin
+        .from('ocene')
+        .select('rating', { count: 'exact' }),
+      supabaseAdmin
         .from('povprasevanja')
         .select('id, location_city, categories(name), created_at')
         .order('created_at', { ascending: false })
@@ -116,10 +119,18 @@ async function getHomeData(): Promise<{
       getActiveCategoriesPublic(),
     ])
 
+    const totalReviews = allRatingsQuery.count ?? 0
+    const MIN_REVIEWS_FOR_RATING = 10
+    let avgRating: number | null = null
+    if (totalReviews >= MIN_REVIEWS_FOR_RATING && allRatingsQuery.data) {
+      const sum = (allRatingsQuery.data as { rating: number }[]).reduce((acc, r) => acc + r.rating, 0)
+      avgRating = Math.round((sum / allRatingsQuery.data.length) * 10) / 10
+    }
+
     const stats: HomeStats = {
-      rating: 4.9,
-      reviews: 1234,
-      activeCraftsmen: activeCraftsmenQuery.count || 342,
+      rating: avgRating,
+      reviews: totalReviews >= MIN_REVIEWS_FOR_RATING ? totalReviews : null,
+      activeCraftsmen: activeCraftsmenQuery.count ?? null,
     }
 
     const testimonials: HomeTestimonial[] = ((reviewsQuery.data as ReviewRow[] | null) || []).map((review) => {
@@ -134,10 +145,7 @@ async function getHomeData(): Promise<{
       }
     })
 
-    const fallbackTestimonials: HomeTestimonial[] = [
-      { id: '1', name: 'Matej N.', avatar: 'MN', comment: 'Od objave do obiska mojstra manj kot 24 ur. Odlično!', rating: 5 },
-      { id: '2', name: 'Petra K.', avatar: 'PK', comment: 'Prejela sem tri dobre ponudbe in hitro izbrala izvajalca.', rating: 5 },
-    ]
+    const fallbackTestimonials: HomeTestimonial[] = []
 
     const activity: HomeActivityItem[] = ((activityQuery.data as ActivityRow[] | null) || []).map((item) => ({
       id: item.id,
@@ -159,10 +167,8 @@ async function getHomeData(): Promise<{
   } catch (error) {
     console.error('[homepage] Failed to load server data:', error)
     return {
-      stats: { rating: 4.9, reviews: 1234, activeCraftsmen: 342 },
-      testimonials: [
-        { id: '1', name: 'Matej N.', avatar: 'MN', comment: 'Odličen odziv in transparentna komunikacija.', rating: 5 },
-      ],
+      stats: { rating: null, reviews: null, activeCraftsmen: null },
+      testimonials: [],
       activity: [],
       featuredCategories: [],
     }
