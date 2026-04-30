@@ -108,11 +108,12 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
     const emailContent = buildGenericEmailContent(effectiveTemplate, { escrowId, ...customData, ...payload })
     const idempotencySource = povprasevanjeId || escrowId || transactionId || 'generic'
+    const reminderSuffix = customData?.reminder ? `:${customData.reminder}` : ':initial'
     const emailResult = await provider.send({
       to: resolvedRecipients.to,
       subject: emailContent.subject,
       html: emailContent.html,
-      idempotencyKey: `${effectiveTemplate}:${idempotencySource}`,
+      idempotencyKey: `${effectiveTemplate}:${idempotencySource}${reminderSuffix}`,
     })
     console.log('[EMAIL] Sent', {
       type,
