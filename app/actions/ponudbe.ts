@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { acceptPonudba, updatePonudba } from '@/lib/dal/ponudbe'
 import { updatePovprasevanje } from '@/lib/dal/povprasevanja'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
+import { analytics } from '@/lib/analytics/tracker'
 
 export async function acceptPonudbaAction(
   ponudbaId: string,
@@ -133,8 +134,14 @@ export async function acceptPonudbaAction(
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // STEP 6: Revalidate paths
+    // STEP 6: Analytics + revalidate paths
     // ════════════════════════════════════════════════════════════════════
+    analytics.track('offer_accepted', {
+      ponudba_id: ponudbaId,
+      povprasevanje_id: povprasevanjeId,
+      obrtnik_id: ponudbaData.obrtnik_id,
+    }, user.id)
+
     revalidatePath(`/povprasevanja/${povprasevanjeId}`)
     revalidatePath('/povprasevanja')
     revalidatePath('/dashboard')

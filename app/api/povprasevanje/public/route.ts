@@ -12,6 +12,7 @@ import {
   sanitizeText,
 } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
+import { analytics } from '@/lib/analytics/tracker'
 
 type PublicInquiryBody = {
   storitev?: unknown
@@ -511,6 +512,14 @@ export async function POST(request: NextRequest) {
       console.error('[public] Insert succeeded without row data', { requestId })
       return errorResponse('Napaka pri shranjevanju', 500, 'MISSING_INSERT_ROW')
     }
+
+    analytics.track('inquiry_submitted', {
+      inquiry_id: data.id,
+      service: storitev,
+      location: normalizedLocation,
+      has_email: !!stranka_email,
+      source: 'public_form',
+    }, userId ?? undefined)
 
     return successResponse({ success: true, id: data.id })
   } catch (err) {

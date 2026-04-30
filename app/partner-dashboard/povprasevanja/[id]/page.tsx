@@ -103,6 +103,18 @@ export default function PovprasevanjeDetailPage() {
         setError('Povpraševanje ni bilo najdeno.')
       } else {
         setPovprasevanje(data as Povprasevanje)
+        if (data && user) {
+          fetch('/api/v1/analytics/track', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              events: [{
+                name: 'povprasevanje_viewed_by_obrtnik',
+                properties: { povprasevanje_id: data.id, obrtnik_id: user.id },
+              }],
+            }),
+          }).catch(() => {})
+        }
       }
       setLoading(false)
     }
