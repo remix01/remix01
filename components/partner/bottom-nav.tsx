@@ -51,7 +51,7 @@ export function PartnerBottomNav({ paket }: PartnerBottomNavProps) {
   const overflowLinks = useMemo(() => getPartnerMobileMoreNav(resolvedPaket), [resolvedPaket])
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-between border-t bg-background px-2 lg:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-30 flex h-16 items-center justify-between border-t bg-background px-2 lg:hidden">
       {partnerMobilePrimaryNav.map((link) => (
         <Link
           key={link.href}

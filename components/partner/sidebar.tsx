@@ -296,15 +296,22 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
       <button
         type="button"
         onClick={() => setIsAiSidebarOpen((prev) => !prev)}
-        className="fixed bottom-24 right-3 z-40 hidden h-10 w-10 items-center justify-center rounded-full border bg-background shadow-md lg:flex"
+        className="fixed bottom-24 right-3 z-50 hidden h-10 w-10 items-center justify-center rounded-full border bg-background shadow-md lg:flex"
         aria-label="Odpri ali zapri AI sidebar"
       >
         {isAiSidebarOpen ? <X className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
       </button>
 
       {isAiSidebarOpen && (
-        <aside className="fixed inset-y-0 right-0 z-40 w-full max-w-sm border-l bg-background shadow-xl">
-          <div className="flex h-full flex-col">
+        <>
+          <button
+            type="button"
+            aria-label="Zapri AI sidebar overlay"
+            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]"
+            onClick={() => setIsAiSidebarOpen(false)}
+          />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-sm border-l bg-background shadow-xl">
+            <div className="flex h-full flex-col">
             <div className="flex items-center justify-between border-b p-4">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-primary" />
@@ -376,8 +383,9 @@ export function PartnerSidebar({ partner }: PartnerSidebarProps) {
                 </div>
               )}
             </div>
-          </div>
-        </aside>
+            </div>
+          </aside>
+        </>
       )}
     </>
   )

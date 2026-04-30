@@ -35,7 +35,7 @@ export default async function PartnerDashboardLayout({ children }: { children: R
           is_verified: partner.is_verified ?? false,
         }}
       />
-      <main className="min-w-0 flex flex-1 flex-col overflow-y-auto pb-20 md:pb-0">{children}</main>
+      <main className="w-full min-w-0 flex flex-1 flex-col pb-20 md:pb-0 lg:overflow-y-auto">{children}</main>
       <PartnerBottomNav paket={{ paket: tier }} />
     </div>
   )
