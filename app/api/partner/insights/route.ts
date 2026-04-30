@@ -44,7 +44,7 @@ export async function GET() {
 
     const ai = await executeAgent({
       userId: user.id,
-      agentType: "general_chat",
+      agentType: "support_agent",
       userMessage: `Na podlagi metrike pripravi 4 personalizirane poslovne nasvete v slovenščini za obrtnika. Metrike: poslane=${sent}, sprejete=${accepted}, konverzija=${conversion}%, povprecna_cena=${avgPrice} EUR. Vrni seznam v markdown bullet obliki.`,
       useRAG: false,
       useTools: false,

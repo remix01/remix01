@@ -37,13 +37,13 @@ export class OrchestratorAgent extends BaseAgent {
       }
 
       // 1. Load or create short-term conversation state
-      const memState = shortTermMemory.getOrCreate(
+      const memState = await shortTermMemory.getOrCreate(
         message.sessionId,
         message.userId
       )
 
       // 2. Add user message to memory
-      shortTermMemory.addMessage(message.sessionId, {
+      await shortTermMemory.addMessage(message.sessionId, {
         role: 'user',
         content: userMessage,
         timestamp: Date.now(),
@@ -59,7 +59,7 @@ export class OrchestratorAgent extends BaseAgent {
       if (intent.action === 'clarify') {
         const clarification = intent.extractedParams.clarification as string
         
-        shortTermMemory.addMessage(message.sessionId, {
+        await shortTermMemory.addMessage(message.sessionId, {
           role: 'assistant',
           content: clarification,
           timestamp: Date.now(),
@@ -90,7 +90,7 @@ export class OrchestratorAgent extends BaseAgent {
       const agentResponse = await messageBus.send(targetAgentMessage)
 
       // 8. Add agent response to memory
-      shortTermMemory.addMessage(message.sessionId, {
+      await shortTermMemory.addMessage(message.sessionId, {
         role: 'assistant',
         content: agentResponse.data as string ?? JSON.stringify(agentResponse.data),
         timestamp: Date.now(),
@@ -120,7 +120,7 @@ export class OrchestratorAgent extends BaseAgent {
       }
 
       // 11. After INTERACTION_THRESHOLD interactions, trigger long-term memory update
-      const memCtx = shortTermMemory.getContext(message.sessionId)
+      const memCtx = await shortTermMemory.getContext(message.sessionId, message.userId)
       const messages = memCtx?.messages ?? []
       if (messages.length % INTERACTION_THRESHOLD === 0) {
         // This would trigger a background summarization task

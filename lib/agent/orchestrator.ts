@@ -1,36 +1,13 @@
 /**
- * AI Orchestrator — Main Brain of the Agent
- * 
- * 1. Receives user message + session context
- * 2. Sends to Claude with system prompt listing available tools
- * 3. LLM returns structured tool call: { tool: string, params: object }
- * 4. Never execute tool directly — return to caller for routing
+ * Deprecated legacy orchestrator adapter.
+ *
+ * Duplicate orchestration logic has been removed.
+ * This module now delegates to the single orchestrator in `lib/ai/orchestrator`.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
-import { getConversationForLLM, type AgentContext } from './context'
-import { agentLogger, tracer } from '@/lib/observability'
-import type { Span } from '@/lib/observability'
-import { anomalyDetector } from '@/lib/observability/alerting'
-import {
-  shortTermMemory,
-  loadLongTermMemory,
-  appendActivity,
-  formatForSystemPrompt,
-  workingMemory,
-  FINANCIAL_TOOLS,
-  formatWorkingContextForPrompt,
-} from './memory'
-
-// ── VALIDATE REQUIRED ENVIRONMENT VARIABLES ────────────────────────────────
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('[Orchestrator] ANTHROPIC_API_KEY is not set')
-  throw new Error('ANTHROPIC_API_KEY environment variable is required')
-}
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+import { executeAgent } from '@/lib/ai/orchestrator'
+import { mapLegacyAgentType } from '@/lib/agents/ai-router'
+import type { AgentContext } from './context'
 
 export interface ToolCall {
   tool: string
@@ -44,341 +21,37 @@ export interface OrchestratorResponse {
   error?: string
 }
 
-// System prompt template — {longTermContext} is replaced per-request with
-// the user's persistent preferences, history summary, and recent actions.
-const SYSTEM_PROMPT = `You are an AI agent for LiftGO, a marketplace connecting customers with craftspeople.
-
-{longTermContext}
-
-AVAILABLE TOOLS:
-1. createInquiry
-   - Used when customer wants to post a new service request
-   - Params: { title, description, categorySlug, location, urgency, budget?, maxResponses? }
-
-2. submitOffer
-   - Used when partner wants to quote a customer's inquiry
-   - Params: { inquiryId, priceOffered, estimatedDays, notes? }
-
-3. acceptOffer
-   - Used when customer accepts a partner's quote
-   - Params: { offerId }
-
-4. captureEscrow
-   - System tool: moves payment from pending to captured
-   - Params: { escrowId }
-
-5. releaseEscrow
-   - Used when customer confirms work done and releases payment
-   - Params: { escrowId, confirmationDetails? }
-
-6. refundEscrow
-   - Admin tool: refunds a disputed escrow
-   - Params: { escrowId, reason }
-
-CRITICAL RULES:
-- ALWAYS respond with ONLY valid JSON: { "tool": "...", "params": {...} }
-- Never ask user for payment details — system handles that
-- Never construct database queries or SQL
-- Never call APIs directly
-- Do NOT respond with free-form text unless user asks a question about your capabilities
-- If user message is not actionable as a tool call, respond with: { "tool": "chat", "params": { "message": "..." } }
-
-CONTEXT:
-- Current user ID: {userId}
-- User role: {userRole}
-- Active resources: {activeResources}
-
-{workingContext}`;
-
-/**
- * Parse LLM response to extract tool call
- * Strict parsing — must be valid JSON with tool and params
- */
-function parseToolCall(response: string): ToolCall | null {
-  try {
-    // Try to extract JSON from response (in case LLM adds extra text)
-    const jsonMatch = response.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return null
-
-    const parsed = JSON.parse(jsonMatch[0])
-    
-    // Validate structure
-    if (!parsed.tool || typeof parsed.tool !== 'string') return null
-    if (!parsed.params || typeof parsed.params !== 'object') return null
-
-    return {
-      tool: parsed.tool,
-      params: parsed.params,
-    }
-  } catch (e) {
-    return null
-  }
-}
-
-/**
- * Call Claude with user message and get back structured tool call
- * LLM has no memory between calls — full context passed each time
- * 
- * @param userMessage - What the user said
- * @param context - Session, user role, active resources, conversation history
- * @returns ToolCall to execute or error
- */
 export async function orchestrate(
   userMessage: string,
   context: AgentContext
 ): Promise<OrchestratorResponse> {
-  // ── ROOT TRACE SPAN ─────────────────────────────────────────────────────
-  const rootSpan = tracer.startTrace('orchestrator.process', {
-    userId:        context.userId,
-    sessionId:     context.sessionId,
-    messageLength: userMessage.length,
-  })
-
   try {
-    // ── OBSERVABILITY ──────────────────────────────────────────────────────
-    agentLogger.log({
-      sessionId: context.sessionId,
+    const roleAgent = mapLegacyAgentType('general_chat')
+
+    const result = await executeAgent({
       userId: context.userId,
-      level: 'info',
-      event: 'session_started',
+      agentType: roleAgent,
+      userMessage,
+      conversationId: context.sessionId,
+      useRAG: true,
+      useTools: false,
+      additionalContext:
+        'Legacy adapter mode: advisory response only. No business-critical decisions. No activation logic.',
     })
-
-    // ── WORKING MEMORY (init) ──────────────────────────────────────────────
-    // Ensures the session exists before any reads/writes below.
-    workingMemory.init(context.sessionId, context.userId)
-
-    // ── LONG-TERM MEMORY (load) ────────────────────────────────────────────
-    // Fetch persistent user preferences, history summary, and recent actions.
-    // Fire-and-continue: if DB is slow we still proceed with an empty record.
-    const longTermMem = await loadLongTermMemory(context.userId)
-    const longTermContext = formatForSystemPrompt(longTermMem)
-
-    // ── SHORT-TERM MEMORY ──────────────────────────────────────────────────
-    // Retrieve or create session state. This gives the LLM full conversation
-    // history and the currently active resource IDs (inquiry/offer/escrow).
-    const memState = shortTermMemory.getOrCreate(context.sessionId, context.userId)
-
-    // Record the incoming user message into memory
-    shortTermMemory.addMessage(context.sessionId, {
-      role: 'user',
-      content: userMessage,
-      timestamp: Date.now(),
-    })
-
-    // Build active resources string from memory (authoritative source of truth)
-    const activeResources = [
-      memState.activeInquiryId ? `inquiryId=${memState.activeInquiryId}` : null,
-      memState.activeOfferId   ? `offerId=${memState.activeOfferId}`     : null,
-      memState.activeEscrowId  ? `escrowId=${memState.activeEscrowId}`   : null,
-    ]
-      .filter(Boolean)
-      .join(', ') || 'none'
-
-    // Build working-memory context string for system prompt
-    const wFocus = workingMemory.getFocus(context.sessionId) ?? {}
-    const wState = workingMemory['store'].get(context.sessionId)
-    const workingContext = formatWorkingContextForPrompt(
-      wFocus,
-      wState?.pendingAction,
-      wState?.completedActions ?? []
-    )
-
-    // Format system prompt with long-term, live, and working context
-    const systemPrompt = SYSTEM_PROMPT
-      .replace('{longTermContext}', longTermContext)
-      .replace('{userId}', context.userId)
-      .replace('{userRole}', context.userRole)
-      .replace('{activeResources}', activeResources)
-      .replace('{workingContext}', workingContext)
-
-    // Build messages: persisted history (without current message — already added above)
-    // Use messages stored in memory, excluding the one we just added, so we can
-    // append the current turn after we get the response.
-    const historyForLLM = memState.messages
-      .slice(0, -1) // exclude the user message we just pushed — will be last
-      .filter((m: any) => m.role === 'user' || m.role === 'assistant')
-      .map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
-
-    const messages = [
-      ...historyForLLM,
-      { role: 'user' as const, content: userMessage },
-    ]
-
-    // Call Claude
-    const llmStartedAt = Date.now()
-    const llmSpan = tracer.startSpan('llm.call', rootSpan, {
-      model:        'claude-sonnet-4-5-20250514',
-      messageCount: messages.length,
-    })
-
-    agentLogger.log({
-      sessionId: context.sessionId,
-      userId: context.userId,
-      level: 'debug',
-      event: 'llm_call_started',
-      params: { model: 'claude-sonnet-4-5-20250514', messageCount: messages.length },
-    })
-
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250514',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
-    })
-
-    const llmDurationMs = Date.now() - llmStartedAt
-    tracer.endSpan(llmSpan, 'ok', undefined)
-    // Patch in token + duration attributes now that we have them
-    llmSpan.attributes.promptTokens     = response.usage?.input_tokens  ?? 0
-    llmSpan.attributes.completionTokens = response.usage?.output_tokens ?? 0
-    llmSpan.attributes.durationMs       = llmDurationMs
-
-    agentLogger.log({
-      sessionId: context.sessionId,
-      userId: context.userId,
-      level: 'debug',
-      event: 'llm_call_completed',
-      durationMs: llmDurationMs,
-    })
-
-    // Extract text response
-    const textContent = response.content.find((b: any) => b.type === 'text')
-    if (!textContent || textContent.type !== 'text') {
-      return {
-        success: false,
-        error: 'LLM returned unexpected response format',
-      }
-    }
-
-    // Parse tool call from response
-    const toolCall = parseToolCall(textContent.text)
-    if (!toolCall) {
-      return {
-        success: false,
-        error: `Invalid tool call format from LLM: ${textContent.text}`,
-      }
-    }
-
-    // ── RECORD ASSISTANT RESPONSE IN MEMORY ───────────────────────────────
-    shortTermMemory.addMessage(context.sessionId, {
-      role: 'assistant',
-      content: textContent.text,
-      timestamp: Date.now(),
-      toolCall: { tool: toolCall.tool, params: toolCall.params },
-    })
-
-    // Track last tool call name for debugging / analytics
-    if (toolCall.tool !== 'chat') {
-      const state = shortTermMemory.getContext(context.sessionId)
-      if (state) {
-        // Mutate updatedAt via setActiveResource as a side-effect-free way;
-        // we update lastToolCall directly since it's the same in-memory ref.
-        state.lastToolCall = toolCall.tool
-      }
-
-      // ── EXTRACT ACTIVE RESOURCE IDs FROM PARAMS ─────────────────────
-      // Persist any resource IDs returned in params so the LLM can refer
-      // to them implicitly in follow-up turns.
-      const p = toolCall.params as Record<string, unknown>
-      if (typeof p.escrowId  === 'string') shortTermMemory.setActiveResource(context.sessionId, 'escrowId',  p.escrowId)
-      if (typeof p.inquiryId === 'string') shortTermMemory.setActiveResource(context.sessionId, 'inquiryId', p.inquiryId)
-      if (typeof p.offerId   === 'string') shortTermMemory.setActiveResource(context.sessionId, 'offerId',   p.offerId)
-
-      // ── LONG-TERM MEMORY (flush) ───────────────────────────────────
-      // Append this tool call to the user's persistent activity log.
-      // Fire-and-forget: don't await so it never delays the response.
-      appendActivity(context.userId, {
-        tool: toolCall.tool,
-        resourceId: (
-          (p.escrowId  as string) ??
-          (p.inquiryId as string) ??
-          (p.offerId   as string) ??
-          undefined
-        ),
-        timestamp: Date.now(),
-        success: true,
-      }).catch((err: any) => {
-        console.error('[Orchestrator] Memory write failed:', err)
-        // Don't throw - memory failure should not break the response
-      })
-    }
-
-    // Reject tool="chat" — agent should only call tools
-    if (toolCall.tool === 'chat') {
-      return {
-        success: false,
-        message: toolCall.params?.message as string,
-      }
-    }
-
-    // ── FINANCIAL GATE ─────────────────────────────────────────────────────
-    // captureEscrow, releaseEscrow, refundEscrow require explicit confirmation.
-    // On first encounter: register as pending and ask for confirmation.
-    // On second encounter (user confirmed): resolve and allow execution.
-    if (FINANCIAL_TOOLS.has(toolCall.tool)) {
-      const pending = workingMemory.resolvePendingAction(context.sessionId)
-
-      if (!pending || pending.tool !== toolCall.tool) {
-        // Not yet confirmed — hold, ask user
-        workingMemory.setPendingAction(
-          context.sessionId,
-          toolCall.tool,
-          toolCall.params,
-          'user_confirmation'
-        )
-        return {
-          success: false,
-          message: `Please confirm: do you want to execute "${toolCall.tool}"? Reply "yes" to proceed.`,
-        }
-      }
-      // pending resolved above — fall through to execute with confirmed params
-    }
-
-    // ── POST-TOOL: update working memory ──────────────────────────────────
-    const p = toolCall.params as Record<string, unknown>
-    if (typeof p.escrowId  === 'string') workingMemory.setFocus(context.sessionId, 'escrow',  p.escrowId,  'active')
-    if (typeof p.inquiryId === 'string') workingMemory.setFocus(context.sessionId, 'inquiry', p.inquiryId, 'open')
-    if (typeof p.offerId   === 'string') workingMemory.setFocus(context.sessionId, 'offer',   p.offerId,   'pending')
-    workingMemory.markCompleted(context.sessionId, toolCall.tool)
 
     return {
       success: true,
-      toolCall,
+      toolCall: {
+        tool: 'chat',
+        params: {
+          message: result.response,
+        },
+      },
     }
   } catch (error) {
-    console.error('[ORCHESTRATOR] Error calling LLM:', error)
-    
-    // Record LLM error for anomaly detection (non-blocking)
-    anomalyDetector.record('llm_error_spike', context.userId, context.sessionId, 
-      error instanceof Error ? error.message : String(error))
-    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
     }
   }
-}
-
-/**
- * Test orchestrator with sample message
- * Remove before production
- */
-export async function testOrchestrator() {
-  const context = {
-    userId: 'test-user',
-    userEmail: 'test@example.com',
-    userRole: 'user' as const,
-    sessionId: 'test-session',
-    timestamp: new Date(),
-    messages: [],
-    activeResourceIds: {},
-  }
-
-  const result = await orchestrate(
-    'I need a plumber to fix my kitchen sink. Location is Ljubljana, I need it done this week.',
-    context
-  )
-
-  console.log('[ORCHESTRATOR TEST]', JSON.stringify(result, null, 2))
-  return result
 }

@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // 3. Execute agent
     const result = await executeAgent({
       userId: user.id,
-      agentType: body.agentType || 'general_chat',
+      agentType: body.agentType || 'support_agent',
       userMessage: body.message,
       taskId: body.taskId,
       conversationId: body.conversationId,
