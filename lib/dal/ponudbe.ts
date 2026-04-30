@@ -1,6 +1,7 @@
 // Data Access Layer - Ponudbe & Ocene
 import { createClient } from '@/lib/supabase/server'
 import { sendNotification } from '@/lib/notifications'
+import { enqueue } from '@/lib/jobs/queue'
 import type { 
   Ponudba, 
   PonudbaInsert, 
@@ -136,6 +137,24 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
       console.error('[v0] Error sending notification:', err)
       // Don't fail the whole operation if notification fails
     })
+
+    const customerEmail = (result.povprasevanje as any)?.stranka_email
+    const craftsmanName = result.obrtnik.profile.full_name
+    const baseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
+    if (customerEmail) {
+      const emailPayload = {
+        to: customerEmail,
+        template: 'marketplace_offer_received',
+        povprasevanjeId: result.povprasevanje.id,
+        craftsman_name: craftsmanName,
+        price: result.price_estimate ? `€${result.price_estimate}` : 'Po dogovoru',
+        message: result.message || '',
+        link: `${baseUrl}/narocnik/povprasevanja/${result.povprasevanje.id}`,
+      }
+      enqueue('sendEmail', emailPayload).catch((err: any) => console.error('[EMAIL] offer notify enqueue failed', err))
+      enqueue('sendEmail', { ...emailPayload, customData: { reminder: '24h' } }, { delay: 24 * 60 * 60 }).catch((err: any) => console.error('[EMAIL] offer reminder 24h enqueue failed', err))
+      enqueue('sendEmail', { ...emailPayload, customData: { reminder: '48h' } }, { delay: 48 * 60 * 60 }).catch((err: any) => console.error('[EMAIL] offer reminder 48h enqueue failed', err))
+    }
   }
 
   return result
