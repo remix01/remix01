@@ -12,7 +12,7 @@ import {
   sanitizeText,
 } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
-import { analytics } from '@/lib/analytics/tracker'
+import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { newRequestMatchedEmail } from '@/lib/email/notification-templates'
 
@@ -515,12 +515,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('Napaka pri shranjevanju', 500, 'MISSING_INSERT_ROW')
     }
 
-    analytics.track('inquiry_submitted', {
-      inquiry_id: data.id,
-      service: storitev,
+    trackFunnelEvent(FUNNEL_EVENTS.POVPRASEVANJE_SUBMITTED, {
+      povprasevanje_id: data.id,
+      category: storitev,
       location: normalizedLocation,
-      has_email: !!stranka_email,
-      source: 'public_form',
+      user_type: 'narocnik',
     }, userId ?? undefined)
 
     // Fire-and-forget: push + email to matching obrtniks

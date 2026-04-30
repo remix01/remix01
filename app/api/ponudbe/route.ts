@@ -4,7 +4,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { validateAmount, validateEnum, validateRequiredString, collectErrors } from '@/lib/validation'
 import { apiSuccess, badRequest, unauthorized, forbidden, tooManyRequests, internalError } from '@/lib/api-response'
 import { offerService, handleServiceError } from '@/lib/services'
-import { analytics } from '@/lib/analytics/tracker'
+import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 import { sendNotification } from '@/lib/notifications'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
@@ -63,11 +63,18 @@ export async function POST(request: NextRequest) {
       available_date,
     } as any)
 
-    analytics.track('offer_sent', {
-      ponudba_id: ponudba?.id,
+    const { data: povprasevanjeMeta } = await supabaseAdmin
+      .from('povprasevanja')
+      .select('location_city, categories:category_id(name)')
+      .eq('id', povprasevanje_id)
+      .maybeSingle()
+
+    trackFunnelEvent(FUNNEL_EVENTS.PONUDBA_SENT, {
       povprasevanje_id,
+      category: (povprasevanjeMeta?.categories as { name?: string } | null)?.name ?? null,
+      location: povprasevanjeMeta?.location_city ?? null,
+      user_type: 'obrtnik',
       obrtnik_id,
-      price_type: price_type ?? 'ocena',
     }, user.id)
 
     // Notify naročnik about new ponudba (fire-and-forget)
