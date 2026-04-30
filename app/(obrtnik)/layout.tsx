@@ -4,6 +4,7 @@ import { ObrtknikSidebar } from '@/components/obrtnik/sidebar'
 import { ObrtknikBottomNav } from '@/components/obrtnik/bottom-nav'
 import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
 import { AvailabilityToggle } from '@/components/obrtnik/availability-toggle'
+import { assertCanAccessProviderDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
 
 export const metadata = {
   title: 'LiftGO - Obrtnik',
@@ -37,6 +38,12 @@ export default async function ObrtknikLayout({
   }
 
   console.log(`[v0] Obrtnik layout: User ${user.id} has obrtnik profile, allowing access`)
+
+  try {
+    await assertCanAccessProviderDashboard(user.id)
+  } catch (error) {
+    redirectForOnboardingGuard(error)
+  }
 
   return (
     <div className="flex flex-col md:flex-row md:min-h-screen bg-background">

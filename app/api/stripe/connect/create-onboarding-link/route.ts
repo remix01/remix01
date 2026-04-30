@@ -5,6 +5,7 @@ import { env } from '@/lib/env'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { CANONICAL_TABLES, CANONICAL_PROVIDER_RELATIONSHIP } from '@/lib/db/schema-contract'
+import { assertCanAccessProviderDashboard, OnboardingGuardError } from '@/lib/onboarding/guards'
 
 const requestSchema = z.object({
   accountId: z.string().optional(),
@@ -20,6 +21,15 @@ export async function POST(request: Request) {
         { error: 'Unauthorized' },
         { status: 401 }
       )
+    }
+
+    try {
+      await assertCanAccessProviderDashboard(user.id, { allowStates: ['payout_incomplete'] })
+    } catch (error) {
+      if (error instanceof OnboardingGuardError) {
+        return NextResponse.json({ error: error.message, state: error.state, redirectTo: error.redirectTo }, { status: 403 })
+      }
+      throw error
     }
 
     const { data: providerProfile, error: providerError } = await supabaseAdmin
