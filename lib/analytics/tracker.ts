@@ -10,6 +10,7 @@ export type EventName =
   | 'payment_completed'
   | 'search_performed'
   | 'craftworker_profile_viewed'
+  | 'povprasevanje_viewed_by_obrtnik'
   | 'user_registered'
   | 'user_logged_in'
   | 'review_submitted'

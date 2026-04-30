@@ -12,6 +12,9 @@ import {
   sanitizeText,
 } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
+import { analytics } from '@/lib/analytics/tracker'
+import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import { newRequestMatchedEmail } from '@/lib/email/notification-templates'
 
 type PublicInquiryBody = {
   storitev?: unknown
@@ -510,6 +513,49 @@ export async function POST(request: NextRequest) {
     if (!data) {
       console.error('[public] Insert succeeded without row data', { requestId })
       return errorResponse('Napaka pri shranjevanju', 500, 'MISSING_INSERT_ROW')
+    }
+
+    analytics.track('inquiry_submitted', {
+      inquiry_id: data.id,
+      service: storitev,
+      location: normalizedLocation,
+      has_email: !!stranka_email,
+      source: 'public_form',
+    }, userId ?? undefined)
+
+    // Fire-and-forget: push + email to matching obrtniks
+    if (category_id) {
+      sendPushToObrtnikiByCategory({
+        categoryId: category_id,
+        title: '📋 Novo povpraševanje!',
+        body: `${storitev} — ${normalizedLocation}`,
+        data: { povprasevanjeId: data.id, type: 'nova_povprasevanje' },
+      }).catch((err: Error) => console.error('[public] Push notify error:', err))
+
+      const resend = getResendClient()
+      if (resend) {
+        supabaseAdmin
+          .from('obrtnik_profiles')
+          .select('user_id, profiles:profiles!obrtnik_profiles_user_id_fkey(email)')
+          .eq('is_verified', true)
+          .contains('service_category_ids', [category_id])
+          .limit(50)
+          .then(({ data: obrtniks }) => {
+            if (!obrtniks?.length) return
+            const template = newRequestMatchedEmail(storitev, data.id)
+            for (const op of obrtniks) {
+              const email = (op.profiles as any)?.email
+              if (!email) continue
+              resend.emails.send({
+                from: getDefaultFrom(),
+                to: resolveEmailRecipients(email).to,
+                subject: template.subject,
+                html: template.html,
+              }).catch(() => {})
+            }
+          })
+          .catch((err: Error) => console.error('[public] Obrtnik email error:', err))
+      }
     }
 
     return successResponse({ success: true, id: data.id })
