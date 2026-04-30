@@ -54,11 +54,11 @@ $$;
 DO $$
 BEGIN
   IF to_regprocedure('public.user_role()') IS NOT NULL THEN
-    EXECUTE 'GRANT EXECUTE ON FUNCTION public.user_role() TO authenticated, service_role';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.user_role() TO anon, authenticated, service_role';
   END IF;
 
   IF to_regprocedure('public.user_id()') IS NOT NULL THEN
-    EXECUTE 'GRANT EXECUTE ON FUNCTION public.user_id() TO authenticated, service_role';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.user_id() TO anon, authenticated, service_role';
   END IF;
 
   IF to_regprocedure('public.accept_task(uuid)') IS NOT NULL THEN
