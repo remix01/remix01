@@ -37,6 +37,16 @@ The LiftGO email system provides:
 - ✅ Daily review reminders (scheduled)
 - ✅ Weekly provider digests (scheduled)
 
+## Required Environment Variables
+
+- `EMAIL_PROVIDER` (`resend` | `sendgrid` | `ses`). If omitted, provider auto-selects configured key (`RESEND_API_KEY` first, then `SENDGRID_API_KEY`).
+- `FROM_EMAIL` sender address used in transactional emails (example: `LiftGO <noreply@liftgo.net>`).
+- `APP_BASE_URL` absolute app URL for deep links in templates (fallback: `NEXT_PUBLIC_APP_URL`).
+- Provider credentials:
+  - Resend: `RESEND_API_KEY`
+  - SendGrid: `SENDGRID_API_KEY`
+  - AWS SES: `AWS_SES_REGION`, `AWS_SES_ACCESS_KEY_ID`, `AWS_SES_SECRET_ACCESS_KEY`
+
 ---
 
 ## Email Addresses

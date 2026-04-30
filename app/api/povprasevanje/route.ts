@@ -305,6 +305,35 @@ async function postHandler(req: NextRequest) {
         urgency: data.urgency,
         budget: data.budget_max,
       }).catch(err => console.error('[v0] Error enqueueing email:', err))
+
+      // Notify matched craftsmen by email and schedule reminders (24h/48h)
+      if (finalCategoryId) {
+        const { data: matched } = await supabaseAdmin
+          .from('obrtnik_profiles')
+          .select('id, profile:profiles(email,ime,priimek)')
+          .eq('category_id', finalCategoryId)
+          .eq('is_active', true)
+
+        const baseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
+        for (const m of matched || []) {
+          const email = (m as any)?.profile?.email
+          if (!email) continue
+          const payload = {
+            to: email,
+            template: 'marketplace_match_new_request',
+            povprasevanjeId: data.id,
+            customer_name: data.stranka_ime || 'Naročnik',
+            category: normalizedCategoryName || data.title,
+            location: data.location_city,
+            description: data.description || '',
+            budget: data.budget_max ? `€${data.budget_max}` : 'Po dogovoru',
+            link: `${baseUrl}/obrtnik/povprasevanja/${data.id}`,
+          }
+          enqueue('sendEmail', payload).catch(err => console.error('[EMAIL] match notify enqueue failed', err))
+          enqueue('sendEmail', { ...payload, customData: { reminder: '24h' } }, { delay: 24 * 60 * 60 }).catch(err => console.error('[EMAIL] 24h reminder enqueue failed', err))
+          enqueue('sendEmail', { ...payload, customData: { reminder: '48h' } }, { delay: 48 * 60 * 60 }).catch(err => console.error('[EMAIL] 48h reminder enqueue failed', err))
+        }
+      }
     } catch (notifyErr) {
       // Log but don't fail the response
       console.error('[v0] Error with notifications:', notifyErr)
