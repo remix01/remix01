@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 
 // Maps legacy partners field names (used in PATCH body) to obrtnik_profiles columns
 const LEGACY_FIELD_MAP: Record<string, string> = {
@@ -47,6 +48,13 @@ export const canonicalPartnerService = {
       .single()
 
     if (error) throw error
+
+    try {
+      await transitionOnboardingState(partnerId)
+    } catch (onboardingError) {
+      console.error('[v0] Onboarding transition failed after profile update:', onboardingError)
+    }
+
     return data
   },
 
