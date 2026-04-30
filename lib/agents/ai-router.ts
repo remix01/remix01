@@ -1,4 +1,10 @@
-export type AIAgentType =
+export type CoreRoleAgentType =
+  | 'onboarding_assistant'
+  | 'provider_coach'
+  | 'payment_helper'
+  | 'support_agent'
+
+export type LegacyAIAgentType =
   | 'general_chat'
   | 'work_description'
   | 'offer_comparison'
@@ -10,67 +16,75 @@ export type AIAgentType =
   | 'offer_writing'
   | 'profile_optimization'
 
-export const AGENT_DAILY_LIMITS: Record<string, Record<AIAgentType, number>> = {
+export type AIAgentType = CoreRoleAgentType | LegacyAIAgentType
+
+export function mapLegacyAgentType(agentType: AIAgentType): CoreRoleAgentType {
+  switch (agentType) {
+    case 'quote_generator':
+    case 'materials_agent':
+    case 'offer_writing':
+    case 'profile_optimization':
+    case 'provider_coach':
+      return 'provider_coach'
+    case 'scheduling_assistant':
+    case 'work_description':
+    case 'onboarding_assistant':
+      return 'onboarding_assistant'
+    case 'payment_helper':
+      return 'payment_helper'
+    default:
+      return 'support_agent'
+  }
+}
+
+const CORE_DAILY_LIMITS: Record<string, Record<CoreRoleAgentType, number>> = {
   start: {
-    general_chat: 5,
-    work_description: 3,
-    offer_comparison: 2,
-    scheduling_assistant: 3,
-    video_diagnosis: 0,
-    quote_generator: 3,
-    materials_agent: 0,
-    job_summary: 3,
-    offer_writing: 0,
-    profile_optimization: 0,
+    onboarding_assistant: 10,
+    provider_coach: 8,
+    payment_helper: 8,
+    support_agent: 12,
   },
   pro: {
-    general_chat: 100,
-    work_description: 20,
-    offer_comparison: 15,
-    scheduling_assistant: 20,
-    video_diagnosis: 10,
-    quote_generator: 30,
-    materials_agent: 15,
-    job_summary: 30,
-    offer_writing: 30,
-    profile_optimization: 10,
+    onboarding_assistant: 100,
+    provider_coach: 100,
+    payment_helper: 100,
+    support_agent: 120,
   },
   elite: {
-    general_chat: 300,
-    work_description: 100,
-    offer_comparison: 50,
-    scheduling_assistant: 100,
-    video_diagnosis: 50,
-    quote_generator: 100,
-    materials_agent: 50,
-    job_summary: 100,
-    offer_writing: 100,
-    profile_optimization: 50,
+    onboarding_assistant: 250,
+    provider_coach: 250,
+    payment_helper: 250,
+    support_agent: 300,
   },
   enterprise: {
-    general_chat: Infinity,
-    work_description: Infinity,
-    offer_comparison: Infinity,
-    scheduling_assistant: Infinity,
-    video_diagnosis: Infinity,
-    quote_generator: Infinity,
-    materials_agent: Infinity,
-    job_summary: Infinity,
-    offer_writing: Infinity,
-    profile_optimization: Infinity,
+    onboarding_assistant: Infinity,
+    provider_coach: Infinity,
+    payment_helper: Infinity,
+    support_agent: Infinity,
   },
 }
 
-const TIER_RESTRICTED: AIAgentType[] = [
-  'video_diagnosis',
-  'materials_agent',
-  'offer_writing',
-  'profile_optimization',
-]
+export const AGENT_DAILY_LIMITS: Record<string, Record<AIAgentType, number>> = {
+  start: {} as Record<AIAgentType, number>,
+  pro: {} as Record<AIAgentType, number>,
+  elite: {} as Record<AIAgentType, number>,
+  enterprise: {} as Record<AIAgentType, number>,
+}
 
-export function isAgentAccessible(agentType: AIAgentType, userTier: string): boolean {
-  if (!TIER_RESTRICTED.includes(agentType)) return true
-  return userTier === 'pro' || userTier === 'enterprise'
+for (const tier of Object.keys(AGENT_DAILY_LIMITS) as Array<keyof typeof AGENT_DAILY_LIMITS>) {
+  const core = CORE_DAILY_LIMITS[tier]
+  const record = AGENT_DAILY_LIMITS[tier]
+  const aliases: Record<AIAgentType, CoreRoleAgentType> = {
+    onboarding_assistant: 'onboarding_assistant', provider_coach: 'provider_coach', payment_helper: 'payment_helper', support_agent: 'support_agent',
+    general_chat: 'support_agent', work_description: 'onboarding_assistant', offer_comparison: 'support_agent', scheduling_assistant: 'onboarding_assistant', video_diagnosis: 'support_agent', quote_generator: 'provider_coach', materials_agent: 'provider_coach', job_summary: 'support_agent', offer_writing: 'provider_coach', profile_optimization: 'provider_coach',
+  }
+  for (const [agent, role] of Object.entries(aliases) as Array<[AIAgentType, CoreRoleAgentType]>) {
+    record[agent] = core[role]
+  }
+}
+
+export function isAgentAccessible(_agentType: AIAgentType, _userTier: string): boolean {
+  return true
 }
 
 export function getAgentDailyLimit(agentType: AIAgentType, userTier: string): number {
@@ -86,84 +100,18 @@ export const AGENT_META: Record<AIAgentType, {
   async: boolean
   roles: ('narocnik' | 'obrtnik')[]
 }> = {
-  general_chat: {
-    label: 'Splošni asistent',
-    description: 'Pomoč pri navigaciji in splošnih vprašanjih',
-    icon: 'MessageCircle',
-    tier: null,
-    async: false,
-    roles: ['narocnik', 'obrtnik'],
-  },
-  work_description: {
-    label: 'Opis dela',
-    description: 'Pomaga sestaviti jasno povpraševanje za mojstre',
-    icon: 'ClipboardList',
-    tier: null,
-    async: false,
-    roles: ['narocnik'],
-  },
-  offer_comparison: {
-    label: 'Primerjaj ponudbe',
-    description: 'Primerja prejete ponudbe in priporoči najboljšo',
-    icon: 'BarChart2',
-    tier: null,
-    async: false,
-    roles: ['narocnik'],
-  },
-  scheduling_assistant: {
-    label: 'Urnik in termini',
-    description: 'Predlaga termine na podlagi razpoložljivosti mojstra',
-    icon: 'Calendar',
-    tier: null,
-    async: false,
-    roles: ['narocnik'],
-  },
-  video_diagnosis: {
-    label: 'Video diagnoza',
-    description: 'AI ocena obsega dela iz slike (PRO)',
-    icon: 'Video',
-    tier: 'pro',
-    async: true,
-    roles: ['narocnik'],
-  },
-  quote_generator: {
-    label: 'Generator ponudb',
-    description: 'Hitro generira osnutek ponudbe na podlagi povpraševanja',
-    icon: 'FileText',
-    tier: null,
-    async: false,
-    roles: ['obrtnik'],
-  },
-  materials_agent: {
-    label: 'Materiali in zaloge',
-    description: 'Seznam materiala in okvirne cene za delo (PRO)',
-    icon: 'Package',
-    tier: 'pro',
-    async: true,
-    roles: ['obrtnik'],
-  },
-  job_summary: {
-    label: 'Povzetek dela',
-    description: 'Generira poročilo po opravljenem delu za stranko',
-    icon: 'ClipboardCheck',
-    tier: null,
-    async: false,
-    roles: ['obrtnik'],
-  },
-  offer_writing: {
-    label: 'Piši ponudbo',
-    description: 'Pomaga napisati profesionalno ponudbo (PRO)',
-    icon: 'PenTool',
-    tier: 'pro',
-    async: false,
-    roles: ['obrtnik'],
-  },
-  profile_optimization: {
-    label: 'Optimizacija profila',
-    description: 'Izboljšaj profil za več posla (PRO)',
-    icon: 'TrendingUp',
-    tier: 'pro',
-    async: false,
-    roles: ['obrtnik'],
-  },
+  onboarding_assistant: { label: 'Onboarding Assistant', description: 'Guides users through setup and first actions without executing decisions.', icon: 'UserPlus', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
+  provider_coach: { label: 'Provider Coach', description: 'Helps providers improve offers and profiles with suggestions only.', icon: 'Briefcase', tier: null, async: false, roles: ['obrtnik'] },
+  payment_helper: { label: 'Payment Helper', description: 'Explains payment status and next steps only.', icon: 'CreditCard', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
+  support_agent: { label: 'Support Agent', description: 'General support and escalation guidance.', icon: 'LifeBuoy', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
+  general_chat: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'MessageCircle', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
+  work_description: { label: 'Onboarding Assistant (legacy)', description: 'Legacy alias to onboarding assistant.', icon: 'ClipboardList', tier: null, async: false, roles: ['narocnik'] },
+  offer_comparison: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'BarChart2', tier: null, async: false, roles: ['narocnik'] },
+  scheduling_assistant: { label: 'Onboarding Assistant (legacy)', description: 'Legacy alias to onboarding assistant.', icon: 'Calendar', tier: null, async: false, roles: ['narocnik'] },
+  video_diagnosis: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'Video', tier: null, async: false, roles: ['narocnik'] },
+  quote_generator: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'FileText', tier: null, async: false, roles: ['obrtnik'] },
+  materials_agent: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'Package', tier: null, async: false, roles: ['obrtnik'] },
+  job_summary: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'ClipboardCheck', tier: null, async: false, roles: ['obrtnik'] },
+  offer_writing: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'PenTool', tier: null, async: false, roles: ['obrtnik'] },
+  profile_optimization: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'TrendingUp', tier: null, async: false, roles: ['obrtnik'] },
 }

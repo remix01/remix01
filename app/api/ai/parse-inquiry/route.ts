@@ -69,7 +69,7 @@ ${input}
 
     const ai = await executeAgent({
       userId: user.id,
-      agentType: 'general_chat',
+      agentType: 'support_agent',
       userMessage: prompt,
       useRAG: false,
       useTools: false,

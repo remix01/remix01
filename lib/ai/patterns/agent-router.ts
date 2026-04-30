@@ -85,6 +85,10 @@ export interface RouterMetrics {
  * More specific phrases should appear first to avoid false matches.
  */
 const INTENT_KEYWORDS: Record<AIAgentType, string[]> = {
+  onboarding_assistant: ['začetek','onboarding','profil','prvi koraki'],
+  provider_coach: ['ponudba','profil obrtnika','cena','konverzija'],
+  payment_helper: ['plačilo','escrow','refund','račun'],
+  support_agent: ['podpora','težava','pomoč','status'],
   work_description: [
     'opis dela', 'opiši', 'povpraševanje', 'kako opisati', 'kaj napisati', 'help describe',
   ],

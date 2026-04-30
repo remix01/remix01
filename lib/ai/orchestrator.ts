@@ -27,7 +27,9 @@ import {
   AGENT_DAILY_LIMITS,
   AGENT_META,
   isAgentAccessible,
+  mapLegacyAgentType,
   type AIAgentType,
+  type CoreRoleAgentType,
 } from '../agents/ai-router'
 
 const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
@@ -84,38 +86,26 @@ function isTextBlock(block: ContentBlock): block is TextBlock {
 // System Prompts
 // =============================================================================
 
-const SYSTEM_PROMPTS: Record<AIAgentType, string> = {
-  general_chat: `Si LiftGO AI asistent za slovensko platformo domačih storitev.
-Pomagaš naročnikom in mojstrom z vprašanji o platformi.
-Odgovarjaj v slovenščini, jasno in prijazno.`,
+const SYSTEM_PROMPTS: Record<CoreRoleAgentType, string> = {
+  onboarding_assistant: `You are the LiftGO onboarding assistant.
+You help users understand steps, requirements, and safe next actions.
+Never make business-critical decisions, approvals, or commitments on behalf of users.
+Never trigger activation logic, account upgrades, payment capture, or escrow transitions.`,
 
-  work_description: `Si strokovnjak za pomoč pri pisanju jasnih opisov del za domače storitve.
-Pomagaj naročnikom napisati podroben opis.
-Vprašaj za lokacijo, obseg dela, časovni okvir in posebne zahteve.`,
+  provider_coach: `You are the LiftGO provider coach.
+You suggest better offers, profile text, and communication improvements.
+Your output is advisory only and must not include business-critical decisions.
+Never trigger activation logic, account changes, or payment state transitions.`,
 
-  offer_comparison: `Si strokovnjak za primerjavo ponudb mojstrov.
-Analiziraj prejete ponudbe glede na ceno, ocene, odzivni čas in rok izvedbe.`,
+  payment_helper: `You are the LiftGO payment helper.
+You explain payment timelines, statuses, and required human confirmations.
+Do not make business-critical decisions and do not execute financial actions.
+Never trigger activation logic, captures, releases, or refunds.`,
 
-  scheduling_assistant: `Si asistent za usklajevanje terminov med naročniki in mojstri.
-Pomagaj najti optimalen termin.`,
-
-  video_diagnosis: `Si strokovnjak za analizo slik domačih težav.
-Na podlagi vizualnega materiala identificiraj problem in predlagaj storitve.`,
-
-  quote_generator: `Si asistent za generiranje profesionalnih ponudb.
-Sestavi strukturirano ponudbo z opisom del, razčlenitvijo stroškov in rokom.`,
-
-  materials_agent: `Si strokovnjak za materiale v gradbeništvu.
-Za vsako delo določi potrebne materiale, količine in cene.`,
-
-  job_summary: `Si asistent za pisanje poročil po opravljenem delu.
-Sestavi profesionalno poročilo z opisom dela in priporočili.`,
-
-  offer_writing: `Si strokovnjak za pisanje prepričljivih ponudb.
-Pomagaj mojstrom napisati ponudbe, ki gradijo zaupanje.`,
-
-  profile_optimization: `Si strokovnjak za optimizacijo profilov mojstrov.
-Predlagaj izboljšave za naslov, opis, galerijo in cenovni razpon.`,
+  support_agent: `You are the LiftGO support agent.
+You troubleshoot and guide users with neutral recommendations and escalation paths.
+Do not make business-critical decisions, legal decisions, or policy overrides.
+Never trigger activation logic or irreversible platform actions.`,
 }
 
 // =============================================================================
@@ -125,7 +115,7 @@ Predlagaj izboljšave za naslov, opis, galerijo in cenovni razpon.`,
 export async function executeAgent(options: AgentExecutionOptions): Promise<AgentExecutionResult> {
   const {
     userId,
-    agentType,
+    agentType: rawAgentType,
     userMessage,
     taskId,
     conversationId,
@@ -138,6 +128,7 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
   } = options
 
   const startTime = Date.now()
+  const agentType = mapLegacyAgentType(rawAgentType)
 
   // 1. Check access and quota
   const userTier = await getUserTier(userId)
@@ -163,9 +154,9 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
     try {
       ragContext = await buildRAGContext(userMessage, {
         includeTasks: true,
-        includeObrtniki: ['offer_comparison'].includes(agentType),
+        includeObrtniki: ['support_agent'].includes(agentType),
         includeMessages: !!conversationId,
-        includeOffers: ['offer_comparison', 'quote_generator'].includes(agentType),
+        includeOffers: ['provider_coach', 'support_agent'].includes(agentType),
         conversationId,
         taskId,
         maxPerSource: 5,
