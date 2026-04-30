@@ -117,7 +117,7 @@ export default function PovprasevanjeDetailPage() {
               events: [{
                 name: 'povprasevanje_viewed_by_obrtnik',
                 sessionId,
-                properties: { povprasevanje_id: data.id, obrtnik_id: user.id },
+                properties: { povprasevanje_id: data.id, obrtnik_id: user.id, category: data.categories?.name ?? null, location: data.location_city ?? null, user_type: 'obrtnik', timestamp: new Date().toISOString() },
               }],
             }),
           }).catch(() => {})
