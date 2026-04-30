@@ -10,17 +10,19 @@ export const LEGACY_TABLES = {
   allProvidersView: 'all_obrtniki',
 } as const
 
-export type CanonicalRole = 'narocnik' | 'obrtnik'
-export type LegacyRole = 'CUSTOMER' | 'CRAFTWORKER'
+export type CanonicalRole = 'narocnik' | 'obrtnik' | 'admin'
+export type LegacyRole = 'CUSTOMER' | 'CRAFTWORKER' | 'ADMIN'
 
 const CANONICAL_TO_LEGACY_ROLE: Record<CanonicalRole, LegacyRole> = {
   narocnik: 'CUSTOMER',
   obrtnik: 'CRAFTWORKER',
+  admin: 'ADMIN',
 }
 
 const LEGACY_TO_CANONICAL_ROLE: Record<LegacyRole, CanonicalRole> = {
   CUSTOMER: 'narocnik',
   CRAFTWORKER: 'obrtnik',
+  ADMIN: 'admin',
 }
 
 export const CANONICAL_PROVIDER_RELATIONSHIP = {
@@ -40,8 +42,8 @@ export function isCanonicalProviderTable(tableName: string): boolean {
 
 export function toCanonicalRole(role: string | null | undefined): CanonicalRole | null {
   if (!role) return null
-  if (role === 'narocnik' || role === 'obrtnik') return role
-  if (role === 'CUSTOMER' || role === 'CRAFTWORKER') {
+  if (role === 'narocnik' || role === 'obrtnik' || role === 'admin') return role
+  if (role === 'CUSTOMER' || role === 'CRAFTWORKER' || role === 'ADMIN') {
     return LEGACY_TO_CANONICAL_ROLE[role]
   }
   return null
@@ -49,8 +51,8 @@ export function toCanonicalRole(role: string | null | undefined): CanonicalRole 
 
 export function toLegacyRole(role: string | null | undefined): LegacyRole | null {
   if (!role) return null
-  if (role === 'CUSTOMER' || role === 'CRAFTWORKER') return role
-  if (role === 'narocnik' || role === 'obrtnik') {
+  if (role === 'CUSTOMER' || role === 'CRAFTWORKER' || role === 'ADMIN') return role
+  if (role === 'narocnik' || role === 'obrtnik' || role === 'admin') {
     return CANONICAL_TO_LEGACY_ROLE[role]
   }
   return null
