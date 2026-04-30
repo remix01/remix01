@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { env } from '@/lib/env'
@@ -6,9 +6,6 @@ import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-respo
 import { ensureReferralCode, processReferralCode } from '@/lib/referral/referralService'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { authLimiter } from '@/lib/rate-limit/limiters'
-import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
-import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
-import { writeEmailLog } from '@/lib/email/email-logs'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 
 const registrationSchema = z.object({
@@ -72,24 +69,6 @@ async function postHandler(request: NextRequest) {
       return internalError('Failed to create user account')
     }
 
-    const welcomeRateLimit = await checkEmailRateLimit({
-      request,
-      action: 'signup_welcome',
-      email: validatedData.email,
-      userId,
-    })
-
-    if (!welcomeRateLimit.allowed) {
-      await writeEmailLog({
-        email: validatedData.email,
-        type: 'welcome_email',
-        status: 'rate_limited',
-        userId,
-        errorMessage: `Rate limited by ${welcomeRateLimit.reason}`,
-        metadata: { endpoint: '/api/registracija-mojster', retryAfter: welcomeRateLimit.retryAfter },
-      })
-    }
-    
     // Create obrtnik_profiles entry with initial plan
     const { error: profileError } = await supabase
       .from('obrtnik_profiles')
@@ -126,97 +105,6 @@ async function postHandler(request: NextRequest) {
     } catch (err) {
       console.error('[v0] Failed to generate referral code:', err)
       // Don't fail registration if referral code generation fails
-    }
-    
-    // Send welcome email using Resend
-    const resend = getResendClient()
-    if (resend && welcomeRateLimit.allowed) {
-      try {
-        await writeEmailLog({
-          email: validatedData.email,
-          type: 'welcome_email',
-          status: 'pending',
-          userId,
-          metadata: { endpoint: '/api/registracija-mojster' },
-        })
-
-        const planName = validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : 'START (10% provizija)'
-        const safeFirstName = escapeHtml(sanitizeText(validatedData.firstName, 120))
-        const safeLastName = escapeHtml(sanitizeText(validatedData.lastName, 120))
-        const safeCompanyName = escapeHtml(sanitizeText(validatedData.companyName, 160))
-        const safeSpecialization = escapeHtml(sanitizeText(validatedData.specialization, 120))
-        const safePlanName = escapeHtml(sanitizeText(planName, 120))
-
-        const response = await resend.emails.send({
-          from: getDefaultFrom(),
-          to: resolveEmailRecipients(validatedData.email).to,
-          subject: 'Dobrodošli na LiftGO - Potrdite vaš račun',
-          html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #2563eb;">Dobrodošli, ${safeFirstName}!</h2>
-                <p>Hvala, da ste se pridružili LiftGO platformi kot obrtnik.</p>
-                
-                <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0;">Vaši podatki:</h3>
-                  <p style="margin: 5px 0;"><strong>Ime:</strong> ${safeFirstName} ${safeLastName}</p>
-                  <p style="margin: 5px 0;"><strong>Podjetje:</strong> ${safeCompanyName}</p>
-                  <p style="margin: 5px 0;"><strong>Specialnost:</strong> ${safeSpecialization}</p>
-                  <p style="margin: 5px 0;"><strong>Paket:</strong> ${safePlanName}</p>
-                </div>
-                
-                <p><strong>Naslednji koraki:</strong></p>
-                <ol>
-                  <li>Preverite email in potrdite svoj račun</li>
-                  <li>Prijavite se v partner dashboard</li>
-                  <li>Dopolnite svoj profil</li>
-                  <li>Začnite prejemati povpraševanja</li>
-                </ol>
-                
-                <p>Če potrebujete pomoč, nas kontaktirajte na <a href="mailto:info@liftgo.net">info@liftgo.net</a>.</p>
-                
-                <p>Lep pozdrav,<br/>Ekipa LiftGO</p>
-                
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;" />
-                <p style="font-size: 12px; color: #6b7280;">
-                  Liftgo d.o.o., Kuraltova ulica 12, 4208 Šenčur<br/>
-                  <a href="https://www.liftgo.net">www.liftgo.net</a>
-                </p>
-              </div>
-            `,
-        })
-
-        if (response.error) {
-          await writeEmailLog({
-            email: validatedData.email,
-            type: 'welcome_email',
-            status: 'failed',
-            userId,
-            errorMessage: response.error.message,
-            metadata: { endpoint: '/api/registracija-mojster' },
-          })
-          console.error('[v0] Welcome email provider error:', response.error.message)
-        } else {
-          await writeEmailLog({
-            email: validatedData.email,
-            type: 'welcome_email',
-            status: 'sent',
-            userId,
-            resendEmailId: response.data?.id,
-            metadata: { endpoint: '/api/registracija-mojster' },
-          })
-        }
-      } catch (emailError) {
-        await writeEmailLog({
-          email: validatedData.email,
-          type: 'welcome_email',
-          status: 'failed',
-          userId,
-          errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
-          metadata: { endpoint: '/api/registracija-mojster' },
-        })
-        console.error('[v0] Welcome email error:', emailError)
-        // Don't fail registration if email fails
-      }
     }
     
     return apiSuccess(

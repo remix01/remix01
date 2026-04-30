@@ -340,7 +340,7 @@ export function welcomeProviderTemplate(
 
       <div class="cta-section">
         <p><strong>Ready to start earning?</strong></p>
-        <a href="${appUrl}/provider/setup" class="button">Complete Setup</a>
+        <a href="${appUrl}/obrtnik/dashboard" class="button">Complete Setup</a>
       </div>
 
       <hr class="divider">
@@ -358,8 +358,8 @@ export function welcomeProviderTemplate(
 
       <div class="section">
         <h2>Next Steps</h2>
-        <p>Check out our Partner Resources to maximize your earnings:</p>
-        <a href="${appUrl}/partner/resources" class="button">View Resources</a>
+        <p>Check out your partner dashboard to start receiving requests:</p>
+        <a href="${appUrl}/obrtnik/povprasevanja" class="button">Browse Requests</a>
       </div>
     </div>
     <div class="footer">
@@ -375,7 +375,7 @@ export function welcomeProviderTemplate(
 </body>
 </html>
     `,
-    text: `Hi ${providerName}, welcome to LiftGO! Complete setup at ${appUrl}/provider/setup to start receiving requests.`,
+    text: `Hi ${providerName}, welcome to LiftGO! Go to your dashboard at ${appUrl}/obrtnik/dashboard to start receiving requests.`,
   }
 }
 
