@@ -28,9 +28,7 @@ WITH base AS (
     op.is_verified,
     op.verification_status,
     op.stripe_account_id,
-
-    -- legacy/compat boolean (if present in your schema, otherwise remove)
-    NULL::boolean AS stripe_onboarded
+    COALESCE(op.stripe_onboarded, false) AS stripe_onboarded
   FROM public.profiles p
   LEFT JOIN public.obrtnik_profiles op ON op.id = p.id
 ), derived AS (
@@ -52,7 +50,7 @@ WITH base AS (
       WHEN b.role = 'obrtnik'
            AND COALESCE(b.is_verified, false) = true
            AND b.stripe_account_id IS NOT NULL
-           AND COALESCE(b.stripe_onboarded, true) = true THEN 'completed'
+           AND COALESCE(b.stripe_onboarded, false) = true THEN 'completed'
 
       -- verified but missing stripe setup => payout_pending
       WHEN b.role = 'obrtnik'
@@ -78,7 +76,7 @@ WITH base AS (
       CASE WHEN b.role = 'obrtnik' AND b.verification_status = 'rejected' THEN 'verification_rejected' END,
       CASE WHEN b.role = 'obrtnik' AND COALESCE(b.is_verified, false) = false AND COALESCE(b.verification_status, 'pending') = 'pending' THEN 'verification_pending' END,
       CASE WHEN b.role = 'obrtnik' AND b.stripe_account_id IS NULL THEN 'missing_stripe_account' END,
-      CASE WHEN b.role = 'obrtnik' AND b.stripe_account_id IS NOT NULL AND COALESCE(b.stripe_onboarded, true) = false THEN 'stripe_onboarding_incomplete' END
+      CASE WHEN b.role = 'obrtnik' AND b.stripe_account_id IS NOT NULL AND COALESCE(b.stripe_onboarded, false) = false THEN 'stripe_onboarding_incomplete' END
     ], NULL)::text[] AS blocked_reasons
   FROM base b
 )

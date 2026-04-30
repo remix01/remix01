@@ -49,7 +49,12 @@ export const canonicalPartnerService = {
 
     if (error) throw error
 
-    await transitionOnboardingState(partnerId)
+    try {
+      await transitionOnboardingState(partnerId)
+    } catch (onboardingError) {
+      console.error('[v0] Onboarding transition failed after profile update:', onboardingError)
+    }
+
     return data
   },
 
