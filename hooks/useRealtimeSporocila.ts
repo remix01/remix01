@@ -73,14 +73,20 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
         },
         (payload: any) => {
           const newMessage = payload.new as Message
-          setSporocila((prev) => [...prev, newMessage])
+          setSporocila((prev) => {
+            if (prev.some((msg) => msg.id === newMessage.id)) {
+              return prev
+            }
+            return [...prev, newMessage]
+          })
 
           // Mark as read if receiver
-          if (newMessage.receiver_id === currentUserId) {
+          if (currentUserId && newMessage.receiver_id === currentUserId) {
             supabaseRef.current
               .from('sporocila')
               .update({ is_read: true, read_at: new Date().toISOString() })
               .eq('id', newMessage.id)
+              .eq('receiver_id', currentUserId)
               .then()
           }
         }
@@ -112,7 +118,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
         if (err) throw err
 
         // Create notification for receiver
-        await supabaseRef.current
+        const { error: notificationError } = await supabaseRef.current
           .from('notifications')
           .insert({
             user_id: receiverId,
@@ -122,7 +128,10 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
             data: { povprasevanje_id: povprasevanjeId },
             is_read: false,
           })
-          .then()
+
+        if (notificationError) {
+          console.warn('Message sent but notification insert failed:', notificationError)
+        }
 
         return true
       } catch (err) {

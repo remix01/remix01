@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { MessageCircle } from 'lucide-react'
@@ -31,13 +31,14 @@ export function ConversationList({
 }: ConversationListProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const reloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const loadConversations = async () => {
       try {
         // Query grouped conversations with unread count
-        const { data, error } = await supabase
+        const { data, error } = await supabaseRef.current
           .from('sporocila')
           .select(
             `
@@ -81,7 +82,7 @@ export function ConversationList({
         })
 
         // Now count unread messages for each conversation
-        const { data: unreadData, error: unreadError } = await supabase
+        const { data: unreadData, error: unreadError } = await supabaseRef.current
           .from('sporocila')
           .select('povprasevanje_id, COUNT(*) as count')
           .eq('receiver_id', currentUserId)
@@ -111,8 +112,17 @@ export function ConversationList({
 
     loadConversations()
 
+    const scheduleReload = () => {
+      if (reloadTimeoutRef.current) return
+
+      reloadTimeoutRef.current = setTimeout(() => {
+        reloadTimeoutRef.current = null
+        loadConversations()
+      }, 250)
+    }
+
     // Subscribe to new messages and changes
-    const channel = supabase
+    const channel = supabaseRef.current
       .channel(`sporocila_${currentUserId}`)
       .on(
         'postgres_changes',
@@ -123,7 +133,7 @@ export function ConversationList({
           filter: `or(sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId})`,
         },
         () => {
-          loadConversations()
+          scheduleReload()
         }
       )
       .on(
@@ -135,15 +145,19 @@ export function ConversationList({
           filter: `receiver_id.eq.${currentUserId}`,
         },
         () => {
-          loadConversations()
+          scheduleReload()
         }
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      if (reloadTimeoutRef.current) {
+        clearTimeout(reloadTimeoutRef.current)
+        reloadTimeoutRef.current = null
+      }
+      supabaseRef.current.removeChannel(channel)
     }
-  }, [currentUserId, supabase])
+  }, [currentUserId])
 
   if (loading) {
     return (
