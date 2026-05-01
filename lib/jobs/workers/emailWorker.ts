@@ -109,7 +109,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
     const emailContent = buildGenericEmailContent(effectiveTemplate, { escrowId, ...customData, ...payload })
     const idempotencySource =
-      effectiveTemplate === 'marketplace_offer_received'
+      effectiveTemplate === 'marketplace_offer_received' || effectiveTemplate === 'offer_received'
         ? (ponudbaId || povprasevanjeId || escrowId || transactionId || 'generic')
         : (povprasevanjeId || escrowId || transactionId || 'generic')
     const reminderSuffix = customData?.reminder ? `:${customData.reminder}` : ':initial'
