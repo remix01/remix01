@@ -14,6 +14,7 @@ export default function StankaSporocila() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedPovprasevanje, setSelectedPovprasevanje] = useState<string | null>(null)
   const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
+  const [receiverName, setReceiverName] = useState<string | null>(null)
   const [povprasevanjeInfo, setPovprasevanjeInfo] = useState<any>(null)
   const [showMobileChat, setShowMobileChat] = useState(false)
   const supabase = createClient()
@@ -42,16 +43,17 @@ export default function StankaSporocila() {
     setSelectedReceiver(receiverId)
     setShowMobileChat(true)
 
-    // Fetch povprasevanje info
-    const { data } = await supabase
-      .from('povprasevanja')
-      .select('title, naslov')
-      .eq('id', povprasevanjeId)
-      .single()
+    const [povData, profData] = await Promise.all([
+      supabase.from('povprasevanja').select('title, naslov').eq('id', povprasevanjeId).single(),
+      supabase.from('profiles').select('full_name').eq('id', receiverId).single(),
+    ])
 
-    if (data) {
-      setPovprasevanjeInfo(data)
+    if (povData.data) {
+      setPovprasevanjeInfo(povData.data)
     }
+
+    const prof = profData.data as { full_name?: string | null } | null
+    setReceiverName(prof?.full_name ?? receiverId)
   }
 
   if (!currentUser) {
@@ -85,7 +87,7 @@ export default function StankaSporocila() {
             <ChatPanel
               messages={sporocila}
               currentUserId={currentUser.id}
-              otherUserName={selectedReceiver}
+              otherUserName={receiverName || selectedReceiver}
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
@@ -116,7 +118,7 @@ export default function StankaSporocila() {
             <ChatPanel
               messages={sporocila}
               currentUserId={currentUser.id}
-              otherUserName={selectedReceiver}
+              otherUserName={receiverName || selectedReceiver}
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
