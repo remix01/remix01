@@ -274,6 +274,36 @@ function buildGenericEmailContent(template: string, data: Record<string, any>): 
           data.budget
         ),
       }
+
+    case 'customer_welcome':
+      return {
+        subject: 'Dobrodošli v LiftGO - Začnite z iskanjem',
+        html: buildCustomerWelcomeEmail(
+          escapeHtml(data.customerName || data.customer_name || 'Uporabnik'),
+          escapeHtml(data.searchUrl || data.search_url || '#'),
+          escapeHtml(data.loginUrl || data.login_url || '#')
+        ),
+      }
+    case 'inquiry_confirmation':
+      return {
+        subject: `Vaše povpraševanje je bilo prejeto - ${escapeHtml(data.inquiryTitle || data.title || 'Povpraševanje')}`,
+        html: buildInquiryConfirmationEmail(
+          escapeHtml(data.customerName || data.customer_name || 'Uporabnik'),
+          escapeHtml(data.inquiryTitle || data.title || 'Povpraševanje'),
+          escapeHtml(String(data.inquiryId || data.inquiry_id || data.povprasevanjeId || '—')),
+          escapeHtml(data.inquiryUrl || data.inquiry_url || data.link || '#')
+        ),
+      }
+    case 'offer_received':
+      return {
+        subject: `Nova ponudba za: ${escapeHtml(data.inquiryTitle || data.title || 'Povpraševanje')}`,
+        html: buildOfferReceivedEmail(
+          escapeHtml(data.customerName || data.customer_name || 'Uporabnik'),
+          escapeHtml(data.partnerName || data.partner_name || data.craftsman_name || 'Obrtnik'),
+          escapeHtml(data.inquiryTitle || data.title || 'Povpraševanje'),
+          escapeHtml(data.offerUrl || data.offer_url || data.link || '#')
+        ),
+      }
     case 'marketplace_match_new_request':
       return {
         subject: `Novo povpraševanje: ${escapeHtml(data.category || data.title || 'Storitev')} v ${escapeHtml(data.location || 'vaši okolici')}`,
@@ -331,6 +361,160 @@ function buildPovprasevanjeConfirmationEmail(firstName: string, title: string, c
       <p style="color: #94a3b8; font-size: 12px;">LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah</p>
     </div>
   `
+}
+
+
+function buildCustomerWelcomeEmail(customerName: string, searchUrl: string, loginUrl: string): string {
+  return `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 10px 20px 0; }
+        .info-box { background: white; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🎉 Dobrodošli v LiftGO!</h1>
+        </div>
+        <div class="content">
+          <h2>Pozdravljeni, ${customerName}!</h2>
+          <p>Hvala, da ste se pridružili LiftGO platformi za iskanje kvalitetnih obrtnikov.</p>
+
+          <div class="info-box">
+            <h3>🔍 Kaj lahko storite?</h3>
+            <ul>
+              <li><strong>Iščite storitve</strong> - Poiščite obrtnika za vašo potrebo</li>
+              <li><strong>Pošljite povpraševanja</strong> - Opišite projekt in prejmite ponudbe</li>
+              <li><strong>Primerjajte ponudbe</strong> - Izberite najboljšo ponudbo</li>
+              <li><strong>Ocenite storitve</strong> - Pomagajte drugim z izkušnjami</li>
+            </ul>
+          </div>
+
+          <a href="${searchUrl}" class="button">🔎 Začni iskati</a>
+          <a href="${loginUrl}" class="button">📱 Prijava</a>
+
+          <p>Če imate vprašanja: <a href="mailto:info@liftgo.net">info@liftgo.net</a></p>
+
+          <p>Lep pozdrav,<br><strong>LiftGO Ekipa</strong></p>
+        </div>
+      </div>
+    </body>
+  </html>
+`
+}
+
+function buildInquiryConfirmationEmail(customerName: string, inquiryTitle: string, inquiryId: string, inquiryUrl: string): string {
+  return `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 30px; background: #4CAF50; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .info-box { background: white; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0; }
+        .status { display: inline-block; padding: 8px 16px; background: #e3f2fd; color: #1976d2; border-radius: 20px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>✅ Povpraševanje prejeto!</h1>
+        </div>
+        <div class="content">
+          <p>Pozdravljeni, ${customerName}!</p>
+
+          <p>Vaše povpraševanje je bilo uspešno oddano.</p>
+
+          <div class="info-box">
+            <h3>📋 Podrobnosti:</h3>
+            <p><strong>Povpraševanje:</strong> ${inquiryTitle}</p>
+            <p><strong>ID:</strong> #${inquiryId}</p>
+            <p><strong>Status:</strong> <span class="status">🔍 AKTIVNO</span></p>
+          </div>
+
+          <h3>📬 Kaj sledi?</h3>
+          <ol>
+            <li>Obrtniki bodo pregledali vaše povpraševanje</li>
+            <li>Prejeli boste ponudbe v 24-48h</li>
+            <li>Primerjajte ponudbe in izberite najboljšo</li>
+          </ol>
+
+          <a href="${inquiryUrl}" class="button">👁️ Oglej si povpraševanje</a>
+
+          <p>Obvestili vas bomo ko prejmete prvo ponudbo!</p>
+
+          <p>Lep pozdrav,<br><strong>LiftGO Ekipa</strong></p>
+        </div>
+      </div>
+    </body>
+  </html>
+`
+}
+
+function buildOfferReceivedEmail(customerName: string, partnerName: string, inquiryTitle: string, offerUrl: string): string {
+  return `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 30px; background: #FF6B6B; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+        .info-box { background: white; padding: 20px; border-left: 4px solid #FF6B6B; margin: 20px 0; }
+        .partner-name { color: #FF6B6B; font-weight: bold; font-size: 18px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🎯 Nova ponudba!</h1>
+        </div>
+        <div class="content">
+          <p>Pozdravljeni, ${customerName}!</p>
+
+          <p><strong>Prejeli ste novo ponudbo</strong> za:</p>
+
+          <div class="info-box">
+            <h3>📋 Povpraševanje:</h3>
+            <p><strong>${inquiryTitle}</strong></p>
+
+            <h3 style="margin-top: 20px;">👷 Obrtnik:</h3>
+            <p class="partner-name">${partnerName}</p>
+          </div>
+
+          <a href="${offerUrl}" class="button">📄 Preglej ponudbo</a>
+
+          <h3>✅ Priporočeni koraki:</h3>
+          <ol>
+            <li><strong>Preglejte ponudbo</strong> - Cena, rok, podrobnosti</li>
+            <li><strong>Preverite ocene</strong> - Reference obrtnika</li>
+            <li><strong>Primerjajte</strong> - Če imate več ponudb</li>
+            <li><strong>Kontaktirajte</strong> - Postavite vprašanja</li>
+          </ol>
+
+          <p><strong>⏱️ Opomba:</strong> Ponudbe so veljavne 7 dni.</p>
+
+          <p>Lep pozdrav,<br><strong>LiftGO Ekipa</strong></p>
+        </div>
+      </div>
+    </body>
+  </html>
+`
 }
 
 function buildReleaseEmail(customerName: string, partnerName: string, amountCents: number): string {
