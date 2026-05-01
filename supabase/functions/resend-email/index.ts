@@ -11,7 +11,7 @@ const supabase = createClient(
 )
 
 interface EmailRequest {
-  type: 'partner_welcome' | 'partner_updated'
+  type: 'partner_welcome' | 'partner_updated' | 'customer_welcome'
   data: Record<string, string>
 }
 
@@ -77,6 +77,68 @@ function buildPartnerWelcomeHtml(data: PartnerWelcomeData): string {
         <a href="${loginUrl}" class="button">Prijava v LiftGO</a>
       </div>
 
+      <hr>
+      <p style="font-size:14px;color:#6b7280;">Imate vprašanja? Pišite nam na <a href="mailto:support@liftgo.net">support@liftgo.net</a></p>
+    </div>
+    <div class="footer">
+      <div>
+        <a href="${FRONTEND_URL}/pomoc">Pomoč</a>
+        <a href="${FRONTEND_URL}/pogoji">Pogoji</a>
+        <a href="mailto:support@liftgo.net">Kontakt</a>
+      </div>
+      <p style="margin-top:12px;">&copy; 2026 LiftGO. Vse pravice pridržane.</p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
+function buildCustomerWelcomeHtml(data: Record<string, string>): string {
+  const loginUrl = data.loginUrl || `${FRONTEND_URL}/narocnik/dashboard`
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #1f2937; background: #f3f4f6; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: white; padding: 40px 30px; text-align: center; }
+    .header h1 { margin: 0; font-size: 26px; font-weight: 700; }
+    .header .logo { font-size: 32px; font-weight: 800; letter-spacing: 2px; margin-bottom: 12px; }
+    .content { padding: 32px 30px; }
+    .section { margin-bottom: 24px; }
+    .highlight-box { background: #f0fdfa; border-left: 4px solid #0d9488; border-radius: 4px; padding: 16px 20px; margin: 20px 0; }
+    .button { display: inline-block; background: #0d9488; color: white !important; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 8px 0; }
+    .cta-section { text-align: center; margin: 32px 0; }
+    .footer { background: #f9fafb; padding: 24px 30px; text-align: center; font-size: 13px; color: #6b7280; }
+    .footer a { color: #0d9488; text-decoration: none; margin: 0 8px; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">LIFTGO</div>
+      <h1>Dobrodošli v LiftGO!</h1>
+    </div>
+    <div class="content">
+      <div class="section">
+        <p>Pozdravljeni, <strong>${data.customerName || 'Naročnik'}</strong>!</p>
+        <p>Veseli smo, da ste se pridružili platformi LiftGO — najhitrejšemu načinu za iskanje zanesljivih obrtnikov v Sloveniji.</p>
+      </div>
+      <div class="highlight-box">
+        <strong>V 30 sekundah do pravega obrtnika.</strong> Oddajte povpraševanje in prejmite ponudbe od preverjenih mojstrov v vaši okolici.
+      </div>
+      <div class="section">
+        <h2>Kako začeti?</h2>
+        <p>1. Prijavite se v vaš račun</p>
+        <p>2. Oddajte povpraševanje za storitev, ki jo potrebujete</p>
+        <p>3. Primerjajte ponudbe in izberite najboljšega obrtnika</p>
+      </div>
+      <div class="cta-section">
+        <a href="${loginUrl}" class="button">Začni iskati obrtnika</a>
+      </div>
       <hr>
       <p style="font-size:14px;color:#6b7280;">Imate vprašanja? Pišite nam na <a href="mailto:support@liftgo.net">support@liftgo.net</a></p>
     </div>
@@ -225,6 +287,11 @@ Deno.serve(async (req: Request) => {
       recipient = data.email
       subject = 'LiftGO - Posodobitev partnerskega profila'
       html = buildPartnerUpdatedHtml(data)
+    } else if (type === 'customer_welcome') {
+      if (!data.email) throw new Error('Missing email in data')
+      recipient = data.email
+      subject = `Dobrodošli v LiftGO, ${data.customerName || 'naročnik'}!`
+      html = buildCustomerWelcomeHtml(data)
     } else {
       return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
         status: 400,
