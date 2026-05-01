@@ -17,7 +17,8 @@
     "test:marketplace": "jest --config jest.config.marketplace.cjs",
     "test:curl": "bash run-tests.sh",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
-    "openapi:check": "pnpm openapi:generate && git diff --exit-code -- docs/openapi.json"
+    "openapi:check": "pnpm openapi:generate && git diff --exit-code -- docs/openapi.json",
+    "deploy:resend-email": "pnpm exec supabase functions deploy resend-email --project-ref whabaeatixtymbccwigu --no-verify-jwt"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

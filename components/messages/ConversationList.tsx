@@ -147,6 +147,15 @@ export function ConversationList({
 
     runReload()
 
+    const scheduleReload = () => {
+      if (reloadTimeoutRef.current) return
+
+      reloadTimeoutRef.current = setTimeout(() => {
+        reloadTimeoutRef.current = null
+        loadConversations()
+      }, 250)
+    }
+
     // Subscribe to new messages and changes
     const channel = supabaseRef.current
       .channel(`sporocila_${currentUserId}`)
