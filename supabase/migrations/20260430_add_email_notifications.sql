@@ -1,22 +1,14 @@
 -- Email notification trigger: send partner welcome email via Edge Function
--- Fires on INSERT into profiles where role = 'obrtnik'
--- Requires: email_logs table (2026042501_create_email_logs.sql), pg_net extension
+-- Fires AFTER INSERT on profiles where role = 'obrtnik'
+-- Requires: email_logs table (2026042501_create_email_logs.sql)
+-- Edge Function resend-email deployed with verify_jwt = false (see supabase/config.toml)
 
--- Enable pg_net for async HTTP calls from triggers
+-- pg_net is available by default on Supabase hosted projects.
+-- Enabling it explicitly is safe to run multiple times.
 create extension if not exists pg_net with schema extensions;
 
--- Configure database-level settings used by the trigger function
--- These can also be set via supabase CLI or dashboard secrets
-do $$
-begin
-  -- Only set if not already configured to avoid overwriting dashboard settings
-  if current_setting('app.settings.supabase_url', true) is null
-    or current_setting('app.settings.supabase_url', true) = '' then
-    execute 'alter database postgres set app.settings.supabase_url = ''https://whabaeatixtymbccwigu.supabase.co''';
-  end if;
-end $$;
-
--- Function called by the trigger; uses pg_net for non-blocking HTTP POST
+-- Trigger function: builds payload and fires async HTTP POST via pg_net.
+-- Production URL and frontend URL are hardcoded as constants; no ALTER DATABASE needed.
 create or replace function public.send_partner_welcome_email()
 returns trigger
 language plpgsql
@@ -24,25 +16,16 @@ security definer
 set search_path = public, extensions
 as $$
 declare
-  _supabase_url  text;
-  _function_url  text;
-  _service_key   text;
-  _payload       jsonb;
-  _already_sent  boolean;
+  _function_url text := 'https://whabaeatixtymbccwigu.supabase.co/functions/v1/resend-email';
+  _frontend_url text := 'https://v0-liftgo-platform-concept-info-36187542s-projects.vercel.app';
+  _payload      jsonb;
+  _already_sent boolean;
 begin
-  -- Resolve config values (set via ALTER DATABASE or supabase secrets)
-  _supabase_url := coalesce(
-    current_setting('app.settings.supabase_url', true),
-    'https://whabaeatixtymbccwigu.supabase.co'
-  );
-  _service_key := current_setting('app.settings.supabase_service_role_key', true);
-  _function_url := _supabase_url || '/functions/v1/resend-email';
-
-  -- Idempotency: skip if welcome email already queued/sent for this address
+  -- Idempotency: skip if a welcome email is already pending or sent for this address
   select exists(
     select 1 from public.email_logs
-    where email = new.email
-      and type = 'partner_welcome'
+    where email  = new.email
+      and type   = 'partner_welcome'
       and status in ('pending', 'sent')
   ) into _already_sent;
 
@@ -50,21 +33,17 @@ begin
     return new;
   end if;
 
-  -- Build payload for the Edge Function
   _payload := jsonb_build_object(
     'type', 'partner_welcome',
     'data', jsonb_build_object(
-      'partnerName', coalesce(new.full_name, new.email),
+      'partnerName',  coalesce(new.full_name, new.email),
       'businessName', coalesce(new.full_name, new.email),
       'email',        new.email,
-      'loginUrl',     coalesce(
-                        current_setting('app.settings.frontend_url', true),
-                        'https://v0-liftgo-platform-concept-info-36187542s-projects.vercel.app'
-                      ) || '/prijava'
+      'loginUrl',     _frontend_url || '/prijava'
     )
   );
 
-  -- Insert pending log entry before the async call
+  -- Record a pending log entry before the async call so failures are always visible
   insert into public.email_logs (type, email, status, metadata)
   values (
     'partner_welcome',
@@ -73,41 +52,30 @@ begin
     jsonb_build_object('profile_id', new.id, 'triggered_at', now())
   );
 
-  -- Fire-and-forget HTTP POST via pg_net (non-blocking)
-  if _service_key is not null and _service_key <> '' then
-    perform extensions.http_post(
-      url     := _function_url,
-      body    := _payload::text,
-      content_type := 'application/json',
-      headers := jsonb_build_object(
-        'Authorization', 'Bearer ' || _service_key,
-        'Content-Type',  'application/json'
-      )
-    );
-  else
-    -- Fallback: use net.http_post (pg_net) without auth header if service key not configured
-    perform net.http_post(
-      url     := _function_url,
-      body    := _payload,
-      headers := '{}'::jsonb
-    );
-  end if;
+  -- Fire-and-forget async HTTP POST via pg_net.
+  -- No Authorization header required: Edge Function is deployed with verify_jwt = false.
+  perform net.http_post(
+    url     := _function_url,
+    body    := _payload,
+    headers := '{"Content-Type": "application/json"}'::jsonb
+  );
 
   return new;
 exception
   when others then
-    -- Never block the INSERT; just log the failure
+    -- Never block the INSERT; mark the pending log row as failed instead
     update public.email_logs
-    set status = 'failed', error_message = sqlerrm
-    where email = new.email
-      and type  = 'partner_welcome'
+    set status        = 'failed',
+        error_message = sqlerrm
+    where email  = new.email
+      and type   = 'partner_welcome'
       and status = 'pending'
       and created_at > now() - interval '5 seconds';
     return new;
 end;
 $$;
 
--- Trigger fires after each new profile with role='obrtnik'
+-- Drop and recreate trigger so re-running the migration is idempotent
 drop trigger if exists trigger_partner_welcome_email on public.profiles;
 create trigger trigger_partner_welcome_email
   after insert on public.profiles
@@ -115,16 +83,16 @@ create trigger trigger_partner_welcome_email
   when (new.role = 'obrtnik')
   execute function public.send_partner_welcome_email();
 
--- Grant execute to service_role (used by Supabase internals)
+-- Only service_role should call this function
 revoke execute on function public.send_partner_welcome_email() from public;
 grant  execute on function public.send_partner_welcome_email() to service_role;
 
--- RLS: admins can read email_logs (add on top of existing service_role policy)
+-- Admins can read email_logs (service_role policy already exists from 2026042501)
 do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where tablename = 'email_logs'
+    where tablename  = 'email_logs'
       and policyname = 'admin_read_email_logs'
   ) then
     execute $pol$
@@ -135,7 +103,7 @@ begin
       using (
         exists (
           select 1 from public.profiles
-          where id = auth.uid()
+          where id   = auth.uid()
             and role = 'admin'
         )
       )

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
+import { onProviderApproved } from '@/lib/email/liftgo-integration'
 
 async function writeTransitionLog(input: {
   providerId: string
@@ -29,7 +30,7 @@ export async function POST(
 
   const { data: current, error: currentError } = await supabaseAdmin
     .from('obrtnik_profiles')
-    .select('id, verification_status, is_verified')
+    .select('id, verification_status, is_verified, business_name')
     .eq('id', id)
     .maybeSingle()
 
@@ -66,6 +67,25 @@ export async function POST(
     await transitionOnboardingState(id)
   } catch (error) {
     console.error('[admin-provider-approve] onboarding transition failed:', error)
+  }
+
+  // Send approval welcome email — fetch profile separately to get email + name
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (profile?.email) {
+    try {
+      await onProviderApproved(
+        profile.email,
+        profile.full_name || profile.email,
+        current.business_name || 'LiftGO Partner'
+      )
+    } catch (emailError) {
+      console.error('[admin-provider-approve] approval email failed:', emailError)
+    }
   }
 
   return NextResponse.json({ success: true, provider: updated })
