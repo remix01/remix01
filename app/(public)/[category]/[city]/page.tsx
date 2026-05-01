@@ -334,15 +334,30 @@ export default async function CategoryCityPage(props: Props) {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-lg text-gray-600 mb-6">
-                  Trenutno ni {category.name.toLowerCase()} mojstrov v {city.name}
-                </p>
-                <Link href="/za-obrtnike">
-                  <Button variant="outline" size="lg">
-                    Postani prvi partnerski mojster v mestu
+              <div className="flex flex-col items-center text-center py-16 gap-8">
+                <div className="max-w-lg">
+                  <p className="text-xl font-semibold text-gray-800 mb-2">
+                    Trenutno ni registriranih {category.name.toLowerCase()} mojstrov v {city.name}
+                  </p>
+                  <p className="text-gray-500 text-base">
+                    Oddajte brezplačno povpraševanje — kontaktirali bomo mojstre po vsej Sloveniji in vam posredovali ponudbe.
+                  </p>
+                </div>
+
+                <Link href={`/novo-povprasevanje?category=${normalized.category}&city=${citySlug}`}>
+                  <Button size="lg" className="gap-2">
+                    Oddaj brezplačno povpraševanje <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
+
+                <div className="w-full max-w-md border-t pt-8">
+                  <p className="text-sm text-gray-400 mb-3">Si {category.name.toLowerCase()} mojster v {city.name}?</p>
+                  <Link href="/za-obrtnike">
+                    <Button variant="outline" size="sm">
+                      Registriraj se kot mojster
+                    </Button>
+                  </Link>
+                </div>
               </div>
             )}
           </div>
