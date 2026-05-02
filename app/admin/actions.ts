@@ -131,7 +131,25 @@ export async function getPartnerji(
   if (statusFilter === 'PENDING') {
     query = query.eq('is_verified', false)
   } else if (statusFilter === 'AKTIVEN') {
-    query = query.eq('is_verified', true)
+    query = query.eq('is_verified', true).eq('is_available', true)
+  } else if (statusFilter === 'SUSPENDIRAN') {
+    query = query.eq('is_verified', true).eq('is_available', false)
+  }
+
+  // Push text filter to DB: business_name directly; email via pre-fetched profile IDs
+  if (filter) {
+    const trimmed = filter.trim()
+    const { data: emailProfiles } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .ilike('email', `%${trimmed}%`)
+    const emailIds = (emailProfiles || []).map((p: any) => p.id)
+
+    if (emailIds.length > 0) {
+      query = query.or(`business_name.ilike.%${trimmed}%,id.in.(${emailIds.join(',')})`)
+    } else {
+      query = query.ilike('business_name', `%${trimmed}%`)
+    }
   }
 
   const { data: obrtniki, count: total } = await query
@@ -169,7 +187,7 @@ export async function getPartnerji(
     )
   }
 
-  let partnerji: Partner[] = (obrtniki || []).map((profile: any) => ({
+  const partnerji: Partner[] = (obrtniki || []).map((profile: any) => ({
     id: profile.id,
     ime: profile.business_name || '',
     podjetje: profile.business_name,
@@ -177,18 +195,12 @@ export async function getPartnerji(
     email: profileMap[profile.id]?.email || '-',
     telefon: profileMap[profile.id]?.phone || undefined,
     createdAt: new Date(profile.created_at),
-    status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
+    status: profile.is_verified
+      ? profile.is_available ? 'AKTIVEN' : 'SUSPENDIRAN'
+      : 'PENDING',
     ocena: profile.avg_rating || 0,
     steviloPrevozov: 0,
   }))
-
-  // Apply filter after join (search on business_name or email)
-  if (filter) {
-    const f = filter.toLowerCase()
-    partnerji = partnerji.filter(p =>
-      p.ime.toLowerCase().includes(f) || p.email.toLowerCase().includes(f)
-    )
-  }
 
   return { partnerji, total: total || 0, pages: Math.ceil((total || 0) / pageSize) }
 }

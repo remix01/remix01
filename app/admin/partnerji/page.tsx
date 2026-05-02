@@ -76,22 +76,26 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
           <CardTitle>Seznam partnerjev ({total})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex gap-4">
+          <form method="GET" className="mb-4 flex gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                name="search"
                 placeholder="Išči po imenu, emailu ali podjetju..."
                 className="pl-9"
                 defaultValue={search}
               />
             </div>
-            <select className="rounded-md border px-3 py-2">
+            <select name="status" defaultValue={statusFilter ?? ''} className="rounded-md border px-3 py-2">
               <option value="">Vsi statusi</option>
               <option value="PENDING">Čakajo verifikacijo</option>
               <option value="AKTIVEN">Aktivni</option>
               <option value="SUSPENDIRAN">Suspendirani</option>
             </select>
-          </div>
+            <button type="submit" className="rounded-lg border border-border bg-card px-4 py-2 text-foreground hover:bg-muted">
+              Filtriraj
+            </button>
+          </form>
 
           <Suspense fallback={<div>Nalaganje...</div>}>
             <PartnerjiTable partnerji={partnerji} currentPage={page} totalPages={pages} />
