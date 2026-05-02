@@ -11,3 +11,6 @@ Result:
 Re-check:
 - Re-ran `pnpm run build` after fixing the last reported Vercel failures.
 - Build completed successfully again (no TypeScript compile blockers).
+
+MCP check:
+- `github-mcp` endpoint is configured as `https://whabaeatixtymbccwigu.supabase.co/functions/v1/github-mcp` in `.mcp.json`.
