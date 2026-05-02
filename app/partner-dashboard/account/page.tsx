@@ -77,14 +77,25 @@ export default function AccountPage() {
 
         if (partnerError) throw partnerError
 
-        // Fetch user profile
-        const { data: userData, error: userError } = await supabase
-          .from('profiles')
-          .select('id, email, phone, location_city')
-          .eq('id', user.id)
-          .maybeSingle()
+        // Fetch user profile — try both id and auth_user_id to handle mixed-schema envs
+        const [userByIdRes, userByAuthIdRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, email, phone, location_city')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('id, email, phone, location_city')
+            .eq('auth_user_id', user.id)
+            .maybeSingle(),
+        ])
 
-        if (userError) throw userError
+        const userData = userByIdRes.data ?? userByAuthIdRes.data
+        if (!userData) {
+          const userError = userByIdRes.error ?? userByAuthIdRes.error
+          if (userError) throw userError
+        }
 
         if (partnerData) {
           setPartner(partnerData)
