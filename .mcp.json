@@ -149,7 +149,7 @@
         "resend-mcp"
       ],
       "env": {
-        "RESEND_API_KEY": "${RESEND_FULL_ACCESS_KEY}"
+        "RESEND_API_KEY": "re_73eAyYzU_65knQF9MTS6fR2T4YCYhQBTc"
       }
     }
   }
