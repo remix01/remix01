@@ -122,7 +122,7 @@ export default function OfferGeneratorPage() {
 
     if (!formData.serviceType) newErrors.serviceType = 'Izberite vrsto storitve'
     if (!formData.location.trim()) newErrors.location = 'Vnesite lokacijo'
-    if (formData.description.length < 50) newErrors.description = 'Opis mora imeti najmanj 50 znakov'
+    if (formData.description.trim().length < 50) newErrors.description = 'Opis mora imeti najmanj 50 znakov'
     const estimatedHours = parseFloat(formData.estimatedHours)
     const hourlyRate = parseFloat(formData.hourlyRate)
     const materials = formData.materialsEstimate ? parseFloat(formData.materialsEstimate) : 0

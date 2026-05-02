@@ -11,12 +11,12 @@ const PAGE_SIZE = 12
 type SearchParams = {
   page?: string
   category?: string
-  urgency?: 'normalno' | 'kmalu' | 'nujno' | string
+  urgency?: string
 }
 
 function getUrgencyBadge(urgency: string | null, createdAt: string) {
   if (urgency === 'nujno') return { label: 'Nujno', color: 'bg-red-100 text-red-800' }
-  if (urgency === 'ta_teden') return { label: 'Ta teden', color: 'bg-orange-100 text-orange-800' }
+  if (urgency === 'ta_teden' || urgency === 'kmalu') return { label: 'Ta teden', color: 'bg-orange-100 text-orange-800' }
   const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
   if (hoursAgo < 2) return { label: 'Novo', color: 'bg-blue-100 text-blue-800' }
   if (hoursAgo < 24) return { label: 'Danes', color: 'bg-green-100 text-green-800' }
@@ -78,8 +78,9 @@ export default async function PovprasevanjePage({
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
       if (params.category) q = q.eq('category_id', params.category)
-      if (params.urgency === 'normalno' || params.urgency === 'kmalu' || params.urgency === 'nujno') {
-        q = q.eq('urgency', params.urgency)
+      if (params.urgency === 'normalno' || params.urgency === 'ta_teden' || params.urgency === 'nujno') {
+        const urgencyValue = params.urgency === 'ta_teden' ? 'kmalu' : params.urgency
+        q = q.eq('urgency', urgencyValue)
       }
 
       return q

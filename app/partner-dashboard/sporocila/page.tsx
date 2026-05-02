@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ConversationList } from '@/components/messages/ConversationList'
 import { ChatPanel } from '@/components/messages/ChatPanel'
@@ -10,6 +10,7 @@ import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function PartnerSporocila() {
+  const router = useRouter()
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedPovprasevanje, setSelectedPovprasevanje] = useState<string | null>(null)
   const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
@@ -24,12 +25,13 @@ export default function PartnerSporocila() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        redirect('/partner-auth/login')
+        router.replace('/partner-auth/login')
+        return
       }
       setCurrentUser(user)
     }
     checkAuth()
-  }, [supabase])
+  }, [router, supabase])
 
   const { sporocila, sendMessage, isLoading } = useRealtimeSporocila(
     selectedPovprasevanje || '',
@@ -134,4 +136,3 @@ export default function PartnerSporocila() {
     </div>
   )
 }
-
