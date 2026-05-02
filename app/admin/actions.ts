@@ -623,6 +623,8 @@ export async function dodajStranko(data: {
   lokacija?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    await ensureAdminAccess()
+
     const email = data.email.trim().toLowerCase()
     const ime = data.ime.trim()
     const priimek = data.priimek.trim()
@@ -647,7 +649,10 @@ export async function dodajStranko(data: {
       location_city: data.lokacija?.trim() || null,
       role: 'narocnik',
     })
-    if (profileError) return { success: false, error: profileError.message }
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      return { success: false, error: profileError.message }
+    }
 
     revalidatePath('/admin/stranke')
     return { success: true }
@@ -744,6 +749,8 @@ export async function dodajPartnerja(data: {
   payment_confirmed?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    await ensureAdminAccess()
+
     const businessName = data.business_name.trim()
     const email = data.email.trim().toLowerCase()
     const fullName = [data.ime?.trim(), data.priimek?.trim()].filter(Boolean).join(' ').trim()
@@ -766,18 +773,23 @@ export async function dodajPartnerja(data: {
     })
     if (authError) return { success: false, error: authError.message }
 
+    const userId = authData.user.id
+
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
-      id: authData.user.id,
+      id: userId,
       email,
       full_name: fullName || businessName,
       phone: data.telefon || null,
       role: 'obrtnik',
       location_city: data.lokacija?.trim() || null,
     })
-    if (profileError) return { success: false, error: profileError.message }
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+      return { success: false, error: profileError.message }
+    }
 
     const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
-      id: authData.user.id,
+      id: userId,
       business_name: businessName,
       is_verified: shouldVerify,
       verification_status: shouldVerify ? 'verified' : 'pending',
@@ -786,17 +798,23 @@ export async function dodajPartnerja(data: {
       avg_rating: 0,
       total_reviews: 0,
     })
-    if (obrtnikError) return { success: false, error: obrtnikError.message }
+    if (obrtnikError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+      return { success: false, error: obrtnikError.message }
+    }
 
     if (data.category_id) {
       const { error: categoryError } = await supabaseAdmin
         .from('obrtnik_categories')
         .upsert({
-          obrtnik_id: authData.user.id,
+          obrtnik_id: userId,
           category_id: data.category_id,
         })
 
-      if (categoryError) return { success: false, error: categoryError.message }
+      if (categoryError) {
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+        return { success: false, error: categoryError.message }
+      }
     }
 
     revalidatePath('/admin/partnerji')
