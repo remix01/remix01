@@ -17,7 +17,7 @@ export function ObrtnikCard({ obrtnik }: ObrtnikCardProps) {
   const reviewCount = (obrtnik as any).review_count || 0
 
   return (
-    <Link href={`/obrtnik/${obrtnik.id}`}>
+    <Link href={`/obrtniki/${obrtnik.id}`}>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         {obrtnik.profile?.avatar_url && (
           <div className="relative w-full h-48 bg-gray-200">
