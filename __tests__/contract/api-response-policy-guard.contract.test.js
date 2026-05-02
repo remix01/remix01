@@ -1,9 +1,8 @@
 const { describe, it, expect } = require('@jest/globals')
 const fs = require('fs')
 const path = require('path')
-const { execSync } = require('child_process')
 
-const ROUTE_GLOB_CMD = "rg --files app/api -g 'route.ts'"
+const API_ROOT = path.join(process.cwd(), 'app', 'api')
 
 // Transitional allowlist for known legacy mutating endpoints.
 // TODO(response-policy): remove entries incrementally as routes adopt canonical helper
@@ -22,6 +21,7 @@ const MUTATING_ALLOWLIST = new Set([
   'app/api/admin/settings/route.ts',
   'app/api/admin/setup/route.ts',
   'app/api/admin/test-slack/route.ts',
+  'app/api/admin/test-anthropic/route.ts',
   'app/api/agent/job-summary/route.ts',
   'app/api/agent/match/route.ts',
   'app/api/agent/materials/route.ts',
@@ -51,14 +51,23 @@ const MUTATING_ALLOWLIST = new Set([
   'app/api/escrow/dispute/route.ts',
   'app/api/escrow/refund/route.ts',
   'app/api/escrow/release/route.ts',
+  'app/api/jobs/process/route.ts',
+  'app/api/matching/route.ts',
+  'app/api/obrtniki/[id]/route.ts',
+  'app/api/obrtniki/route.ts',
   'app/api/payments/confirm-completion/route.ts',
+  'app/api/payments/create-intent/route.ts',
   'app/api/payments/dispute/route.ts',
   'app/api/payments/webhook/route.ts',
   'app/api/ponudbe/route.ts',
+  'app/api/portfolio/upload/route.ts',
   'app/api/push/send/route.ts',
   'app/api/push/subscribe/route.ts',
   'app/api/push/unsubscribe/route.ts',
   'app/api/referrals/submit/route.ts',
+  'app/api/registracija-mojster/route.ts',
+  'app/api/narocnik/povprasevanje/route.ts',
+  'app/api/stranka/povprasevanje/route.ts',
   'app/api/reviews/[id]/reply/route.ts',
   'app/api/reviews/create/route.ts',
   'app/api/rezervacija/route.ts',
@@ -66,6 +75,7 @@ const MUTATING_ALLOWLIST = new Set([
   'app/api/setup/route.ts',
   'app/api/stripe/connect/create-account/route.ts',
   'app/api/stripe/connect/create-onboarding-link/route.ts',
+  'app/api/stripe/create-checkout/route.ts',
   'app/api/stripe/payment/create-intent/route.ts',
   'app/api/stripe/payment/update-status/route.ts',
   'app/api/stripe/portal/route.ts',
@@ -83,24 +93,31 @@ const MUTATING_ALLOWLIST = new Set([
   'app/api/webhooks/stripe/route.ts',
   'app/api/webhooks/twilio/post-event/route.ts',
   'app/api/webhooks/twilio/pre-event/route.ts',
-  'app/api/obrtniki/[id]/route.ts',
-  'app/api/obrtniki/route.ts',
-  'app/api/payments/create-intent/route.ts',
-  'app/api/portfolio/upload/route.ts',
-  'app/api/registracija-mojster/route.ts',
-  'app/api/admin/test-anthropic/route.ts',
-  'app/api/stripe/create-checkout/route.ts',
-  'app/api/matching/route.ts',
-  'app/api/jobs/process/route.ts',
 ])
 
-function listRouteFiles() {
-  const output = execSync(ROUTE_GLOB_CMD, { cwd: process.cwd(), encoding: 'utf8' }).trim()
-  return output ? output.split('\n') : []
+function listRouteFiles(dir = API_ROOT) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  const out = []
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      out.push(...listRouteFiles(full))
+      continue
+    }
+    if (entry.isFile() && entry.name === 'route.ts') {
+      out.push(path.relative(process.cwd(), full).replace(/\\/g, '/'))
+    }
+  }
+  return out
 }
 
 function hasMutatingMethod(source) {
-  return /export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\s*\(/.test(source) || /export\s+const\s+(POST|PUT|PATCH|DELETE)\s*=/.test(source)
+  const hasInlineMethod = /export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\s*\(/.test(source) ||
+    /export\s+const\s+(POST|PUT|PATCH|DELETE)\s*=/.test(source)
+
+  const hasMutatingReExport = /export\s*\{[^}]*\b(POST|PUT|PATCH|DELETE)\b[^}]*\}\s*from\s*['"][^'"]+['"]/.test(source)
+
+  return hasInlineMethod || hasMutatingReExport
 }
 
 function hasCanonicalHelperUsage(source) {
