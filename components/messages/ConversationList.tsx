@@ -33,6 +33,8 @@ export function ConversationList({
   const [loading, setLoading] = useState(true)
   const supabaseRef = useRef(createClient())
   const reloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isReloadingRef = useRef(false)
+  const pendingReloadRef = useRef(false)
 
   useEffect(() => {
     const loadConversations = async () => {
@@ -110,7 +112,40 @@ export function ConversationList({
       }
     }
 
-    loadConversations()
+    const runReload = async () => {
+      if (isReloadingRef.current) {
+        pendingReloadRef.current = true
+        return
+      }
+
+      isReloadingRef.current = true
+      try {
+        await loadConversations()
+      } finally {
+        isReloadingRef.current = false
+
+        if (pendingReloadRef.current) {
+          pendingReloadRef.current = false
+          scheduleReload()
+        }
+      }
+    }
+
+    const scheduleReload = () => {
+      if (reloadTimeoutRef.current) return
+
+      reloadTimeoutRef.current = setTimeout(() => {
+        reloadTimeoutRef.current = null
+        if (isReloadingRef.current) {
+          pendingReloadRef.current = true
+          return
+        }
+
+        runReload()
+      }, 250)
+    }
+
+    runReload()
 
     const scheduleReload = () => {
       if (reloadTimeoutRef.current) return
@@ -155,6 +190,8 @@ export function ConversationList({
         clearTimeout(reloadTimeoutRef.current)
         reloadTimeoutRef.current = null
       }
+      pendingReloadRef.current = false
+      isReloadingRef.current = false
       supabaseRef.current.removeChannel(channel)
     }
   }, [currentUserId])
