@@ -103,7 +103,7 @@ export default async function StrankaDetailPage({ params }: PageProps) {
               {activity.offers.length === 0 ? <p className="text-muted-foreground">Ni aktivnosti</p> : activity.offers.map((item: any) => (
                 <div key={item.id} className="rounded border p-2">
                   <p className="font-medium">Ponudba #{item.id.slice(0, 8)}</p>
-                  <p className="text-xs text-muted-foreground">{item.status} · €{Number(item.cena || 0).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">{item.status} · €{Number(item.price_estimate || 0).toFixed(2)}</p>
                 </div>
               ))}
             </div>

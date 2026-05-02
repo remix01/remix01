@@ -997,26 +997,45 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
 export async function getStrankaActivity(userId: string) {
   await ensureAdminAccess()
 
-  const [inquiriesRes, offersRes, paymentsRes] = await Promise.all([
+  // Inquiries belong directly to the customer
+  const inquiriesRes = await supabaseAdmin
+    .from('povprasevanja')
+    .select('id, title, status, created_at')
+    .eq('narocnik_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const inquiryIds = (inquiriesRes.data || []).map((r: any) => r.id)
+
+  // Offers are on the inquiry, not on the customer directly (ponudbe has no narocnik_id)
+  // Payments are reached via job.payment_id (payment table has no customer_id)
+  const [offersRes, jobsRes] = await Promise.all([
+    inquiryIds.length > 0
+      ? supabaseAdmin
+          .from('ponudbe')
+          .select('id, povprasevanje_id, status, price_estimate, created_at')
+          .in('povprasevanje_id', inquiryIds)
+          .order('created_at', { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] as any[] }),
     supabaseAdmin
-      .from('povprasevanja')
-      .select('id, title, status, created_at')
-      .eq('narocnik_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20),
-    supabaseAdmin
-      .from('ponudbe')
-      .select('id, povprasevanje_id, status, cena, created_at')
-      .eq('narocnik_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20),
-    supabaseAdmin
-      .from('payment')
-      .select('id, amount, status, created_at')
+      .from('job')
+      .select('payment_id')
       .eq('customer_id', userId)
-      .order('created_at', { ascending: false })
+      .not('payment_id', 'is', null)
       .limit(20),
   ])
+
+  const paymentIds = (jobsRes.data || []).map((j: any) => j.payment_id).filter(Boolean)
+
+  const paymentsRes = paymentIds.length > 0
+    ? await supabaseAdmin
+        .from('payment')
+        .select('id, amount, status, created_at')
+        .in('id', paymentIds)
+        .order('created_at', { ascending: false })
+        .limit(20)
+    : { data: [] as any[] }
 
   return {
     inquiries: inquiriesRes.data || [],
