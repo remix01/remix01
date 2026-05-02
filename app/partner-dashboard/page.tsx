@@ -177,9 +177,9 @@ function PartnerDashboardInner() {
       const userError = userByIdError ?? userByAuthUserIdError
 
       if (!profileError && !userError && !offersError) {
-        const hasDescription = profile?.description != null
+        const hasDescription = typeof profile?.description === 'string' && profile.description.trim().length > 0
         const hasHourlyRate = profile?.hourly_rate != null
-        const hasPhone = userProfile?.phone != null
+        const hasPhone = typeof userProfile?.phone === 'string' && userProfile.phone.trim().length > 0
         const hasOffers = (offersCount || 0) > 0
 
         const completedItems = [hasDescription, hasHourlyRate, hasPhone, hasOffers].filter(Boolean).length
