@@ -26,14 +26,18 @@ async function postHandler(request: NextRequest) {
       )
     }
 
-    const { povprasevanje_id, obrtnik_id, email, user_id, website } = parsed.data
+    const { povprasevanje_id, obrtnik_id, email, website } = parsed.data
+    // SECURITY: Never trust user_id from public payload for shared rate-limit buckets.
+    // This endpoint is public/test-facing, so user-based limiting is disabled here unless
+    // we add authenticated context in the future.
+    const limiterUserId: string | null = null
 
     if (isHoneypotTriggered(website)) {
       await writeEmailLog({
         email: email || 'unknown@unknown.local',
         type: 'admin_test_email',
         status: 'honeypot',
-        userId: user_id,
+        userId: limiterUserId,
         metadata: { endpoint: '/api/send-email' },
       })
 
@@ -47,7 +51,7 @@ async function postHandler(request: NextRequest) {
       request,
       action: 'admin_test',
       email: email ?? null,
-      userId: user_id ?? null,
+      userId: limiterUserId,
     })
 
     if (!rl.allowed) {
@@ -55,7 +59,7 @@ async function postHandler(request: NextRequest) {
         email: email || 'unknown@unknown.local',
         type: 'admin_test_email',
         status: 'rate_limited',
-        userId: user_id,
+        userId: limiterUserId,
         errorMessage: `Rate limited by ${rl.reason}`,
         metadata: { endpoint: '/api/send-email', retryAfter: rl.retryAfter },
       })
@@ -75,7 +79,7 @@ async function postHandler(request: NextRequest) {
       email: recipient,
       type: 'admin_test_email',
       status: 'pending',
-      userId: user_id,
+      userId: limiterUserId,
       metadata: { endpoint: '/api/send-email' },
     })
 
@@ -101,7 +105,7 @@ async function postHandler(request: NextRequest) {
         email: recipient,
         type: 'admin_test_email',
         status: 'failed',
-        userId: user_id,
+        userId: limiterUserId,
         errorMessage: response.error.message,
         metadata: { endpoint: '/api/send-email' },
       })
@@ -115,7 +119,7 @@ async function postHandler(request: NextRequest) {
       email: recipient,
       type: 'admin_test_email',
       status: 'sent',
-      userId: user_id,
+      userId: limiterUserId,
       resendEmailId: response.data?.id,
       metadata: { endpoint: '/api/send-email' },
     })
