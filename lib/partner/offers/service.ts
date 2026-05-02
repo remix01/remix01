@@ -27,13 +27,13 @@ function assertCreatePayload(body: CreateOfferPayload) {
 }
 
 function assertUpdatePayload(body: UpdateOfferPayload) {
-  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  const title = typeof body.title === 'string' && body.title.trim().length > 0 ? body.title.trim() : null
   const message = typeof body.message === 'string' ? body.message.trim() : ''
 
-  if (!title || !message) {
+  if (!message) {
     throw new PartnerOfferServiceError(
-      'MISSING_TITLE_OR_MESSAGE',
-      'Naslov in sporočilo sta obvezna.',
+      'MISSING_MESSAGE',
+      'Sporočilo je obvezno.',
       400
     )
   }
