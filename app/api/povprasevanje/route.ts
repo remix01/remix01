@@ -225,7 +225,7 @@ async function postHandler(req: NextRequest) {
 
     // CRITICAL FIX: Always set narocnik_id from authenticated user
     // Never trust narocnik_id from request body
-    const insertData = {
+    const insertData: Record<string, any> = {
       narocnik_id: user.id,
       title,
       location_city: finalLocationCity,
@@ -249,25 +249,32 @@ async function postHandler(req: NextRequest) {
       created_at: new Date().toISOString()
     }
 
-    let { data, error } = await supabaseAdmin
-      .from('povprasevanja')
-      .insert(insertData)
-      .select()
-      .single()
+    let payload = { ...insertData }
+    let data: any = null
+    let error: any = null
 
-    // Backward compatibility: some production DBs may not yet have `attachment_urls`.
-    // In that case retry insert without the column instead of failing with 500.
-    if (error && error.code === 'PGRST204' && error.message?.includes('attachment_urls')) {
-      console.warn('[v0] attachment_urls missing in schema, retrying insert without attachment_urls')
-      const { attachment_urls: _attachmentUrls, ...insertDataWithoutAttachments } = insertData
-      const retryResult = await supabaseAdmin
+    // Backward compatibility for production schemas that may not yet include
+    // all optional columns (e.g. stranka_ime, attachment_urls, termin_*).
+    // Retry by removing unknown columns reported by PostgREST.
+    for (let i = 0; i < 6; i++) {
+      const result = await supabaseAdmin
         .from('povprasevanja')
-        .insert(insertDataWithoutAttachments)
+        .insert(payload)
         .select()
         .single()
 
-      data = retryResult.data
-      error = retryResult.error
+      data = result.data
+      error = result.error
+
+      if (!error) break
+      if (error.code !== 'PGRST204' || !error.message?.includes('Could not find the')) break
+
+      const columnMatch = error.message.match(/'([^']+)' column/)
+      const missingColumn = columnMatch?.[1]
+      if (!missingColumn || !(missingColumn in payload)) break
+
+      console.warn('[v0] Missing column in povprasevanja schema, retrying without column:', missingColumn)
+      delete payload[missingColumn]
     }
 
     if (error) {
