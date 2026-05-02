@@ -41,6 +41,7 @@ export default function StankaSporocila() {
   const handleSelectConversation = async (povprasevanjeId: string, receiverId: string) => {
     setSelectedPovprasevanje(povprasevanjeId)
     setSelectedReceiver(receiverId)
+    setReceiverName(null)
     setShowMobileChat(true)
 
     const [povData, profData] = await Promise.all([

@@ -39,6 +39,7 @@ export default function NarocnikSporocila() {
   const handleSelectConversation = async (povprasevanjeId: string, receiverId: string) => {
     setSelectedPovprasevanje(povprasevanjeId)
     setSelectedReceiver(receiverId)
+    setReceiverName(null)
     setShowMobileChat(true)
 
     const supabase = createClient()
