@@ -366,8 +366,20 @@ export async function getAdminOffers(
     query = query.eq('status', statusFilter)
   }
 
+  // Push all search dimensions to DB: pre-fetch matching inquiry/partner IDs
   if (search) {
-    query = query.or(`message.ilike.%${search}%`)
+    const trimmed = search.trim()
+    const [{ data: matchingInquiries }, { data: matchingPartners }] = await Promise.all([
+      supabaseAdmin.from('povprasevanja').select('id').ilike('title', `%${trimmed}%`),
+      supabaseAdmin.from('obrtnik_profiles').select('id').ilike('business_name', `%${trimmed}%`),
+    ])
+    const inquiryIds = (matchingInquiries || []).map((r: any) => r.id)
+    const partnerIds = (matchingPartners || []).map((r: any) => r.id)
+
+    const orParts: string[] = [`message.ilike.%${trimmed}%`]
+    if (inquiryIds.length > 0) orParts.push(`povprasevanje_id.in.(${inquiryIds.join(',')})`)
+    if (partnerIds.length > 0) orParts.push(`obrtnik_id.in.(${partnerIds.join(',')})`)
+    query = query.or(orParts.join(','))
   }
 
   const { data: rows, count } = await query
@@ -395,35 +407,24 @@ export async function getAdminOffers(
   const inquiryMap = Object.fromEntries((inquiries || []).map((row: any) => [row.id, row]))
   const craftworkerMap = Object.fromEntries((craftworkers || []).map((row: any) => [row.id, row]))
 
-  const items = (rows || [])
-    .map((row: any) => {
-      const inquiry = inquiryMap[row.povprasevanje_id]
-      const craftworker = craftworkerMap[row.obrtnik_id]
-      const amount = row.price_estimate ?? row.cena ?? null
+  const items = (rows || []).map((row: any) => {
+    const inquiry = inquiryMap[row.povprasevanje_id]
+    const craftworker = craftworkerMap[row.obrtnik_id]
+    const amount = row.price_estimate ?? row.cena ?? null
 
-      return {
-        id: row.id,
-        status: row.status || '—',
-        created_at: row.created_at,
-        amount,
-        message: row.message || '',
-        inquiry_id: row.povprasevanje_id,
-        inquiry_title: inquiry?.title || '—',
-        inquiry_city: inquiry?.location_city || '—',
-        partner_id: row.obrtnik_id,
-        partner_name: craftworker?.business_name || '—',
-      }
-    })
-    .filter((item) => {
-      if (!search) return true
-      const q = search.toLowerCase()
-      return (
-        item.id.toLowerCase().includes(q) ||
-        item.inquiry_title.toLowerCase().includes(q) ||
-        item.partner_name.toLowerCase().includes(q) ||
-        item.message.toLowerCase().includes(q)
-      )
-    })
+    return {
+      id: row.id,
+      status: row.status || '—',
+      created_at: row.created_at,
+      amount,
+      message: row.message || '',
+      inquiry_id: row.povprasevanje_id,
+      inquiry_title: inquiry?.title || '—',
+      inquiry_city: inquiry?.location_city || '—',
+      partner_id: row.obrtnik_id,
+      partner_name: craftworker?.business_name || '—',
+    }
+  })
 
   return {
     items,
