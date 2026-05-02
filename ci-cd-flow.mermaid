@@ -1,0 +1,28 @@
+flowchart TD
+    DEV[Developer pushes code] --> GH[GitHub]
+
+    GH --> PR{Pull Request?}
+
+    PR -->|Yes| PR_VAL[PR Validation workflow]
+    PR_VAL --> TITLE[Check PR title\nConventional Commits]
+    PR_VAL --> LABEL[Auto-label PR]
+    PR_VAL --> SIZE[Check PR size]
+
+    PR -->|Yes / Push to main| CI[CI workflow]
+    CI --> TC[Type Check\npnpm lint]
+    CI --> TEST[Unit Tests\npnpm test:unit]
+    CI --> BUILD[Build\npnpm build]
+    CI --> OPENAPI[OpenAPI drift check\non PRs only]
+
+    PR -->|Yes / Push to main| CODEQL[CodeQL Security Analysis]
+    PR -->|Yes| DEPREVIEW[Dependency Review\nfail on HIGH severity]
+
+    GH -->|Push to main| MIGRATE{supabase/migrations\nchanged?}
+    MIGRATE -->|Yes| SUPABASE[Supabase Deploy\ndb push to production]
+    SUPABASE --> ENV{production env\napproval required}
+
+    GH -->|Schedule Mon 6AM| CODEQL_SCHED[Weekly CodeQL Scan]
+
+    GH -->|Schedule Mon 6AM| DEPENDABOT[Dependabot\ndependency updates]
+
+    CI -->|All pass| VERCEL[Vercel auto-deploy\npreview / production]

@@ -1,0 +1,33 @@
+{
+  "model": "claude-opus-4-5",
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(pnpm:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(tsx:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(chmod:*)",
+      "Bash(curl:*)",
+      "Bash(supabase:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(sudo:*)",
+      "Bash(passwd:*)",
+      "Bash(git push --force:*)"
+    ]
+  },
+  "env": {
+    "ANTHROPIC_MODEL": "claude-opus-4-5"
+  },
+  "includeCoAuthoredBy": true,
+  "cleanupPeriodDays": 30
+}

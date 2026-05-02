@@ -1,0 +1,55 @@
+narocnik:
+  - changed-files:
+    - any-glob-to-any-file: 'app/**/narocnik/**'
+
+obrtnik:
+  - changed-files:
+    - any-glob-to-any-file: 'app/**/obrtnik/**'
+
+ai:
+  - changed-files:
+    - any-glob-to-any-file: 'lib/agents/**'
+
+database:
+  - changed-files:
+    - any-glob-to-any-file: 'supabase/**'
+
+stripe:
+  - changed-files:
+    - any-glob-to-any-file: 'lib/stripe/**'
+
+auth:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'app/**/prijava/**'
+      - 'app/**/registracija/**'
+      - 'lib/supabase/**'
+
+api:
+  - changed-files:
+    - any-glob-to-any-file: 'app/api/**'
+
+components:
+  - changed-files:
+    - any-glob-to-any-file: 'components/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
+security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'proxy.ts'
+      - 'lib/guards/**'
+      - 'lib/supabase/admin.ts'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: '**/*.md'

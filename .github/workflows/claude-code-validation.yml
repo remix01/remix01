@@ -1,0 +1,205 @@
+name: Claude Code Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'lib/**'
+      - 'components/**'
+      - 'supabase/migrations/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  detect-ai-changes:
+    name: Detect AI-generated Changes
+    runs-on: ubuntu-latest
+    outputs:
+      has_ai_commits: ${{ steps.check.outputs.has_ai_commits }}
+      changed_files: ${{ steps.files.outputs.all_changed_files }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for Claude Code commits
+        id: check
+        run: |
+          # Look for commits mentioning Claude Code session URLs
+          AI_COMMITS=$(git log origin/${{ github.base_ref }}...HEAD \
+            --oneline \
+            --grep="claude.ai/code" \
+            2>/dev/null | wc -l)
+          echo "has_ai_commits=$([ $AI_COMMITS -gt 0 ] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "Found $AI_COMMITS AI-assisted commits"
+
+      - name: List changed files
+        id: files
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            -- 'app/**' 'lib/**' 'components/**' | head -50 | tr '\n' ',' | sed 's/,$//')
+          echo "all_changed_files=$FILES" >> $GITHUB_OUTPUT
+
+  type-safety:
+    name: Type Safety Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Get pnpm store
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate next-env.d.ts
+        run: |
+          printf '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n' > next-env.d.ts
+
+      - name: Strict type check
+        run: pnpm lint
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
+
+  security-patterns:
+    name: Security Pattern Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for hardcoded secrets
+        run: |
+          FAILED=0
+
+          # Patterns that should never appear in committed code
+          PATTERNS=(
+            'sk-ant-[a-zA-Z0-9]'
+            'sk_live_[a-zA-Z0-9]'
+            'pk_live_[a-zA-Z0-9]'
+            'whsec_[a-zA-Z0-9]'
+            'sbp_[a-zA-Z0-9]'
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]{100,}'
+            'supabase_service_role_key\s*=\s*["\x27]ey'
+          )
+
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.json' 2>/dev/null || true)
+
+          for file in $CHANGED_FILES; do
+            if [ ! -f "$file" ]; then continue; fi
+            for pattern in "${PATTERNS[@]}"; do
+              if grep -qE "$pattern" "$file" 2>/dev/null; then
+                echo "::error file=$file::Potential hardcoded secret detected (pattern: $pattern)"
+                FAILED=1
+              fi
+            done
+          done
+
+          [ $FAILED -eq 0 ] || exit 1
+          echo "✓ No hardcoded secrets detected"
+
+      - name: Check RLS for new tables
+        run: |
+          MIGRATION_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            -- 'supabase/migrations/*.sql' 2>/dev/null || true)
+
+          for file in $MIGRATION_FILES; do
+            if [ ! -f "$file" ]; then continue; fi
+            # If migration creates a table, check it also enables RLS
+            if grep -qi "CREATE TABLE" "$file"; then
+              if ! grep -qi "ENABLE ROW LEVEL SECURITY\|enable row level security" "$file"; then
+                echo "::warning file=$file::New table created without enabling RLS — verify this is intentional"
+              fi
+            fi
+          done
+          echo "✓ RLS check complete"
+
+  api-versioning:
+    name: API Versioning Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify new API routes follow versioning convention
+        run: |
+          # New public-facing routes must be under /api/v1/
+          # Internal routes (admin, webhooks, cron) are exempt
+          NEW_API_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            -- 'app/api/**' 2>/dev/null | grep -v '__tests__' || true)
+
+          FAILED=0
+          for file in $NEW_API_FILES; do
+            # Skip if file existed before this PR (only check new files)
+            if git show "origin/${{ github.base_ref }}:$file" &>/dev/null; then continue; fi
+
+            # Internal routes are exempt
+            if echo "$file" | grep -qE "app/api/(admin|webhooks|cron|jobs|internal)/"; then
+              continue
+            fi
+
+            # New public routes must be /api/v1/
+            if echo "$file" | grep -qE "app/api/[^v]"; then
+              echo "::warning file=$file::New public API route should be under /api/v1/ per versioning convention"
+            fi
+          done
+
+          echo "✓ API versioning check complete"
+
+  claude-md-sync:
+    name: CLAUDE.md Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check CLAUDE.md is up to date
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD 2>/dev/null)
+
+          # If new routes were added, remind to update CLAUDE.md
+          NEW_ROUTES=$(echo "$CHANGED" | grep -E "app/\(narocnik\)|app/\(obrtnik\)" | wc -l)
+          CLAUDE_UPDATED=$(echo "$CHANGED" | grep -c "CLAUDE.md" || true)
+
+          if [ "$NEW_ROUTES" -gt 0 ] && [ "$CLAUDE_UPDATED" -eq 0 ]; then
+            echo "::notice::New routes detected — consider updating CLAUDE.md route tables if routes changed"
+          fi
+
+          # If new tables added in migrations, remind to update DB table docs
+          NEW_TABLES=$(git diff origin/${{ github.base_ref }}...HEAD -- 'supabase/migrations/*.sql' \
+            2>/dev/null | grep -c "^+.*CREATE TABLE" || true)
+
+          if [ "$NEW_TABLES" -gt 0 ] && [ "$CLAUDE_UPDATED" -eq 0 ]; then
+            echo "::notice::New database tables detected — consider updating CLAUDE.md Database Tables section"
+          fi
+
+          echo "✓ CLAUDE.md sync check complete"

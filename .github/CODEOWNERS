@@ -1,0 +1,30 @@
+# CODEOWNERS — LiftGO
+# Syntax: pattern  @owner
+
+# Global fallback
+*                           @remix01
+
+# Core application
+/app/                       @remix01
+/components/                @remix01
+/lib/                       @remix01
+
+# Security-sensitive files — require explicit review
+/proxy.ts                   @remix01
+/lib/supabase/admin.ts      @remix01
+/lib/guards/               @remix01
+/lib/stripe/               @remix01
+
+# AI agents
+/lib/agents/               @remix01
+
+# Database
+/supabase/                 @remix01
+/supabase/migrations/      @remix01
+
+# CI/CD
+/.github/                  @remix01
+/vercel.json               @remix01
+
+# Documentation
+*.md                       @remix01
