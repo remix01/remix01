@@ -69,10 +69,16 @@ function PrijavaContent() {
 
     try {
       const supabase = createClient()
+      const callbackUrl = new URL('/prijava', window.location.origin)
+      callbackUrl.searchParams.set('oauth', 'google')
+      const redirectTo = searchParams.get('redirectTo')
+      if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
+        callbackUrl.searchParams.set('redirectTo', redirectTo)
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+          redirectTo: callbackUrl.toString(),
         },
       })
 

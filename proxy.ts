@@ -108,7 +108,10 @@ export async function proxy(request: NextRequest) {
   ]
   if (narocnikPaths.some(p => path.startsWith(p))) {
     if (!user) {
-      return NextResponse.redirect(new URL(`/prijava?redirect=${path}`, request.url))
+      const loginUrl = new URL('/prijava', request.url)
+      const fullPath = request.nextUrl.pathname + request.nextUrl.search
+      loginUrl.searchParams.set('redirectTo', fullPath)
+      return NextResponse.redirect(loginUrl)
     }
     try {
       const { data: profile } = await supabase
