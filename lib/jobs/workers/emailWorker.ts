@@ -75,7 +75,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       if (!resolvedRecipients.to.length) throw new Error('[EMAIL] No recipients after resolution')
       const emailResult = await provider.send({
         to: resolvedRecipients.to,
-        subject: `✅ Povpraševanje oddano: ${escapeHtml(title || 'Novo povpraševanje')}`,
+        subject: `✅ Povpraševanje oddano: ${title || 'Novo povpraševanje'}`,
         html: htmlBody,
         idempotencyKey: `povprasevanje:${povprasevanjeId}:confirmation`,
       })
@@ -264,7 +264,7 @@ function buildGenericEmailContent(template: string, data: Record<string, any>): 
     case 'povprasevanje_confirmation_public':
     case 'povprasevanje_confirmation':
       return {
-        subject: `✅ Povpraševanje oddano: ${escapeHtml(data.title || data.storitev || 'Novo povpraševanje')}`,
+        subject: `✅ Povpraševanje oddano: ${data.title || data.storitev || 'Novo povpraševanje'}`,
         html: buildPovprasevanjeConfirmationEmail(
           escapeHtml(data.narocnikName || data.stranka_ime || 'Naročnik'),
           escapeHtml(data.title || data.storitev || ''),
@@ -286,7 +286,7 @@ function buildGenericEmailContent(template: string, data: Record<string, any>): 
       }
     case 'inquiry_confirmation':
       return {
-        subject: `Vaše povpraševanje je bilo prejeto - ${escapeHtml(data.inquiryTitle || data.title || 'Povpraševanje')}`,
+        subject: `Vaše povpraševanje je bilo prejeto - ${data.inquiryTitle || data.title || 'Povpraševanje'}`,
         html: buildInquiryConfirmationEmail(
           escapeHtml(data.customerName || data.customer_name || 'Uporabnik'),
           escapeHtml(data.inquiryTitle || data.title || 'Povpraševanje'),
@@ -296,7 +296,7 @@ function buildGenericEmailContent(template: string, data: Record<string, any>): 
       }
     case 'offer_received':
       return {
-        subject: `Nova ponudba za: ${escapeHtml(data.inquiryTitle || data.title || 'Povpraševanje')}`,
+        subject: `Nova ponudba za: ${data.inquiryTitle || data.title || 'Povpraševanje'}`,
         html: buildOfferReceivedEmail(
           escapeHtml(data.customerName || data.customer_name || 'Uporabnik'),
           escapeHtml(data.partnerName || data.partner_name || data.craftsman_name || 'Obrtnik'),
@@ -306,7 +306,7 @@ function buildGenericEmailContent(template: string, data: Record<string, any>): 
       }
     case 'marketplace_match_new_request':
       return {
-        subject: `Novo povpraševanje: ${escapeHtml(data.category || data.title || 'Storitev')} v ${escapeHtml(data.location || 'vaši okolici')}`,
+        subject: `Novo povpraševanje: ${data.category || data.title || 'Storitev'} v ${data.location || 'vaši okolici'}`,
         html: `
           <p>${escapeHtml(data.customer_name || 'Naročnik')} potrebuje ${escapeHtml(data.category || data.title || 'storitev')} v ${escapeHtml(data.location || 'vaši okolici')}.</p>
           <p>Dela: ${escapeHtml(data.description || '—')}</p>

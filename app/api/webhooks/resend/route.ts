@@ -138,7 +138,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, ignored: true }, { status: 200 })
     }
 
-    if (resendEmailId) {
+    if (!resendEmailId) {
+      console.warn('[resend-webhook] Supported event missing email ID, skipping persistence', { eventType })
+      return NextResponse.json({ ok: true }, { status: 200 })
+    }
+
+    {
       const recipient = normalizeEmail(event.data?.to)
       const now = new Date().toISOString()
 
