@@ -30,6 +30,9 @@ Po popravku lokalni crawl vrne `BAD []` (brez 404/500 za obiskane interne poti).
   - `POST /api/povprasevanje` -> **500** z `PGRST204`: manjka kolona `attachment_urls` v `povprasevanja` schema cache.
 - Uveden je bil fallback v API:
   - ob `PGRST204` za `attachment_urls` endpoint ponovno poskusi insert brez tega polja (backward compatibility za okolja brez migracije).
+- Dodana je tudi DB migracija:
+  - `ALTER TABLE public.povprasevanja ADD COLUMN IF NOT EXISTS attachment_urls text[]`,
+  - da se produkcijski 500 odpravi tudi na nivoju sheme (ne le z runtime fallbackom).
 - Dodatno opažanje:
   - več `POST /api/agent/work_description` -> **429** (rate limiting), kar je pričakovano varovalo, ne nujno bug.
 
@@ -62,6 +65,7 @@ Priporočilo: poenotiti na env-driven pristop in odstraniti hardcoded DSN iz rep
   - dashboard/naročnina strani pa se po plačilu vrnejo na svoje naravne URL-je.
 - Dodan manjkajoči endpoint `POST /api/stripe/portal` za upravljanje obstoječih naročnin (Stripe Billing Portal), ki je bil prej v UI klican, a ni obstajal.
 - Posodobljeni so bili gumbi na naročnina/cenik straneh, da uporabljajo pravilne Stripe poti in return URL-je.
+- Dodane so legacy redirect poti v `next.config.ts` za stare URL-je (npr. `/narocnik/*`, `/narocnanja`) na pravilne nove poti.
 
 ## Priporočen prioritetni TODO plan
 1. **P0:** Enotna Sentry konfiguracija prek env + odstranitev hardcoded DSN.
@@ -81,4 +85,6 @@ Priporočilo: poenotiti na env-driven pristop in odstraniti hardcoded DSN iz rep
 - `app/api/povprasevanje/route.ts`
 - `app/api/stripe/create-checkout/route.ts`
 - `app/api/stripe/portal/route.ts`
+- `next.config.ts`
+- `supabase/migrations/20260408113000_add_attachment_urls_to_povprasevanja.sql`
 - `LIFTGO_AUDIT_2026-04-08.md`
