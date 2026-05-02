@@ -7,19 +7,16 @@ import type { User } from '@supabase/supabase-js'
 interface AuthContextType {
   user: User | null
   isLoading: boolean
-  isAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
-  isAdmin: false,
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -28,34 +25,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-      setUser(session?.user ?? null)
-      setIsLoading(false)
-
-      // Check if admin
-      if (session?.user) {
-        fetch('/api/admin/me', { credentials: 'include' })
-          .then(res => setIsAdmin(res.ok))
-          .catch(() => setIsAdmin(false))
-      }
-    })
-
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      console.log('[v0] Auth state changed:', _event)
       setUser(session?.user ?? null)
-
-      // Check if new user is admin
-      if (session?.user) {
-        fetch('/api/admin/me', { credentials: 'include' })
-          .then(res => setIsAdmin(res.ok))
-          .catch(() => setIsAdmin(false))
-      } else {
-        setIsAdmin(false)
-      }
+      setIsLoading(false)
     })
 
     return () => {
@@ -64,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAdmin }}>
+    <AuthContext.Provider value={{ user, isLoading }}>
       {children}
     </AuthContext.Provider>
   )
