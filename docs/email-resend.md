@@ -119,6 +119,37 @@ URL za Resend dashboard:
 6. Testiraj webhook iz Resend dashboarda.
 7. Preveri zapise v `email_logs`.
 
+## API-first onboarding/broadcast skripte (priporočeno)
+
+Za ponovljive flowe uporabljaj skripte namesto ročnega UI:
+
+- Skript: `scripts/setup-broadcast.ts`
+- Default sender: `LiftGO <noreply@liftgo.net>`
+- Reply-To: `support@liftgo.net`
+
+Primeri:
+
+```bash
+# 1) Povabi prvih 20-50 testerjev (dry-run)
+pnpm tsx scripts/setup-broadcast.ts invite-testers --limit=30 --dry-run
+
+# 2) Dejanski invite (po preverjenem dry-runu)
+pnpm tsx scripts/setup-broadcast.ts invite-testers --limit=30
+
+# 3) Onboarding flow (automation + event trigger)
+pnpm tsx scripts/setup-broadcast.ts onboarding-flow --audience-id=aud_xxx --user-email=tester@example.com --user-id=user_123 --dry-run
+
+# 4) Broadcast neaktivnim izvajalcem (7 dni)
+pnpm tsx scripts/setup-broadcast.ts broadcast-inactive --inactive-days=7 --limit=50 --dry-run
+
+# 5) Sync kontaktov iz Supabase v Resend Audience
+pnpm tsx scripts/setup-broadcast.ts sync-audience --audience-id=aud_xxx --limit=50 --dry-run
+```
+
+UI (dashboard) uporabljaj samo za:
+- prvi vizualni pregled predloge,
+- hitro enkratno obvestilo.
+
 ## Kako debugirati `429`
 
 - Preveri response:

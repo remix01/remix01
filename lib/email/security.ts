@@ -78,48 +78,71 @@ export async function checkEmailRateLimit(params: {
 > {
   const { request, action, email, userId } = params
   const ip = getClientIp(request)
+  const checkLimiter = async (
+    name: string,
+    limiter: RateLimiter,
+    key: string
+  ): Promise<{ blocked: false } | { blocked: true; reason: string; result: Awaited<ReturnType<RateLimiter['check']>> }> => {
+    const result = await limiter.check(key)
+    if (result.allowed) return { blocked: false }
+    return { blocked: true, reason: name, result }
+  }
 
-  const checks: Array<{ name: string; result: Awaited<ReturnType<RateLimiter['check']>> }> = []
+  let blockedResult:
+    | { blocked: false }
+    | { blocked: true; reason: string; result: Awaited<ReturnType<RateLimiter['check']>> }
+    | null = null
 
   if (action === 'contact_inquiry') {
-    checks.push({ name: 'ip', result: await rateLimiters.contactIp.check(`ip:${ip}`) })
-    if (email) checks.push({ name: 'email', result: await rateLimiters.contactEmail.check(`email:${email.toLowerCase()}`) })
-    if (userId) checks.push({ name: 'user_id', result: await rateLimiters.contactUser.check(`user:${userId}`) })
+    blockedResult = await checkLimiter('ip', rateLimiters.contactIp, `ip:${ip}`)
+    if (!blockedResult.blocked && email) {
+      blockedResult = await checkLimiter(
+        'email',
+        rateLimiters.contactEmail,
+        `email:${email.toLowerCase()}`
+      )
+    }
+    if (!blockedResult.blocked && userId) {
+      blockedResult = await checkLimiter('user_id', rateLimiters.contactUser, `user:${userId}`)
+    }
   }
 
   if (action === 'signup_welcome') {
-    checks.push({ name: 'ip', result: await rateLimiters.signupIp.check(`ip:${ip}`) })
-    if (userId) checks.push({ name: 'user_id', result: await rateLimiters.signupUser.check(`user:${userId}`) })
+    blockedResult = await checkLimiter('ip', rateLimiters.signupIp, `ip:${ip}`)
+    if (!blockedResult.blocked && userId) {
+      blockedResult = await checkLimiter('user_id', rateLimiters.signupUser, `user:${userId}`)
+    }
   }
 
   if (action === 'admin_test') {
-    checks.push({ name: 'ip', result: await rateLimiters.adminIp.check(`ip:${ip}`) })
-    if (userId) checks.push({ name: 'user_id', result: await rateLimiters.adminUser.check(`user:${userId}`) })
+    blockedResult = await checkLimiter('ip', rateLimiters.adminIp, `ip:${ip}`)
+    if (!blockedResult.blocked && userId) {
+      blockedResult = await checkLimiter('user_id', rateLimiters.adminUser, `user:${userId}`)
+    }
   }
 
-  const blocked = checks.find((check) => !check.result.allowed)
-  if (!blocked) return { allowed: true }
+  if (!blockedResult || !blockedResult.blocked) return { allowed: true }
 
-  const retryAfter = Math.max(1, Math.ceil((blocked.result.resetAt - Date.now()) / 1000))
+  const retryAfter = Math.max(1, Math.ceil((blockedResult.result.resetAt - Date.now()) / 1000))
 
   return {
     allowed: false,
-    reason: blocked.name,
+    reason: blockedResult.reason,
     retryAfter,
     response: NextResponse.json(
       {
         error: 'Preveč email zahtev. Poskusite znova kasneje.',
         code: 'EMAIL_RATE_LIMITED',
-        reason: blocked.name,
+        reason: blockedResult.reason,
         retryAfter,
       },
       {
         status: 429,
         headers: {
           'Retry-After': String(retryAfter),
-          'X-RateLimit-Limit': String(blocked.result.limit),
-          'X-RateLimit-Remaining': String(blocked.result.remaining),
-          'X-RateLimit-Reset': new Date(blocked.result.resetAt).toISOString(),
+          'X-RateLimit-Limit': String(blockedResult.result.limit),
+          'X-RateLimit-Remaining': String(blockedResult.result.remaining),
+          'X-RateLimit-Reset': new Date(blockedResult.result.resetAt).toISOString(),
         },
       }
     ),

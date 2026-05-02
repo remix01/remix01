@@ -241,7 +241,9 @@ export async function POST(request: NextRequest) {
     }
 
     const honeypot = toOptionalString(body.website) ?? toOptionalString(body.company_url)
-    const userId = toOptionalString(body.user_id)
+    // SECURITY: public endpoint must not trust client-supplied user_id.
+    // Keep user-based limiting/log user attribution disabled here.
+    const trustedUserId: string | null = null
     const incomingEmail = toOptionalString(body.stranka_email) ?? toOptionalString(body.email)
 
     if (isHoneypotTriggered(honeypot)) {
@@ -249,7 +251,7 @@ export async function POST(request: NextRequest) {
         email: incomingEmail || 'unknown@unknown.local',
         type: 'inquiry_public',
         status: 'honeypot',
-        userId,
+        userId: trustedUserId,
         metadata: { requestId, endpoint: '/api/povprasevanje/public' },
       })
 
@@ -261,7 +263,7 @@ export async function POST(request: NextRequest) {
         email: incomingEmail,
         type: 'inquiry_public',
         status: 'blocked',
-        userId,
+        userId: trustedUserId,
         errorMessage: 'Disposable email domain blocked',
         metadata: { requestId, endpoint: '/api/povprasevanje/public' },
       })
@@ -273,7 +275,7 @@ export async function POST(request: NextRequest) {
       request,
       action: 'contact_inquiry',
       email: incomingEmail,
-      userId,
+      userId: trustedUserId,
     })
 
     if (!rl.allowed) {
@@ -281,7 +283,7 @@ export async function POST(request: NextRequest) {
         email: incomingEmail || 'unknown@unknown.local',
         type: 'inquiry_public',
         status: 'rate_limited',
-        userId,
+        userId: trustedUserId,
         errorMessage: `Rate limited by ${rl.reason}`,
         metadata: { requestId, endpoint: '/api/povprasevanje/public', retryAfter: rl.retryAfter },
       })
@@ -399,7 +401,7 @@ export async function POST(request: NextRequest) {
         email: stranka_email,
         type: 'inquiry_customer_confirmation',
         status: 'pending',
-        userId,
+        userId: trustedUserId,
         metadata: { requestId, inquiryId: data?.id },
       })
 
@@ -427,7 +429,7 @@ export async function POST(request: NextRequest) {
             email: stranka_email,
             type: 'inquiry_customer_confirmation',
             status: 'failed',
-            userId,
+            userId: trustedUserId,
             errorMessage: customerResponse.error.message,
             metadata: { requestId, inquiryId: data?.id },
           })
@@ -436,7 +438,7 @@ export async function POST(request: NextRequest) {
             email: stranka_email,
             type: 'inquiry_customer_confirmation',
             status: 'sent',
-            userId,
+            userId: trustedUserId,
             resendEmailId: customerResponse.data?.id,
             metadata: { requestId, inquiryId: data?.id },
           })
@@ -446,7 +448,7 @@ export async function POST(request: NextRequest) {
           email: stranka_email,
           type: 'inquiry_customer_confirmation',
           status: 'failed',
-          userId,
+          userId: trustedUserId,
           errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
           metadata: { requestId, inquiryId: data?.id },
         })
@@ -459,7 +461,7 @@ export async function POST(request: NextRequest) {
         email: process.env.ADMIN_EMAIL,
         type: 'inquiry_admin_notification',
         status: 'pending',
-        userId,
+        userId: trustedUserId,
         metadata: { requestId, inquiryId: data?.id },
       })
 
@@ -483,7 +485,7 @@ export async function POST(request: NextRequest) {
             email: process.env.ADMIN_EMAIL,
             type: 'inquiry_admin_notification',
             status: 'failed',
-            userId,
+            userId: trustedUserId,
             errorMessage: adminResponse.error.message,
             metadata: { requestId, inquiryId: data?.id },
           })
@@ -492,7 +494,7 @@ export async function POST(request: NextRequest) {
             email: process.env.ADMIN_EMAIL,
             type: 'inquiry_admin_notification',
             status: 'sent',
-            userId,
+            userId: trustedUserId,
             resendEmailId: adminResponse.data?.id,
             metadata: { requestId, inquiryId: data?.id },
           })
@@ -502,7 +504,7 @@ export async function POST(request: NextRequest) {
           email: process.env.ADMIN_EMAIL,
           type: 'inquiry_admin_notification',
           status: 'failed',
-          userId,
+          userId: trustedUserId,
           errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
           metadata: { requestId, inquiryId: data?.id },
         })

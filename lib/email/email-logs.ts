@@ -28,7 +28,7 @@ export async function writeEmailLog(params: {
   } = params
 
   try {
-    await supabaseAdmin.from('email_logs').insert({
+    const { error } = await supabaseAdmin.from('email_logs').insert({
       email,
       type,
       status,
@@ -37,6 +37,10 @@ export async function writeEmailLog(params: {
       error_message: errorMessage ?? null,
       metadata: metadata ?? null,
     })
+
+    if (error) {
+      throw error
+    }
   } catch (error) {
     console.warn('[email-logs] Failed to write email_logs row (table missing or unavailable)', {
       type,
