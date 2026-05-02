@@ -52,7 +52,7 @@ export interface Task {
   priority: TaskPriority
   location: string
   estimated_value: number | null
-  sla_deadline: string | null
+  sla_expires_at: string | null
   claimed_at: string | null
   started_at: string | null
   completed_at: string | null

@@ -102,7 +102,7 @@ export function useTaskFilters(filterType: TaskFilterType, options?: UseTaskFilt
 
         case 'overdue':
           query = query.in('status', ['claimed', 'accepted', 'in_progress'])
-            .lt('sla_deadline', new Date().toISOString())
+            .lt('sla_expires_at', new Date().toISOString())
           break
 
         case 'completed':
@@ -162,7 +162,7 @@ export function useTaskFilters(filterType: TaskFilterType, options?: UseTaskFilt
           break
         case 'overdue':
           query = query.in('status', ['claimed', 'accepted', 'in_progress'])
-            .lt('sla_deadline', new Date().toISOString())
+            .lt('sla_expires_at', new Date().toISOString())
           break
         case 'completed':
           query = query.eq('status', 'completed')

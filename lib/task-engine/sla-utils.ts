@@ -100,15 +100,15 @@ export function isSLAExpired(slaDeadline: string | null): boolean {
  * Get SLA status summary for a task
  */
 export function getSLAStatus(task: Task): 'urgent' | 'warning' | 'on_track' | 'expired' | 'no_deadline' {
-  if (!task.sla_deadline) {
+  if (!task.sla_expires_at) {
     return 'no_deadline'
   }
 
-  if (isSLAExpired(task.sla_deadline)) {
+  if (isSLAExpired(task.sla_expires_at)) {
     return 'expired'
   }
 
-  const timeRemaining = calculateTimeRemaining(task.sla_deadline)
+  const timeRemaining = calculateTimeRemaining(task.sla_expires_at)
 
   // Urgent if less than 1 hour remaining
   if ((timeRemaining.hours ?? 0) < 1) {
@@ -116,7 +116,7 @@ export function getSLAStatus(task: Task): 'urgent' | 'warning' | 'on_track' | 'e
   }
 
   // Warning if less than configured threshold
-  if (isSLAWarning(task.sla_deadline)) {
+  if (isSLAWarning(task.sla_expires_at)) {
     return 'warning'
   }
 
@@ -182,9 +182,9 @@ export function estimateSLAHours(priority: TaskPriority): number {
  * Get percentage of SLA time used
  */
 export function calculateSLAUsagePercentage(task: Task, publishTime?: string | Date): number {
-  if (!task.sla_deadline) return 0
+  if (!task.sla_expires_at) return 0
 
-  const deadline = new Date(task.sla_deadline)
+  const deadline = new Date(task.sla_expires_at)
   const now = new Date()
   const diffMs = deadline.getTime() - now.getTime()
 
@@ -232,11 +232,11 @@ export function shouldAutoExpire(task: Task): boolean {
     return false
   }
 
-  if (!task.sla_deadline) {
+  if (!task.sla_expires_at) {
     return false
   }
 
-  return isSLAExpired(task.sla_deadline)
+  return isSLAExpired(task.sla_expires_at)
 }
 
 /**
@@ -259,12 +259,12 @@ export function filterTasksByApproachingSLA(
   tasks: Task[],
   thresholdHours: number = NOTIFICATION_CONFIG.SEND_EXPIRY_WARNING_HOURS
 ): Task[] {
-  return tasks.filter((task: any) => isSLAWarning(task.sla_deadline, thresholdHours))
+  return tasks.filter((task: any) => isSLAWarning(task.sla_expires_at, thresholdHours))
 }
 
 /**
  * Get tasks that have expired SLA
  */
 export function filterExpiredTasks(tasks: Task[]): Task[] {
-  return tasks.filter((task: any) => isSLAExpired(task.sla_deadline))
+  return tasks.filter((task: any) => isSLAExpired(task.sla_expires_at))
 }

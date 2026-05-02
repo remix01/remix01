@@ -60,10 +60,10 @@ export function useSlaMonitor(taskId: string, options?: UseSlaMonitorOptions) {
     const status = getSLAStatus(task)
     setSlaStatus(status)
 
-    const remaining = calculateTimeRemaining(task.sla_deadline)
+    const remaining = calculateTimeRemaining(task.sla_expires_at)
     setTimeRemaining(remaining)
 
-    const warning = isSLAWarning(task.sla_deadline)
+    const warning = isSLAWarning(task.sla_expires_at)
     setIsWarning(warning)
 
     // Emit warning callback if entering warning state
@@ -149,7 +149,7 @@ export function useSlaMonitor(taskId: string, options?: UseSlaMonitorOptions) {
   const slaInfo: SLAMonitorInfo = {
     taskId,
     status: slaStatus,
-    deadline: task?.sla_deadline || null,
+    deadline: task?.sla_expires_at || null,
     timeRemaining,
     usagePercentage: task ? calculateSLAUsagePercentage(task) : 0,
     isWarning,

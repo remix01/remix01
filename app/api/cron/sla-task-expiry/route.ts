@@ -103,10 +103,10 @@ export async function GET(req: NextRequest) {
       .from('tasks')
       // Keep the projection minimal: selecting non-existent columns on Supabase
       // causes PostgREST to fail the whole query with a 500 response upstream.
-      .select('id, sla_deadline, status')
-      .in('status', ['open', 'has_ponudbe', 'in_progress'])
-      .not('sla_deadline', 'is', null)
-      .lt('sla_deadline', now)
+      .select('id, sla_expires_at, status')
+      .in('status', ['pending', 'matching', 'matched', 'offer_sent', 'accepted', 'in_progress'])
+      .not('sla_expires_at', 'is', null)
+      .lt('sla_expires_at', now)
 
     if (queryError) {
       console.error('[v0] Error querying overdue tasks:', {
