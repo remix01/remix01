@@ -12,7 +12,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8 lg:py-16">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-6">
           {/* Brand & company info */}
-          <div className="lg:col-span-2">
+          <div className="sm:col-span-2 lg:col-span-2">
             <BrandLogo />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Tvoj lokalni mojster, takoj pri roki. Povezujemo vas z zanesljivimi

@@ -14,9 +14,13 @@ export function ProtectedNavLink({ href, className, children }: ProtectedNavLink
 
   const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    router.push(user ? href : '/partner-auth/login')
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      router.push(user ? href : '/partner-auth/login')
+    } catch {
+      router.push('/partner-auth/login')
+    }
   }
 
   return (
