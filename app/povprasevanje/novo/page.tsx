@@ -1,5 +1,11 @@
 import { redirect } from 'next/navigation'
 
-export default function NewInquiryAliasPage() {
-  redirect('/novo-povprasevanje')
+interface Props {
+  searchParams: Promise<Record<string, string>>
+}
+
+export default async function NewInquiryAliasPage({ searchParams }: Props) {
+  const params = await searchParams
+  const qs = new URLSearchParams(params).toString()
+  redirect(`/novo-povprasevanje${qs ? `?${qs}` : ''}`)
 }

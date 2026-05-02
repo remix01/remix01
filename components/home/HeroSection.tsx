@@ -16,7 +16,7 @@ interface HeroSectionProps {
 export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
   const router = useRouter()
   const [query, setQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('')
+  const [selectedSlug, setSelectedSlug] = useState('')
 
   const filtered = useMemo(() => {
     if (!query.trim()) return categories.slice(0, 6)
@@ -24,11 +24,12 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
   }, [query, categories])
 
   const redirectHref = useMemo(() => {
-    const category = (selectedCategory || query).trim()
     const params = new URLSearchParams()
-    if (category) params.set('kategorija', category)
-    return `/povprasevanje/novo?${params.toString()}`
-  }, [query, selectedCategory])
+    const categoryParam = selectedSlug || query.trim()
+    if (categoryParam) params.set('kategorija', categoryParam)
+    const qs = params.toString()
+    return qs ? `/povprasevanje/novo?${qs}` : '/povprasevanje/novo'
+  }, [query, selectedSlug])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,7 +59,7 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value)
-                  setSelectedCategory('')
+                  setSelectedSlug('')
                 }}
               />
             </div>
@@ -69,7 +70,7 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
                     key={category.slug}
                     type="button"
                     onClick={() => {
-                      setSelectedCategory(category.label)
+                      setSelectedSlug(category.slug)
                       setQuery(category.label)
                     }}
                     className="min-h-11 rounded-full border px-3 py-2 text-sm hover:bg-muted"

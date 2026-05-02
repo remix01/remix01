@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { uploadFile, generateFilePath } from '@/lib/storage'
@@ -31,6 +31,8 @@ function getIconComponent(iconName?: string) {
 
 export default function NovoPoVprasevanjePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialKategorija = searchParams.get('kategorija')
   const supabase = createClient()
 
   // Step state
@@ -85,10 +87,20 @@ export default function NovoPoVprasevanjePage() {
       // Fetch categories (using public client since this is public data)
       const cats = await getActiveCategoriesPublic()
       setCategories(cats)
+
+      // Pre-select category passed via ?kategorija= from the hero search
+      if (initialKategorija) {
+        const match = cats.find(
+          (c) =>
+            c.slug === initialKategorija ||
+            c.name.toLowerCase() === initialKategorija.toLowerCase()
+        )
+        if (match) setSelectedCategory(match)
+      }
     }
 
     fetchData()
-  }, [supabase, router])
+  }, [supabase, router, initialKategorija])
 
   // Fetch pricing estimate when category or urgency changes
   useEffect(() => {
@@ -282,7 +294,7 @@ export default function NovoPoVprasevanjePage() {
                         setSelectedCategory(cat)
                         setCustomCategoryName('')
                       }}
-                      className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                      className={`relative p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
                         isSelected
                           ? 'border-teal-600 bg-teal-50'
                           : 'border-slate-200 bg-white hover:border-teal-300'
