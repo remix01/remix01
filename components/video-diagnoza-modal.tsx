@@ -152,6 +152,18 @@ export function VideoDiagnozaModal({ open, onOpenChange }: VideoDiagnozaModalPro
     }
   }
 
+  const ALLOWED_VIDEO_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'youtu.be', 'drive.google.com'])
+
+  const isAllowedVideoLink = (rawUrl: string): boolean => {
+    try {
+      const parsedUrl = new URL(rawUrl)
+      const isHttp = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:'
+      return isHttp && ALLOWED_VIDEO_HOSTS.has(parsedUrl.hostname.toLowerCase())
+    } catch {
+      return false
+    }
+  }
+
   const handleLinkSubmit = () => {
     if (!videoLink.trim()) {
       setError('Prosimo vnesite povezavo do videa.')
@@ -159,9 +171,7 @@ export function VideoDiagnozaModal({ open, onOpenChange }: VideoDiagnozaModalPro
     }
     
     // Osnovna validacija dovoljenih domen
-    if (!videoLink.includes('youtube.com') && 
-        !videoLink.includes('youtu.be') && 
-        !videoLink.includes('drive.google.com')) {
+    if (!isAllowedVideoLink(videoLink.trim())) {
       setError('Prosimo vnesite YouTube ali Google Drive povezavo.')
       return
     }

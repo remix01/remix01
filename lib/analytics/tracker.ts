@@ -132,7 +132,10 @@ class Analytics {
    * Generate a session ID (use client-side session storage in real apps)
    */
   private generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    const randomPart = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}`
+    return `session_${Date.now()}_${randomPart}`
   }
 }
 
