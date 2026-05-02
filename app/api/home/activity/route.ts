@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
       .from('povprasevanja')
-      .select('id,location_city,kategorija,created_at')
+      .select('id,location_city,categories(name),created_at')
       .order('created_at', { ascending: false })
       .limit(10)
 
@@ -14,7 +14,7 @@ export async function GET() {
     const items = (data || []).map((item: any) => ({
       id: item.id,
       city: item.location_city || 'neznano mesto',
-      category: item.kategorija || 'splošno storitev',
+      category: item.categories?.name || 'splošno storitev',
       createdAt: item.created_at,
     }))
 

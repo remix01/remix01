@@ -2,18 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js'
 import type { HomeActivityItem } from './types'
 
 interface LiveActivityTickerProps {
   initialItems: HomeActivityItem[]
-}
-
-interface PovprasevanjeInsertPayload {
-  id: string
-  location_city: string | null
-  kategorija: string | null
-  created_at: string
 }
 
 interface ActivityApiResponse {
@@ -61,23 +53,9 @@ export function LiveActivityTicker({ initialItems }: LiveActivityTickerProps) {
     if (supabase) {
       channel = supabase
         .channel('homepage-activity')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'povprasevanja' }, (payload: RealtimePostgresInsertPayload<PovprasevanjeInsertPayload>) => {
-          const next = payload.new as Partial<PovprasevanjeInsertPayload>
-          if (!next.id || !next.created_at) return
-
-          const item: HomeActivityItem = {
-            id: next.id,
-            city: next.location_city || 'neznano mesto',
-            category: next.kategorija || 'splošno storitev',
-            createdAt: next.created_at,
-          }
-
-          setItems((current) => {
-            const filtered = current.filter((entry) => entry.id !== item.id)
-            return [item, ...filtered].slice(0, 8)
-          })
-
-          // Keep server-backed path as source of truth for unauthenticated/public clients.
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'povprasevanja' }, () => {
+          // Realtime payloads don't include joined data (category name), so
+          // refresh from the API which resolves the category via FK join.
           void refresh()
         })
         .subscribe()
