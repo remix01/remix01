@@ -73,6 +73,16 @@ export async function assertCanAccessProviderDashboard(
 ): Promise<void> {
   if (!ENABLE_ONBOARDING_GUARDS) return
 
+  const { data: roleProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle<{ role: string | null }>()
+
+  if (!roleProfile?.role) {
+    throw new OnboardingGuardError('incomplete', '/registracija?onboarding=required')
+  }
+
   const { data: provider } = await supabaseAdmin
     .from('obrtnik_profiles')
     .select('business_name, description, verification_status, is_verified, stripe_account_id, stripe_onboarded')
