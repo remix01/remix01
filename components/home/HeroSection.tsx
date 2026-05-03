@@ -19,8 +19,8 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
   const [selectedCategory, setSelectedCategory] = useState('')
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return categories.slice(0, 6)
-    return categories.filter((c) => c.label.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
+    if (!query.trim()) return categories
+    return categories.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()))
   }, [query, categories])
 
   const redirectHref = useMemo(() => {
