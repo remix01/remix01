@@ -27,7 +27,7 @@ function PrijavaContent() {
   const [obrtnikError, setObrtnikError] = useState('')
   const [obrtnikLoading, setObrtnikLoading] = useState(false)
 
-  const routeAuthenticatedUser = async (userId: string) => {
+  const routeAuthenticatedUser = async (userId: string, roleHint?: 'narocnik' | 'obrtnik') => {
     const supabase = createClient()
 
     const redirectTo = searchParams.get('redirectTo')
@@ -54,6 +54,37 @@ function PrijavaContent() {
       .select('role')
       .eq('id', userId)
       .maybeSingle()
+
+    // Google OAuth: nov uporabnik nima profila — ustvari ga glede na izbrano vlogo
+    if (!profile && roleHint) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const fullName = user?.user_metadata?.full_name || user?.user_metadata?.name || ''
+
+      await supabase.from('profiles').insert({
+        id: userId,
+        role: roleHint,
+        full_name: fullName,
+        email: user?.email || '',
+      } as any)
+
+      if (roleHint === 'obrtnik') {
+        await supabase.from('obrtnik_profiles').insert({
+          id: userId,
+          business_name: fullName,
+          is_verified: false,
+          verification_status: 'pending',
+          status: 'pending',
+          avg_rating: 0,
+          total_reviews: 0,
+          is_available: true,
+        } as any)
+        router.push('/partner-dashboard')
+        return
+      }
+
+      router.push('/dashboard')
+      return
+    }
 
     if (profile?.role === 'obrtnik') {
       router.push('/partner-dashboard')
@@ -104,7 +135,10 @@ function PrijavaContent() {
 
         if (!active) return
         setStrankaLoading(true)
-        await routeAuthenticatedUser(session.user.id)
+
+        const rawRole = searchParams.get('role')
+        const roleHint = (rawRole === 'narocnik' || rawRole === 'obrtnik') ? rawRole : undefined
+        await routeAuthenticatedUser(session.user.id, roleHint)
       } catch {
         if (!active) return
         setStrankaError('Google prijava ni uspela. Poskusite znova.')

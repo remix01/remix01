@@ -72,6 +72,22 @@ async function postHandler(request: NextRequest) {
       return internalError('Failed to create user account')
     }
 
+    // Create profiles entry — proxy.ts checks profiles.role for route protection
+    const { error: profilesInsertError } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        role: 'obrtnik',
+        full_name: `${validatedData.firstName} ${validatedData.lastName}`,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        location_city: validatedData.workArea,
+      } as any)
+
+    if (profilesInsertError) {
+      console.error('[v0] Profiles creation error:', profilesInsertError)
+    }
+
     const welcomeRateLimit = await checkEmailRateLimit({
       request,
       action: 'signup_welcome',

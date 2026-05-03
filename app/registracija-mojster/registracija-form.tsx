@@ -102,12 +102,19 @@ export default function RegistracijaMojsterForm() {
     }
   }, [referralCodeParam])
 
-  // Auto-redirect after success
+  // Auto-redirect after success (START plan) ali po Stripe PRO plačilu
   useEffect(() => {
     if (isSuccess && redirectCountdown === 0) {
       setRedirectCountdown(3)
     }
   }, [isSuccess])
+
+  // Po vrnitvi iz Stripe PRO plačila — nastavi success state in preusmeri
+  useEffect(() => {
+    if (!stripeSuccess) return
+    setFormData(prev => ({ ...prev, planSelected: 'pro' }))
+    setIsSuccess(true)
+  }, [stripeSuccess])
 
   useEffect(() => {
     if (redirectCountdown > 0) {
