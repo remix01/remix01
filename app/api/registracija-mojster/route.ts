@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { env } from '@/lib/env'
 import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-response'
 import { ensureReferralCode, processReferralCode } from '@/lib/referral/referralService'
@@ -104,7 +104,9 @@ async function postHandler(request: NextRequest) {
 
     if (profileError) {
       console.error('[v0] Profile creation error:', profileError)
-      // Don't fail completely if profile creation fails
+      const supabaseAdmin = createAdminClient()
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+      return internalError('Napaka pri ustvarjanju profila. Poskusite znova.')
     }
 
     try {
