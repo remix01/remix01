@@ -33,16 +33,18 @@ describe('email job routing and queue fail-fast', () => {
     const originalNodeEnv = process.env.NODE_ENV
     const originalQstash = process.env.QSTASH_TOKEN
 
-    process.env.NODE_ENV = 'production'
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'production'
     process.env.QSTASH_TOKEN = ''
 
-    jest.resetModules()
-    const { enqueue } = await import('@/lib/jobs/queue')
-    await expect(
-      enqueue('sendEmail', { template: 'povprasevanje_confirmation', to: 'x@example.com' })
-    ).rejects.toThrow(/QStash not configured in production/)
-
-    process.env.NODE_ENV = originalNodeEnv
-    process.env.QSTASH_TOKEN = originalQstash
+    try {
+      jest.resetModules()
+      const { enqueue } = await import('@/lib/jobs/queue')
+      await expect(
+        enqueue('sendEmail', { template: 'povprasevanje_confirmation', to: 'x@example.com' })
+      ).rejects.toThrow(/QStash not configured in production/)
+    } finally {
+      ;(process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv
+      process.env.QSTASH_TOKEN = originalQstash
+    }
   })
 })
