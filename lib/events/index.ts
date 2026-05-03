@@ -22,6 +22,10 @@ export { PaymentSaga } from './sagas/paymentSaga'
 // Track initialization state to prevent duplicate registration
 let subscribersInitialized = false
 
+function shouldLogEventInitInfo() {
+  return process.env.NODE_ENV !== 'production'
+}
+
 /**
  * Initialize all event subscribers
  * 
@@ -35,49 +39,49 @@ let subscribersInitialized = false
  */
 export function initEventSubscribers() {
   if (subscribersInitialized) {
-    console.log('[Events] Subscribers already initialized, skipping')
+    if (shouldLogEventInitInfo()) console.log('[Events] Subscribers already initialized, skipping')
     return
   }
 
-  console.log('[Events] Initializing event subscribers...')
+  if (shouldLogEventInitInfo()) console.log('[Events] Initializing event subscribers...')
   
   try {
     registerAnalyticsSubscriber()
-    console.log('[Events] ✓ Analytics subscriber registered')
+    if (shouldLogEventInitInfo()) console.log('[Events] ✓ Analytics subscriber registered')
   } catch (err) {
     console.error('[Events] ✗ Failed to register analytics subscriber:', err)
   }
 
   try {
     registerNotificationSubscriber()
-    console.log('[Events] ✓ Notification subscriber registered')
+    if (shouldLogEventInitInfo()) console.log('[Events] ✓ Notification subscriber registered')
   } catch (err) {
     console.error('[Events] ✗ Failed to register notification subscriber:', err)
   }
 
   try {
     registerAIInsightSubscriber()
-    console.log('[Events] ✓ AI Insight subscriber registered')
+    if (shouldLogEventInitInfo()) console.log('[Events] ✓ AI Insight subscriber registered')
   } catch (err) {
     console.error('[Events] ✗ Failed to register AI insight subscriber:', err)
   }
 
   try {
     registerEscrowSubscriber()
-    console.log('[Events] ✓ Escrow subscriber registered')
+    if (shouldLogEventInitInfo()) console.log('[Events] ✓ Escrow subscriber registered')
   } catch (err) {
     console.error('[Events] ✗ Failed to register escrow subscriber:', err)
   }
 
   try {
     registerCommissionSubscriber()
-    console.log('[Events] ✓ Commission subscriber registered')
+    if (shouldLogEventInitInfo()) console.log('[Events] ✓ Commission subscriber registered')
   } catch (err) {
     console.error('[Events] ✗ Failed to register commission subscriber:', err)
   }
 
   subscribersInitialized = true
-  console.log('[Events] All subscribers initialized successfully')
+  if (shouldLogEventInitInfo()) console.log('[Events] All subscribers initialized successfully')
 }
 
 /**
@@ -85,5 +89,5 @@ export function initEventSubscribers() {
  */
 export function resetEventSubscribers() {
   subscribersInitialized = false
-  console.log('[Events] Subscriber initialization state reset')
+  if (shouldLogEventInitInfo()) console.log('[Events] Subscriber initialization state reset')
 }

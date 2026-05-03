@@ -20,12 +20,15 @@ export async function GET() {
 
     if (error) {
       console.error('[admin-alerts] query failed', { message: error.message, code: error.code })
-      return NextResponse.json({ ok: false, error: 'Napaka pri nalaganju opozoril.', code: 'ALERTS_QUERY_FAILED', alerts: [] }, { status: 200 })
+      return NextResponse.json(
+        { ok: false, error: 'Napaka pri nalaganju opozoril.', code: 'ALERTS_QUERY_FAILED', alerts: [] },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({ ok: true, alerts: data || [] })
   } catch (error: any) {
     console.error('[admin-alerts] unexpected error', error)
-    return NextResponse.json({ ok: false, error: 'Napaka pri nalaganju opozoril.', code: 'ALERTS_UNKNOWN', alerts: [] }, { status: 200 })
+    return NextResponse.json({ ok: false, error: 'Napaka pri nalaganju opozoril.', code: 'ALERTS_UNKNOWN', alerts: [] }, { status: 500 })
   }
 }
