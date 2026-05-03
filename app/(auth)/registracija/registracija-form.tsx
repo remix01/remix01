@@ -61,65 +61,46 @@ export function RegistracijaForm() {
     setLoading(true)
 
     try {
-      // Sign up with email and password
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const response = await fetch('/api/registracija', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName,
+          email,
+          password,
+          phone,
+          location_city: locationCity,
+          role: selectedRole,
+        }),
+      })
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          setError('Email že obstaja.')
+          return
+        }
+
+        if (response.status === 429) {
+          setError('Preveč poskusov, počakajte nekaj minut.')
+          return
+        }
+
+        setError('Napaka pri registraciji. Poskusite znova.')
+        return
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (signUpError) {
-        setError(signUpError.message || 'Napaka pri registraciji. Poskusite znova.')
-        setLoading(false)
+      if (signInError) {
+        setError('Račun je ustvarjen, prijava pa ni uspela. Poskusite se prijaviti ročno.')
         return
       }
 
-      if (!data.user) {
-        setError('Napaka pri registraciji. Poskusite znova.')
-        setLoading(false)
-        return
-      }
-
-      // 1. Ustvari profile record
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          role: selectedRole,
-          full_name: fullName,
-          phone: phone || null,
-          location_city: locationCity,
-          email: email,
-        })
-
-      if (profileError) {
-        setError('Napaka pri ustvarjanju profila. Poskusite znova.')
-        setLoading(false)
-        return
-      }
-
-      // 2. Če je obrtnik, ustvari tudi obrtnik_profiles record
-      if (selectedRole === 'obrtnik') {
-        const { error: obrtnikError } = await supabase
-          .from('obrtnik_profiles')
-          .insert({
-            id: data.user.id,
-            business_name: fullName,
-            is_verified: false,
-            verification_status: 'pending',
-            status: 'pending',
-            avg_rating: 0,
-            total_reviews: 0,
-            is_available: true,
-          })
-
-        if (obrtnikError) {
-          setError('Napaka pri ustvarjanju obrtnikovega profila.')
-          setLoading(false)
-          return
-        }
-      }
-
-      // 3. Preusmeri glede na role
       if (selectedRole === 'obrtnik') {
         router.push('/partner-dashboard')
       } else {
