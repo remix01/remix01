@@ -157,7 +157,7 @@ async function postHandler(request: NextRequest) {
           metadata: { endpoint: '/api/registracija-mojster' },
         })
 
-        const planName = validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : 'START (10% provizija)'
+        const planName = validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : validatedData.planSelected === 'elite' ? 'ELITE (3% provizija)' : 'START (10% provizija)'
         const safeFirstName = escapeHtml(sanitizeText(validatedData.firstName, 120))
         const safeLastName = escapeHtml(sanitizeText(validatedData.lastName, 120))
         const safeCompanyName = escapeHtml(sanitizeText(validatedData.companyName, 160))

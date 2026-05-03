@@ -27,6 +27,14 @@ function PrijavaContent() {
   const [obrtnikError, setObrtnikError] = useState('')
   const [obrtnikLoading, setObrtnikLoading] = useState(false)
 
+  // --- URL error params (set by proxy/middleware) ---
+  const urlError = searchParams.get('error')
+  const urlErrorMessage =
+    urlError === 'not_obrtnik' ? 'Ta račun nima obrtniških pravic. Prijavite se z obrtniških računom.' :
+    urlError === 'auth_failed' ? 'Seja je potekla. Prosimo, prijavite se znova.' :
+    urlError === 'unauthorized' ? 'Za dostop do te strani se morate prijaviti.' :
+    null
+
   const routeAuthenticatedUser = async (userId: string, roleHint?: 'narocnik' | 'obrtnik') => {
     const supabase = createClient()
 
@@ -232,6 +240,12 @@ function PrijavaContent() {
         <h2 className="text-2xl font-bold text-foreground">Dobrodošli nazaj</h2>
         <p className="text-muted-foreground">Prijavite se v svoj račun</p>
       </div>
+
+      {urlErrorMessage && (
+        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm text-center">
+          {urlErrorMessage}
+        </div>
+      )}
 
       <Tabs defaultValue="stranka">
         <TabsList className="w-full mb-4">
