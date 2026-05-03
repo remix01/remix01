@@ -63,11 +63,11 @@ describe('admin route resilience', () => {
     expect(body.alerts).toEqual([])
   })
 
-  it('admin alerts DB error graceful response', async () => {
+  it('admin alerts DB error returns 500', async () => {
     fromMock.mockReturnValueOnce(buildAlertsQuery({ data: null, error: { message: 'relation missing', code: '42P01' } }))
     const res = await getAlerts()
     const body = await res.json()
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(500)
     expect(body.alerts).toEqual([])
     expect(body.code).toBe('ALERTS_QUERY_FAILED')
   })
