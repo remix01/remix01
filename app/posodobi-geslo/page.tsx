@@ -62,12 +62,12 @@ export default function PosodobiGesloPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="new-password">Novo geslo</Label>
-            <Input id="new-password" type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required disabled={loading} />
+            <Input id="new-password" type="password" placeholder="Vnesite novo geslo" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required disabled={loading} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="confirm-password">Ponovi geslo</Label>
-            <Input id="confirm-password" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required disabled={loading} />
+            <Input id="confirm-password" type="password" placeholder="Ponovno vnesite novo geslo" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required disabled={loading} />
           </div>
 
           {errorMessage && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">{errorMessage}</div>}
