@@ -7,7 +7,7 @@ export default async function PartnerNotificationsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/partner-auth/login')
+  if (!user) redirect('/prijava')
 
   const { data: notifications } = await supabase
     .from('notifications')

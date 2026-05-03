@@ -51,7 +51,7 @@ export default function PovprasevanjeDetailPage() {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
-        router.replace('/partner-auth/login')
+        router.replace('/prijava')
         setLoading(false)
         return
       }
@@ -63,7 +63,7 @@ export default function PovprasevanjeDetailPage() {
         .maybeSingle()
 
       if (!profile || profile.role !== 'obrtnik') {
-        router.replace('/partner-auth/login')
+        router.replace('/prijava')
         setLoading(false)
         return
       }
@@ -146,7 +146,7 @@ export default function PovprasevanjeDetailPage() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      router.push('/partner-auth/login')
+      router.push('/prijava')
       return
     }
 

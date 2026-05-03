@@ -24,7 +24,7 @@ export default function ObrtnikSporocila() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        redirect('/partner-auth/login')
+        redirect('/prijava')
       }
       setCurrentUser(user)
     }

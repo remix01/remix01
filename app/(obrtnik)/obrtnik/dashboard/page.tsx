@@ -11,7 +11,7 @@ export default async function ObrtknikDashboardPage() {
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/partner-auth/login')
+    redirect('/prijava')
   }
 
   // Get obrtnik profile
@@ -36,7 +36,7 @@ export default async function ObrtknikDashboardPage() {
   const userProfile = userProfileById ?? userProfileByAuthUserId
 
   if (!obrtnikProfile) {
-    redirect('/partner-auth/login')
+    redirect('/prijava')
   }
 
   // Fetch stats

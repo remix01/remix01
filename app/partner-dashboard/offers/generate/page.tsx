@@ -73,7 +73,7 @@ export default function OfferGeneratorPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
-          router.push('/partner-auth/login')
+          router.push('/prijava')
           return
         }
 
@@ -84,7 +84,7 @@ export default function OfferGeneratorPage() {
           .maybeSingle()
 
         if (!partnerData) {
-          router.push('/partner-auth/login')
+          router.push('/prijava')
           return
         }
 

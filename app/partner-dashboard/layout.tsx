@@ -8,7 +8,7 @@ export default async function PartnerDashboardLayout({ children }: { children: R
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/partner-auth/login')
+  if (!user) redirect('/prijava')
 
   const { data: partner } = await supabase
     .from('obrtnik_profiles')
@@ -16,7 +16,7 @@ export default async function PartnerDashboardLayout({ children }: { children: R
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!partner) redirect('/partner-auth/login')
+  if (!partner) redirect('/prijava')
 
   const tier =
     partner.subscription_tier === 'elite'

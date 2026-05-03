@@ -68,7 +68,14 @@ export function RegistracijaForm() {
       })
 
       if (signUpError) {
-        setError(signUpError.message || 'Napaka pri registraciji. Poskusite znova.')
+        const msg = signUpError.message || ''
+        if (msg.includes('already registered') || msg.includes('already been registered')) {
+          setError('Ta email naslov je že registriran. Prijavite se ali ponastavite geslo.')
+        } else if (msg.includes('Password should be')) {
+          setError('Geslo mora biti najmanj 8 znakov.')
+        } else {
+          setError('Napaka pri registraciji. Poskusite znova.')
+        }
         setLoading(false)
         return
       }
@@ -79,17 +86,17 @@ export function RegistracijaForm() {
         return
       }
 
-      // 1. Ustvari profile record
+      // 1. Upsert profile record — trigger handle_new_user can create the row first with role=null
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: data.user.id,
           role: selectedRole,
           full_name: fullName,
           phone: phone || null,
           location_city: locationCity,
           email: email,
-        })
+        } as any, { onConflict: 'id' })
 
       if (profileError) {
         setError('Napaka pri ustvarjanju profila. Poskusite znova.')
@@ -97,11 +104,11 @@ export function RegistracijaForm() {
         return
       }
 
-      // 2. Če je obrtnik, ustvari tudi obrtnik_profiles record
+      // 2. Če je obrtnik, upsert obrtnik_profiles
       if (selectedRole === 'obrtnik') {
         const { error: obrtnikError } = await supabase
           .from('obrtnik_profiles')
-          .insert({
+          .upsert({
             id: data.user.id,
             business_name: fullName,
             is_verified: false,
@@ -110,7 +117,7 @@ export function RegistracijaForm() {
             avg_rating: 0,
             total_reviews: 0,
             is_available: true,
-          })
+          } as any, { onConflict: 'id' })
 
         if (obrtnikError) {
           setError('Napaka pri ustvarjanju obrtnikovega profila.')

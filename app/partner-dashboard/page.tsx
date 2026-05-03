@@ -92,7 +92,7 @@ function PartnerDashboardInner() {
       } = await sb.auth.getUser()
 
       if (!user) {
-        router.push('/partner-auth/login')
+        router.push('/prijava')
         return
       }
 

@@ -64,7 +64,7 @@ export default function AccountPage() {
         } = await supabase.auth.getUser()
 
         if (!user) {
-          router.replace('/partner-auth/login')
+          router.replace('/prijava')
           return
         }
 

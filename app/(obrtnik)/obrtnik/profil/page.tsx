@@ -61,7 +61,7 @@ export default function ProfilPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/partner-auth/login')
+        router.push('/prijava')
         return
       }
 
@@ -292,7 +292,7 @@ export default function ProfilPage() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
-      router.push('/partner-auth/login')
+      router.push('/prijava')
     } catch (error) {
       console.error('[v0] Logout error:', error)
       setErrorMessage('Napaka pri odjavi')

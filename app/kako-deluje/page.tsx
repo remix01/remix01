@@ -313,7 +313,7 @@ export default function KakoDelujePage() {
                 asChild
                 className="gap-2 w-full sm:w-auto min-h-[48px] border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
               >
-                <Link href="/partner-auth/sign-up">
+                <Link href="/registracija-mojster">
                   Registrirajte se brezplačno
                 </Link>
               </Button>

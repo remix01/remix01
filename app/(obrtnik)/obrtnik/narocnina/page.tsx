@@ -36,7 +36,7 @@ export default function NarocinaPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/partner-auth/login')
+        router.push('/prijava')
         return
       }
 

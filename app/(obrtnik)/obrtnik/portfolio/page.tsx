@@ -9,7 +9,7 @@ export default async function PortfolioPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/partner-auth/login')
+  if (!user) redirect('/prijava')
 
   const { data: profile } = await supabase
     .from('obrtnik_profiles')
@@ -17,7 +17,7 @@ export default async function PortfolioPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile) redirect('/partner-auth/login')
+  if (!profile) redirect('/prijava')
 
   const { data: portfolioItems } = await supabase
     .from('portfolio_items')

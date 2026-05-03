@@ -596,7 +596,7 @@ export default function SearchContent() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="bg-transparent">
-              <Link href="/partner-auth/sign-up">
+              <Link href="/registracija-mojster">
                 Ste obrtnik? Registrirajte se
               </Link>
             </Button>

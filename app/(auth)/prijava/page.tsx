@@ -180,7 +180,12 @@ function PrijavaContent() {
       })
 
       if (signInError || !data.user) {
-        setStrankaError('Napačen email ali geslo. Preverite podatke.')
+        const msg = signInError?.message || ''
+        if (msg.includes('Email not confirmed')) {
+          setStrankaError('Email naslov ni potrjen. Preverite vašo pošto in kliknite potrditveno povezavo.')
+        } else {
+          setStrankaError('Napačen email ali geslo. Preverite podatke.')
+        }
         return
       }
 
@@ -206,7 +211,12 @@ function PrijavaContent() {
       })
 
       if (signInError || !data.user) {
-        setObrtnikError('Napačen email ali geslo. Preverite podatke.')
+        const msg = signInError?.message || ''
+        if (msg.includes('Email not confirmed')) {
+          setObrtnikError('Email naslov ni potrjen. Preverite vašo pošto in kliknite potrditveno povezavo.')
+        } else {
+          setObrtnikError('Napačen email ali geslo. Preverite podatke.')
+        }
         return
       }
 
@@ -276,7 +286,12 @@ function PrijavaContent() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="stranka-password">Geslo</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="stranka-password">Geslo</Label>
+                <Link href="/pozabljeno-geslo" className="text-xs text-muted-foreground hover:text-primary">
+                  Pozabljeno geslo?
+                </Link>
+              </div>
               <Input
                 id="stranka-password"
                 type="password"
@@ -335,7 +350,12 @@ function PrijavaContent() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="obrtnik-password">Geslo</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="obrtnik-password">Geslo</Label>
+                <Link href="/pozabljeno-geslo" className="text-xs text-muted-foreground hover:text-primary">
+                  Pozabljeno geslo?
+                </Link>
+              </div>
               <Input
                 id="obrtnik-password"
                 type="password"

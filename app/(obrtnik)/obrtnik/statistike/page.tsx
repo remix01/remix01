@@ -8,7 +8,7 @@ export default async function StatistikePage() {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    redirect('/partner-auth/login')
+    redirect('/prijava')
   }
 
   const { data: obrtnikProfile } = await supabase
@@ -18,7 +18,7 @@ export default async function StatistikePage() {
     .maybeSingle()
 
   if (!obrtnikProfile) {
-    redirect('/partner-auth/login')
+    redirect('/prijava')
   }
 
   // Fetch stats

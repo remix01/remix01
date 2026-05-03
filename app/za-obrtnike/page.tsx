@@ -48,7 +48,7 @@ export default function ZaObrtnike() {
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Button size="lg" className="gap-2 w-full sm:w-auto min-h-[48px]" asChild>
-                    <Link href="/partner-auth/sign-up">
+                    <Link href="/registracija-mojster">
                       Začnite brezplačno
                       <ArrowRight className="h-4 w-4" />
                     </Link>
@@ -60,7 +60,7 @@ export default function ZaObrtnike() {
 
                 <p className="mt-3 text-sm text-muted-foreground">
                   Že imate račun?{' '}
-                  <Link href="/partner-auth/login" className="text-blue-600 hover:underline font-medium">
+                  <Link href="/prijava" className="text-blue-600 hover:underline font-medium">
                     Prijavite se →
                   </Link>
                 </p>
@@ -176,7 +176,7 @@ export default function ZaObrtnike() {
 
             <div className="mt-12 flex justify-center">
               <Button size="lg" asChild className="w-full sm:w-auto min-h-[48px]">
-                <Link href="/partner-auth/sign-up">
+                <Link href="/registracija-mojster">
                   Začnite brezplačno
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -235,7 +235,7 @@ export default function ZaObrtnike() {
                   </ul>
 
                   <Button size="lg" variant="outline" className="mt-8 w-full min-h-[48px]" asChild>
-                    <Link href="/partner-auth/sign-up">Začnite zdaj</Link>
+                    <Link href="/registracija-mojster">Začnite zdaj</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -278,7 +278,7 @@ export default function ZaObrtnike() {
                   </ul>
 
                   <Button size="lg" className="mt-8 w-full min-h-[48px]" asChild>
-                    <Link href="/partner-auth/sign-up">Začnite zdaj</Link>
+                    <Link href="/registracija-mojster">Začnite zdaj</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -424,7 +424,7 @@ export default function ZaObrtnike() {
                   </p>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
                     <Button size="lg" className="gap-2 w-full sm:w-auto min-h-[48px]" asChild>
-                      <Link href="/partner-auth/sign-up">
+                      <Link href="/registracija-mojster">
                         Brezplačna registracija
                         <ArrowRight className="h-4 w-4" />
                       </Link>
