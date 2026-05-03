@@ -86,7 +86,6 @@ async function postHandler(request: NextRequest) {
           last_name: validatedData.lastName,
           phone: validatedData.phone,
           email: validatedData.email,
-          subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : 'start',
         } as any)
         .eq('id', userId)
 

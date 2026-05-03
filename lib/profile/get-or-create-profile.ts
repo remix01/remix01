@@ -28,7 +28,6 @@ export async function getOrCreateProfile(user: { id: string; email?: string | nu
     .insert({
       id: user.id,
       email: user.email ?? null,
-      subscription_tier: 'start',
     })
 
   if (insertError && insertError.code !== '23505') {
@@ -55,4 +54,3 @@ export function isProfileComplete(profile: MinimalProfile | null): boolean {
   const hasSplitName = !!profile.first_name?.trim() || !!profile.last_name?.trim()
   return hasFullName || hasSplitName
 }
-

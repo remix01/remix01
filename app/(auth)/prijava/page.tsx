@@ -45,7 +45,6 @@ function PrijavaContent() {
       await supabase.from('profiles').insert({
         id: userId,
         email: authUser?.email ?? null,
-        subscription_tier: 'start',
       })
 
       const { data: ensuredProfile } = await supabase

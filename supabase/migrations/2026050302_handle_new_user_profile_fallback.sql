@@ -6,8 +6,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, created_at, subscription_tier)
-  VALUES (NEW.id, NEW.email, now(), 'start')
+  INSERT INTO public.profiles (id, email, created_at)
+  VALUES (NEW.id, NEW.email, now())
   ON CONFLICT (id) DO NOTHING;
 
   RETURN NEW;
@@ -19,4 +19,3 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
-
