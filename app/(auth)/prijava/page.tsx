@@ -30,9 +30,9 @@ function PrijavaContent() {
   const routeAuthenticatedUser = async (userId: string) => {
     const supabase = createClient()
 
-    const redirectTo = searchParams.get('redirectTo')
-    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
-      router.push(redirectTo)
+    const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
+    if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
+      router.push(redirectTarget)
       return
     }
 
@@ -196,6 +196,13 @@ function PrijavaContent() {
         <h2 className="text-2xl font-bold text-foreground">Dobrodošli nazaj</h2>
         <p className="text-muted-foreground">Prijavite se v svoj račun</p>
       </div>
+
+      {searchParams.get('error') === 'not_obrtnik' && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 p-4 rounded-md">
+          Ta račun nima obrtniških pravic. Če ste se pravkar registrirali, poskusite čez nekaj trenutkov. Če težava
+          ne izgine, nas kontaktirajte.
+        </div>
+      )}
 
       <Tabs defaultValue="stranka">
         <TabsList className="w-full mb-4">
