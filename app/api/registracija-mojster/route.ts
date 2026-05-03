@@ -52,7 +52,8 @@ async function postHandler(request: NextRequest) {
           work_area: validatedData.workArea,
           plan: validatedData.planSelected,
           user_type: 'craftworker',
-          role: 'partner',
+          // Metadata is informational (Supabase dashboard traceability), not authorization source.
+          role: 'obrtnik',
         },
       },
     })
