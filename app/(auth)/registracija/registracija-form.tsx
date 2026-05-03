@@ -22,6 +22,8 @@ export function RegistracijaForm() {
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [locationCity, setLocationCity] = useState('')
+  const [tosAccepted, setTosAccepted] = useState(false)
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -45,6 +47,10 @@ export function RegistracijaForm() {
     }
     if (!locationCity.trim()) {
       setError('Mesto je obvezno.')
+      return false
+    }
+    if (!tosAccepted || !privacyAccepted) {
+      setError('Sprejeti morate pogoje uporabe in politiko zasebnosti.')
       return false
     }
     return true
@@ -73,6 +79,8 @@ export function RegistracijaForm() {
           phone,
           location_city: locationCity,
           role: selectedRole,
+          tosAccepted,
+          privacyAccepted,
         }),
       })
 
@@ -254,10 +262,42 @@ export function RegistracijaForm() {
           </div>
         )}
 
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={tosAccepted}
+            onChange={(e) => setTosAccepted(e.target.checked)}
+            disabled={loading}
+            className="mt-0.5"
+          />
+          <span>
+            Strinjam se s{' '}
+            <Link href="/pogoji" className="underline">
+              pogoji uporabe
+            </Link>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={privacyAccepted}
+            onChange={(e) => setPrivacyAccepted(e.target.checked)}
+            disabled={loading}
+            className="mt-0.5"
+          />
+          <span>
+            Strinjam se s{' '}
+            <Link href="/politika-zasebnosti" className="underline">
+              politiko zasebnosti
+            </Link>
+          </span>
+        </label>
+
         <Button
           type="submit"
           className="w-full"
-          disabled={loading}
+          disabled={loading || !tosAccepted || !privacyAccepted}
         >
           {loading ? 'Registriram se...' : 'Ustvari račun'}
         </Button>

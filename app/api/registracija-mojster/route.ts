@@ -104,7 +104,8 @@ async function postHandler(request: NextRequest) {
 
     if (profileError) {
       console.error('[v0] Profile creation error:', profileError)
-      // Don't fail completely if profile creation fails
+      await supabase.auth.admin.deleteUser(userId)
+      return internalError('Napaka pri ustvarjanju profila. Poskusite znova.')
     }
 
     try {
