@@ -33,8 +33,18 @@ export type ConversationState = {
 }
 
 class ShortTermMemory {
+  private inMemoryState = new Map<string, ConversationState>()
+
   private key(sessionId: string): string {
     return `${KEY_PREFIX}:${sessionId}`
+  }
+
+
+  private pruneInMemory(): void {
+    const cutoff = Date.now() - SESSION_TTL_SECONDS * 1000
+    for (const [sessionId, state] of this.inMemoryState.entries()) {
+      if (state.updatedAt < cutoff) this.inMemoryState.delete(sessionId)
+    }
   }
 
   private async getState(sessionId: string): Promise<ConversationState | null> {
@@ -45,17 +55,18 @@ class ShortTermMemory {
       'shortTerm.getState'
     )
 
-    if (!raw) return null
+    if (!raw) return this.inMemoryState.get(sessionId) ?? null
 
     try {
       return typeof raw === 'string' ? (JSON.parse(raw) as ConversationState) : (raw as ConversationState)
     } catch {
-      return null
+      return this.inMemoryState.get(sessionId) ?? null
     }
   }
 
   private async setState(state: ConversationState): Promise<void> {
     const key = this.key(state.sessionId)
+    this.inMemoryState.set(state.sessionId, state)
     await executeRedisOperation(
       async (redis) => {
         await redis.set(key, JSON.stringify(state), { ex: SESSION_TTL_SECONDS })
@@ -66,6 +77,7 @@ class ShortTermMemory {
   }
 
   async getOrCreate(sessionId: string, userId: string): Promise<ConversationState> {
+    this.pruneInMemory()
     const existing = await this.getState(sessionId)
 
     if (existing) {
@@ -134,7 +146,13 @@ class ShortTermMemory {
   }
 
   async clear(sessionId: string): Promise<void> {
+    if (sessionId === '__all__') {
+      this.inMemoryState.clear()
+      return
+    }
+
     const key = this.key(sessionId)
+    this.inMemoryState.delete(sessionId)
     await executeRedisOperation(async (redis) => redis.del(key), undefined, 'shortTerm.clear')
   }
 }

@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "generate-icons": "node scripts/generate-icons.js",
-    "test:unit": "jest --config jest.config.escrow.cjs --testPathPattern='unit.test'",
+    "test:unit": "jest --config jest.config.cjs --testPathPattern='__tests__/unit/'",
     "test:e2e": "jest --config jest.config.escrow.cjs --testPathPattern='escrow.test'",
     "test:stripe": "jest --config jest.config.escrow.cjs --testPathPattern='stripe.integration'",
     "test:escrow": "jest --config jest.config.escrow.cjs",
