@@ -21,7 +21,7 @@ const registrationSchema = z.object({
   taxNumber: z.string().min(1, 'Tax number is required'),
   specialization: z.string().min(1, 'Specialization is required'),
   workArea: z.string().min(1, 'Work area is required'),
-  planSelected: z.enum(['start', 'pro']),
+  planSelected: z.enum(['start', 'pro', 'elite']),
   referralCode: z.string().optional(),
 })
 
@@ -72,20 +72,21 @@ async function postHandler(request: NextRequest) {
       return internalError('Failed to create user account')
     }
 
-    // Create profiles entry — proxy.ts checks profiles.role for route protection
+    // Upsert profiles — handle_new_user trigger ustvari vrstico ob signUp (null role),
+    // zato INSERT ne zadostuje; upsert zagotovi role='obrtnik' ne glede na trigger timing.
     const { error: profilesInsertError } = await supabase
       .from('profiles')
-      .insert({
+      .upsert({
         id: userId,
         role: 'obrtnik',
         full_name: `${validatedData.firstName} ${validatedData.lastName}`,
         email: validatedData.email,
         phone: validatedData.phone,
         location_city: validatedData.workArea,
-      } as any)
+      } as any, { onConflict: 'id' })
 
     if (profilesInsertError) {
-      console.error('[v0] Profiles creation error:', profilesInsertError)
+      console.error('[v0] Profiles upsert error:', profilesInsertError)
     }
 
     const welcomeRateLimit = await checkEmailRateLimit({
@@ -112,7 +113,7 @@ async function postHandler(request: NextRequest) {
       .insert({
         id: userId,
         business_name: validatedData.companyName,
-        subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : 'start',
+        subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : validatedData.planSelected === 'elite' ? 'elite' : 'start',
         is_verified: false,
         created_at: new Date().toISOString(),
       } as any)

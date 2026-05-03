@@ -55,20 +55,22 @@ function PrijavaContent() {
       .eq('id', userId)
       .maybeSingle()
 
-    // Google OAuth: nov uporabnik nima profila — ustvari ga glede na izbrano vlogo
-    if (!profile && roleHint) {
+    // Google OAuth: trigger handle_new_user ustvari profiles z role=null ob signUp.
+    // Preverimo role (ne obstoj vrstice) — če ni nastavljen, ga nastavimo zdaj.
+    if (roleHint && !profile?.role) {
       const { data: { user } } = await supabase.auth.getUser()
       const fullName = user?.user_metadata?.full_name || user?.user_metadata?.name || ''
 
-      await supabase.from('profiles').insert({
+      // Upsert: pokrije primer ko vrstica že obstaja (trigger) ali še ne obstaja
+      await supabase.from('profiles').upsert({
         id: userId,
         role: roleHint,
         full_name: fullName,
         email: user?.email || '',
-      } as any)
+      } as any, { onConflict: 'id' })
 
       if (roleHint === 'obrtnik') {
-        await supabase.from('obrtnik_profiles').insert({
+        await supabase.from('obrtnik_profiles').upsert({
           id: userId,
           business_name: fullName,
           is_verified: false,
@@ -77,7 +79,7 @@ function PrijavaContent() {
           avg_rating: 0,
           total_reviews: 0,
           is_available: true,
-        } as any)
+        } as any, { onConflict: 'id' })
         router.push('/partner-dashboard')
         return
       }
