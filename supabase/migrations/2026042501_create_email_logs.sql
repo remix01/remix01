@@ -1,9 +1,10 @@
 -- Resend email event log table
 -- Tracks send lifecycle and webhook status updates.
+-- user_id is optional (no FK constraint) since public.user table may not exist yet
 
 create table if not exists public.email_logs (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid null references auth.users(id) on delete set null,
+  user_id uuid null,
   email text not null,
   type text not null,
   status text not null,
