@@ -57,12 +57,6 @@ function PrijavaContent() {
       profile = ensuredProfile
     }
 
-    const hasName = Boolean(profile?.full_name?.trim()) || Boolean(profile?.first_name?.trim()) || Boolean(profile?.last_name?.trim())
-    if (!profile?.role || !hasName) {
-      router.push('/registracija?onboarding=required')
-      return
-    }
-
     const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
     if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
       router.push(redirectTarget)
@@ -79,6 +73,12 @@ function PrijavaContent() {
 
     if (adminUser) {
       router.push('/admin')
+      return
+    }
+
+    const hasName = Boolean(profile?.full_name?.trim()) || Boolean(profile?.first_name?.trim()) || Boolean(profile?.last_name?.trim())
+    if (!profile?.role || !hasName) {
+      router.push('/registracija?onboarding=required')
       return
     }
 
