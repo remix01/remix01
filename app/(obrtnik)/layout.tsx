@@ -22,7 +22,7 @@ export default async function ObrtknikLayout({
   
   if (!user) {
     console.log('[v0] Obrtnik layout: No authenticated user, redirecting to partner login')
-    redirect('/partner-auth/login?redirectTo=/partner-dashboard')
+    redirect('/prijava?redirect=/partner-dashboard')
   }
 
   // Get obrtnik profile (id = auth user id, no separate user_id column)

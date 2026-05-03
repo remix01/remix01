@@ -96,6 +96,7 @@ async function postHandler(request: NextRequest) {
       .insert({
         id: userId,
         business_name: validatedData.companyName,
+        description: 'Mojster brez opisa',
         subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : 'start',
         is_verified: false,
         created_at: new Date().toISOString(),
