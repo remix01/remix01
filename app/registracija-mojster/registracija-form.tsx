@@ -194,10 +194,10 @@ export default function RegistracijaMojsterForm() {
           const checkoutRes = await fetch('/api/stripe/create-checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              plan: 'PRO', 
+            body: JSON.stringify({
+              plan: formData.planSelected.toUpperCase(),
               email: formData.email,
-              userId: data.userId 
+              userId: data.userId
             }),
           })
           
