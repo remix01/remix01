@@ -10,6 +10,7 @@ import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/r
 import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
+import { getOrCreateProfile } from '@/lib/profile/get-or-create-profile'
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -73,6 +74,32 @@ async function postHandler(request: NextRequest) {
       return internalError('Failed to create user account')
     }
 
+    try {
+      await getOrCreateProfile({ id: userId, email: validatedData.email })
+
+      const { error: roleUpdateError } = await supabase
+        .from('profiles')
+        .update({
+          role: 'obrtnik',
+          full_name: `${validatedData.firstName} ${validatedData.lastName}`.trim(),
+          first_name: validatedData.firstName,
+          last_name: validatedData.lastName,
+          phone: validatedData.phone,
+          email: validatedData.email,
+          subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : 'start',
+        } as any)
+        .eq('id', userId)
+
+      if (roleUpdateError) {
+        await supabase.auth.admin.deleteUser(userId)
+        return internalError('Napaka pri ustvarjanju profila. Poskusite znova.')
+      }
+    } catch (profileEnsureError) {
+      console.error('[v0] Profile ensure error:', profileEnsureError)
+      await supabase.auth.admin.deleteUser(userId)
+      return internalError('Napaka pri ustvarjanju profila. Poskusite znova.')
+    }
+
     const welcomeRateLimit = await checkEmailRateLimit({
       request,
       action: 'signup_welcome',
@@ -113,6 +140,7 @@ async function postHandler(request: NextRequest) {
       await transitionOnboardingState(userId)
     } catch (onboardingError) {
       console.error('[v0] onboarding transition failed after signup:', onboardingError)
+      return internalError('Onboarding ni uspel. Poskusite znova.')
     }
     
     // Process referral code if provided

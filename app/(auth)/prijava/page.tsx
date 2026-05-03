@@ -30,6 +30,39 @@ function PrijavaContent() {
   const routeAuthenticatedUser = async (userId: string) => {
     const supabase = createClient()
 
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, role, full_name, first_name, last_name')
+      .eq('id', userId)
+      .maybeSingle()
+
+    let profile = existingProfile
+    if (!profile) {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+
+      await supabase.from('profiles').insert({
+        id: userId,
+        email: authUser?.email ?? null,
+        subscription_tier: 'start',
+      })
+
+      const { data: ensuredProfile } = await supabase
+        .from('profiles')
+        .select('id, role, full_name, first_name, last_name')
+        .eq('id', userId)
+        .maybeSingle()
+
+      profile = ensuredProfile
+    }
+
+    const hasName = Boolean(profile?.full_name?.trim()) || Boolean(profile?.first_name?.trim()) || Boolean(profile?.last_name?.trim())
+    if (!profile?.role || !hasName) {
+      router.push('/registracija?onboarding=required')
+      return
+    }
+
     const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
     if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
       router.push(redirectTarget)
@@ -48,12 +81,6 @@ function PrijavaContent() {
       router.push('/admin')
       return
     }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle()
 
     if (profile?.role === 'obrtnik') {
       router.push('/partner-dashboard')
