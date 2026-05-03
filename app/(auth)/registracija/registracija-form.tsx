@@ -25,6 +25,8 @@ export function RegistracijaForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [tosAccepted, setTosAccepted] = useState(false)
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
 
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
@@ -45,6 +47,14 @@ export function RegistracijaForm() {
     }
     if (!locationCity.trim()) {
       setError('Mesto je obvezno.')
+      return false
+    }
+    if (!tosAccepted) {
+      setError('Strinjati se morate s Pogoji uporabe.')
+      return false
+    }
+    if (!privacyAccepted) {
+      setError('Strinjati se morate s Politiko zasebnosti.')
       return false
     }
     return true
@@ -274,6 +284,39 @@ export function RegistracijaForm() {
           />
         </div>
 
+        <div className="space-y-3 pt-1">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={tosAccepted}
+              onChange={(e) => setTosAccepted(e.target.checked)}
+              disabled={loading}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
+            />
+            <span className="text-sm text-muted-foreground leading-snug">
+              Strinjam se s{' '}
+              <Link href="/pogoji-uporabe" target="_blank" className="text-primary hover:underline font-medium">
+                Pogoji uporabe
+              </Link>
+            </span>
+          </label>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={privacyAccepted}
+              onChange={(e) => setPrivacyAccepted(e.target.checked)}
+              disabled={loading}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
+            />
+            <span className="text-sm text-muted-foreground leading-snug">
+              Strinjam se s{' '}
+              <Link href="/zasebnost" target="_blank" className="text-primary hover:underline font-medium">
+                Politiko zasebnosti
+              </Link>
+            </span>
+          </label>
+        </div>
+
         {error && (
           <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">
             {error}
@@ -283,7 +326,7 @@ export function RegistracijaForm() {
         <Button
           type="submit"
           className="w-full"
-          disabled={loading}
+          disabled={loading || !tosAccepted || !privacyAccepted}
         >
           {loading ? 'Registriram se...' : 'Ustvari račun'}
         </Button>
