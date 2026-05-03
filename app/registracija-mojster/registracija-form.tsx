@@ -29,7 +29,7 @@ interface FormData {
   taxNumber: string
   specialization: string
   workArea: string
-  planSelected: 'start' | 'pro'
+  planSelected: 'start' | 'pro' | 'elite'
   referralCode: string
   termsAccepted: boolean
   privacyAccepted: boolean
@@ -63,7 +63,8 @@ export default function RegistracijaMojsterForm() {
   const [referralInfo, setReferralInfo] = useState<any>(null)
 
   const stripeSuccess = searchParams.get('stripe') === 'success'
-  const initialPlan = (searchParams.get('plan') as 'start' | 'pro') === 'pro' ? 'pro' : 'start'
+  const rawPlan = searchParams.get('plan')
+  const initialPlan: 'start' | 'pro' | 'elite' = rawPlan === 'pro' ? 'pro' : rawPlan === 'elite' ? 'elite' : 'start'
   const referralCodeParam = searchParams.get('ref') || ''
 
   const [formData, setFormData] = useState<FormData>({
@@ -109,10 +110,10 @@ export default function RegistracijaMojsterForm() {
     }
   }, [isSuccess])
 
-  // Po vrnitvi iz Stripe PRO plačila — nastavi success state in preusmeri
+  // Po vrnitvi iz Stripe plačila (PRO/Elite) — nastavi success state in preusmeri
   useEffect(() => {
     if (!stripeSuccess) return
-    setFormData(prev => ({ ...prev, planSelected: 'pro' }))
+    setFormData(prev => ({ ...prev, planSelected: initialPlan !== 'start' ? initialPlan : 'pro' }))
     setIsSuccess(true)
   }, [stripeSuccess])
 
@@ -187,8 +188,8 @@ export default function RegistracijaMojsterForm() {
 
       const data = await response.json()
       
-      // If PRO plan selected, redirect to Stripe checkout
-      if (formData.planSelected === 'pro') {
+      // If paid plan selected, redirect to Stripe checkout
+      if (formData.planSelected === 'pro' || formData.planSelected === 'elite') {
         try {
           const checkoutRes = await fetch('/api/stripe/create-checkout', {
             method: 'POST',
