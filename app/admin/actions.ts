@@ -655,8 +655,7 @@ export async function getAdminInquiryFormOptions() {
       .from('profiles')
       .select('id, full_name, email')
       .eq('role', 'narocnik')
-      .order('created_at', { ascending: false })
-      .limit(500),
+      .order('created_at', { ascending: false }),
   ])
 
   return {

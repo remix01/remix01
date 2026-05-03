@@ -155,7 +155,6 @@ async function getHomeData(): Promise<{
     }))
 
     const featuredCategories = categoriesQuery
-      .slice(0, 6)
       .map((category) => ({ label: category.name, slug: category.slug }))
 
     return {
