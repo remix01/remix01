@@ -78,7 +78,7 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">Ni ujemajočih kategorij.</p>
+                query.trim() ? <p className="text-sm text-muted-foreground">Ni ujemajočih kategorij.</p> : null
               )}
             </div>
             <Button type="submit" size="lg" className="mt-4 h-12 w-full text-base">
@@ -105,7 +105,7 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
               <div className="rounded-xl border p-4">
                 <p className="flex items-center gap-2 text-sm font-medium">
                   <Star className="h-4 w-4 text-amber-500" />
-                  {stats.rating.toFixed(1)} ★ ({stats.reviews.toLocaleString('sl-SI')}+ ocen)
+                  {stats.rating.toFixed(1)} ({stats.reviews.toLocaleString('sl-SI')}+ ocen)
                 </p>
               </div>
             )}
