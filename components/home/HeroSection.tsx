@@ -127,7 +127,11 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border p-3 text-sm font-medium">9 aktivnih mojstrov</div>
+            <div className="rounded-xl border p-3 text-sm font-medium">
+              {stats.activeCraftsmen !== null
+                ? `${stats.activeCraftsmen.toLocaleString('sl-SI')} aktivnih mojstrov`
+                : 'Aktivni mojstri'}
+            </div>
             <div className="rounded-xl border p-3 text-sm font-medium">Preverjeni profili</div>
             <div className="rounded-xl border p-3 text-sm font-medium">Ponudbe brez obveznosti</div>
           </div>
