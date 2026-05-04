@@ -1,9 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
-import { Mic, ScanSearch, Search, Sparkles, Star, Wrench } from 'lucide-react'
+import { CheckCircle2, Mic, ScanSearch, Search, ShieldCheck, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { HomeStats } from './types'
@@ -47,18 +46,20 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
     { label: 'Glasovni opis', icon: Mic },
     { label: 'Slika/video diagnoza', icon: ScanSearch },
     { label: 'Pametna kategorija', icon: Search },
+    { label: 'Preverjeni mojstri', icon: ShieldCheck },
   ]
 
   return (
     <section className="relative overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background pb-10 pt-20 sm:pb-16 sm:pt-28">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:gap-8 lg:grid-cols-2 lg:px-8">
         <div className="rounded-2xl border bg-card/90 p-5 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-primary">Za stranke</p>
+          <p className="text-sm font-semibold text-primary">AI-powered SaaS marketplace</p>
           <h1 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">
-            Najdite pravega mojstra brez stresa.
+            AI vam pomaga najti pravega mojstra brez stresa.
           </h1>
           <p className="mt-4 text-sm text-muted-foreground sm:text-base">
-            LiftGO AI Concierge razume opis težave (glas ali besedilo), analizira sliko/video in pametno predlaga pravo kategorijo.
+            Opišite težavo z besedilom, glasom, sliko ali videom. LiftGO AI predlaga pravo kategorijo, pripravi boljše
+            povpraševanje in vas poveže s preverjenimi mojstri.
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -116,38 +117,27 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
         </div>
 
         <div className="rounded-2xl border bg-card/90 p-5 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-primary">Primer AI analize</p>
-          <h2 className="mt-3 text-balance text-2xl font-bold tracking-tight sm:text-4xl">
-            “Pušča pipa v kuhinji”
-          </h2>
+          <p className="text-sm font-semibold text-primary">AI analiza povpraševanja</p>
+          <h2 className="mt-3 text-balance text-2xl font-bold tracking-tight sm:text-4xl">"Pušča pipa v kuhinji"</h2>
           <div className="mt-4 space-y-3 rounded-xl border bg-background p-4">
-            <p className="text-sm"><span className="font-semibold">Predlagana kategorija:</span> Vodoinštalater</p>
+            <p className="text-sm"><span className="font-semibold">Predlagana kategorija:</span> Vodovodna dela</p>
             <p className="text-sm"><span className="font-semibold">Nujnost:</span> čim prej</p>
+            <p className="text-sm"><span className="font-semibold">Priporočilo:</span> dodajte sliko ali video za hitrejšo oceno</p>
             <p className="text-sm"><span className="font-semibold">Naslednji korak:</span> oddaj povpraševanje</p>
           </div>
 
-          <Button asChild size="lg" variant="outline" className="mt-8 h-12 w-full text-base sm:w-auto">
-            <Link href="/registracija-mojster">Postani LiftGO partner</Link>
-          </Button>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {stats.rating !== null && stats.reviews !== null && (
-              <div className="rounded-xl border p-4">
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  <Star className="h-4 w-4 text-amber-500" />
-                  {stats.rating.toFixed(1)} ★ ({stats.reviews.toLocaleString('sl-SI')}+ ocen)
-                </p>
-              </div>
-            )}
-            {stats.activeCraftsmen !== null && (
-              <div className="rounded-xl border p-4">
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  <Wrench className="h-4 w-4 text-primary" />
-                  {stats.activeCraftsmen.toLocaleString('sl-SI')} aktivnih mojstrov
-                </p>
-              </div>
-            )}
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border p-3 text-sm font-medium">9 aktivnih mojstrov</div>
+            <div className="rounded-xl border p-3 text-sm font-medium">Preverjeni profili</div>
+            <div className="rounded-xl border p-3 text-sm font-medium">Ponudbe brez obveznosti</div>
           </div>
+
+          {stats.rating !== null && stats.reviews !== null && (
+            <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Ocena uporabnikov: {stats.rating.toFixed(1)} ({stats.reviews.toLocaleString('sl-SI')}+ ocen)
+            </p>
+          )}
         </div>
       </div>
     </section>

@@ -11,6 +11,7 @@ import { Testimonials } from '@/components/home/Testimonials'
 import { FinalCTA } from '@/components/home/FinalCTA'
 import { AIConciergeLazy } from '@/components/home/AIConciergeLazy'
 import { PortalOverviewSection } from '@/components/home/PortalOverviewSection'
+import { AdvancedFeaturesSection } from '@/components/home/AdvancedFeaturesSection'
 import type { HomeActivityItem, HomeStats, HomeTestimonial } from '@/components/home/types'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 
@@ -188,6 +189,7 @@ export default async function Page() {
         <LiveActivityTicker initialItems={activity} />
         <HowItWorksTabs />
         <PortalOverviewSection />
+        <AdvancedFeaturesSection />
         <CategoryCityGrid categories={featuredCategories} />
         <Testimonials testimonials={testimonials} />
         <FinalCTA />
