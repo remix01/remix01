@@ -25,9 +25,10 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
 
   const redirectHref = useMemo(() => {
     const category = (selectedCategory || query).trim()
+    if (!category) return '/novo-povprasevanje'
     const params = new URLSearchParams()
-    if (category) params.set('kategorija', category)
-    return `/povprasevanje/novo?${params.toString()}`
+    params.set('kategorija', category)
+    return `/novo-povprasevanje?${params.toString()}`
   }, [query, selectedCategory])
 
   function handleSubmit(e: React.FormEvent) {

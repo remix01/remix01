@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { uploadFile, generateFilePath } from '@/lib/storage'
@@ -31,6 +31,7 @@ function getIconComponent(iconName?: string) {
 
 export default function NovoPoVprasevanjePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   // Step state
@@ -85,10 +86,24 @@ export default function NovoPoVprasevanjePage() {
       // Fetch categories (using public client since this is public data)
       const cats = await getActiveCategoriesPublic()
       setCategories(cats)
+
+      // Pre-select category from ?kategorija= query param (e.g. coming from hero search)
+      const preselect = searchParams.get('kategorija')
+      if (preselect) {
+        const match = cats.find(
+          (c) => c.name.toLowerCase() === preselect.toLowerCase() ||
+                 c.slug.toLowerCase() === preselect.toLowerCase()
+        )
+        if (match) {
+          setSelectedCategory(match)
+        } else {
+          setCustomCategoryName(preselect)
+        }
+      }
     }
 
     fetchData()
-  }, [supabase, router])
+  }, [supabase, router, searchParams])
 
   // Fetch pricing estimate when category or urgency changes
   useEffect(() => {
