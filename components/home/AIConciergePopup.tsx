@@ -88,7 +88,16 @@ export function AIConciergePopup() {
   )
 
   useEffect(() => {
-    const handler = () => setOpen(true)
+    const openFromIntent = () => {
+      setOpen(true)
+      window.localStorage.removeItem('liftgo:open-concierge')
+    }
+
+    if (window.localStorage.getItem('liftgo:open-concierge') === '1') {
+      openFromIntent()
+    }
+
+    const handler = () => openFromIntent()
     window.addEventListener('liftgo:open-concierge', handler as EventListener)
     return () => window.removeEventListener('liftgo:open-concierge', handler as EventListener)
   }, [])

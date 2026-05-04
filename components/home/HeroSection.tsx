@@ -37,6 +37,7 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
 
   function openConcierge() {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem('liftgo:open-concierge', '1')
       window.dispatchEvent(new CustomEvent('liftgo:open-concierge'))
     }
   }
