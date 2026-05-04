@@ -5,21 +5,21 @@ import { Button } from '@/components/ui/button'
 
 const portalCards = [
   {
-    title: 'Za stranke',
-    points: ['Spremljanje povpraševanj', 'Ponudbe mojstrov', 'Ocene in zgodovina'],
+    title: 'Stranke',
+    points: ['Spremljanje povpraševanj', 'Ponudbe', 'Zgodovina', 'Ocene'],
     cta: 'Odpri dashboard',
     href: '/dashboard',
   },
   {
-    title: 'Za mojstre',
-    points: ['Upravljanje leadov', 'Ponudbe in komunikacija', 'Profil, naročnina in statistika'],
-    cta: 'Odpri partner portal',
+    title: 'Mojstri',
+    points: ['Lead-i', 'Ponudbe', 'CRM', 'Naročnina', 'Statistika'],
+    cta: 'Odpri partner dashboard',
     href: '/partner-dashboard',
   },
   {
-    title: 'Za administracijo',
-    points: ['Nadzor uporabnikov', 'Preverjanje mojstrov', 'Metrike, vsebina in varnost'],
-    cta: 'Admin portal',
+    title: 'Administracija',
+    points: ['Verifikacije', 'Uporabniki', 'Metrike', 'Varnost'],
+    cta: 'Odpri admin portal',
     href: '/admin',
   },
 ]
