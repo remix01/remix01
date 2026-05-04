@@ -10,6 +10,7 @@ import { CategoryCityGrid } from '@/components/home/CategoryCityGrid'
 import { Testimonials } from '@/components/home/Testimonials'
 import { FinalCTA } from '@/components/home/FinalCTA'
 import { AIConciergeLazy } from '@/components/home/AIConciergeLazy'
+import { PortalOverviewSection } from '@/components/home/PortalOverviewSection'
 import type { HomeActivityItem, HomeStats, HomeTestimonial } from '@/components/home/types'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 
@@ -186,6 +187,7 @@ export default async function Page() {
         <HeroSection stats={stats} categories={featuredCategories} />
         <LiveActivityTicker initialItems={activity} />
         <HowItWorksTabs />
+        <PortalOverviewSection />
         <CategoryCityGrid categories={featuredCategories} />
         <Testimonials testimonials={testimonials} />
         <FinalCTA />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bot, Globe, Mic, Paperclip, Volume2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -86,6 +86,21 @@ export function AIConciergePopup() {
         : ['Leaking pipe', 'Painting 20m2', 'AC installation', 'Roof repair'],
     [activeLanguage]
   )
+
+  useEffect(() => {
+    const openFromIntent = () => {
+      setOpen(true)
+      window.localStorage.removeItem('liftgo:open-concierge')
+    }
+
+    if (window.localStorage.getItem('liftgo:open-concierge') === '1') {
+      openFromIntent()
+    }
+
+    const handler = () => openFromIntent()
+    window.addEventListener('liftgo:open-concierge', handler as EventListener)
+    return () => window.removeEventListener('liftgo:open-concierge', handler as EventListener)
+  }, [])
 
   const handleMicClick = async () => {
     setErrorMessage(null)

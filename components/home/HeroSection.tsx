@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
-import { Search, Star, Wrench } from 'lucide-react'
+import { Mic, ScanSearch, Search, Sparkles, Star, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { HomeStats } from './types'
@@ -35,6 +35,20 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
     router.push(redirectHref)
   }
 
+  function openConcierge() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('liftgo:open-concierge', '1')
+      window.dispatchEvent(new CustomEvent('liftgo:open-concierge'))
+    }
+  }
+
+  const featureBadges = [
+    { label: 'AI Concierge', icon: Sparkles },
+    { label: 'Glasovni opis', icon: Mic },
+    { label: 'Slika/video diagnoza', icon: ScanSearch },
+    { label: 'Pametna kategorija', icon: Search },
+  ]
+
   return (
     <section className="relative overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background pb-10 pt-20 sm:pb-16 sm:pt-28">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:gap-8 lg:grid-cols-2 lg:px-8">
@@ -44,8 +58,17 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
             Najdite pravega mojstra brez stresa.
           </h1>
           <p className="mt-4 text-sm text-muted-foreground sm:text-base">
-            Vpišite težavo, AI predlaga kategorijo, vi pa v minuti oddate povpraševanje.
+            LiftGO AI Concierge razume opis težave (glas ali besedilo), analizira sliko/video in pametno predlaga pravo kategorijo.
           </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {featureBadges.map((feature) => (
+              <span key={feature.label} className="inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-xs font-medium">
+                <feature.icon className="h-3.5 w-3.5 text-primary" />
+                {feature.label}
+              </span>
+            ))}
+          </div>
 
           <form onSubmit={handleSubmit} className="mt-6 rounded-xl border bg-background p-3">
             <label htmlFor="hero-search" className="sr-only">Kaj potrebujete?</label>
@@ -81,20 +104,27 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
                 <p className="text-sm text-muted-foreground">Ni ujemajočih kategorij.</p>
               )}
             </div>
-            <Button type="submit" size="lg" className="mt-4 h-12 w-full text-base">
-              Poišči mojstra
-            </Button>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <Button type="submit" size="lg" className="h-12 w-full text-base sm:flex-1">
+                Poišči mojstra
+              </Button>
+              <Button type="button" size="lg" variant="outline" className="h-12 w-full text-base sm:w-auto" onClick={openConcierge}>
+                Odpri AI pomočnika
+              </Button>
+            </div>
           </form>
         </div>
 
         <div className="rounded-2xl border bg-card/90 p-5 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-primary">Za mojstre</p>
+          <p className="text-sm font-semibold text-primary">Primer AI analize</p>
           <h2 className="mt-3 text-balance text-2xl font-bold tracking-tight sm:text-4xl">
-            Pridobite več kakovostnih povpraševanj v vaši regiji.
+            “Pušča pipa v kuhinji”
           </h2>
-          <p className="mt-4 text-sm text-muted-foreground sm:text-base">
-            LiftGO vas poveže z resnimi strankami in omogoča hitrejše pošiljanje ponudb.
-          </p>
+          <div className="mt-4 space-y-3 rounded-xl border bg-background p-4">
+            <p className="text-sm"><span className="font-semibold">Predlagana kategorija:</span> Vodoinštalater</p>
+            <p className="text-sm"><span className="font-semibold">Nujnost:</span> čim prej</p>
+            <p className="text-sm"><span className="font-semibold">Naslednji korak:</span> oddaj povpraševanje</p>
+          </div>
 
           <Button asChild size="lg" variant="outline" className="mt-8 h-12 w-full text-base sm:w-auto">
             <Link href="/registracija-mojster">Postani LiftGO partner</Link>
