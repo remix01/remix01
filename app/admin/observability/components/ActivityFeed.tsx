@@ -7,9 +7,10 @@ interface ActivityLog {
   id: string
   created_at: string
   user_id: string | null
+  level: string
   event: string | null
   tool: string | null
-  result: 'success' | 'error' | 'warning' | null
+  result: import('@/types/supabase').Json | null
   duration_ms: number | null
 }
 
@@ -30,7 +31,7 @@ export function ActivityFeed() {
         .limit(50)
 
       if (filter === 'errors') {
-        query = query.eq('result', 'error')
+        query = query.eq('level', 'error')
       } else if (filter === 'guardrails') {
         query = query.like('event', '%guard%')
       } else if (filter === 'permissions') {
@@ -58,10 +59,10 @@ export function ActivityFeed() {
 
   const filters: FilterType[] = ['all', 'errors', 'guardrails', 'permissions', 'state_machine']
 
-  const getResultColor = (result: string | null) => {
-    if (result === 'success') return 'text-green-400'
-    if (result === 'error') return 'text-red-400'
-    if (result === 'warning') return 'text-yellow-400'
+  const getResultColor = (level: string | null) => {
+    if (level === 'info' || level === 'success') return 'text-green-400'
+    if (level === 'error') return 'text-red-400'
+    if (level === 'warning') return 'text-yellow-400'
     return 'text-slate-400'
   }
 
@@ -123,8 +124,8 @@ export function ActivityFeed() {
                     <td className="py-2 px-3 text-slate-400 font-mono text-xs">{log.user_id?.slice(0, 8)}...</td>
                     <td className="py-2 px-3 text-slate-300">{log.event}</td>
                     <td className="py-2 px-3 text-slate-400">{log.tool || '-'}</td>
-                    <td className={`py-2 px-3 font-semibold ${getResultColor(log.result)}`}>
-                      {log.result === 'success' ? '✅' : log.result === 'error' ? '❌' : log.result === 'warning' ? '⚠️' : '-'}
+                    <td className={`py-2 px-3 font-semibold ${getResultColor(log.level)}`}>
+                      {log.level === 'info' || log.level === 'success' ? '✅' : log.level === 'error' ? '❌' : log.level === 'warning' ? '⚠️' : log.level || '-'}
                     </td>
                     <td className="py-2 px-3 text-slate-400">{log.duration_ms ? `${log.duration_ms}ms` : '-'}</td>
                   </tr>

@@ -34,6 +34,159 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['user']['Insert']>
         Relationships: []
       }
+      home_maintenance_log: {
+        Row: {
+          id: string
+          user_id: string
+          event_name: string
+          notes: string | null
+          performed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          event_name: string
+          notes?: string | null
+          performed_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          event_name?: string
+          notes?: string | null
+          performed_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      inquiry_status: {
+        Row: {
+          id: string
+          inquiry_id: string
+          status_text: string
+          meta: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          inquiry_id: string
+          status_text: string
+          meta?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          inquiry_id?: string
+          status_text?: string
+          meta?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      agent_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          level: string
+          event: string
+          tool: string | null
+          params: Json | null
+          result: Json | null
+          duration_ms: number | null
+          session_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          level: string
+          event: string
+          tool?: string | null
+          params?: Json | null
+          result?: Json | null
+          duration_ms?: number | null
+          session_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          level?: string
+          event?: string
+          tool?: string | null
+          params?: Json | null
+          result?: Json | null
+          duration_ms?: number | null
+          session_id: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      agent_alerts: {
+        Row: {
+          id: string
+          severity: string
+          type: string
+          user_id: string | null
+          details: Json | null
+          resolved: boolean
+          created_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          severity: string
+          type: string
+          user_id?: string | null
+          details?: Json | null
+          resolved?: boolean
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          severity?: string
+          type?: string
+          user_id?: string | null
+          details?: Json | null
+          resolved?: boolean
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Relationships: []
+      }
+      admin_audit_log: {
+        Row: {
+          id: string
+          admin_user_id: string | null
+          action: string
+          entity: string | null
+          entity_id: string | null
+          details: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          admin_user_id?: string | null
+          action: string
+          entity?: string | null
+          entity_id?: string | null
+          details?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          admin_user_id?: string | null
+          action?: string
+          entity?: string | null
+          entity_id?: string | null
+          details?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       craftworker_profile: {
         Row: {
           id: string
@@ -1011,9 +1164,21 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['service_requests']['Insert']>
         Relationships: []
       }
+
+      [key: string]: {
+        Row: Record<string, any>
+        Insert: Record<string, any>
+        Update: Record<string, any>
+        Relationships: any[]
+      }
     }
     Views: {}
-    Functions: {}
+    Functions: {
+      [key: string]: {
+        Args: Record<string, any>
+        Returns: any
+      }
+    }
     Enums: {}
     CompositeTypes: {}
   }

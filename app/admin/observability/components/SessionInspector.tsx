@@ -10,7 +10,7 @@ interface SessionLog {
   event: string | null
   tool: string | null
   params: Json | null
-  result: string | null
+  result: Json | null
   duration_ms: number | null
 }
 
@@ -145,7 +145,7 @@ export function SessionInspector() {
                     <td className="py-2 px-3 text-slate-400 font-mono max-w-xs truncate" title={JSON.stringify(sanitized)}>
                       {sanitized ? JSON.stringify(sanitized).slice(0, 50) : '-'}
                     </td>
-                    <td className="py-2 px-3 text-slate-400">{log.result || '-'}</td>
+                    <td className="py-2 px-3 text-slate-400">{log.result ? JSON.stringify(log.result).slice(0, 50) : '-'}</td>
                     <td className="py-2 px-3 text-slate-400">{log.duration_ms ? `${log.duration_ms}ms` : '-'}</td>
                   </tr>
                 )

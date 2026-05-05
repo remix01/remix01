@@ -27,7 +27,11 @@ export function AlertsPanel() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setAlerts(data || [])
+      setAlerts((data || []).map((row: any) => ({
+        ...row,
+        severity: row.severity as Alert['severity'],
+        details: typeof row.details === 'string' ? row.details : row.details ? JSON.stringify(row.details) : null,
+      })))
     } catch (error) {
       console.error('Error fetching alerts:', error)
     } finally {
