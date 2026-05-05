@@ -8,9 +8,16 @@ interface Alert {
   severity: 'low' | 'medium' | 'high' | 'critical'
   type: string
   user_id: string | null
-  details: string | null
-  created_at: string
-  resolved: boolean
+  details: string
+  created_at: string | null
+  resolved: boolean | null
+}
+
+function parseSeverity(value: string): Alert['severity'] {
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'critical') {
+    return value
+  }
+  return 'low'
 }
 
 export function AlertsPanel() {
@@ -27,7 +34,10 @@ export function AlertsPanel() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setAlerts(data || [])
+      setAlerts((data || []).map((alert) => ({
+        ...alert,
+        severity: parseSeverity(alert.severity),
+      })))
     } catch (error) {
       console.error('Error fetching alerts:', error)
     } finally {
@@ -70,7 +80,8 @@ export function AlertsPanel() {
     }
   }
 
-  const formatTimeAgo = (timestamp: string) => {
+  const formatTimeAgo = (timestamp: string | null) => {
+    if (!timestamp) return '-'
     const now = new Date()
     const created = new Date(timestamp)
     const diffMs = now.getTime() - created.getTime()

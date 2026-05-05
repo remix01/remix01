@@ -5,11 +5,11 @@ import { createClient } from '@/lib/supabase/client'
 
 interface ActivityLog {
   id: string
-  created_at: string
+  created_at: string | null
   user_id: string | null
-  event: string | null
+  event: string
   tool: string | null
-  result: 'success' | 'error' | 'warning' | null
+  result: unknown
   duration_ms: number | null
 }
 
@@ -58,14 +58,16 @@ export function ActivityFeed() {
 
   const filters: FilterType[] = ['all', 'errors', 'guardrails', 'permissions', 'state_machine']
 
-  const getResultColor = (result: string | null) => {
-    if (result === 'success') return 'text-green-400'
-    if (result === 'error') return 'text-red-400'
-    if (result === 'warning') return 'text-yellow-400'
+  const getResultColor = (result: unknown) => {
+    const value = typeof result === 'string' ? result : null
+    if (value === 'success') return 'text-green-400'
+    if (value === 'error') return 'text-red-400'
+    if (value === 'warning') return 'text-yellow-400'
     return 'text-slate-400'
   }
 
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return '-'
     return new Date(timestamp).toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit', 
@@ -124,7 +126,7 @@ export function ActivityFeed() {
                     <td className="py-2 px-3 text-slate-300">{log.event}</td>
                     <td className="py-2 px-3 text-slate-400">{log.tool || '-'}</td>
                     <td className={`py-2 px-3 font-semibold ${getResultColor(log.result)}`}>
-                      {log.result === 'success' ? '✅' : log.result === 'error' ? '❌' : log.result === 'warning' ? '⚠️' : '-'}
+                      {typeof log.result === 'string' && log.result === 'success' ? '✅' : typeof log.result === 'string' && log.result === 'error' ? '❌' : typeof log.result === 'string' && log.result === 'warning' ? '⚠️' : '-'}
                     </td>
                     <td className="py-2 px-3 text-slate-400">{log.duration_ms ? `${log.duration_ms}ms` : '-'}</td>
                   </tr>
