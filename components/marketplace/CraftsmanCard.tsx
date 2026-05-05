@@ -43,7 +43,14 @@ export function CraftsmanCard({ obrtnik }: CraftsmanCardProps) {
             <span>{obrtnik.profile?.location_city}</span>
           </div>
 
+          {obrtnik.profile_status === 'lead' && (
+            <Badge variant="outline" className="text-amber-700 border-amber-300">
+              Profil še ni potrjen
+            </Badge>
+          )}
+
           {/* Rating */}
+          {obrtnik.profile_status !== 'lead' && (
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
               <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -55,6 +62,11 @@ export function CraftsmanCard({ obrtnik }: CraftsmanCardProps) {
               ({obrtnik.total_reviews} ocen)
             </span>
           </div>
+          )}
+
+          {obrtnik.profile_status === 'lead' && (
+            <p className="text-sm font-medium text-blue-700">Ali ste lastnik? Prevzemite profil</p>
+          )}
 
           {/* Categories */}
           {obrtnik.categories && obrtnik.categories.length > 0 && (
