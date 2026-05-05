@@ -24,10 +24,6 @@ export function Footer() {
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div className="flex flex-col">
                   <span>Liftgo d.o.o.</span>
-                  <span>Kuraltova ulica 12</span>
-                  <span>4208 Šenčur</span>
-                  <span>Matična št.: 9724346000</span>
-                  <span>ID za DDV: SI24728381</span>
                 </div>
               </div>
               <a
