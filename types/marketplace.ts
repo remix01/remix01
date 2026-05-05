@@ -11,6 +11,7 @@ export type PonudbaStatus = 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena'
 export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
+export type ProfileStatus = 'lead' | 'claimed' | 'verified'
 
 export interface Profile {
   id: string
@@ -32,6 +33,10 @@ export interface ObrtnikProfile {
   description?: string
   ajpes_id?: string
   is_verified: boolean
+  is_claimed?: boolean
+  profile_status?: ProfileStatus
+  source?: 'manual' | 'import' | 'signup'
+  visibility?: 'public_limited' | 'public_full'
   verification_status: VerificationStatus
   avg_rating: number
   total_reviews: number

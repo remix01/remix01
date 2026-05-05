@@ -357,6 +357,8 @@ export interface Database {
           description: string | null
           ajpes_id: string | null
           is_verified: boolean
+          is_claimed: boolean
+          profile_status: 'lead' | 'claimed' | 'verified'
           verification_status: 'pending' | 'verified' | 'rejected'
           avg_rating: number
           total_reviews: number
@@ -375,6 +377,8 @@ export interface Database {
           instagram_url: string | null
           certificate_urls: string[] | null
           service_radius_km: number | null
+          source: 'manual' | 'import' | 'signup'
+          visibility: 'public_limited' | 'public_full'
         }
         Insert: {
           id: string
@@ -382,6 +386,8 @@ export interface Database {
           description?: string | null
           ajpes_id?: string | null
           is_verified?: boolean
+          is_claimed?: boolean
+          profile_status?: 'lead' | 'claimed' | 'verified'
           verification_status?: 'pending' | 'verified' | 'rejected'
           avg_rating?: number
           total_reviews?: number
@@ -400,6 +406,8 @@ export interface Database {
           instagram_url?: string | null
           certificate_urls?: string[] | null
           service_radius_km?: number | null
+          source?: 'manual' | 'import' | 'signup'
+          visibility?: 'public_limited' | 'public_full'
         }
         Update: Partial<Database['public']['Tables']['obrtnik_profiles']['Insert']>
         Relationships: [

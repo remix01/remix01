@@ -41,6 +41,8 @@ export default function ObrtnikiPage() {
   const [selectedObrtnik, setSelectedObrtnik] = useState<Obrtnik | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [blockReason, setBlockReason] = useState('')
+  const [csvInput, setCsvInput] = useState('ime,mesto,kategorija\n')
+  const [uploadingLeads, setUploadingLeads] = useState(false)
 
   useEffect(() => {
     const fetchObrtniki = async () => {
@@ -105,12 +107,69 @@ export default function ObrtnikiPage() {
     }
   }
 
+
+  const handleLeadImport = async () => {
+    if (!csvInput.trim()) {
+      alert('CSV vsebina je obvezna.')
+      return
+    }
+
+    try {
+      setUploadingLeads(true)
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      const response = await fetch('/api/admin/leads/import', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ csv: csvInput }),
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        alert(payload?.error || 'Napaka pri uvozu leadov')
+        return
+      }
+
+      alert(`Uspešno uvoženih lead profilov: ${payload.imported}`)
+    } catch (error) {
+      console.error('[v0] Error importing leads:', error)
+      alert('Napaka pri uvozu leadov')
+    } finally {
+      setUploadingLeads(false)
+    }
+  }
+
   if (loading) return <div className="p-4">Nalagam...</div>
 
   return (
     <div className="min-h-screen bg-bg-muted p-6">
       <div className="mx-auto max-w-7xl">
         <h1 className="mb-6 text-3xl font-bold text-text-foreground">Obrtniki</h1>
+
+
+        <div className="mb-6 rounded-lg bg-white p-4 shadow-sm">
+          <h2 className="mb-2 text-lg font-semibold text-text-foreground">Bulk upload lead podjetij (CSV)</h2>
+          <p className="mb-3 text-sm text-text-muted-foreground">
+            Podjetja bodo uvožena kot <strong>lead</strong> (neverified, brez ocen, brez kontaktiranja).
+          </p>
+          <textarea
+            value={csvInput}
+            onChange={(e) => setCsvInput(e.target.value)}
+            className="mb-3 h-36 w-full rounded-md border border-border-border p-3 text-sm"
+            placeholder="ime,mesto,kategorija"
+          />
+          <button
+            onClick={handleLeadImport}
+            disabled={uploadingLeads}
+            className="rounded-lg bg-text-primary px-4 py-2 text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {uploadingLeads ? 'Uvažam...' : 'Uvozi LEAD profile'}
+          </button>
+        </div>
 
         {/* Filters */}
         <div className="mb-6 flex gap-2">
