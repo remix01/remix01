@@ -127,22 +127,29 @@ export default function AdminDashboardPage() {
 
   // Safe defaults in case of missing nested data
   const todayStats = data?.today || { events: 0, activeUsers: 0, inquiries: 0, conversions: 0 }
+  const funnelValues = {
+    inquiries: data?.funnel?.inquiries || 0,
+    offers: data?.funnel?.offers || 0,
+    accepted: data?.funnel?.accepted || 0,
+    paid: data?.funnel?.paid || 0,
+  }
+
   const funnelData = [
-    { stage: 'Povpraševanja', value: data?.funnel?.inquiries || 0, percent: 100 },
+    { stage: 'Povpraševanja', value: funnelValues.inquiries, percent: 100 },
     {
       stage: 'Ponudbe',
-      value: data?.funnel?.offers || 0,
-      percent: (data?.funnel?.inquiries || 0) > 0 ? Math.round(((data?.funnel?.offers || 0) / (data?.funnel?.inquiries || 0)) * 100) : 0,
+      value: funnelValues.offers,
+      percent: funnelValues.inquiries > 0 ? Math.round((funnelValues.offers / funnelValues.inquiries) * 100) : 0,
     },
     {
       stage: 'Sprejeto',
-      value: data?.funnel?.accepted || 0,
-      percent: (data?.funnel?.inquiries || 0) > 0 ? Math.round(((data?.funnel?.accepted || 0) / (data?.funnel?.inquiries || 0)) * 100) : 0,
+      value: funnelValues.accepted,
+      percent: funnelValues.inquiries > 0 ? Math.round((funnelValues.accepted / funnelValues.inquiries) * 100) : 0,
     },
     {
       stage: 'Plačano',
-      value: data?.funnel?.paid || 0,
-      percent: (data?.funnel?.inquiries || 0) > 0 ? Math.round(((data?.funnel?.paid || 0) / (data?.funnel?.inquiries || 0)) * 100) : 0,
+      value: funnelValues.paid,
+      percent: funnelValues.inquiries > 0 ? Math.round((funnelValues.paid / funnelValues.inquiries) * 100) : 0,
     },
   ]
 
@@ -281,7 +288,7 @@ export default function AdminDashboardPage() {
                   </div>
                   {index < funnelData.length - 1 && (
                     <div className="text-xs text-muted-foreground mt-1 text-right">
-                      ↓ -{100 - funnelData[index + 1].percent}%
+                      ↓ -{step.value > 0 ? Math.max(0, Math.round(((step.value - funnelData[index + 1].value) / step.value) * 100)) : 0}%
                     </div>
                   )}
                 </div>
