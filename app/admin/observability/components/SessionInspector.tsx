@@ -6,7 +6,7 @@ import type { Json } from '@/types/supabase'
 
 interface SessionLog {
   id: string
-  created_at: string
+  created_at: string | null
   event: string | null
   tool: string | null
   params: Json | null
@@ -86,7 +86,8 @@ export function SessionInspector() {
     }
   }
 
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return '-'
     return new Date(timestamp).toLocaleString('en-US', {
       hour: '2-digit',
       minute: '2-digit',

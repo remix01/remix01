@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 
 interface ActivityLog {
   id: string
-  created_at: string
+  created_at: string | null
   user_id: string | null
   level: string
   event: string | null
@@ -66,7 +66,8 @@ export function ActivityFeed() {
     return 'text-slate-400'
   }
 
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return '-'
     return new Date(timestamp).toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit', 

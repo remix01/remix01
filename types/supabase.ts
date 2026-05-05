@@ -1008,6 +1008,84 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['admin_users']['Insert']>
         Relationships: []
       }
+      agent_alerts: {
+        Row: {
+          id: string
+          severity: string
+          type: string
+          user_id: string | null
+          session_id: string | null
+          details: string
+          count: number | null
+          resolved: boolean | null
+          created_at: string | null
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          severity: string
+          type: string
+          user_id?: string | null
+          session_id?: string | null
+          details: string
+          count?: number | null
+          resolved?: boolean | null
+          created_at?: string | null
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          severity?: string
+          type?: string
+          user_id?: string | null
+          session_id?: string | null
+          details?: string
+          count?: number | null
+          resolved?: boolean | null
+          created_at?: string | null
+          resolved_at?: string | null
+        }
+        Relationships: []
+      }
+      agent_logs: {
+        Row: {
+          id: string
+          session_id: string
+          user_id: string | null
+          level: string
+          event: string
+          tool: string | null
+          params: Json | null
+          result: Json | null
+          duration_ms: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          user_id?: string | null
+          level: string
+          event: string
+          tool?: string | null
+          params?: Json | null
+          result?: Json | null
+          duration_ms?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          user_id?: string | null
+          level?: string
+          event?: string
+          tool?: string | null
+          params?: Json | null
+          result?: Json | null
+          duration_ms?: number | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       commission_logs: {
         Row: {
           id: string
