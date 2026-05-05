@@ -188,7 +188,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
-          package_type: 'START' | 'PRO'
+          package_type: 'START' | 'PRO' | 'ELITE'
           commission_rate: number
           commission_override: number | null
           stripe_account_id: string | null
