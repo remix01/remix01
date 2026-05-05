@@ -34,6 +34,57 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['user']['Insert']>
         Relationships: []
       }
+      home_maintenance_log: {
+        Row: {
+          id: string
+          user_id: string
+          event_name: string
+          notes: string | null
+          performed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          event_name: string
+          notes?: string | null
+          performed_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          event_name?: string
+          notes?: string | null
+          performed_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      inquiry_status: {
+        Row: {
+          id: string
+          inquiry_id: string
+          status_text: string
+          meta: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          inquiry_id: string
+          status_text: string
+          meta?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          inquiry_id?: string
+          status_text?: string
+          meta?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       craftworker_profile: {
         Row: {
           id: string
