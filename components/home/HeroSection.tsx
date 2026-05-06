@@ -53,7 +53,7 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
     <section className="relative overflow-hidden border-b bg-gradient-to-b from-primary/10 via-background to-background pb-10 pt-20 sm:pb-16 sm:pt-28">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:gap-8 lg:grid-cols-2 lg:px-8">
         <div className="rounded-2xl border bg-card/90 p-5 shadow-sm sm:p-8">
-          <p className="text-sm font-semibold text-primary">AI-powered SaaS marketplace</p>
+          <p className="text-sm font-semibold text-primary">LiftGO-AI</p>
           <h1 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-5xl">
             AI vam pomaga najti pravega mojstra brez stresa.
           </h1>
