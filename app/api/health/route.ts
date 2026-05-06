@@ -1,72 +1,42 @@
-/**
- * Health Check Endpoint
- * No authentication required - safe for uptime monitoring services
- * Checks database connectivity and returns system status
- */
+import { NextResponse } from 'next/server';
 
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { getConfigReadiness } from '@/lib/health/configReadiness'
-
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
-interface HealthCheck {
-  database: 'ok' | 'error'
-}
-
-interface HealthResponse {
-  status: 'ok' | 'degraded'
-  version: string
-  checks: HealthCheck
-  env: ReturnType<typeof getConfigReadiness>
-  timestamp: string
-}
+const requiredEnvVars = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+] as const;
 
 export async function GET() {
-  const checks: HealthCheck = {
-    database: 'error',
-  }
+  const envStatus = requiredEnvVars.reduce<Record<string, boolean>>((acc, key) => {
+    acc[key] = Boolean(process.env[key]);
+    return acc;
+  }, {});
 
-  const envReadiness = getConfigReadiness()
+  const missing = Object.entries(envStatus)
+    .filter(([, isSet]) => !isSet)
+    .map(([key]) => key);
 
-  try {
-    // Check Supabase database connectivity
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase credentials not configured')
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // Simple connectivity check - SELECT 1
-    const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle()
-
-    // If no error or just no rows found, database is accessible
-    if (!error || error.code === 'PGRST116') {
-      checks.database = 'ok'
-    }
-  } catch (error) {
-    console.error('[Health Check] Database check failed:', error)
-    checks.database = 'error'
-  }
-
-  // Determine overall status
-  const allChecksOk = Object.values(checks).every((check) => check === 'ok')
-  const status = allChecksOk ? 'ok' : 'degraded'
-
-  const response: HealthResponse = {
-    status,
-    version: 'v1',
-    checks,
-    env: envReadiness,
-    timestamp: new Date().toISOString(),
-  }
-
-  // Return 503 if database is down
-  const httpStatus = status === 'ok' ? 200 : 503
-
-  return NextResponse.json(response, { status: httpStatus })
+  return NextResponse.json(
+    {
+      ok: missing.length === 0,
+      service: 'liftgo-web',
+      timestamp: new Date().toISOString(),
+      checks: {
+        env: envStatus,
+      },
+      ...(missing.length > 0
+        ? {
+            warning:
+              'Missing required environment variables. Backend endpoints may fail in production.',
+            missing,
+          }
+        : {}),
+    },
+    {
+      status: missing.length === 0 ? 200 : 503,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    },
+  );
 }
