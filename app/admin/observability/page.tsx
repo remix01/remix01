@@ -10,13 +10,13 @@ import { SessionInspector } from './components/SessionInspector'
 
 export default function ObservabilityPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const checkAdmin = async () => {
       try {
+        const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
           router.push('/prijava')
@@ -45,7 +45,7 @@ export default function ObservabilityPage() {
     }
 
     checkAdmin()
-  }, [router, supabase])
+  }, [router])
 
   if (isLoading) {
     return (
