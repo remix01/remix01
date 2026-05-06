@@ -5,34 +5,145 @@ import { createClient } from '@supabase/supabase-js'
 
 type LeadInput = { ime: string; mesto: string; kategorija: string; opis?: string }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+type CliOptions = {
+  input: string
+  dryRun: boolean
+  minCount: number
+}
 
-if (!supabaseUrl || !serviceRole) throw new Error('Missing SUPABASE URL or SERVICE ROLE KEY')
+function parseArgs(argv: string[]): CliOptions {
+  const args = argv.slice(2)
+  const dryRun = args.includes('--dry-run')
 
-const supabase = createClient(supabaseUrl, serviceRole)
+  const minCountIndex = args.indexOf('--min-count')
+  let minCount = 100
+  if (minCountIndex >= 0) {
+    const raw = args[minCountIndex + 1]
+    const parsed = Number(raw)
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      throw new Error('Invalid --min-count value. Use a positive integer.')
+    }
+    minCount = parsed
+  }
+
+  const input = args.find((a) => !a.startsWith('--') && a !== String(minCount))
+  if (!input) {
+    throw new Error('Usage: tsx scripts/import-leads.ts <file.csv|file.json|folder> [--dry-run] [--min-count N]')
+  }
+
+  return { input, dryRun, minCount }
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i]
+
+    if (char === '"') {
+      const nextChar = line[i + 1]
+      if (inQuotes && nextChar === '"') {
+        current += '"'
+        i += 1
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+
+    if (char === ',' && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+      continue
+    }
+
+    current += char
+  }
+
+  result.push(current.trim())
+  return result
+}
 
 function parseInput(filePath: string): LeadInput[] {
   const raw = fs.readFileSync(filePath, 'utf8')
-  if (filePath.endsWith('.json')) return JSON.parse(raw)
-  const lines = raw.split(/\r?\n/).filter(Boolean)
+
+  if (filePath.endsWith('.json')) {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      throw new Error(`JSON file must contain an array: ${filePath}`)
+    }
+    return parsed
+  }
+
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  if (lines.length < 2) return []
+
   const [header, ...rows] = lines
-  const cols = header.split(',').map((c) => c.trim().toLowerCase())
+  const cols = parseCsvLine(header).map((c) => c.toLowerCase())
+
   return rows.map((row) => {
-    const values = row.split(',').map((v) => v.trim())
+    const values = parseCsvLine(row)
     const get = (k: string) => values[cols.indexOf(k)] || ''
     return { ime: get('ime'), mesto: get('mesto'), kategorija: get('kategorija'), opis: get('opis') }
   })
 }
 
-async function run() {
-  const inputPath = process.argv[2]
-  if (!inputPath) throw new Error('Usage: tsx scripts/import-leads.ts <file.csv|file.json>')
-  const resolved = path.resolve(inputPath)
-  const leads = parseInput(resolved)
-  if (leads.length < 100) throw new Error('Import requires at least 100 companies')
+function findInputFiles(targetPath: string): string[] {
+  const resolved = path.resolve(targetPath)
+  const stat = fs.statSync(resolved)
 
-  const profileRows = leads.map((lead) => {
+  if (stat.isFile()) return [resolved]
+
+  const stack = [resolved]
+  const files: string[] = []
+
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) continue
+
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const fullPath = path.join(current, entry.name)
+      if (entry.isDirectory()) {
+        stack.push(fullPath)
+        continue
+      }
+      if (entry.isFile() && (entry.name.endsWith('.csv') || entry.name.endsWith('.json'))) {
+        files.push(fullPath)
+      }
+    }
+  }
+
+  return files.sort()
+}
+
+function normalizeLead(lead: LeadInput): LeadInput | null {
+  const ime = lead.ime?.trim()
+  const mesto = lead.mesto?.trim()
+  const kategorija = lead.kategorija?.trim()
+  const opis = lead.opis?.trim()
+
+  if (!ime || !mesto || !kategorija) return null
+  return { ime, mesto, kategorija, opis }
+}
+
+async function run() {
+  const { input, dryRun, minCount } = parseArgs(process.argv)
+  const files = findInputFiles(input)
+
+  if (files.length === 0) throw new Error('No .csv or .json files found.')
+
+  const allLeads = files.flatMap((file) => parseInput(file))
+  const normalized = allLeads.map(normalizeLead).filter((lead): lead is LeadInput => lead !== null)
+
+  const uniqueLeads = Array.from(new Map(normalized.map((l) => [`${l.ime.toLowerCase()}|${l.mesto.toLowerCase()}|${l.kategorija.toLowerCase()}`, l])).values())
+
+  if (uniqueLeads.length < minCount) {
+    throw new Error(`Import requires at least ${minCount} valid companies. Found ${uniqueLeads.length}.`)
+  }
+
+  const profileRows = uniqueLeads.map((lead) => {
     const id = randomUUID()
     return {
       profile: {
@@ -56,12 +167,24 @@ async function run() {
     }
   })
 
+  if (dryRun) {
+    console.log(`Dry run complete. Parsed ${allLeads.length} rows from ${files.length} files, ${uniqueLeads.length} unique valid leads.`)
+    return
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRole) throw new Error('Missing SUPABASE URL or SERVICE ROLE KEY')
+
+  const supabase = createClient(supabaseUrl, serviceRole)
+
   const { error: profileError } = await supabase.from('profiles').insert(profileRows.map((r) => r.profile))
   if (profileError) throw profileError
   const { error: obrtnikError } = await supabase.from('obrtnik_profiles').insert(profileRows.map((r) => r.obrtnik))
   if (obrtnikError) throw obrtnikError
 
-  console.log(`Imported ${leads.length} lead profiles.`)
+  console.log(`Imported ${uniqueLeads.length} lead profiles from ${files.length} files.`)
 }
 
 run().catch((e) => {
