@@ -4,6 +4,7 @@ export interface LangGraphRunInput {
   prompt: string
   model?: string
   temperature?: number
+  timeoutMs?: number
 }
 
 export interface LangGraphRunResult {
@@ -43,7 +44,14 @@ export async function runLangGraphChat(input: LangGraphRunInput): Promise<LangGr
     .addEdge('generate_response', END)
 
   const app = graph.compile()
-  const result = await app.invoke({ prompt: input.prompt, output: '' })
+
+  const timeoutMs = input.timeoutMs ?? 20_000
+  const result = await Promise.race([
+    app.invoke({ prompt: input.prompt, output: '' }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`LangGraph timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ])
 
   return {
     output: result.output,
