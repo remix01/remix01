@@ -9,10 +9,19 @@ const TTL_SECONDS = 60 * 60
 const FALLBACK_BRIEFING = 'Dnevni AI briefing trenutno ni na voljo. Osveži stran kasneje.'
 
 function getRedis() {
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
-  if (!url || !token) return null
-  return new Redis({ url, token })
+  // Prefer canonical Upstash env pair; fall back atomically to KV aliases.
+  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL
+  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (upstashUrl || upstashToken) {
+    if (!upstashUrl || !upstashToken) return null
+    return new Redis({ url: upstashUrl, token: upstashToken })
+  }
+
+  const kvUrl = process.env.KV_REST_API_URL
+  const kvToken = process.env.KV_REST_API_TOKEN
+  if (!kvUrl || !kvToken) return null
+
+  return new Redis({ url: kvUrl, token: kvToken })
 }
 
 function countFromResult(result: any): number {
