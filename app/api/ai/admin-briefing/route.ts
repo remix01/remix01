@@ -9,9 +9,13 @@ const TTL_SECONDS = 60 * 60
 const FALLBACK_BRIEFING = 'Dnevni AI briefing trenutno ni na voljo. Osveži stran kasneje.'
 
 function getRedis() {
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  // Support both canonical Upstash env names and Vercel KV aliases.
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+
+  // If one side is missing, disable cache gracefully instead of throwing.
   if (!url || !token) return null
+
   return new Redis({ url, token })
 }
 
