@@ -17,6 +17,7 @@ export default function ObservabilityPage() {
     const checkAdmin = async () => {
       const supabase = createClient()
       try {
+        const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
           router.push('/prijava')
