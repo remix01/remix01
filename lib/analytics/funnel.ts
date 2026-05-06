@@ -1,8 +1,12 @@
 import { analytics } from '@/lib/analytics/tracker'
 
 export const FUNNEL_EVENTS = {
+  CATALOG_SEARCH_PERFORMED: 'catalog_search_performed',
   POVPRASEVANJE_SUBMITTED: 'povprasevanje_submitted',
+  INQUIRY_BROADCASTED: 'inquiry_broadcasted',
+  PARTNER_INQUIRY_OPENED: 'partner_inquiry_opened',
   POVPRASEVANJE_VIEWED_BY_OBRTNIK: 'povprasevanje_viewed_by_obrtnik',
+  OFFER_SUBMITTED: 'offer_submitted',
   PONUDBA_SENT: 'ponudba_sent',
   PONUDBA_ACCEPTED: 'ponudba_accepted',
   PAYMENT_COMPLETED: 'payment_completed',

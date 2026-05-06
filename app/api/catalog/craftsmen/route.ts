@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listVerifiedObrtnikiWithFilters } from '@/lib/dal/partners'
 import { getActiveCategories } from '@/lib/dal/categories'
+import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
 import type { ObrtnikFilters } from '@/types/marketplace'
 
 /**
@@ -46,6 +47,12 @@ export async function GET(request: NextRequest) {
 
     // Fetch craftsment
     const craftsment = await listVerifiedObrtnikiWithFilters(filters)
+
+    trackFunnelEvent(FUNNEL_EVENTS.CATALOG_SEARCH_PERFORMED, {
+      category: filters.category_id ?? null,
+      location: filters.location_city ?? null,
+      user_type: 'narocnik',
+    })
 
     return NextResponse.json({
       success: true,

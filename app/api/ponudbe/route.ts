@@ -76,6 +76,13 @@ export async function POST(request: NextRequest) {
       user_type: 'obrtnik',
       obrtnik_id,
     }, user.id)
+    trackFunnelEvent(FUNNEL_EVENTS.OFFER_SUBMITTED, {
+      povprasevanje_id,
+      category: (povprasevanjeMeta?.categories as { name?: string } | null)?.name ?? null,
+      location: povprasevanjeMeta?.location_city ?? null,
+      user_type: 'obrtnik',
+      obrtnik_id,
+    }, user.id)
 
     // Notify naročnik about new ponudba (fire-and-forget)
     void (async () => {
