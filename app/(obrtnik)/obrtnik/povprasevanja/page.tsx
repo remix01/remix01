@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOpenPovprasevanjaForObrtnik } from '@/lib/dal/povprasevanja'
 import { PovprasevanjaList } from '@/components/obrtnik/povprasevanja-list'
+import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
 
 export default async function ObrtknikPovprasevanjaPage() {
   const supabase = await createClient()
@@ -33,6 +34,11 @@ export default async function ObrtknikPovprasevanjaPage() {
 
   // Fetch open povprasevanja in obrtnik's categories
   const povprasevanja = await getOpenPovprasevanjaForObrtnik(obrtnikProfile.id, categoryIds)
+  trackFunnelEvent(FUNNEL_EVENTS.PARTNER_INQUIRY_OPENED, {
+    user_type: 'obrtnik',
+    obrtnik_id: obrtnikProfile.id,
+    timestamp: new Date().toISOString(),
+  }, user.id)
 
   // Fetch categories for filter
   const { data: categories } = await supabase

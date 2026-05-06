@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -92,6 +93,12 @@ export async function GET(request: NextRequest) {
         }
 
         notified++
+        trackFunnelEvent(FUNNEL_EVENTS.INQUIRY_BROADCASTED, {
+          povprasevanje_id: p.id,
+          location: p.location_city ?? null,
+          user_type: 'system',
+          timestamp: new Date().toISOString(),
+        })
 
         console.log(JSON.stringify({
           level: 'info',
