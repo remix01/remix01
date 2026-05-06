@@ -143,10 +143,9 @@
       ]
     },
     "resend": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y",
-        "resend-mcp"
+        "./resend-mcp/index.mjs"
       ],
       "env": {
         "RESEND_API_KEY": "${RESEND_API_KEY}"
