@@ -10,12 +10,12 @@ import { SessionInspector } from './components/SessionInspector'
 
 export default function ObservabilityPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const checkAdmin = async () => {
+      const supabase = createClient()
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
@@ -45,7 +45,7 @@ export default function ObservabilityPage() {
     }
 
     checkAdmin()
-  }, [router, supabase])
+  }, [router])
 
   if (isLoading) {
     return (
