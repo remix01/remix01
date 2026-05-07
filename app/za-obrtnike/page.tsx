@@ -20,8 +20,32 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { HeroImage } from '@/components/hero-image'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
-export default function ZaObrtnike() {
+export const revalidate = 180
+
+async function getVerifiedCraftsmenCount(): Promise<number> {
+  try {
+    const { count } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_verified', true)
+    return count ?? 0
+  } catch {
+    return 0
+  }
+}
+
+function formatCount(count: number): string {
+  if (count <= 0) return ''
+  // Zaokroži navzdol na desetico za skromnejšo trditev
+  const rounded = Math.floor(count / 10) * 10
+  return rounded > 0 ? `${rounded}+` : `${count}`
+}
+
+export default async function ZaObrtnike() {
+  const craftsmenCount = await getVerifiedCraftsmenCount()
+  const countLabel = formatCount(craftsmenCount)
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -43,7 +67,11 @@ export default function ZaObrtnike() {
                 </h1>
 
                 <p className="mt-5 max-w-lg text-[15px] sm:text-lg leading-relaxed text-muted-foreground">
-                  Pridružite se 225+ verificiranim mojstrom in obrtniško podjetjem. Plačate samo provizijo ob uspešno zaključenem delu.
+                  {countLabel
+                    ? `Pridružite se ${countLabel} verificiranim mojstrom in obrtniško podjetjem.`
+                    : 'Pridružite se verificiranim mojstrom in obrtniško podjetjem.'
+                  }{' '}
+                  Plačate samo provizijo ob uspešno zaključenem delu.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -297,7 +325,10 @@ export default function ZaObrtnike() {
                 Zakaj se pridružiti LiftGO?
               </h2>
               <p className="mt-4 text-[15px] sm:text-base text-muted-foreground leading-relaxed">
-                Več kot 225 obrtnikov že uporablja LiftGO za rast svojega poslovanja.
+                {countLabel
+                  ? `Več kot ${countLabel} obrtnikov že uporablja LiftGO za rast svojega poslovanja.`
+                  : 'Rastoča skupnost obrtnikov po vsej Sloveniji.'
+                }
               </p>
             </div>
 
