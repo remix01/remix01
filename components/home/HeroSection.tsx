@@ -26,7 +26,7 @@ export function HeroSection({ stats, categories = [] }: HeroSectionProps) {
     const category = (selectedCategory || query).trim()
     const params = new URLSearchParams()
     if (category) params.set('kategorija', category)
-    return `/povprasevanje/novo?${params.toString()}`
+    return `/novo-povprasevanje?${params.toString()}`
   }, [query, selectedCategory])
 
   function handleSubmit(e: React.FormEvent) {
