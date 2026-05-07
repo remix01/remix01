@@ -34,6 +34,7 @@ interface FormData {
   termsAccepted: boolean
   privacyAccepted: boolean
   newsAccepted: boolean
+  website: string
 }
 
 interface Errors {
@@ -82,6 +83,7 @@ export default function RegistracijaMojsterForm() {
     termsAccepted: false,
     privacyAccepted: false,
     newsAccepted: false,
+    website: '',
   })
 
   // Check referral code on mount
@@ -342,6 +344,18 @@ export default function RegistracijaMojsterForm() {
 
           {/* Form */}
           <div className="bg-card rounded-lg border border-border p-8 shadow-sm">
+            {/* Honeypot — hidden from humans, bots fill it automatically */}
+            <input
+              type="text"
+              name="website"
+              value={formData.website}
+              onChange={handleInputChange}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+            />
+
             {/* Submit Error */}
             {errors.submit && (
               <div className="mb-6 flex items-start gap-3 rounded-lg bg-red-50 p-4 text-red-700 border border-red-200">
