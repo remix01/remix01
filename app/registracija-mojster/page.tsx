@@ -1,5 +1,14 @@
 import { Suspense } from 'react'
+import type { Metadata } from 'next'
 import RegistracijaMojsterForm from './registracija-form'
+
+export const metadata: Metadata = {
+  title: 'Registracija za obrtnike | LiftGO',
+  description: 'Pridružite se platformi LiftGO kot preverjen obrtnik. Brezplačna registracija, START ali PRO paket.',
+  alternates: {
+    canonical: 'https://www.liftgo.net/registracija-mojster',
+  },
+}
 
 function LoadingFallback() {
   return (

@@ -23,13 +23,19 @@ const registrationSchema = z.object({
   workArea: z.string().min(1, 'Work area is required'),
   planSelected: z.enum(['start', 'pro']),
   referralCode: z.string().optional(),
+  website: z.string().optional(),
 })
 
 
 async function postHandler(request: NextRequest) {
   try {
     const body = await request.json()
-    
+
+    // Honeypot: bots fill hidden fields that humans never see
+    if (body.website) {
+      return apiSuccess({ userId: crypto.randomUUID() }, 201)
+    }
+
     // Validate input
     const validatedData = registrationSchema.parse(body)
     

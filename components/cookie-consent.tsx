@@ -4,6 +4,12 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void
+  }
+}
+
 const CONSENT_COOKIE_NAME = "liftgo-cookie-consent"
 const CONSENT_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
@@ -20,7 +26,16 @@ function getConsentCookie(): string | null {
 function setConsentCookie(value: "accepted" | "declined") {
   if (typeof document === "undefined") return
 
-  document.cookie = `${CONSENT_COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`
+  // Secure atribut zagotovi, da se piškotek pošilja samo prek HTTPS
+  document.cookie = `${CONSENT_COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax; Secure`
+}
+
+function updateGtagConsent(granted: boolean) {
+  if (typeof window === "undefined" || typeof window.gtag !== "function") return
+  window.gtag("consent", "update", {
+    analytics_storage: granted ? "granted" : "denied",
+    ad_storage: "denied",
+  })
 }
 
 export function CookieConsent() {
@@ -33,16 +48,21 @@ export function CookieConsent() {
     const consent = getConsentCookie()
     if (!consent) {
       setShowBanner(true)
+    } else if (consent === "accepted") {
+      // Vrneči obiskovalec: posodobi GA consent iz shranjenega piškotka
+      updateGtagConsent(true)
     }
   }, [])
 
   const handleAccept = () => {
     setConsentCookie("accepted")
+    updateGtagConsent(true)
     setShowBanner(false)
   }
 
   const handleDecline = () => {
     setConsentCookie("declined")
+    updateGtagConsent(false)
     setShowBanner(false)
   }
 

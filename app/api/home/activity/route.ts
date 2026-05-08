@@ -12,7 +12,6 @@ export async function GET() {
     if (error) throw error
 
     const items = (data || []).map((item: any) => ({
-      id: item.id,
       city: item.location_city || 'neznano mesto',
       category: item.kategorija || 'splošno storitev',
       createdAt: item.created_at,
