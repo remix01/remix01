@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     template: '%s | LiftGO',
   },
   description:
-    'Povežemo vas z zanesljivimi preverjenimi obrtniki po vsej Sloveniji. Brezplačno povpraševanje, odziv v 24 urah. 225+ aktivnih mojstrov.',
+    'Povežemo vas z zanesljivimi preverjenimi obrtniki po vsej Sloveniji. Brezplačno povpraševanje, odziv v 24 urah.',
   keywords: [
     'obrtnik', 'mojster', 'Slovenija', 'vodovodar', 'elektrikar',
     'parketar', 'malar', 'vodoinstalater', 'mizar', 'Ljubljana',
@@ -260,15 +260,24 @@ export default function RootLayout({
         {/* Vercel Web Analytics */}
         <Analytics />
 
-        {/* Google Analytics — afterInteractive, ne vpliva na LCP/FID */}
+        {/* Google Analytics — Consent Mode v2 + afterInteractive */}
         {env.NEXT_PUBLIC_GA_ID && (
           <>
+            {/*
+              Consent Mode v2: analytics_storage je privzeto 'denied'.
+              CookieConsent komponenta pokliče gtag('consent','update',...)
+              ko uporabnik sprejme ali zavrne piškotke.
+              wait_for_update: 500ms da čas za sync pred prvim pingom.
+            */}
+            <Script id="ga-consent-default" strategy="afterInteractive">
+              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',wait_for_update:500});`}
+            </Script>
             <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${env.NEXT_PUBLIC_GA_ID}`}
               strategy="afterInteractive"
             />
             <Script id="ga-init" strategy="afterInteractive">
-              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${env.NEXT_PUBLIC_GA_ID}',{anonymize_ip:true,cookie_flags:'SameSite=None;Secure'});`}
+              {`gtag('js',new Date());gtag('config','${env.NEXT_PUBLIC_GA_ID}',{anonymize_ip:true,cookie_flags:'SameSite=None;Secure'});`}
             </Script>
           </>
         )}
