@@ -23,6 +23,19 @@ function setConsentCookie(value: "accepted" | "declined") {
   document.cookie = `${CONSENT_COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`
 }
 
+// Push via dataLayer so the update is queued even before gtag.js loads.
+// gtag() is a thin wrapper around dataLayer.push — calling it directly
+// would silently no-op if the script hasn't initialized yet.
+function updateGtagConsent(granted: boolean) {
+  if (typeof window === "undefined") return
+  const value = granted ? "granted" : "denied"
+  ;(window as any).dataLayer = (window as any).dataLayer || []
+  ;(window as any).dataLayer.push(["consent", "update", {
+    analytics_storage: value,
+    ad_storage: value,
+  }])
+}
+
 export function CookieConsent() {
   const [showBanner, setShowBanner] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
@@ -33,16 +46,23 @@ export function CookieConsent() {
     const consent = getConsentCookie()
     if (!consent) {
       setShowBanner(true)
+    } else if (consent === "accepted") {
+      // Returning visitor: re-apply stored consent so GA isn't left denied
+      // for the entire page load. Queued via dataLayer, so this is safe
+      // even if gtag.js hasn't initialized yet.
+      updateGtagConsent(true)
     }
   }, [])
 
   const handleAccept = () => {
     setConsentCookie("accepted")
+    updateGtagConsent(true)
     setShowBanner(false)
   }
 
   const handleDecline = () => {
     setConsentCookie("declined")
+    updateGtagConsent(false)
     setShowBanner(false)
   }
 
