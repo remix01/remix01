@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      secrets:
+        - build_env
+    container_name: liftgo-app
+    # Don't expose port directly - use Nginx reverse proxy
+    # ports:
+    #   - "3000:3000"
+    expose:
+      - "3000"
+    environment:
+      # Load from .env file
+      - NODE_ENV=production
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      # Optional: mount for logs
+      - ./logs:/app/logs
+    networks:
+      - liftgo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Nginx Reverse Proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: liftgo-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./certbot:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    networks:
+      - liftgo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache & Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: liftgo-redis
+    # PRODUCTION: Don't expose port 6379 - use internal network only
+    # ports:
+    #   - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --bind 0.0.0.0
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme}
+    volumes:
+      # Persistent storage
+      - redis-data:/data
+    networks:
+      - liftgo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+networks:
+  liftgo:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
+
+secrets:
+  build_env:
+    file: .env.build
