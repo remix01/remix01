@@ -1,6 +1,8 @@
 import Stripe from 'stripe'
 import { stripe as stripeProxy } from '@/lib/stripe'
 import { subscriptionService } from '@/lib/services/subscription.service'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { enqueue } from '@/lib/jobs/queue'
 
 export async function handleCheckoutCompleted(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session
@@ -19,4 +21,31 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
   }
 
   await subscriptionService.updateSubscription(userId, customerId, tier, subscriptionId)
+
+  // Send subscription confirmation email
+  try {
+    let recipientEmail: string | null = session.customer_email ?? null
+    let recipientName = ''
+
+    if (!recipientEmail && userId) {
+      const { data: profile } = await supabaseAdmin
+        .from('obrtnik_profiles')
+        .select('email, ime, priimek')
+        .eq('user_id', userId)
+        .maybeSingle()
+      recipientEmail = profile?.email ?? null
+      recipientName = profile ? `${profile.ime ?? ''} ${profile.priimek ?? ''}`.trim() : ''
+    }
+
+    if (recipientEmail) {
+      const tierLabel = tier === 'pro' ? 'PRO' : tier === 'elite' ? 'ELITE' : 'START'
+      await enqueue('sendEmail', {
+        to: recipientEmail,
+        template: 'subscription_activated',
+        customData: { recipientName, tier, tierLabel, subscriptionId },
+      })
+    }
+  } catch (err) {
+    console.error('[WEBHOOK] checkout.session.completed: subscription email failed', err)
+  }
 }
