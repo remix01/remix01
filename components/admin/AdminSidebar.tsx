@@ -70,6 +70,7 @@ const navItems: NavItem[] = [
   { icon: CreditCard, label: 'Plačila', href: '/admin/placila', section: 'operations', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: CreditCard, label: 'Finance', href: '/admin/finance', section: 'operations', roles: ['SUPER_ADMIN', 'MODERATOR'] },
 
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard', section: 'growth' },
   { icon: LineChart, label: 'Analitika', href: '/admin/analytics', section: 'growth' },
   { icon: BrainCircuit, label: 'AI Analitika', href: '/admin/ai-analytics', section: 'growth', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: BrainCircuit, label: 'AI Stroški', href: '/admin/ai-costs', section: 'growth', roles: ['SUPER_ADMIN', 'MODERATOR'] },
@@ -81,7 +82,7 @@ const navItems: NavItem[] = [
   { icon: UserCog, label: 'Zaposleni', href: '/admin/zaposleni', section: 'system', roles: ['SUPER_ADMIN'] },
   { icon: Plug, label: 'Integracije', href: '/admin/integracije', section: 'system', roles: ['SUPER_ADMIN'] },
   { icon: RefreshCw, label: 'Migracije', href: '/admin/migracije', section: 'system', roles: ['SUPER_ADMIN'] },
-  { icon: Settings, label: 'Nastavitve', href: '/admin/setup', section: 'system' },
+  { icon: Settings, label: 'Nastavitve', href: '/admin/nastavitve', section: 'system' },
 ]
 
 const sectionLabels: Record<NavSectionKey, string> = {
