@@ -39,22 +39,22 @@ export function mapLegacyAgentType(agentType: AIAgentType): CoreRoleAgentType {
 
 const CORE_DAILY_LIMITS: Record<string, Record<CoreRoleAgentType, number>> = {
   start: {
-    onboarding_assistant: 10,
-    provider_coach: 8,
-    payment_helper: 8,
-    support_agent: 12,
+    onboarding_assistant: 20,
+    provider_coach: 20,
+    payment_helper: 20,
+    support_agent: 20,
   },
   pro: {
-    onboarding_assistant: 100,
-    provider_coach: 100,
-    payment_helper: 100,
-    support_agent: 120,
+    onboarding_assistant: 200,
+    provider_coach: 200,
+    payment_helper: 200,
+    support_agent: 200,
   },
   elite: {
-    onboarding_assistant: 250,
-    provider_coach: 250,
-    payment_helper: 250,
-    support_agent: 300,
+    onboarding_assistant: 500,
+    provider_coach: 500,
+    payment_helper: 500,
+    support_agent: 500,
   },
   enterprise: {
     onboarding_assistant: Infinity,
