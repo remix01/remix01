@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { Search, Wrench } from 'lucide-react'
 import type { UserRole } from '@/types'
+import { sendWelcomeEmail } from '@/app/actions/email'
 
 export function RegistracijaForm() {
   const router = useRouter()
@@ -119,7 +120,12 @@ export function RegistracijaForm() {
         }
       }
 
-      // 3. Preusmeri glede na role
+      // 3. Send welcome email (fire and forget)
+      sendWelcomeEmail(email, fullName, selectedRole).catch((err) =>
+        console.error('[Registration] Welcome email failed:', err)
+      )
+
+      // 4. Preusmeri glede na role
       if (selectedRole === 'obrtnik') {
         router.push('/partner-dashboard')
       } else {

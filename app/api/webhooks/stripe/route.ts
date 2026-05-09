@@ -10,6 +10,10 @@ import {
   getEscrowByPaymentIntent,
   writeAuditLog,
 } from '@/lib/escrow'
+import {
+  automationPaymentConfirmed,
+  automationPaymentFailed,
+} from '@/lib/email/liftgo-automations'
 
 export const maxDuration = 30
 
@@ -159,6 +163,67 @@ async function updateSubscriptionTier(
   console.log(`[WEBHOOK] Subscription updated: user=${profileId}, tier=${tier}, subscription=${stripeSubscriptionId || 'N/A'}`)
 }
 
+async function sendEscrowPaymentEmails(
+  escrow: { id: string; customer_email: string; obrtnik_id: string | null; amount_cents: number; inquiry_id: string | null },
+  transactionId: string,
+  succeeded: boolean,
+  failureReason?: string
+) {
+  const APP_URL = env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
+
+  try {
+    // Look up obrtnik email + name from profiles
+    let craftsmanEmail = ''
+    let craftsmanName = 'Mojster'
+    if (escrow.obrtnik_id) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', escrow.obrtnik_id)
+        .maybeSingle()
+      craftsmanEmail = profile?.email || ''
+      craftsmanName = profile?.full_name || 'Mojster'
+    }
+
+    // Look up task title from inquiry
+    let serviceName = 'Storitev'
+    if (escrow.inquiry_id) {
+      const { data: task } = await supabaseAdmin
+        .from('tasks')
+        .select('title')
+        .eq('id', escrow.inquiry_id)
+        .maybeSingle()
+      serviceName = task?.title || 'Storitev'
+    }
+
+    if (succeeded) {
+      await automationPaymentConfirmed(
+        escrow.id,
+        escrow.customer_email,
+        'Naročnik',
+        craftsmanEmail,
+        craftsmanName,
+        serviceName,
+        escrow.amount_cents / 100,
+        transactionId,
+        APP_URL
+      )
+    } else {
+      await automationPaymentFailed(
+        escrow.id,
+        escrow.customer_email,
+        'Naročnik',
+        serviceName,
+        escrow.amount_cents / 100,
+        failureReason || 'Plačilo ni bilo uspešno.',
+        APP_URL
+      )
+    }
+  } catch (err) {
+    console.error('[WEBHOOK] sendEscrowPaymentEmails failed:', err)
+  }
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
   const sig = request.headers.get('stripe-signature')
@@ -221,6 +286,10 @@ export async function POST(request: NextRequest) {
             extraFields: { paid_at: new Date().toISOString() },
             metadata: { stripeEventType: event.type, piStatus: pi.status },
           })
+          // Send payment confirmation emails (fire and forget)
+          sendEscrowPaymentEmails(escrow, pi.id, true).catch((err) =>
+            console.error('[WEBHOOK] Payment confirmation email error:', err)
+          )
         } catch {
           console.log('[WEBHOOK] payment_intent.succeeded without escrow row:', pi.id)
         }
@@ -242,6 +311,15 @@ export async function POST(request: NextRequest) {
               failureMessage: pi.last_payment_error?.message,
             },
           })
+          // Send payment failure email (fire and forget)
+          sendEscrowPaymentEmails(
+            escrow,
+            pi.id,
+            false,
+            pi.last_payment_error?.message || 'Plačilo ni bilo uspešno.'
+          ).catch((err) =>
+            console.error('[WEBHOOK] Payment failure email error:', err)
+          )
         } catch {
           console.warn('[WEBHOOK] payment_failed: PI ni v DB', pi.id)
         }
