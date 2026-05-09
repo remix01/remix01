@@ -87,7 +87,7 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
 
     // Use semantic search to find offers for similar work, then aggregate prices
     const { searchOffers } = await import('./rag')
-    const similar = await searchOffers(work_description, { limit: 50, threshold: 0.5 })
+    const similar = await searchOffers(work_description, undefined, { limit: 50, threshold: 0.5 })
 
     let prices: number[] = similar
       .map((o: Record<string, unknown>) => Number(o.price_estimate))
