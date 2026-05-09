@@ -1,5 +1,3 @@
-'use server'
-
 import { Resend } from 'resend'
 import { env } from '@/lib/env'
 import { v4 as uuidv4 } from 'uuid'
