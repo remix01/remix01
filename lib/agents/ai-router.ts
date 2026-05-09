@@ -83,7 +83,20 @@ for (const tier of Object.keys(AGENT_DAILY_LIMITS) as Array<keyof typeof AGENT_D
   }
 }
 
-export function isAgentAccessible(_agentType: AIAgentType, _userTier: string): boolean {
+const PRO_ONLY_AGENTS: AIAgentType[] = [
+  'quote_generator',
+  'materials_agent',
+  'video_diagnosis',
+  'job_summary',
+  'offer_writing',
+  'profile_optimization',
+  'provider_coach',
+]
+
+export function isAgentAccessible(agentType: AIAgentType, userTier: string): boolean {
+  if (PRO_ONLY_AGENTS.includes(agentType)) {
+    return userTier === 'pro' || userTier === 'elite' || userTier === 'enterprise'
+  }
   return true
 }
 
@@ -96,22 +109,22 @@ export const AGENT_META: Record<AIAgentType, {
   label: string
   description: string
   icon: string
-  tier: string | null
+  tier: 'start' | 'pro' | null
   async: boolean
   roles: ('narocnik' | 'obrtnik')[]
 }> = {
-  onboarding_assistant: { label: 'Onboarding Assistant', description: 'Guides users through setup and first actions without executing decisions.', icon: 'UserPlus', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
-  provider_coach: { label: 'Provider Coach', description: 'Helps providers improve offers and profiles with suggestions only.', icon: 'Briefcase', tier: null, async: false, roles: ['obrtnik'] },
-  payment_helper: { label: 'Payment Helper', description: 'Explains payment status and next steps only.', icon: 'CreditCard', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
-  support_agent: { label: 'Support Agent', description: 'General support and escalation guidance.', icon: 'LifeBuoy', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
-  general_chat: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'MessageCircle', tier: null, async: false, roles: ['narocnik', 'obrtnik'] },
-  work_description: { label: 'Onboarding Assistant (legacy)', description: 'Legacy alias to onboarding assistant.', icon: 'ClipboardList', tier: null, async: false, roles: ['narocnik'] },
-  offer_comparison: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'BarChart2', tier: null, async: false, roles: ['narocnik'] },
-  scheduling_assistant: { label: 'Onboarding Assistant (legacy)', description: 'Legacy alias to onboarding assistant.', icon: 'Calendar', tier: null, async: false, roles: ['narocnik'] },
-  video_diagnosis: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'Video', tier: null, async: false, roles: ['narocnik'] },
-  quote_generator: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'FileText', tier: null, async: false, roles: ['obrtnik'] },
-  materials_agent: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'Package', tier: null, async: false, roles: ['obrtnik'] },
-  job_summary: { label: 'Support Agent (legacy)', description: 'Legacy alias to support agent.', icon: 'ClipboardCheck', tier: null, async: false, roles: ['obrtnik'] },
-  offer_writing: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'PenTool', tier: null, async: false, roles: ['obrtnik'] },
-  profile_optimization: { label: 'Provider Coach (legacy)', description: 'Legacy alias to provider coach.', icon: 'TrendingUp', tier: null, async: false, roles: ['obrtnik'] },
+  onboarding_assistant: { label: 'Onboarding Assistant', description: 'Guides users through setup and first actions.', icon: 'UserPlus', tier: 'start', async: false, roles: ['narocnik', 'obrtnik'] },
+  provider_coach: { label: 'Provider Coach', description: 'Helps providers improve offers and profiles (PRO).', icon: 'Briefcase', tier: 'pro', async: false, roles: ['obrtnik'] },
+  payment_helper: { label: 'Payment Helper', description: 'Explains payment status and next steps.', icon: 'CreditCard', tier: 'start', async: false, roles: ['narocnik', 'obrtnik'] },
+  support_agent: { label: 'Support Agent', description: 'General support and escalation guidance.', icon: 'LifeBuoy', tier: 'start', async: false, roles: ['narocnik', 'obrtnik'] },
+  general_chat: { label: 'Asistent', description: 'Splošni LiftGO asistent.', icon: 'MessageCircle', tier: 'start', async: false, roles: ['narocnik', 'obrtnik'] },
+  work_description: { label: 'Opis del', description: 'Pomoč pri opisu povpraševanja.', icon: 'ClipboardList', tier: 'start', async: false, roles: ['narocnik'] },
+  offer_comparison: { label: 'Primerjava ponudb', description: 'Analiza in primerjava prejetih ponudb.', icon: 'BarChart2', tier: 'start', async: false, roles: ['narocnik'] },
+  scheduling_assistant: { label: 'Razporejanje', description: 'Pomoč pri dogovarjanju termina.', icon: 'Calendar', tier: 'start', async: false, roles: ['narocnik'] },
+  video_diagnosis: { label: 'Video diagnoza', description: 'Vizualna analiza težave (PRO).', icon: 'Video', tier: 'pro', async: true, roles: ['narocnik'] },
+  quote_generator: { label: 'Generator ponudb', description: 'Avtomatsko ustvarjanje ponudb (PRO).', icon: 'FileText', tier: 'pro', async: false, roles: ['obrtnik'] },
+  materials_agent: { label: 'Izračun materiala', description: 'Seznam in cene materiala (PRO).', icon: 'Package', tier: 'pro', async: false, roles: ['obrtnik'] },
+  job_summary: { label: 'Povzetek del', description: 'Poročilo o opravljenem delu (PRO).', icon: 'ClipboardCheck', tier: 'pro', async: false, roles: ['obrtnik'] },
+  offer_writing: { label: 'Pisanje ponudb', description: 'Pomoč pri sestavi profesionalne ponudbe (PRO).', icon: 'PenTool', tier: 'pro', async: false, roles: ['obrtnik'] },
+  profile_optimization: { label: 'Optimizacija profila', description: 'Izboljšanje profila obrtnika (PRO).', icon: 'TrendingUp', tier: 'pro', async: false, roles: ['obrtnik'] },
 }

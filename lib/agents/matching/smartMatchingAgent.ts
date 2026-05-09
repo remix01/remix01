@@ -1,4 +1,5 @@
 import { getErrorMessage } from '@/lib/utils/error'
+import { sendNewRequestMatchedNotification } from '@/lib/agents/notifications/smartNotificationAgent'
 /**
  * Smart Matching Agent
  * 
@@ -262,7 +263,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         // Score components (base score: 0-100)
         const locationScore = scoreLocation(distance)
         const ratingScore = scoreRating(partner.avg_rating)
-        const responseScore = scoreResponse(partner.response_time_hours)
+        const responseScore = scoreResponse(partner.response_time_hours ?? null)
         const categoryScore = scoreCategory(
           partner.categories,
           input.categoryId
@@ -333,6 +334,23 @@ export async function matchPartnersForRequest(input: MatchingInput) {
     console.log(
       `[Matching] Request ${input.requestId}: Top match = ${topMatches[0]!.partnerId} (${topMatches[0]!.subscriptionTier.toUpperCase()}) with score ${topMatches[0]!.score} (base: ${topMatches[0]!.breakdown.baseScore}, boost: +${topMatches[0]!.breakdown.subscriptionBoost})`
     )
+
+    // 9. Notify matched partners about the new request
+    const requestTitle = (povprasevanje as any).title || (povprasevanje as any).description || 'Novo povpraševanje'
+    const { data: partnerProfiles } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', topMatches.map((m) => m.partnerId))
+
+    if (partnerProfiles) {
+      for (const partner of partnerProfiles) {
+        if (partner.email) {
+          sendNewRequestMatchedNotification(partner.id, partner.email, input.requestId, requestTitle).catch((err) =>
+            console.error('[Matching] Failed to notify partner:', err)
+          )
+        }
+      }
+    }
 
     return {
       matches: topMatches,

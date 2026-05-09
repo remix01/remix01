@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueue } from '@/lib/jobs/queue'
 import { env } from '@/lib/env'
 import { v4 as uuidv4 } from 'uuid'
+import { sendOfferAcceptedNotification } from '@/lib/agents/notifications/smartNotificationAgent'
 
 export class NotifyAgent extends BaseAgent {
   type: AgentType = 'notify'
@@ -14,6 +15,7 @@ export class NotifyAgent extends BaseAgent {
     'updatePreferences',
     // Broadcast events
     'inquiry_created',
+    'escrow_created',
     'escrow_captured',
     'escrow_released',
     'escrow_refunded',
@@ -39,6 +41,9 @@ export class NotifyAgent extends BaseAgent {
       // Broadcast event handlers — no userId required for events
       if (action === 'inquiry_created') {
         return await this.onInquiryCreated(payload, sessionId, startTime)
+      }
+      if (action === 'escrow_created') {
+        return await this.onEscrowCreated(payload, sessionId, startTime)
       }
       if (action === 'escrow_captured') {
         return await this.onEscrowCaptured(payload, sessionId, startTime)
@@ -178,6 +183,41 @@ export class NotifyAgent extends BaseAgent {
   }
 
   // ── Broadcast Event Handlers ────────────────────────────────────────
+
+  private async onEscrowCreated(
+    payload: any,
+    sessionId: string,
+    startTime: number
+  ): Promise<AgentResponse> {
+    const { escrowId, offerId } = payload
+
+    try {
+      // Look up offer → partner → profile to send OFFER_ACCEPTED notification
+      const { data: offer } = await supabaseAdmin
+        .from('ponudbe')
+        .select('obrtnik_id, task_id')
+        .eq('id', offerId)
+        .maybeSingle()
+
+      if (offer?.obrtnik_id) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', offer.obrtnik_id)
+          .maybeSingle()
+
+        if (profile?.email) {
+          await sendOfferAcceptedNotification(offer.obrtnik_id, profile.email, profile.full_name ?? 'Obrtnik', escrowId)
+        }
+      }
+
+      this.log('escrow_created_handled', { escrowId })
+      return { success: true, handledBy: this.type, durationMs: Date.now() - startTime }
+    } catch (error: unknown) {
+      this.log('error', { error: getErrorMessage(error) })
+      return { success: true, handledBy: this.type, durationMs: Date.now() - startTime }
+    }
+  }
 
   private async onInquiryCreated(
     payload: any,
