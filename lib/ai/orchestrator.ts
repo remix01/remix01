@@ -9,6 +9,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import { agentLogger } from '../observability/agentLogger'
 import type {
   ContentBlock,
   Message,
@@ -54,6 +55,8 @@ export interface AgentExecutionOptions {
   additionalContext?: string
   imageUrl?: string
   maxToolIterations?: number
+  /** Caller-supplied trace ID for distributed tracing. Generated if omitted. */
+  traceId?: string
 }
 
 export interface AgentExecutionResult {
@@ -72,6 +75,8 @@ export interface AgentExecutionResult {
   }
   costUsd: number
   durationMs: number
+  /** Trace ID for correlating this execution in observability tooling */
+  traceId: string
 }
 
 // =============================================================================
@@ -125,9 +130,11 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
     additionalContext,
     imageUrl,
     maxToolIterations = 5,
+    traceId: callerTraceId,
   } = options
 
   const startTime = Date.now()
+  const traceId = callerTraceId ?? crypto.randomUUID()
   const agentType = mapLegacyAgentType(rawAgentType)
 
   // 1. Check access and quota
@@ -290,9 +297,14 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     toolCallsCount: toolCalls.length,
     ragContextUsed: !!ragContext && ragSourcesCount > 0,
     ragSourcesCount,
+    traceId,
   })
 
-  // 10. Return result
+  // 10. Flush logs before returning — serverless runtimes may terminate before
+  // the 5s interval fires, so ensure the request's log batch is persisted.
+  await agentLogger.flushForRequest()
+
+  // 11. Return result
   return {
     response: finalResponse,
     agentType,
@@ -305,6 +317,7 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     },
     costUsd,
     durationMs: Date.now() - startTime,
+    traceId,
   }
 }
 
@@ -336,6 +349,10 @@ async function getDailyUsage(userId: string, agentType: AIAgentType): Promise<nu
   return count || 0
 }
 
+// Cost thresholds — tune via env or keep as compile-time defaults
+const COST_ALERT_PER_REQUEST_USD = 0.05   // alert if a single call exceeds $0.05
+const COST_ALERT_DAILY_USD = 1.00         // alert if a user spends >$1 today
+
 async function logAgentUsage(params: {
   userId: string
   agentType: AIAgentType
@@ -346,6 +363,7 @@ async function logAgentUsage(params: {
   toolCallsCount: number
   ragContextUsed?: boolean
   ragSourcesCount?: number
+  traceId?: string
 }): Promise<void> {
   try {
     await supabaseAdmin.from('ai_usage_logs').insert({
@@ -358,10 +376,63 @@ async function logAgentUsage(params: {
       tool_calls_count: params.toolCallsCount,
       rag_context_used: params.ragContextUsed ?? false,
       rag_sources_count: params.ragSourcesCount ?? 0,
+      trace_id: params.traceId ?? null,
       created_at: new Date().toISOString(),
     })
   } catch (error: any) {
     console.error('Failed to log AI usage:', error)
+  }
+
+  // Fire-and-forget cost alerts — never block the main path
+  checkCostThresholds(params).catch((err) =>
+    console.error('[AI cost alert] check failed:', err)
+  )
+}
+
+async function checkCostThresholds(params: {
+  userId: string
+  agentType: AIAgentType
+  costUsd: number
+  modelId: string
+}): Promise<void> {
+  const slackUrl = process.env.SLACK_WEBHOOK_URL
+  if (!slackUrl) return
+
+  const alerts: string[] = []
+
+  // 1. Single-request spike
+  if (params.costUsd >= COST_ALERT_PER_REQUEST_USD) {
+    alerts.push(
+      `💸 *AI cost spike* — single request $${params.costUsd.toFixed(4)}\nUser: ${params.userId} | Agent: ${params.agentType} | Model: ${params.modelId}`
+    )
+  }
+
+  // 2. Daily per-user spend
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const { data: dailyRows } = await supabaseAdmin
+    .from('ai_usage_logs')
+    .select('cost_usd')
+    .eq('user_id', params.userId)
+    .gte('created_at', today.toISOString())
+
+  const dailySpend = (dailyRows || []).reduce(
+    (sum, row: any) => sum + (Number(row.cost_usd) || 0),
+    0
+  )
+
+  if (dailySpend >= COST_ALERT_DAILY_USD) {
+    alerts.push(
+      `💸 *AI daily spend cap* — user has spent $${dailySpend.toFixed(4)} today\nUser: ${params.userId}`
+    )
+  }
+
+  for (const text of alerts) {
+    await fetch(slackUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    }).catch(() => {/* slack unreachable — non-fatal */})
   }
 }
 

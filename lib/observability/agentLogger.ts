@@ -258,6 +258,16 @@ class AgentLogger {
     })
   }
 
+  /**
+   * Flush at the end of a serverless request.
+   * Serverless runtimes may terminate before the 5s interval fires, so call
+   * this before sending the response to guarantee the batch is persisted.
+   */
+  async flushForRequest(): Promise<void> {
+    if (this.buffer.length === 0) return
+    await this.flush()
+  }
+
   /** Flush buffered logs to the agent_logs table */
   async flush(): Promise<void> {
     if (this.buffer.length === 0) return
