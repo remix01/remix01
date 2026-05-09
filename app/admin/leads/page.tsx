@@ -19,7 +19,7 @@ interface Lead {
   profile: { full_name: string; location_city: string; email: string | null } | null
 }
 
-type Tab = 'lead' | 'active' | 'claimed'
+type Tab = 'all' | 'lead' | 'active' | 'claimed'
 
 async function getToken() {
   const supabase = createClient()
@@ -31,7 +31,7 @@ export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState<Tab>('lead')
+  const [tab, setTab] = useState<Tab>('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [approving, setApproving] = useState(false)
@@ -53,15 +53,32 @@ export default function AdminLeadsPage() {
     setError(null)
     try {
       const token = await getToken()
-      const params = new URLSearchParams({ status: tab, limit: '50' })
-      if (search) params.set('search', search)
-      const res = await fetch(`/api/admin/leads?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
-      setLeads(json.data || [])
-      setTotal(json.total || 0)
+      const headers = { Authorization: `Bearer ${token}` }
+
+      if (tab === 'all') {
+        const statuses: Array<'lead' | 'active' | 'claimed'> = ['lead', 'active', 'claimed']
+        const results = await Promise.all(
+          statuses.map(async (status) => {
+            const params = new URLSearchParams({ status, limit: '100' })
+            if (search) params.set('search', search)
+            const res = await fetch(`/api/admin/leads?${params}`, { headers })
+            if (!res.ok) throw new Error(`Napaka pri nalaganju (${status}): HTTP ${res.status}`)
+            const json = await res.json()
+            return (json.data as Lead[]) || []
+          })
+        )
+        const combined = results.flat().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        setLeads(combined)
+        setTotal(combined.length)
+      } else {
+        const params = new URLSearchParams({ status: tab, limit: '50' })
+        if (search) params.set('search', search)
+        const res = await fetch(`/api/admin/leads?${params}`, { headers })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json = await res.json()
+        setLeads(json.data || [])
+        setTotal(json.total || 0)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Napaka pri nalaganju')
     } finally {
@@ -191,7 +208,7 @@ export default function AdminLeadsPage() {
     }
   }
 
-  const tabLabel: Record<Tab, string> = { lead: 'Leadi', active: 'Aktivni', claimed: 'Zahtevani' }
+  const tabLabel: Record<Tab, string> = { all: 'Vsi', lead: 'Leadi', active: 'Aktivni', claimed: 'Zahtevani' }
 
   return (
     <div className="space-y-6">
@@ -340,7 +357,7 @@ export default function AdminLeadsPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1">
-          {(['lead', 'active', 'claimed'] as Tab[]).map((t) => (
+          {(['all', 'lead', 'active', 'claimed'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setSelected(new Set()) }}
