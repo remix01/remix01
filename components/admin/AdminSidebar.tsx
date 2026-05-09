@@ -24,6 +24,7 @@ import {
   ListChecks,
   Bot,
   SlidersHorizontal,
+  UserRoundPlus,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,7 @@ const navItems: NavItem[] = [
   { icon: Users, label: 'Stranke', href: '/admin/stranke', section: 'core' },
   { icon: Briefcase, label: 'Partnerji', href: '/admin/partnerji', section: 'core' },
   { icon: Users, label: 'Obrtniki', href: '/admin/obrtniki', section: 'core' },
+  { icon: UserRoundPlus, label: 'Leads', href: '/admin/leads', section: 'core', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: Handshake, label: 'Ponudbe', href: '/admin/offers', section: 'core' },
   { icon: AlertTriangle, label: 'Povpraševanja', href: '/admin/povprasevanja', section: 'core' },
 
