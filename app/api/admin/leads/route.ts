@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     profile_status: 'lead',
     is_claimed: false,
     is_verified: false,
-    source: 'manual',
+    source: 'direct',
     visibility: 'public_limited',
     avg_rating: 0,
     total_reviews: 0,

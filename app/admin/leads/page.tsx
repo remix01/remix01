@@ -10,7 +10,7 @@ interface Lead {
   description: string | null
   location_city: string
   category_id: string | null
-  profile_status: 'lead' | 'active' | 'blocked'
+  profile_status: 'lead' | 'claimed' | 'active' | 'inactive'
   is_verified: boolean
   avg_rating: number
   total_reviews: number
@@ -18,18 +18,20 @@ interface Lead {
   source: string
 }
 
-type StatusFilter = 'lead' | 'active' | 'blocked' | 'all'
+type StatusFilter = 'lead' | 'claimed' | 'active' | 'inactive' | 'all'
 
 const statusIcons: Record<Lead['profile_status'], React.ReactNode> = {
   lead: <AlertCircle className="h-5 w-5 text-yellow-500" />,
+  claimed: <AlertCircle className="h-5 w-5 text-blue-500" />,
   active: <CheckCircle className="h-5 w-5 text-green-500" />,
-  blocked: <XCircle className="h-5 w-5 text-red-500" />,
+  inactive: <XCircle className="h-5 w-5 text-red-500" />,
 }
 
 const statusColors: Record<Lead['profile_status'], string> = {
   lead: 'bg-yellow-100 text-yellow-800',
+  claimed: 'bg-blue-100 text-blue-800',
   active: 'bg-green-100 text-green-800',
-  blocked: 'bg-red-100 text-red-800',
+  inactive: 'bg-red-100 text-red-800',
 }
 
 export default function LeadsPage() {
@@ -51,15 +53,29 @@ export default function LeadsPage() {
       } = await supabase.auth.getSession()
       const token = session?.access_token
 
-      const status = statusFilter === 'all' ? 'lead' : statusFilter
-      const response = await fetch(`/api/admin/leads?status=${status}&limit=100`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-
-      if (!response.ok) throw new Error(`Napaka pri nalaganju (${response.status})`)
-
-      const data = (await response.json()) as { data: Lead[] }
-      setLeads(Array.isArray(data.data) ? data.data : [])
+      let leads: Lead[] = []
+      if (statusFilter === 'all') {
+        const statuses = ['lead', 'active', 'inactive'] as const
+        const allLeads: Lead[] = []
+        for (const status of statuses) {
+          const response = await fetch(`/api/admin/leads?status=${status}&limit=100`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          })
+          if (response.ok) {
+            const data = (await response.json()) as { data: Lead[] }
+            allLeads.push(...(Array.isArray(data.data) ? data.data : []))
+          }
+        }
+        leads = allLeads
+      } else {
+        const response = await fetch(`/api/admin/leads?status=${statusFilter}&limit=100`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (!response.ok) throw new Error(`Napaka pri nalaganju (${response.status})`)
+        const data = (await response.json()) as { data: Lead[] }
+        leads = Array.isArray(data.data) ? data.data : []
+      }
+      setLeads(leads)
     } catch (fetchError) {
       console.error('[admin/leads] Error fetching leads:', fetchError)
       setError('Pri nalaganju leadov je prišlo do napake.')
@@ -209,7 +225,7 @@ export default function LeadsPage() {
       )}
 
       <div className="flex gap-2">
-        {(['all', 'lead', 'active', 'blocked'] as StatusFilter[]).map((status) => (
+        {(['all', 'lead', 'claimed', 'active', 'inactive'] as StatusFilter[]).map((status) => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}

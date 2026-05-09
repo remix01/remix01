@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ids array is required' }, { status: 400 })
   }
 
-  const allowedStatuses = ['active', 'blocked']
+  const allowedStatuses = ['lead', 'claimed', 'active', 'inactive']
   if (!allowedStatuses.includes(status)) {
     return NextResponse.json({ error: `Status must be one of: ${allowedStatuses.join(', ')}` }, { status: 400 })
   }
