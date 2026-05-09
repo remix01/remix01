@@ -242,6 +242,8 @@ export default function RootLayout({
           <ErrorBoundary>
             <AuthProvider>
               {children}
+              {/* Global AI chat trigger — mora biti znotraj AuthProvider */}
+              <AgentChatButton />
             </AuthProvider>
           </ErrorBoundary>
         </PostHogProvider>
@@ -253,9 +255,6 @@ export default function RootLayout({
 
         {/* PWA Install Banner — prikaže se samo če je device-compat */}
         <PWAInstallBanner />
-
-        {/* Global AI chat trigger (self-hides on pages with dedicated assistants) */}
-        <AgentChatButton />
 
         {/* Vercel Web Analytics */}
         <Analytics />

@@ -10,6 +10,8 @@ type AgentChatProps = {
   isLoading: boolean
   connectionStatus: ConnectionStatus
   lastError: string | null
+  lastWarning: string | null
+  usageInfo: { used: number; limit: number | null } | null
   sendMessage: (content: string) => void
   clearConversation: () => void
   closeChat: () => void
@@ -22,7 +24,7 @@ const STARTER_PROMPTS = [
   'Popravilo parketa — koliko stane?',
 ]
 
-export function AgentChat({ messages, isLoading, connectionStatus, lastError, sendMessage, clearConversation, closeChat }: AgentChatProps) {
+export function AgentChat({ messages, isLoading, connectionStatus, lastError, lastWarning, usageInfo, sendMessage, clearConversation, closeChat }: AgentChatProps) {
   const [input, setInput] = React.useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -89,7 +91,11 @@ export function AgentChat({ messages, isLoading, connectionStatus, lastError, se
             <div>
               <p className="text-sm font-semibold text-slate-900 leading-none">LiftGO Asistent</p>
               <p className="text-xs text-slate-400 mt-0.5 leading-none">
-                {connectionStatus === 'loading' && messages.length === 0 ? 'Nalagam...' : 'Na voljo'}
+                {connectionStatus === 'loading' && messages.length === 0
+                  ? 'Nalagam...'
+                  : usageInfo?.limit
+                    ? `${usageInfo.used}/${usageInfo.limit} danes`
+                    : 'Na voljo'}
               </p>
             </div>
           </div>
@@ -178,6 +184,11 @@ export function AgentChat({ messages, isLoading, connectionStatus, lastError, se
 
         {/* Input */}
         <div className="px-3 pb-3 pt-2 border-t border-slate-100 bg-white">
+          {lastWarning && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-2">
+              ⚠️ {lastWarning}
+            </p>
+          )}
           {lastError && (
             <p className="text-xs text-red-500 mb-2 px-1">
               {lastError.includes('→') ? (

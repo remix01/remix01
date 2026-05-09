@@ -37,6 +37,8 @@ export function useAgentChat() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle')
   const [lastError, setLastError] = useState<string | null>(null)
+  const [lastWarning, setLastWarning] = useState<string | null>(null)
+  const [usageInfo, setUsageInfo] = useState<{ used: number; limit: number | null } | null>(null)
   const historyLoaded = useRef(false)
 
   // Load conversation history from server AFTER auth is ready
@@ -96,12 +98,6 @@ export function useAgentChat() {
       setLastError(null)
 
       try {
-        // Pass current messages as anonHistory so server can use them
-        // for unauthenticated users (server ignores it for logged-in users)
-        const anonHistory = messages
-          .filter(m => m.status === 'sent')
-          .map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp }))
-
         const response = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -139,6 +135,8 @@ export function useAgentChat() {
 
         setConnectionStatus('connected')
         setLastError(null)
+        setLastWarning(data.warning ?? null)
+        if (data.usage) setUsageInfo(data.usage)
 
         // Increment unread only if chat is closed
         if (!isOpen) {
@@ -197,5 +195,7 @@ export function useAgentChat() {
     unreadCount,
     connectionStatus,
     lastError,
+    lastWarning,
+    usageInfo,
   }
 }

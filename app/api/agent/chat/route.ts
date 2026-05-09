@@ -41,9 +41,9 @@ function anthropicErrorMessage(error: unknown): string {
 
 // Daily message limits per subscription tier
 const TIER_LIMITS: Record<string, number> = {
-  start: 5,
-  pro: 100,
-  elite: 300,
+  start: 20,
+  pro: 200,
+  elite: 500,
   enterprise: Infinity,
 }
 
