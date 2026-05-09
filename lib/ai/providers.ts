@@ -224,9 +224,9 @@ async function chatWithGemini(
   const data = await response.json()
   const content = data.candidates[0].content.parts[0].text
 
-  // Gemini doesn't provide token counts in the same way
-  const inputTokens = Math.ceil(JSON.stringify(geminiMessages).length / 4)
-  const outputTokens = Math.ceil(content.length / 4)
+  // Gemini returns actual token counts in usageMetadata
+  const inputTokens: number = data.usageMetadata?.promptTokenCount ?? Math.ceil(JSON.stringify(geminiMessages).length / 4)
+  const outputTokens: number = data.usageMetadata?.candidatesTokenCount ?? Math.ceil(content.length / 4)
 
   return {
     content,

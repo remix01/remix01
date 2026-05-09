@@ -84,17 +84,30 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
 
   async get_market_price_range(input) {
     const { work_description } = input as { work_description: string }
-    const { data, error } = await supabaseAdmin
-      .from('ponudbe')
-      .select('price_estimate')
-      .eq('status', 'accepted')
-      .limit(50)
 
-    if (error || !data?.length) {
-      return { min: null, max: null, sample_size: 0 }
+    // Use semantic search to find offers for similar work, then aggregate prices
+    const { searchOffers } = await import('./rag')
+    const similar = await searchOffers(work_description, { limit: 50, threshold: 0.5 })
+
+    let prices: number[] = similar
+      .map((o: Record<string, unknown>) => Number(o.price_estimate))
+      .filter((p: number) => Number.isFinite(p) && p > 0)
+
+    // Fall back to recent accepted offers when RAG returns nothing
+    if (!prices.length) {
+      const { data } = await supabaseAdmin
+        .from('ponudbe')
+        .select('price_estimate')
+        .eq('status', 'accepted')
+        .limit(50)
+      prices = (data || [])
+        .map((d: Record<string, unknown>) => Number(d.price_estimate))
+        .filter((p: number) => Number.isFinite(p) && p > 0)
     }
 
-    const prices = data.map((d) => d.price_estimate).sort((a, b) => a - b)
+    if (!prices.length) return { min: null, max: null, sample_size: 0 }
+
+    prices.sort((a, b) => a - b)
     return {
       min: prices[0],
       max: prices[prices.length - 1],
@@ -110,12 +123,18 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
       limit?: number
     }
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('obrtnik_profiles')
-      .select('id, business_name, avg_rating')
+      .select('id, business_name, avg_rating, location_city')
+      .eq('category_id', category_id)
       .order('avg_rating', { ascending: false })
       .limit(limit)
 
+    if (location) {
+      query = query.eq('location_city', location)
+    }
+
+    const { data, error } = await query
     if (error) throw new Error(`Napaka: ${error.message}`)
     return data
   },
@@ -123,14 +142,15 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
 
 export async function executeTool(
   toolName: string,
-  toolInput: Record<string, unknown>
+  toolInput: Record<string, unknown>,
+  toolUseId: string
 ): Promise<ToolResultBlockParam> {
   const handler = TOOL_HANDLERS[toolName]
 
   if (!handler) {
     return {
       type: 'tool_result',
-      tool_use_id: '',
+      tool_use_id: toolUseId,
       content: JSON.stringify({ error: `Neznano orodje: ${toolName}` }),
       is_error: true,
     }
@@ -140,14 +160,14 @@ export async function executeTool(
     const result = await handler(toolInput)
     return {
       type: 'tool_result',
-      tool_use_id: '',
+      tool_use_id: toolUseId,
       content: JSON.stringify(result),
       is_error: false,
     }
   } catch (error) {
     return {
       type: 'tool_result',
-      tool_use_id: '',
+      tool_use_id: toolUseId,
       content: JSON.stringify({
         error: error instanceof Error ? error.message : 'Neznana napaka',
       }),

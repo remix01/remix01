@@ -247,8 +247,7 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     const toolResults: ToolResultBlockParam[] = []
 
     for (const toolUse of toolUseBlocks) {
-      const result = await executeTool(toolUse.name, toolUse.input as Record<string, unknown>)
-      result.tool_use_id = toolUse.id
+      const result = await executeTool(toolUse.name, toolUse.input as Record<string, unknown>, toolUse.id)
 
       toolCalls.push({
         name: toolUse.name,

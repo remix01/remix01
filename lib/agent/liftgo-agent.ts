@@ -220,7 +220,7 @@ Vrni JSON v tej obliki (SAMO JSON, brez drugega teksta):
     let response
     try {
       response = await anthropic.messages.create({
-        model: 'claude-opus-4-6',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
         messages: [{ role: 'user', content: userPrompt }],
         system: systemPrompt,

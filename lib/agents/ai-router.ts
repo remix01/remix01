@@ -83,7 +83,25 @@ for (const tier of Object.keys(AGENT_DAILY_LIMITS) as Array<keyof typeof AGENT_D
   }
 }
 
-export function isAgentAccessible(_agentType: AIAgentType, _userTier: string): boolean {
+// Agents that require PRO tier or above (obrtnik-only features per CLAUDE.md)
+const PRO_ONLY_AGENTS = new Set<AIAgentType>([
+  'quote_generator',
+  'materials_agent',
+  'video_diagnosis',
+  'job_summary',
+])
+
+const TIER_RANK: Record<string, number> = {
+  start: 0,
+  pro: 1,
+  elite: 2,
+  enterprise: 3,
+}
+
+export function isAgentAccessible(agentType: AIAgentType, userTier: string): boolean {
+  if (PRO_ONLY_AGENTS.has(agentType)) {
+    return (TIER_RANK[userTier] ?? 0) >= TIER_RANK.pro
+  }
   return true
 }
 
