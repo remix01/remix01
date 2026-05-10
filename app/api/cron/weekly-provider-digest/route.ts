@@ -97,12 +97,23 @@ export async function GET(request: NextRequest) {
       }
 
       let totalSent = 0
+      let allSuccess = true
       for (const chunk of chunks) {
         const result = await automationWeeklyProviderDigest(chunk, APP_URL)
-        if (result.success) totalSent += chunk.length
+        if (result.success) {
+          totalSent += chunk.length
+        } else {
+          allSuccess = false
+          console.error('[weekly-provider-digest] Chunk send failed:', result.error)
+        }
       }
 
-      return NextResponse.json({ success: true, sent: totalSent, chunks: chunks.length })
+      return NextResponse.json({
+        success: allSuccess,
+        sent: totalSent,
+        chunks: chunks.length,
+        message: allSuccess ? 'All chunks sent successfully' : 'Some chunks failed to send'
+      })
     }
 
     const result = await automationWeeklyProviderDigest(activeProviders, APP_URL)
