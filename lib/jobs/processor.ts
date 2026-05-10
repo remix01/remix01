@@ -57,7 +57,7 @@ const jobHandlers: Record<JobType, JobHandler> = {
   stripe_capture_payment: (job) => handleStripeJob({ ...job, type: 'stripe_capture_payment' }),
   stripe_release_payment: notImplementedHandler('stripe_release_payment'),
   send_payment_confirmed_email: (job) => handleEmailJob({ ...job, type: 'send_payment_confirmed_email' }),
-  notify_dispute_resolved: notImplementedHandler('notify_dispute_resolved'),
+  notify_dispute_resolved: (job) => handleEmailJob({ ...job, type: 'notify_dispute_resolved' }),
 }
 
 /**

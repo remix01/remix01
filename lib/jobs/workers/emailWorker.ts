@@ -95,6 +95,34 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     }
   }
 
+  if (type === 'notify_dispute_resolved') {
+    const { recipientEmail: disputeEmail, templateData } = payload as any
+    if (!disputeEmail) throw new Error('[EMAIL] notify_dispute_resolved: missing recipientEmail')
+    const { disputeId, resolution, newStatus } = templateData || {}
+    const html = buildDisputeResolvedEmail(
+      escapeHtml(resolution || 'Spor je bil rešen.'),
+      escapeHtml(newStatus || ''),
+      escapeHtml(disputeId || '')
+    )
+    const resolvedRecipients = resolveEmailRecipients(disputeEmail)
+    if (!resolvedRecipients.to.length) throw new Error('[EMAIL] notify_dispute_resolved: no valid recipients')
+    const emailResult = await provider.send({
+      to: resolvedRecipients.to,
+      subject: 'Vaš spor je bil rešen — LiftGO',
+      html,
+      idempotencyKey: `dispute_resolved:${disputeId || disputeEmail}`,
+    })
+    console.log('[EMAIL] Sent', {
+      type,
+      disputeId,
+      provider: provider.name,
+      resendMessageId: emailResult?.id ?? null,
+      recipientsCount: resolvedRecipients.to.length,
+      redirected: resolvedRecipients.redirected,
+    })
+    return
+  }
+
   if (type === 'sendEmail') {
     const effectiveTemplate = template || jobType
     let recipient = to
@@ -323,6 +351,35 @@ function buildGenericEmailContent(template: string, data: Record<string, any>): 
           <p>Sporočilo: ${escapeHtml(data.message || '—')}</p>
           <p>Preglej ponudbo: <a href="${escapeHtml(data.link || '#')}">${escapeHtml(data.link || 'Odpri ponudbo')}</a></p>
         `
+      }
+    case 'subscription_activated':
+      return {
+        subject: `Naročnina ${escapeHtml(data.tierLabel || data.tier || '')} aktivirana — LiftGO`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #0d9488;">Naročnina aktivirana!</h2>
+            <p>Pozdravljeni${data.recipientName ? ` ${escapeHtml(data.recipientName)}` : ''},</p>
+            <p>Vaša naročnina <strong>${escapeHtml(data.tierLabel || data.tier || '')}</strong> je bila uspešno aktivirana.</p>
+            <p>Zdaj imate dostop do vseh ugodnosti vašega načrta. Prijavite se in začnite prejemati povpraševanja.</p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+            <p style="color: #94a3b8; font-size: 12px;">LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah</p>
+          </div>
+        `,
+      }
+    case 'payment_failed':
+      return {
+        subject: 'Plačilo ni uspelo — LiftGO',
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #dc2626;">Plačilo ni bilo uspešno</h2>
+            <p>Pozdravljeni${data.recipientName ? ` ${escapeHtml(data.recipientName)}` : ''},</p>
+            <p>Žal nam je, vaše plačilo na LiftGO ni bilo uspešno.</p>
+            ${data.failureReason ? `<p style="color: #64748b;">Razlog: ${escapeHtml(data.failureReason)}</p>` : ''}
+            <p>Preverite podatke o plačilni kartici in poskusite znova, ali nas kontaktirajte na <a href="mailto:info@liftgo.net">info@liftgo.net</a>.</p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+            <p style="color: #94a3b8; font-size: 12px;">LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah</p>
+          </div>
+        `,
       }
     default:
       throw new Error(`Unknown email template: ${template}`)
@@ -554,5 +611,32 @@ function buildPaymentConfirmedEmail(customerName: string, partnerName: string, a
     <p>Hi ${customerName},</p>
     <p>Your payment of <strong>$${amount}</strong> to ${partnerName} has been confirmed and is being held securely.</p>
     <p>The payment will be released once both parties confirm completion.</p>
+  `
+}
+
+function buildDisputeResolvedEmail(resolution: string, newStatus: string, disputeId: string): string {
+  return `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #0d9488;">Vaš spor je bil rešen</h2>
+      <p>Spoštovani,</p>
+      <p>Obveščamo vas, da je bil vaš spor na platformi LiftGO <strong>uspešno rešen</strong>.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        ${disputeId ? `<tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: #64748b;">ID spora:</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${disputeId}</td>
+        </tr>` : ''}
+        ${resolution ? `<tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: #64748b;">Rešitev:</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${resolution}</td>
+        </tr>` : ''}
+        ${newStatus ? `<tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; color: #64748b;">Nov status:</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e2e8f0;">${newStatus}</td>
+        </tr>` : ''}
+      </table>
+      <p style="color: #64748b; font-size: 14px;">Za vprašanja pišite na <a href="mailto:info@liftgo.net">info@liftgo.net</a>.</p>
+      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+      <p style="color: #94a3b8; font-size: 12px;">LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah</p>
+    </div>
   `
 }
