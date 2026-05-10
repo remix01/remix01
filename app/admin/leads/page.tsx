@@ -55,7 +55,7 @@ export default function LeadsPage() {
 
       let leads: Lead[] = []
       if (statusFilter === 'all') {
-        const statuses = ['lead', 'active', 'inactive'] as const
+        const statuses = ['lead', 'claimed', 'active', 'inactive'] as const
         const allLeads: Lead[] = []
         for (const status of statuses) {
           const response = await fetch(`/api/admin/leads?status=${status}&limit=100`, {
