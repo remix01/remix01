@@ -307,19 +307,24 @@ export async function automationPaymentConfirmed(
     true
   )
 
-  const emails = [
-    {
-      to: customerEmail,
-      subject: customerTemplate.subject,
-      html: customerTemplate.html,
-      tags: [
-        { name: 'automation', value: 'payment' },
-        { name: 'event', value: 'confirmed' },
-        { name: 'role', value: 'customer' },
-        { name: 'transaction_id', value: transactionId },
-      ],
-    },
-    {
+  const emails = []
+
+  // Always send customer confirmation
+  emails.push({
+    to: customerEmail,
+    subject: customerTemplate.subject,
+    html: customerTemplate.html,
+    tags: [
+      { name: 'automation', value: 'payment' },
+      { name: 'event', value: 'confirmed' },
+      { name: 'role', value: 'customer' },
+      { name: 'transaction_id', value: transactionId },
+    ],
+  })
+
+  // Only send provider confirmation if email is valid
+  if (providerEmail && providerEmail.trim()) {
+    emails.push({
       to: providerEmail,
       subject: providerTemplate.subject,
       html: providerTemplate.html,
@@ -329,13 +334,32 @@ export async function automationPaymentConfirmed(
         { name: 'role', value: 'provider' },
         { name: 'transaction_id', value: transactionId },
       ],
-    },
-  ]
+    })
+  }
 
-  return sendBatchEmails({
-    emails,
+  // Use batch send only if we have 2+ emails, otherwise use single send
+  if (emails.length > 1) {
+    return sendBatchEmails({
+      emails,
+      eventType: 'payment-confirmed',
+      batchId: transactionId,
+    })
+  }
+
+  // Send single customer email if provider email is missing
+  return sendTemplatedEmail({
+    to: customerEmail,
+    template: customerTemplate,
+    from: customerTemplate.from,
+    replyTo: customerTemplate.replyTo,
     eventType: 'payment-confirmed',
-    batchId: transactionId,
+    entityId: transactionId,
+    tags: [
+      { name: 'automation', value: 'payment' },
+      { name: 'event', value: 'confirmed' },
+      { name: 'role', value: 'customer' },
+      { name: 'transaction_id', value: transactionId },
+    ],
   })
 }
 
@@ -583,7 +607,7 @@ export async function automationWeeklyProviderDigest(
         <strong>This Week's Earnings:</strong> ${earningsFormatted}
       </div>
       
-      <p><a href="${appUrl}/provider/dashboard" class="button">View Dashboard</a></p>
+      <p><a href="${appUrl}/partner-dashboard" class="button">View Dashboard</a></p>
     </div>
   </div>
 </body>
