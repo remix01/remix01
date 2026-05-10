@@ -77,7 +77,7 @@ async function retryWithBackoff<T>(
  * Format: <event-type>/<entity-id>
  * Example: welcome-email/user-123
  */
-export function generateIdempotencyKey(eventType: string, entityId: string): string {
+function generateIdempotencyKey(eventType: string, entityId: string): string {
   if (!eventType || !entityId) {
     throw new Error('eventType and entityId are required for idempotency key')
   }
@@ -93,7 +93,7 @@ export function generateIdempotencyKey(eventType: string, entityId: string): str
  * Format: batch-<event-type>/<batch-id>
  * Example: batch-orders/batch-456
  */
-export function generateBatchIdempotencyKey(
+function generateBatchIdempotencyKey(
   eventType: string,
   batchId: string
 ): string {
@@ -103,6 +103,8 @@ export function generateBatchIdempotencyKey(
   }
   return key
 }
+
+export { generateIdempotencyKey, generateBatchIdempotencyKey }
 
 /**
  * Send a single email with idempotency key, retries, and error handling

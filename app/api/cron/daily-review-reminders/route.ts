@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
         customer_id,
         assigned_to,
         completed_at,
-        profiles!tasks_assigned_to_fkey(name, email),
-        profiles!tasks_customer_id_fkey(name, email)
+        provider:profiles!tasks_assigned_to_fkey(name, email),
+        customer:profiles!tasks_customer_id_fkey(name, email)
       `)
       .eq('status', 'completed')
       .gte('completed_at', from.toISOString())
@@ -44,11 +44,27 @@ export async function GET(request: NextRequest) {
     }
 
     const pendingReviews = (tasksWithoutReview || []).map((task: any) => ({
-      email: task.profiles?.[1]?.email || '',
-      name: task.profiles?.[1]?.name || 'Customer',
+      email: task.customer?.email || '',
+      name: task.customer?.name || 'Customer',
       jobTitle: task.title,
-      providerName: task.profiles?.[0]?.name || 'Service Provider',
+      providerName: task.provider?.name || 'Service Provider',
     })).filter((review: any) => review.email)
+
+    // Chunk reminders into batches of 100 to respect sendBatchEmails limit
+    const BATCH_SIZE = 100
+    if (pendingReviews.length > BATCH_SIZE) {
+      const chunks = []
+      for (let i = 0; i < pendingReviews.length; i += BATCH_SIZE) {
+        chunks.push(pendingReviews.slice(i, i + BATCH_SIZE))
+      }
+
+      let totalSent = 0
+      for (const chunk of chunks) {
+        const result = await automationDailyReviewReminders(chunk, APP_URL)
+        if (result.success) totalSent += chunk.length
+      }
+
+      return NextResponse.json({ success: true, sent: totalSent, chunks: chunks.length })
 
     if (pendingReviews.length === 0) {
       return NextResponse.json({ success: true, sent: 0 })
