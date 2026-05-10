@@ -1,8 +1,3 @@
-/**
- * Structured Logger
- * Emits JSON logs for easy parsing and monitoring
- */
-
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 export interface LogEntry {
@@ -13,6 +8,27 @@ export interface LogEntry {
   requestId?: string
   userId?: string
   [key: string]: unknown
+}
+
+const SENSITIVE_KEYS = new Set([
+  'password', 'passwd', 'secret', 'token', 'accessToken', 'refreshToken',
+  'access_token', 'refresh_token', 'apiKey', 'api_key', 'serviceRoleKey',
+  'service_role_key', 'authorization', 'cookie', 'sessionId', 'session_id',
+  'cardNumber', 'card_number', 'cvv', 'cvc', 'ssn', 'taxNumber', 'tax_number',
+  'phone', 'email', 'customerEmail', 'customer_email', 'stripeSecretKey',
+  'stripe_secret_key', 'webhookSecret', 'webhook_secret', 'signingSecret',
+  'signing_secret', 'privateKey', 'private_key',
+])
+
+function redact(value: unknown, depth = 0): unknown {
+  if (depth > 5 || value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(v => redact(v, depth + 1))
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+      k,
+      SENSITIVE_KEYS.has(k) ? '[REDACTED]' : redact(v, depth + 1),
+    ])
+  )
 }
 
 export class Logger {
@@ -28,11 +44,11 @@ export class Logger {
       message,
       timestamp: new Date().toISOString(),
       context: this.context,
-      ...metadata,
+      ...(metadata ? redact(metadata) as Record<string, unknown> : {}),
     }
 
-    const logFn = level === 'error' ? console.error : 
-                  level === 'warn' ? console.warn : 
+    const logFn = level === 'error' ? console.error :
+                  level === 'warn' ? console.warn :
                   console.log
 
     logFn(JSON.stringify(entry))
@@ -57,9 +73,6 @@ export class Logger {
   }
 }
 
-/**
- * Create a logger instance for a specific context
- */
 export function createLogger(context: string): Logger {
   return new Logger(context)
 }

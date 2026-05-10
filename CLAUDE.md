@@ -165,6 +165,12 @@ GitHub LiftGO:github_get_file → path
 
 ---
 
+## API Versioning Konvencija
+- **Obstoječe** `/api/*` routes ostanejo kot so (ne migriraj, prelomna sprememba)
+- **Nove** public/mobile-facing routes daj pod `/api/v1/`
+- **Interne** (admin, webhooks, jobs, cron) ostanejo brez verzije
+- `/api/v1/` trenutno: `analytics/track`, `devices`, `notifications`
+
 ## v0.dev Rules
 1. ALWAYS audit existing files first
 2. NEVER duplicate components

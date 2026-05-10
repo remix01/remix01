@@ -1,17 +1,18 @@
-import { getPartner, getPartnerStats } from '@/lib/supabase-partner'
-import { NextResponse } from 'next/server'
+import { getAuthenticatedPartner } from "@/lib/partner/resolver";
+import { canonicalPartnerService } from "@/lib/partner/service";
+import { ok, fail } from "@/lib/api/response";
 
 /**
- * GET — partner's personal KPI stats
+ * GET — partner's personal KPI stats (canonical: obrtnik_id queries)
  */
 export async function GET() {
-  const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const partner = await getAuthenticatedPartner();
+  if (!partner) return fail("UNAUTHORIZED", "Unauthorized", 401);
 
-  const stats = await getPartnerStats(partner.id)
-  
-  return NextResponse.json({
+  const stats = await canonicalPartnerService.getStats(partner.partnerId);
+
+  return ok({
     ...stats,
-    paket: partner.partner_paketi?.[0]?.paket ?? 'start',
-  })
+    paket: partner.profile.subscription_tier ?? "start",
+  });
 }

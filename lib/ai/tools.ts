@@ -158,9 +158,16 @@ export async function executeTool(
 
 export function getToolsForAgent(agentType: string): Tool[] {
   const agentTools: Record<string, string[]> = {
+    onboarding_assistant: ['search_similar_tasks', 'get_market_price_range'],
+    provider_coach: ['search_similar_tasks', 'get_market_price_range', 'find_matching_obrtniki'],
+    payment_helper: ['get_task_details'],
+    support_agent: ['search_similar_tasks', 'get_task_details'],
+
+    // Legacy aliases during migration
     work_description: ['search_similar_tasks', 'get_market_price_range'],
     offer_comparison: ['get_market_price_range'],
     scheduling_assistant: ['find_matching_obrtniki'],
+    general_chat: ['search_similar_tasks'],
     default: ['search_similar_tasks'],
   }
 

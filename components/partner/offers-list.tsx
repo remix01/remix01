@@ -8,12 +8,24 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Trash2, Edit2 } from 'lucide-react'
+import type { Offer } from '@/lib/types/offer'
+
+const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
+  poslana: { label: 'Poslana', variant: 'default' },
+  sprejeta: { label: 'Sprejeta', variant: 'default' },
+  zavrnjena: { label: 'Zavrnjena', variant: 'destructive' },
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_MAP[status] ?? { label: status, variant: 'secondary' as const }
+  return <Badge variant={s.variant}>{s.label}</Badge>
+}
 
 export function OffersList({
   offers,
   onUpdate,
 }: {
-  offers: any[]
+  offers: Offer[]
   onUpdate: () => void
 }) {
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -27,7 +39,7 @@ export function OffersList({
     available_date: '',
   })
 
-  const startEditing = (offer: any) => {
+  const startEditing = (offer: Offer) => {
     setError(null)
     setEditing(offer.id)
     setFormState({
@@ -60,7 +72,10 @@ export function OffersList({
       })
       const result = await response.json()
       if (!response.ok) {
-        throw new Error(result?.error || 'Napaka pri brisanju ponudbe.')
+        const errorMessage = typeof result?.error === 'string'
+          ? result.error
+          : result?.error?.message || result?.error?.code || 'Napaka pri brisanju ponudbe.'
+        throw new Error(errorMessage)
       }
 
       onUpdate()
@@ -87,7 +102,7 @@ export function OffersList({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: formState.title.trim(),
+          title: formState.title.trim() || undefined,
           message: formState.message.trim(),
           price_estimate: parsedPrice,
           available_date: formState.available_date || null,
@@ -96,13 +111,16 @@ export function OffersList({
 
       const result = await response.json()
       if (!response.ok) {
-        throw new Error(result?.error || 'Napaka pri urejanju ponudbe.')
+        const errorMessage = typeof result?.error === 'string'
+          ? result.error
+          : result?.error?.message || result?.error?.code || 'Napaka pri urejanju ponudbe.'
+        throw new Error(errorMessage)
       }
 
       cancelEditing()
       onUpdate()
-    } catch (err: any) {
-      setError(err?.message || 'Napaka pri urejanju ponudbe.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Napaka pri urejanju ponudbe.')
     } finally {
       setSaving(null)
     }
@@ -126,9 +144,7 @@ export function OffersList({
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">Uredi ponudbo</h3>
-                    <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
-                      {offer.status === 'poslana' ? 'Poslana' : offer.status}
-                    </Badge>
+                    <StatusBadge status={offer.status} />
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -179,11 +195,9 @@ export function OffersList({
                 <>
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      {offer.title}
+                      {offer.title || offer.message?.split('\n')[0]?.slice(0, 60) || 'Ponudba'}
                     </h3>
-                    <Badge variant={offer.status === 'poslana' ? 'default' : 'secondary'}>
-                      {offer.status === 'poslana' ? 'Poslana' : offer.status}
-                    </Badge>
+                    <StatusBadge status={offer.status} />
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
                     {offer.message}

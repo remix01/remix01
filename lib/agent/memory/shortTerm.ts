@@ -1,18 +1,16 @@
 /**
- * Short Term Memory — In-process conversation state for the LiftGO agent
+ * Short Term Memory — shared Redis-backed conversation state for LiftGO agents.
  *
- * Keeps track of the last N messages per session so the LLM has conversational
- * context without needing a database or Redis. Memory is lost on process restart,
- * which is acceptable for short-lived chat sessions.
- *
- * Design choices:
- * - Storage: plain Map<sessionId, ConversationState> (no DB, no Redis)
- * - Max messages: 20 per session (prevents token overflow)
- * - Auto-expiry: sessions inactive for > 2 hours are pruned
+ * - Shared across instances (Redis)
+ * - Session isolation enforced by sessionId + userId ownership checks
+ * - TTL-based expiry (default: 2h)
  */
 
+import { executeRedisOperation } from '@/lib/cache/redis-client'
+
 const MAX_MESSAGES = 20
-const SESSION_TTL_MS = 2 * 60 * 60 * 1000 // 2 hours
+const SESSION_TTL_SECONDS = 2 * 60 * 60 // 2 hours
+const KEY_PREFIX = 'agent:short-term:v1'
 
 export type Message = {
   role: 'user' | 'assistant' | 'system'
@@ -35,17 +33,60 @@ export type ConversationState = {
 }
 
 class ShortTermMemory {
-  private store: Map<string, ConversationState> = new Map()
+  private inMemoryState = new Map<string, ConversationState>()
 
-  /**
-   * Returns an existing session or creates a fresh one.
-   * Also prunes stale sessions on each call to avoid unbounded growth.
-   */
-  getOrCreate(sessionId: string, userId: string): ConversationState {
-    this.pruneOldSessions()
+  private key(sessionId: string): string {
+    return `${KEY_PREFIX}:${sessionId}`
+  }
 
-    const existing = this.store.get(sessionId)
+
+  private pruneInMemory(): void {
+    const cutoff = Date.now() - SESSION_TTL_SECONDS * 1000
+    for (const [sessionId, state] of this.inMemoryState.entries()) {
+      if (state.updatedAt < cutoff) this.inMemoryState.delete(sessionId)
+    }
+  }
+
+  private async getState(sessionId: string): Promise<ConversationState | null> {
+    const key = this.key(sessionId)
+    const raw = await executeRedisOperation(
+      async (redis) => redis.get<string>(key),
+      null,
+      'shortTerm.getState'
+    )
+
+    if (!raw) return this.inMemoryState.get(sessionId) ?? null
+
+    try {
+      return typeof raw === 'string' ? (JSON.parse(raw) as ConversationState) : (raw as ConversationState)
+    } catch {
+      return this.inMemoryState.get(sessionId) ?? null
+    }
+  }
+
+  private async setState(state: ConversationState): Promise<void> {
+    const key = this.key(state.sessionId)
+    this.inMemoryState.set(state.sessionId, state)
+    await executeRedisOperation(
+      async (redis) => {
+        await redis.set(key, JSON.stringify(state), { ex: SESSION_TTL_SECONDS })
+      },
+      undefined,
+      'shortTerm.setState'
+    )
+  }
+
+  async getOrCreate(sessionId: string, userId: string): Promise<ConversationState> {
+    this.pruneInMemory()
+    const existing = await this.getState(sessionId)
+
     if (existing) {
+      if (existing.userId !== userId) {
+        throw new Error('Session ownership mismatch')
+      }
+
+      existing.updatedAt = Date.now()
+      await this.setState(existing)
       return existing
     }
 
@@ -57,73 +98,62 @@ class ShortTermMemory {
       updatedAt: Date.now(),
     }
 
-    this.store.set(sessionId, state)
+    await this.setState(state)
     return state
   }
 
-  /**
-   * Appends a message to the session history.
-   * Drops the oldest message when MAX_MESSAGES is exceeded so we never
-   * send more tokens than the LLM context budget allows.
-   */
-  addMessage(sessionId: string, message: Message): void {
-    const state = this.store.get(sessionId)
+  async addMessage(sessionId: string, message: Message, userId?: string): Promise<void> {
+    const state = await this.getState(sessionId)
     if (!state) return
+    if (userId && state.userId !== userId) throw new Error('Session ownership mismatch')
 
     state.messages.push(message)
-
-    // Keep only the last MAX_MESSAGES
     if (state.messages.length > MAX_MESSAGES) {
       state.messages = state.messages.slice(state.messages.length - MAX_MESSAGES)
     }
 
     state.updatedAt = Date.now()
+    await this.setState(state)
   }
 
-  /**
-   * Stores the currently active resource ID so the LLM can reference it
-   * in follow-up messages without requiring the user to repeat it.
-   */
-  setActiveResource(
+  async setActiveResource(
     sessionId: string,
     resource: 'escrowId' | 'inquiryId' | 'offerId',
-    id: string
-  ): void {
-    const state = this.store.get(sessionId)
+    id: string,
+    userId?: string
+  ): Promise<void> {
+    const state = await this.getState(sessionId)
     if (!state) return
+    if (userId && state.userId !== userId) throw new Error('Session ownership mismatch')
 
     if (resource === 'escrowId') state.activeEscrowId = id
     if (resource === 'inquiryId') state.activeInquiryId = id
     if (resource === 'offerId') state.activeOfferId = id
 
     state.updatedAt = Date.now()
+    await this.setState(state)
   }
 
-  /**
-   * Returns the full conversation state for a session, or null if it does not exist.
-   */
-  getContext(sessionId: string): ConversationState | null {
-    return this.store.get(sessionId) ?? null
+  async getContext(sessionId: string, userId?: string): Promise<ConversationState | null> {
+    const state = await this.getState(sessionId)
+    if (!state) return null
+    if (userId && state.userId !== userId) return null
+
+    // touch TTL on read
+    state.updatedAt = Date.now()
+    await this.setState(state)
+    return state
   }
 
-  /**
-   * Clears a session — call after the conversation is complete or timed out.
-   */
-  clear(sessionId: string): void {
-    this.store.delete(sessionId)
-  }
-
-  /**
-   * Removes sessions that have been inactive for longer than SESSION_TTL_MS.
-   * Called automatically on getOrCreate() so no external scheduler is needed.
-   */
-  pruneOldSessions(): void {
-    const cutoff = Date.now() - SESSION_TTL_MS
-    for (const [id, state] of this.store.entries()) {
-      if (state.updatedAt < cutoff) {
-        this.store.delete(id)
-      }
+  async clear(sessionId: string): Promise<void> {
+    if (sessionId === '__all__') {
+      this.inMemoryState.clear()
+      return
     }
+
+    const key = this.key(sessionId)
+    this.inMemoryState.delete(sessionId)
+    await executeRedisOperation(async (redis) => redis.del(key), undefined, 'shortTerm.clear')
   }
 }
 

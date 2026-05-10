@@ -30,43 +30,37 @@ function PrijavaContent() {
   const routeAuthenticatedUser = async (userId: string) => {
     const supabase = createClient()
 
-    const redirectTo = searchParams.get('redirectTo')
-    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
-      router.push(redirectTo)
+    const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
+    if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
+      router.push(redirectTarget)
       return
     }
 
-    let adminRes = await fetch('/api/admin/me')
-    if (!adminRes.ok) {
-      await new Promise(resolve => setTimeout(resolve, 300))
-      adminRes = await fetch('/api/admin/me')
-    }
+    // Check admin status directly via client session (avoids cookie-timing issues with fetch)
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', userId)
+      .eq('aktiven', true)
+      .maybeSingle()
 
-    if (adminRes.ok) {
+    if (adminUser) {
       router.push('/admin')
       return
     }
 
-    const { data: profileDataById } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
       .maybeSingle()
 
-    const { data: profileDataByAuthUserId } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('auth_user_id', userId)
-      .maybeSingle()
-
-    const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
-
-    if (!profile) {
-      router.push('/registracija')
+    if (profile?.role === 'obrtnik') {
+      router.push('/partner-dashboard')
       return
     }
 
-    router.push(profile.role === 'obrtnik' ? '/partner-dashboard' : '/dashboard')
+    router.push('/dashboard')
   }
 
   const handleGoogleLogin = async () => {
@@ -141,6 +135,17 @@ function PrijavaContent() {
         password: strankaPassword,
       })
 
+      if (
+        signInError?.code === 'email_not_confirmed' ||
+        signInError?.code === 'email_not_verified' ||
+        signInError?.message?.toLowerCase().includes('email not confirmed')
+      ) {
+        setStrankaError(
+          'Vaš email še ni potrjen. Preverite svoj nabiralnik in kliknite na potrditveno povezavo. Če je ne najdete, preverite mapo z vsiljeno pošto.'
+        )
+        return
+      }
+
       if (signInError || !data.user) {
         setStrankaError('Napačen email ali geslo. Preverite podatke.')
         return
@@ -149,7 +154,7 @@ function PrijavaContent() {
       await new Promise(resolve => setTimeout(resolve, 500))
       await routeAuthenticatedUser(data.user.id)
     } catch {
-      router.push('/registracija')
+      setStrankaError('Napaka pri prijavi. Poskusite znova.')
     } finally {
       setStrankaLoading(false)
     }
@@ -166,6 +171,17 @@ function PrijavaContent() {
         email: obrtnikEmail,
         password: obrtnikPassword,
       })
+
+      if (
+        signInError?.code === 'email_not_confirmed' ||
+        signInError?.code === 'email_not_verified' ||
+        signInError?.message?.toLowerCase().includes('email not confirmed')
+      ) {
+        setObrtnikError(
+          'Vaš email še ni potrjen. Preverite svoj nabiralnik in kliknite na potrditveno povezavo. Če je ne najdete, preverite mapo z vsiljeno pošto.'
+        )
+        return
+      }
 
       if (signInError || !data.user) {
         setObrtnikError('Napačen email ali geslo. Preverite podatke.')
@@ -203,6 +219,19 @@ function PrijavaContent() {
         <p className="text-muted-foreground">Prijavite se v svoj račun</p>
       </div>
 
+      {searchParams.get('error') === 'not_obrtnik' && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 p-4 rounded-md">
+          Ta račun nima obrtniških pravic. Če ste se pravkar registrirali, poskusite čez nekaj trenutkov. Če težava
+          ne izgine, nas kontaktirajte.
+        </div>
+      )}
+
+      {searchParams.get('reset') === 'success' && (
+        <div className="bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 p-4 rounded-md">
+          Povezava za ponastavitev gesla je bila poslana. Preverite svoj email.
+        </div>
+      )}
+
       <Tabs defaultValue="stranka">
         <TabsList className="w-full mb-4">
           <TabsTrigger value="stranka" className="flex-1 gap-2">
@@ -215,111 +244,65 @@ function PrijavaContent() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ── STRANKA TAB ── */}
         <TabsContent value="stranka">
           <form onSubmit={handleStrankaSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="stranka-email">Email</Label>
-              <Input
-                id="stranka-email"
-                type="email"
-                placeholder="vam@primer.si"
-                value={strankaEmail}
-                onChange={(e) => setStrankaEmail(e.target.value)}
-                required
-                disabled={strankaLoading}
-              />
+              <Input id="stranka-email" type="email" placeholder="vam@primer.si" value={strankaEmail} onChange={(e) => setStrankaEmail(e.target.value)} required disabled={strankaLoading} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="stranka-password">Geslo</Label>
-              <Input
-                id="stranka-password"
-                type="password"
-                placeholder="••••••••"
-                value={strankaPassword}
-                onChange={(e) => setStrankaPassword(e.target.value)}
-                required
-                disabled={strankaLoading}
-              />
+              <Input id="stranka-password" type="password" placeholder="••••••••" value={strankaPassword} onChange={(e) => setStrankaPassword(e.target.value)} required disabled={strankaLoading} />
             </div>
 
-            {strankaError && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">
-                {strankaError}
-              </div>
-            )}
+            {strankaError && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">{strankaError}</div>}
 
-            <Button type="submit" className="w-full" disabled={strankaLoading}>
-              {strankaLoading ? 'Prijavljam se...' : 'Prijava'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleLogin}
-              disabled={strankaLoading || googleLoading}
-            >
-              {googleLoading ? 'Preusmerjam na Google...' : 'Nadaljuj z Google računom'}
-            </Button>
+            <Button type="submit" className="w-full" disabled={strankaLoading}>{strankaLoading ? 'Prijavljam se...' : 'Prijava'}</Button>
+            <Button type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={strankaLoading || googleLoading}>{googleLoading ? 'Preusmerjam na Google...' : 'Nadaljuj z Google računom'}</Button>
+
+            <div className="border-t pt-3 text-center">
+              <Link href="/pozabljeno-geslo" className="text-sm text-muted-foreground hover:underline">
+                Pozabljeno geslo?
+              </Link>
+            </div>
           </form>
 
           <div className="mt-4 text-sm text-center space-y-1">
             <div>
               <span className="text-muted-foreground">Nimaš računa? </span>
-              <Link href="/registracija" className="text-primary hover:underline font-medium">
-                Registriraj se →
-              </Link>
+              <Link href="/registracija" className="text-primary hover:underline font-medium">Registriraj se →</Link>
             </div>
           </div>
         </TabsContent>
 
-        {/* ── OBRTNIK TAB ── */}
         <TabsContent value="obrtnik">
           <form onSubmit={handleObrtnikSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="obrtnik-email">Email</Label>
-              <Input
-                id="obrtnik-email"
-                type="email"
-                placeholder="ime@obrtnik.si"
-                value={obrtnikEmail}
-                onChange={(e) => setObrtnikEmail(e.target.value)}
-                required
-                disabled={obrtnikLoading}
-              />
+              <Input id="obrtnik-email" type="email" placeholder="ime@obrtnik.si" value={obrtnikEmail} onChange={(e) => setObrtnikEmail(e.target.value)} required disabled={obrtnikLoading} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="obrtnik-password">Geslo</Label>
-              <Input
-                id="obrtnik-password"
-                type="password"
-                placeholder="••••••••"
-                value={obrtnikPassword}
-                onChange={(e) => setObrtnikPassword(e.target.value)}
-                required
-                disabled={obrtnikLoading}
-              />
+              <Input id="obrtnik-password" type="password" placeholder="••••••••" value={obrtnikPassword} onChange={(e) => setObrtnikPassword(e.target.value)} required disabled={obrtnikLoading} />
             </div>
 
-            {obrtnikError && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">
-                {obrtnikError}
-              </div>
-            )}
+            {obrtnikError && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">{obrtnikError}</div>}
 
-            <Button type="submit" className="w-full" disabled={obrtnikLoading}>
-              {obrtnikLoading ? 'Prijavljam se...' : 'Prijava'}
-            </Button>
+            <Button type="submit" className="w-full" disabled={obrtnikLoading}>{obrtnikLoading ? 'Prijavljam se...' : 'Prijava'}</Button>
+
+            <div className="border-t pt-3 text-center">
+              <Link href="/pozabljeno-geslo" className="text-sm text-muted-foreground hover:underline">
+                Pozabljeno geslo?
+              </Link>
+            </div>
           </form>
 
           <div className="mt-4 text-sm text-center space-y-1">
             <div>
               <span className="text-muted-foreground">Še niste registrirani? </span>
-              <Link href="/registracija" className="text-primary hover:underline font-medium">
-                Registracija za obrtnike →
-              </Link>
+              <Link href="/registracija" className="text-primary hover:underline font-medium">Registracija za obrtnike →</Link>
             </div>
           </div>
         </TabsContent>

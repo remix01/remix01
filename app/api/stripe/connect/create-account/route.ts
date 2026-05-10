@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { CANONICAL_TABLES, CANONICAL_PROVIDER_RELATIONSHIP } from '@/lib/db/schema-contract'
 
 const requestSchema = z.object({
   email: z.string().email(),
@@ -20,35 +21,42 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify user is a craftworker
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role, craftworker_profile(*)')
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from(CANONICAL_TABLES.user)
+      .select('id, role')
       .eq('id', user.id)
       .single()
 
-    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: 'Only craftworkers can create Stripe Connect accounts' },
+        { error: 'Provider profile not found' },
+        { status: 404 }
+      )
+    }
+
+    if (profile.role !== 'obrtnik') {
+      return NextResponse.json(
+        { error: 'Only providers can create Stripe Connect accounts' },
         { status: 403 }
       )
     }
 
-    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
-      ? dbUser.craftworker_profile[0] 
-      : dbUser.craftworker_profile
-
-    if (!craftworkerProfile) {
+    const { data: providerProfile, error: providerError } = await supabaseAdmin
+      .from(CANONICAL_TABLES.provider)
+      .select('id, stripe_account_id')
+      .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
+      .single()
+    if (providerError || !providerProfile) {
       return NextResponse.json(
-        { error: 'Craftworker profile not found' },
+        { error: 'Provider profile not found' },
         { status: 404 }
       )
     }
 
     // Check if already has Stripe account
-    if (craftworkerProfile.stripe_account_id) {
+    if (providerProfile.stripe_account_id) {
       return NextResponse.json({
-        accountId: craftworkerProfile.stripe_account_id,
+        accountId: providerProfile.stripe_account_id,
         alreadyExists: true
       })
     }
@@ -73,12 +81,12 @@ export async function POST(request: Request) {
 
     // Save account ID to database
     const { error: updateError } = await supabaseAdmin
-      .from('craftworker_profile')
+      .from(CANONICAL_TABLES.provider)
       .update({
         stripe_account_id: account.id,
-        stripe_onboarding_complete: false
+        stripe_onboarded: false
       })
-      .eq('user_id', user.id)
+      .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
 
     if (updateError) throw new Error(updateError.message)
 

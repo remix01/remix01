@@ -12,6 +12,10 @@ export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
 
+export type ProfileStatus = 'lead' | 'claimed' | 'active' | 'inactive'
+
+export type LeadSource = 'import' | 'direct' | 'organic'
+
 export interface Profile {
   id: string
   role: UserRole
@@ -32,7 +36,10 @@ export interface ObrtnikProfile {
   description?: string
   ajpes_id?: string
   is_verified: boolean
+  is_claimed: boolean
   verification_status: VerificationStatus
+  profile_status: ProfileStatus
+  source?: LeadSource
   avg_rating: number
   total_reviews: number
   response_time_hours?: number
@@ -123,6 +130,11 @@ export interface ObrtnikProfileInsert {
   business_name: string
   description?: string
   ajpes_id?: string
+  is_verified?: boolean
+  is_claimed?: boolean
+  verification_status?: VerificationStatus
+  profile_status?: ProfileStatus
+  source?: LeadSource
 }
 
 export interface PovprasevanjeInsert {
@@ -174,6 +186,10 @@ export interface ObrtnikProfileUpdate {
   description?: string
   ajpes_id?: string
   is_available?: boolean
+  is_verified?: boolean
+  is_claimed?: boolean
+  profile_status?: ProfileStatus
+  verification_status?: VerificationStatus
   response_time_hours?: number
 }
 
@@ -214,5 +230,33 @@ export interface ObrtnikFilters {
   location_city?: string
   min_rating?: number
   is_verified?: boolean
+  is_claimed?: boolean
   is_available?: boolean
+  profile_status?: ProfileStatus
+  source?: LeadSource
+}
+
+// Lead Import & Claim Types
+export interface LeadImportInput {
+  ime: string
+  mesto: string
+  kategorija: string
+  opis?: string
+}
+
+export interface LeadClaimRequest {
+  profileId: string
+}
+
+export interface LeadClaimResponse {
+  ok: boolean
+  status: ProfileStatus
+  error?: string
+}
+
+export interface LeadImportResponse {
+  ok: boolean
+  imported: number
+  status: ProfileStatus
+  error?: string
 }

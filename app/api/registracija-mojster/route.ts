@@ -4,6 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { env } from '@/lib/env'
 import { apiSuccess, badRequest, conflict, internalError } from '@/lib/api-response'
 import { ensureReferralCode, processReferralCode } from '@/lib/referral/referralService'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { authLimiter } from '@/lib/rate-limit/limiters'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
+import { writeEmailLog } from '@/lib/email/email-logs'
+import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -17,12 +23,19 @@ const registrationSchema = z.object({
   workArea: z.string().min(1, 'Work area is required'),
   planSelected: z.enum(['start', 'pro']),
   referralCode: z.string().optional(),
+  website: z.string().optional(),
 })
 
-export async function POST(request: NextRequest) {
+
+async function postHandler(request: NextRequest) {
   try {
     const body = await request.json()
-    
+
+    // Honeypot: bots fill hidden fields that humans never see
+    if (body.website) {
+      return apiSuccess({ userId: crypto.randomUUID() }, 201)
+    }
+
     // Validate input
     const validatedData = registrationSchema.parse(body)
     
@@ -45,7 +58,8 @@ export async function POST(request: NextRequest) {
           work_area: validatedData.workArea,
           plan: validatedData.planSelected,
           user_type: 'craftworker',
-          role: 'partner',
+          // Metadata is informational (Supabase dashboard traceability), not authorization source.
+          role: 'obrtnik',
         },
       },
     })
@@ -64,6 +78,24 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return internalError('Failed to create user account')
     }
+
+    const welcomeRateLimit = await checkEmailRateLimit({
+      request,
+      action: 'signup_welcome',
+      email: validatedData.email,
+      userId,
+    })
+
+    if (!welcomeRateLimit.allowed) {
+      await writeEmailLog({
+        email: validatedData.email,
+        type: 'welcome_email',
+        status: 'rate_limited',
+        userId,
+        errorMessage: `Rate limited by ${welcomeRateLimit.reason}`,
+        metadata: { endpoint: '/api/registracija-mojster', retryAfter: welcomeRateLimit.retryAfter },
+      })
+    }
     
     // Create obrtnik_profiles entry with initial plan
     const { error: profileError } = await supabase
@@ -71,6 +103,7 @@ export async function POST(request: NextRequest) {
       .insert({
         id: userId,
         business_name: validatedData.companyName,
+        description: 'Mojster brez opisa',
         subscription_tier: validatedData.planSelected === 'pro' ? 'pro' : 'start',
         is_verified: false,
         created_at: new Date().toISOString(),
@@ -78,7 +111,14 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error('[v0] Profile creation error:', profileError)
-      // Don't fail completely if profile creation fails
+      await supabase.auth.admin.deleteUser(userId)
+      return internalError('Napaka pri ustvarjanju profila. Poskusite znova.')
+    }
+
+    try {
+      await transitionOnboardingState(userId)
+    } catch (onboardingError) {
+      console.error('[v0] onboarding transition failed after signup:', onboardingError)
     }
     
     // Process referral code if provided
@@ -98,31 +138,39 @@ export async function POST(request: NextRequest) {
     }
     
     // Send welcome email using Resend
-    if (env.RESEND_API_KEY) {
+    const resend = getResendClient()
+    if (resend && welcomeRateLimit.allowed) {
       try {
+        await writeEmailLog({
+          email: validatedData.email,
+          type: 'welcome_email',
+          status: 'pending',
+          userId,
+          metadata: { endpoint: '/api/registracija-mojster' },
+        })
+
         const planName = validatedData.planSelected === 'pro' ? 'PRO (5% provizija)' : 'START (10% provizija)'
-        
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'noreply@liftgo.net',
-            to: validatedData.email,
-            subject: 'Dobrodošli na LiftGO - Potrdite vaš račun',
-            html: `
+        const safeFirstName = escapeHtml(sanitizeText(validatedData.firstName, 120))
+        const safeLastName = escapeHtml(sanitizeText(validatedData.lastName, 120))
+        const safeCompanyName = escapeHtml(sanitizeText(validatedData.companyName, 160))
+        const safeSpecialization = escapeHtml(sanitizeText(validatedData.specialization, 120))
+        const safePlanName = escapeHtml(sanitizeText(planName, 120))
+
+        const response = await resend.emails.send({
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(validatedData.email).to,
+          subject: 'Dobrodošli na LiftGO - Potrdite vaš račun',
+          html: `
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #2563eb;">Dobrodošli, ${validatedData.firstName}!</h2>
+                <h2 style="color: #2563eb;">Dobrodošli, ${safeFirstName}!</h2>
                 <p>Hvala, da ste se pridružili LiftGO platformi kot obrtnik.</p>
                 
                 <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="margin-top: 0;">Vaši podatki:</h3>
-                  <p style="margin: 5px 0;"><strong>Ime:</strong> ${validatedData.firstName} ${validatedData.lastName}</p>
-                  <p style="margin: 5px 0;"><strong>Podjetje:</strong> ${validatedData.companyName}</p>
-                  <p style="margin: 5px 0;"><strong>Specialnost:</strong> ${validatedData.specialization}</p>
-                  <p style="margin: 5px 0;"><strong>Paket:</strong> ${planName}</p>
+                  <p style="margin: 5px 0;"><strong>Ime:</strong> ${safeFirstName} ${safeLastName}</p>
+                  <p style="margin: 5px 0;"><strong>Podjetje:</strong> ${safeCompanyName}</p>
+                  <p style="margin: 5px 0;"><strong>Specialnost:</strong> ${safeSpecialization}</p>
+                  <p style="margin: 5px 0;"><strong>Paket:</strong> ${safePlanName}</p>
                 </div>
                 
                 <p><strong>Naslednji koraki:</strong></p>
@@ -144,9 +192,37 @@ export async function POST(request: NextRequest) {
                 </p>
               </div>
             `,
-          }),
         })
+
+        if (response.error) {
+          await writeEmailLog({
+            email: validatedData.email,
+            type: 'welcome_email',
+            status: 'failed',
+            userId,
+            errorMessage: response.error.message,
+            metadata: { endpoint: '/api/registracija-mojster' },
+          })
+          console.error('[v0] Welcome email provider error:', response.error.message)
+        } else {
+          await writeEmailLog({
+            email: validatedData.email,
+            type: 'welcome_email',
+            status: 'sent',
+            userId,
+            resendEmailId: response.data?.id,
+            metadata: { endpoint: '/api/registracija-mojster' },
+          })
+        }
       } catch (emailError) {
+        await writeEmailLog({
+          email: validatedData.email,
+          type: 'welcome_email',
+          status: 'failed',
+          userId,
+          errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
+          metadata: { endpoint: '/api/registracija-mojster' },
+        })
         console.error('[v0] Welcome email error:', emailError)
         // Don't fail registration if email fails
       }
@@ -167,3 +243,5 @@ export async function POST(request: NextRequest) {
     return internalError('Registration failed. Please try again.')
   }
 }
+
+export const POST = withRateLimit(authLimiter, postHandler)

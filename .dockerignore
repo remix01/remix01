@@ -1,0 +1,75 @@
+# Build context exclusions for Docker
+# Reduces build context size and improves build speed
+
+# Git
+.git
+.gitignore
+.gitattributes
+.github/
+
+# Node modules & package managers
+node_modules/
+pnpm-store/
+npm-debug.log
+pnpm-debug.log
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+
+# Environment files (keep .env.example only)
+.env
+.env.local
+.env.*.local
+.env.build
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+*.code-workspace
+.DS_Store
+
+# Testing
+.coverage/
+coverage/
+.jest/
+jest.config.*
+
+# Documentation
+docs/
+README.md
+CHANGELOG.md
+LICENSE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Development
+.claude/
+.husky/
+CLAUDE.md
+DEPLOYMENT_CHECKLIST.md
+
+# Temporary files
+*.tmp
+*.log
+logs/
+tmp/
+
+# OS
+Thumbs.db
+.DS_Store
+*.swp

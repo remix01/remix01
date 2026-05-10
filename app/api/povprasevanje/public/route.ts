@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
 import { slugify } from '@/lib/utils/slugify'
 import { publicInquirySchema } from '@/lib/validators/public-inquiry'
 import { geocodeLocation } from '@/lib/google/geocoding'
+import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import {
+  checkEmailRateLimit,
+  escapeHtml,
+  isDisposableEmail,
+  isHoneypotTriggered,
+  sanitizeText,
+} from '@/lib/email/security'
+import { writeEmailLog } from '@/lib/email/email-logs'
+import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
+import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import { newRequestMatchedEmail } from '@/lib/email/notification-templates'
 
 type PublicInquiryBody = {
   storitev?: unknown
@@ -15,6 +26,32 @@ type PublicInquiryBody = {
   stranka_email?: unknown
   stranka_telefon?: unknown
   stranka_ime?: unknown
+  website?: unknown
+  company_url?: unknown
+  user_id?: unknown
+}
+
+function successResponse<T extends Record<string, unknown>>(legacy: T, status = 200) {
+  return NextResponse.json(
+    {
+      ok: true,
+      data: legacy,
+      ...legacy,
+    },
+    { status }
+  )
+}
+
+function errorResponse(message: string, status: number, code: string) {
+  return NextResponse.json(
+    {
+      ok: false,
+      data: null,
+      error: message,
+      error_details: { code, message },
+    },
+    { status }
+  )
 }
 
 function toOptionalString(value: unknown): string | null {
@@ -200,32 +237,74 @@ export async function POST(request: NextRequest) {
   try {
     const body = await parseJsonBody(request)
     if (!body) {
-      return NextResponse.json(
-        { error: 'Neveljavno JSON telo zahtevka' },
-        { status: 400 }
-      )
+      return errorResponse('Neveljavno JSON telo zahtevka', 400, 'INVALID_JSON')
+    }
+
+    const honeypot = toOptionalString(body.website) ?? toOptionalString(body.company_url)
+    const userId = toOptionalString(body.user_id)
+    const incomingEmail = toOptionalString(body.stranka_email) ?? toOptionalString(body.email)
+
+    if (isHoneypotTriggered(honeypot)) {
+      await writeEmailLog({
+        email: incomingEmail || 'unknown@unknown.local',
+        type: 'inquiry_public',
+        status: 'honeypot',
+        userId,
+        metadata: { requestId, endpoint: '/api/povprasevanje/public' },
+      })
+
+      return successResponse({ success: true, id: null })
+    }
+
+    if (incomingEmail && isDisposableEmail(incomingEmail)) {
+      await writeEmailLog({
+        email: incomingEmail,
+        type: 'inquiry_public',
+        status: 'blocked',
+        userId,
+        errorMessage: 'Disposable email domain blocked',
+        metadata: { requestId, endpoint: '/api/povprasevanje/public' },
+      })
+
+      return errorResponse('Za oddajo povpraševanja uporabite trajni e-poštni naslov.', 400, 'DISPOSABLE_EMAIL_BLOCKED')
+    }
+
+    const rl = await checkEmailRateLimit({
+      request,
+      action: 'contact_inquiry',
+      email: incomingEmail,
+      userId,
+    })
+
+    if (!rl.allowed) {
+      await writeEmailLog({
+        email: incomingEmail || 'unknown@unknown.local',
+        type: 'inquiry_public',
+        status: 'rate_limited',
+        userId,
+        errorMessage: `Rate limited by ${rl.reason}`,
+        metadata: { requestId, endpoint: '/api/povprasevanje/public', retryAfter: rl.retryAfter },
+      })
+      return rl.response
     }
 
     const parsedInput = publicInquirySchema.safeParse({
       storitev: toOptionalString(body.storitev),
       lokacija: toOptionalString(body.lokacija),
       opis: toOptionalString(body.opis) || '',
-      stranka_email: toOptionalString(body.stranka_email) ?? toOptionalString(body.email) ?? undefined,
+      stranka_email: incomingEmail ?? undefined,
       stranka_telefon: toOptionalString(body.stranka_telefon) ?? toOptionalString(body.telefon) ?? undefined,
       stranka_ime: toOptionalString(body.stranka_ime) ?? toOptionalString(body.ime) ?? undefined,
     })
 
     if (!parsedInput.success) {
-      return NextResponse.json(
-        { error: parsedInput.error.issues[0]?.message || 'Neveljavni vhodni podatki' },
-        { status: 400 }
-      )
+      return errorResponse(parsedInput.error.issues[0]?.message || 'Neveljavni vhodni podatki', 400, 'INVALID_INPUT')
     }
 
     const { storitev, lokacija, opis, stranka_email, stranka_telefon, stranka_ime } = parsedInput.data
 
     if (!storitev || !lokacija) {
-      return NextResponse.json({ error: 'Manjkajo obvezna polja' }, { status: 400 })
+      return errorResponse('Manjkajo obvezna polja', 400, 'MISSING_REQUIRED_FIELDS')
     }
 
     const normalizedLocation = await resolveLocationName(lokacija)
@@ -238,15 +317,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (isDuplicate) {
-      return NextResponse.json(
-        { error: 'Podobno povpraševanje je bilo pravkar oddano. Prosimo počakajte trenutek.' },
-        { status: 409 }
-      )
+      return errorResponse('Podobno povpraševanje je bilo pravkar oddano. Prosimo počakajte trenutek.', 409, 'DUPLICATE_INQUIRY')
     }
 
     const category_id = await resolveCategoryIdFromService(storitev)
 
-    // Primary schema (current app usage)
     const modernInsertData: Record<string, string | null> = {
       title: storitev,
       description: opis,
@@ -277,13 +352,12 @@ export async function POST(request: NextRequest) {
         error.code === '23514')
 
     if (shouldRetryWithLegacySchema) {
-      console.warn('[public] Retrying insert with legacy schema payload', {
+      console.warn('[public][TODO:remove-after-schema-convergence] Retrying insert with legacy schema payload', {
         requestId,
         code: error?.code,
         message: error?.message,
       })
 
-      // Legacy schema compatibility (as defined in supabase/schema.sql)
       const legacyInsertData: Record<string, string> = {
         storitev,
         lokacija: normalizedLocation,
@@ -312,21 +386,33 @@ export async function POST(request: NextRequest) {
         message: error.message,
         details: error.details,
       })
-      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
+      return errorResponse('Napaka pri shranjevanju', 500, 'DB_INSERT_FAILED')
     }
 
-    if (stranka_email && process.env.RESEND_API_KEY) {
+    const resend = getResendClient()
+    const safeService = escapeHtml(sanitizeText(storitev, 120))
+    const safeLocation = escapeHtml(sanitizeText(lokacija, 120))
+    const safeName = stranka_ime ? escapeHtml(sanitizeText(stranka_ime, 120)) : ''
+
+    if (stranka_email && resend) {
+      await writeEmailLog({
+        email: stranka_email,
+        type: 'inquiry_customer_confirmation',
+        status: 'pending',
+        userId,
+        metadata: { requestId, inquiryId: data?.id },
+      })
+
       try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        await resend.emails.send({
-          from: 'LiftGO <info@liftgo.net>',
-          to: stranka_email,
-          subject: `✅ Povpraševanje oddano: ${storitev}`,
+        const customerResponse = await resend.emails.send({
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(stranka_email).to,
+          subject: `✅ Povpraševanje oddano: ${safeService}`,
           html: `
             <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
               <h2 style="color:#0d9488;">Vaše povpraševanje je bilo uspešno oddano!</h2>
-              <p>Pozdravljeni${stranka_ime ? ' ' + stranka_ime : ''},</p>
-              <p>Prejeli smo vaše povpraševanje za <strong>${storitev}</strong> v kraju <strong>${lokacija}</strong>.</p>
+              <p>Pozdravljeni${safeName ? ` ${safeName}` : ''},</p>
+              <p>Prejeli smo vaše povpraševanje za <strong>${safeService}</strong> v kraju <strong>${safeLocation}</strong>.</p>
               <p style="background:#f0fdf4;border-left:4px solid #0d9488;padding:12px;border-radius:4px;">
                 ⏱️ Preverjen mojster vas bo kontaktiral v <strong>manj kot 2 urah</strong>.
               </p>
@@ -335,41 +421,150 @@ export async function POST(request: NextRequest) {
             </div>
           `,
         })
+
+        if (customerResponse.error) {
+          await writeEmailLog({
+            email: stranka_email,
+            type: 'inquiry_customer_confirmation',
+            status: 'failed',
+            userId,
+            errorMessage: customerResponse.error.message,
+            metadata: { requestId, inquiryId: data?.id },
+          })
+        } else {
+          await writeEmailLog({
+            email: stranka_email,
+            type: 'inquiry_customer_confirmation',
+            status: 'sent',
+            userId,
+            resendEmailId: customerResponse.data?.id,
+            metadata: { requestId, inquiryId: data?.id },
+          })
+        }
       } catch (emailError) {
+        await writeEmailLog({
+          email: stranka_email,
+          type: 'inquiry_customer_confirmation',
+          status: 'failed',
+          userId,
+          errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
+          metadata: { requestId, inquiryId: data?.id },
+        })
         console.error('[public] Email error:', { requestId, error: emailError })
       }
     }
 
-    if (process.env.RESEND_API_KEY && process.env.ADMIN_EMAIL) {
+    if (resend && process.env.ADMIN_EMAIL) {
+      await writeEmailLog({
+        email: process.env.ADMIN_EMAIL,
+        type: 'inquiry_admin_notification',
+        status: 'pending',
+        userId,
+        metadata: { requestId, inquiryId: data?.id },
+      })
+
       try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        await resend.emails.send({
-          from: 'LiftGO <info@liftgo.net>',
-          to: process.env.ADMIN_EMAIL,
-          subject: `🔔 Novo povpraševanje: ${storitev}`,
+        const adminResponse = await resend.emails.send({
+          from: getDefaultFrom(),
+          to: resolveEmailRecipients(process.env.ADMIN_EMAIL).to,
+          subject: `🔔 Novo povpraševanje: ${safeService}`,
           html: `
             <h3>Novo povpraševanje prejeto</h3>
-            <p><strong>Storitev:</strong> ${storitev}</p>
-            <p><strong>Lokacija:</strong> ${lokacija}</p>
-            <p><strong>Email:</strong> ${stranka_email || 'N/A'}</p>
-            <p><strong>Telefon:</strong> ${stranka_telefon || 'N/A'}</p>
+            <p><strong>Storitev:</strong> ${safeService}</p>
+            <p><strong>Lokacija:</strong> ${safeLocation}</p>
+            <p><strong>Email:</strong> ${stranka_email ? escapeHtml(stranka_email) : 'N/A'}</p>
+            <p><strong>Telefon:</strong> ${stranka_telefon ? escapeHtml(stranka_telefon) : 'N/A'}</p>
             <a href="https://liftgo.net/admin/povprasevanja">Poglej v admin →</a>
           `,
         })
+
+        if (adminResponse.error) {
+          await writeEmailLog({
+            email: process.env.ADMIN_EMAIL,
+            type: 'inquiry_admin_notification',
+            status: 'failed',
+            userId,
+            errorMessage: adminResponse.error.message,
+            metadata: { requestId, inquiryId: data?.id },
+          })
+        } else {
+          await writeEmailLog({
+            email: process.env.ADMIN_EMAIL,
+            type: 'inquiry_admin_notification',
+            status: 'sent',
+            userId,
+            resendEmailId: adminResponse.data?.id,
+            metadata: { requestId, inquiryId: data?.id },
+          })
+        }
       } catch (emailError) {
+        await writeEmailLog({
+          email: process.env.ADMIN_EMAIL,
+          type: 'inquiry_admin_notification',
+          status: 'failed',
+          userId,
+          errorMessage: emailError instanceof Error ? emailError.message : 'Unknown email error',
+          metadata: { requestId, inquiryId: data?.id },
+        })
         console.error('[public] Admin notify error:', { requestId, error: emailError })
       }
     }
 
     if (!data) {
       console.error('[public] Insert succeeded without row data', { requestId })
-      return NextResponse.json({ error: 'Napaka pri shranjevanju' }, { status: 500 })
+      return errorResponse('Napaka pri shranjevanju', 500, 'MISSING_INSERT_ROW')
     }
 
-    return NextResponse.json({ success: true, id: data.id })
+    trackFunnelEvent(FUNNEL_EVENTS.POVPRASEVANJE_SUBMITTED, {
+      povprasevanje_id: data.id,
+      category: storitev,
+      location: normalizedLocation,
+      user_type: 'narocnik',
+    }, userId ?? undefined)
+
+    // Fire-and-forget: push + email to matching obrtniks
+    if (category_id) {
+      sendPushToObrtnikiByCategory({
+        categoryId: category_id,
+        title: '📋 Novo povpraševanje!',
+        message: `${storitev} — ${normalizedLocation}`,
+        link: '/obrtnik/povprasevanja',
+      }).catch((err: Error) => console.error('[public] Push notify error:', err))
+
+      const resend = getResendClient()
+      if (resend) {
+        void (async () => {
+          try {
+            const { data: obrtniks } = await supabaseAdmin
+              .from('obrtnik_profiles')
+              .select('user_id, profiles:profiles!obrtnik_profiles_user_id_fkey(email)')
+              .eq('is_verified', true)
+              .contains('service_category_ids', [category_id])
+              .limit(50)
+
+            if (!obrtniks?.length) return
+            const template = newRequestMatchedEmail(storitev, data.id)
+            for (const op of obrtniks) {
+              const email = (op.profiles as any)?.email
+              if (!email) continue
+              resend.emails.send({
+                from: getDefaultFrom(),
+                to: resolveEmailRecipients(email).to,
+                subject: template.subject,
+                html: template.html,
+              }).catch(() => {})
+            }
+          } catch (err) {
+            console.error('[public] Obrtnik email error:', err)
+          }
+        })()
+      }
+    }
+
+    return successResponse({ success: true, id: data.id })
   } catch (err) {
     console.error('[public] Unexpected error:', { requestId, error: err })
-    return NextResponse.json({ error: 'Napaka strežnika' }, { status: 500 })
+    return errorResponse('Napaka strežnika', 500, 'INTERNAL_SERVER_ERROR')
   }
 }
 

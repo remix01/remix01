@@ -34,6 +34,57 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['user']['Insert']>
         Relationships: []
       }
+      home_maintenance_log: {
+        Row: {
+          id: string
+          user_id: string
+          event_name: string
+          notes: string | null
+          performed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          event_name: string
+          notes?: string | null
+          performed_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          event_name?: string
+          notes?: string | null
+          performed_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      inquiry_status: {
+        Row: {
+          id: string
+          inquiry_id: string
+          status_text: string
+          meta: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          inquiry_id: string
+          status_text: string
+          meta?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          inquiry_id?: string
+          status_text?: string
+          meta?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       craftworker_profile: {
         Row: {
           id: string
@@ -269,7 +320,7 @@ export interface Database {
           read_at: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['sporocila']['Row'], 'id' | 'created_at'> & {
+        Insert: Omit<Database['public']['Tables']['sporocila']['Row'], 'id' | 'created_at' | 'is_read' | 'read_at'> & {
           is_read?: boolean
           read_at?: string | null
         }
@@ -357,7 +408,10 @@ export interface Database {
           description: string | null
           ajpes_id: string | null
           is_verified: boolean
+          is_claimed: boolean
           verification_status: 'pending' | 'verified' | 'rejected'
+          profile_status: 'lead' | 'claimed' | 'active' | 'inactive'
+          source: 'import' | 'direct' | 'organic' | null
           avg_rating: number
           total_reviews: number
           response_time_hours: number | null
@@ -382,7 +436,10 @@ export interface Database {
           description?: string | null
           ajpes_id?: string | null
           is_verified?: boolean
+          is_claimed?: boolean
           verification_status?: 'pending' | 'verified' | 'rejected'
+          profile_status?: 'lead' | 'claimed' | 'active' | 'inactive'
+          source?: 'import' | 'direct' | 'organic' | null
           avg_rating?: number
           total_reviews?: number
           response_time_hours?: number | null
@@ -593,22 +650,44 @@ export interface Database {
           id: string
           povprasevanje_id: string
           obrtnik_id: string
+          title: string | null
           message: string
+          description: string | null
+          notes: string | null
           price_estimate: number | null
           price_type: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date: string | null
-          status: 'poslana' | 'sprejeta' | 'zavrnjena'
+          validity_days: number | null
+          estimated_duration: string | null
+          attachments: string[] | null
+          status: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
+          accepted_at: string | null
+          stripe_payment_intent_id: string | null
+          payment_status: string | null
+          auto_generated: boolean | null
+          template_id: string | null
           created_at: string
         }
         Insert: {
           id?: string
           povprasevanje_id: string
           obrtnik_id: string
+          title?: string | null
           message: string
+          description?: string | null
+          notes?: string | null
           price_estimate?: number | null
           price_type?: 'fiksna' | 'ocena' | 'po_ogledu'
           available_date?: string | null
-          status?: 'poslana' | 'sprejeta' | 'zavrnjena'
+          validity_days?: number | null
+          estimated_duration?: string | null
+          attachments?: string[] | null
+          status?: 'poslana' | 'sprejeta' | 'zavrnjena' | 'preklicana' | 'zakljucena'
+          accepted_at?: string | null
+          stripe_payment_intent_id?: string | null
+          payment_status?: string | null
+          auto_generated?: boolean | null
+          template_id?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['ponudbe']['Insert']>
@@ -640,6 +719,7 @@ export interface Database {
           resource_id: string | null
           resource_type: string | null
           link: string | null
+          action_url: string | null
           metadata: Json
           is_read: boolean
           created_at: string
@@ -650,11 +730,12 @@ export interface Database {
           user_id: string
           type: string
           title: string
-          body: string
+          body?: string | null
           message?: string | null
           resource_id?: string | null
           resource_type?: string | null
           link?: string | null
+          action_url?: string | null
           metadata?: Json
           is_read?: boolean
           created_at?: string
@@ -717,11 +798,13 @@ export interface Database {
           ponudba_id: string
           narocnik_id: string
           obrtnik_id: string
+          povprasevanje_id: string | null
           rating: number
           quality_rating: number | null
           punctuality_rating: number | null
           price_rating: number | null
           comment: string | null
+          text: string | null
           photos: string[] | null
           obrtnik_reply: string | null
           replied_at: string | null
@@ -730,14 +813,16 @@ export interface Database {
         }
         Insert: {
           id?: string
-          ponudba_id: string
-          narocnik_id: string
+          ponudba_id?: string
+          narocnik_id?: string
           obrtnik_id: string
+          povprasevanje_id?: string | null
           rating: number
           quality_rating?: number | null
           punctuality_rating?: number | null
           price_rating?: number | null
           comment?: string | null
+          text?: string | null
           photos?: string[] | null
           obrtnik_reply?: string | null
           replied_at?: string | null
@@ -819,6 +904,84 @@ export interface Database {
           created_by?: string | null
         }
         Update: Partial<Database['public']['Tables']['admin_users']['Insert']>
+        Relationships: []
+      }
+      agent_alerts: {
+        Row: {
+          id: string
+          severity: string
+          type: string
+          user_id: string | null
+          session_id: string | null
+          details: string
+          count: number | null
+          resolved: boolean | null
+          created_at: string | null
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          severity: string
+          type: string
+          user_id?: string | null
+          session_id?: string | null
+          details: string
+          count?: number | null
+          resolved?: boolean | null
+          created_at?: string | null
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          severity?: string
+          type?: string
+          user_id?: string | null
+          session_id?: string | null
+          details?: string
+          count?: number | null
+          resolved?: boolean | null
+          created_at?: string | null
+          resolved_at?: string | null
+        }
+        Relationships: []
+      }
+      agent_logs: {
+        Row: {
+          id: string
+          session_id: string
+          user_id: string | null
+          level: string
+          event: string
+          tool: string | null
+          params: Json | null
+          result: Json | null
+          duration_ms: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          user_id?: string | null
+          level: string
+          event: string
+          tool?: string | null
+          params?: Json | null
+          result?: Json | null
+          duration_ms?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          user_id?: string | null
+          level?: string
+          event?: string
+          tool?: string | null
+          params?: Json | null
+          result?: Json | null
+          duration_ms?: number | null
+          created_at?: string | null
+        }
         Relationships: []
       }
       commission_logs: {
@@ -903,6 +1066,154 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['notification_logs']['Insert']>
         Relationships: []
       }
+      admin_audit_log: {
+        Row: {
+          id: string
+          action: string
+          admin_id: string | null
+          target_user_id: string | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          action: string
+          admin_id?: string | null
+          target_user_id?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          table_name: string
+          record_id: string
+          action: string
+          old_data: Json | null
+          new_data: Json | null
+          changed_by: string | null
+          changed_at: string
+        }
+        Insert: {
+          id?: string
+          table_name: string
+          record_id: string
+          action: string
+          old_data?: Json | null
+          new_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['audit_logs']['Insert']>
+        Relationships: []
+      }
+      offers: {
+        Row: {
+          id: string
+          povprasevanje_id: string | null
+          request_id: string | null
+          obrtnik_id: string | null
+          status: string
+          amount: number | null
+          cena: number | null
+          message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          povprasevanje_id?: string | null
+          request_id?: string | null
+          obrtnik_id?: string | null
+          status?: string
+          amount?: number | null
+          cena?: number | null
+          message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['offers']['Insert']>
+        Relationships: []
+      }
+      partners: {
+        Row: {
+          id: string
+          user_id: string | null
+          company_name: string | null
+          verified: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          company_name?: string | null
+          verified?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['partners']['Insert']>
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          id: string
+          status: string
+          title: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          status?: string
+          title?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['tasks']['Insert']>
+        Relationships: []
+      }
+      worker_stats: {
+        Row: {
+          worker_id: string
+          acceptance_rate: number | null
+          response_time_ms: number | null
+          updated_at: string
+        }
+        Insert: {
+          worker_id: string
+          acceptance_rate?: number | null
+          response_time_ms?: number | null
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          id: string
+          sender_id: string
+          receiver_id: string
+          povprasevanje_id: string | null
+          content: string
+          sender_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          sender_id: string
+          receiver_id: string
+          povprasevanje_id?: string | null
+          content: string
+          sender_name?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['messages']['Insert']>
+        Relationships: []
+      }
       refund_triggers: {
         Row: {
           id: string
@@ -970,99 +1281,49 @@ export interface Database {
           id?: string
           povprasevanje_id?: string | null
           request_id?: string | null
-          status?: string
+          status: string
           updated_at?: string
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['service_requests']['Insert']>
         Relationships: []
       }
-      offers: {
-        Row: {
-          id: string
-          partner_id: string | null
-          status: string | null
-          price: number | null
-          customer_name: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          partner_id?: string | null
-          status?: string | null
-          price?: number | null
-          customer_name?: string | null
-          created_at?: string
-        }
-        Update: Partial<Database['public']['Tables']['offers']['Insert']>
-        Relationships: []
-      }
-      tasks: {
-        Row: {
-          id: string
-          status: string | null
-          created_at: string
-          updated_at: string | null
-        }
-        Insert: {
-          id?: string
-          status?: string | null
-          created_at?: string
-          updated_at?: string | null
-        }
-        Update: Partial<Database['public']['Tables']['tasks']['Insert']>
-        Relationships: []
-      }
-      worker_stats: {
-        Row: {
-          id: string
-          worker_id: string | null
-          tasks_completed: number | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          worker_id?: string | null
-          tasks_completed?: number | null
-          created_at?: string
-        }
-        Update: Partial<Database['public']['Tables']['worker_stats']['Insert']>
-        Relationships: []
-      }
-      admin_audit_log: {
-        Row: {
-          id: string
-          action: string
-          admin_id: string
-          user_id: string
-          old_value: Json
-          new_value: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          action: string
-          admin_id: string
-          user_id: string
-          old_value?: Json
-          new_value?: Json
-          created_at?: string
-        }
-        Update: Partial<Database['public']['Tables']['admin_audit_log']['Insert']>
-        Relationships: []
-      }
     }
     Views: {}
     Functions: {
-      user_role: {
-        Args: Record<string, never>
-        Returns: string
+      assign_task: {
+        Args: {
+          task_id: string
+          worker_id: string
+          auto_assign?: boolean
+        }
+        Returns: Json
       }
-      user_id: {
-        Args: Record<string, never>
-        Returns: string
+      expire_task: {
+        Args: {
+          task_id: string
+          reason: string
+        }
+        Returns: Json
+      }
+      publish_task: {
+        Args: {
+          task_id: string
+          sla_hours?: number
+        }
+        Returns: Json
+      }
+      filter_tasks: {
+        Args: {
+          filter_type: string
+          user_id: string
+          limit_count?: number
+          offset_count?: number
+        }
+        Returns: Json
       }
     }
     Enums: {}
+    CompositeTypes: {}
   }
 }

@@ -10,6 +10,8 @@ import { CategoryCityGrid } from '@/components/home/CategoryCityGrid'
 import { Testimonials } from '@/components/home/Testimonials'
 import { FinalCTA } from '@/components/home/FinalCTA'
 import { AIConciergeLazy } from '@/components/home/AIConciergeLazy'
+import { PortalOverviewSection } from '@/components/home/PortalOverviewSection'
+import { AdvancedFeaturesSection } from '@/components/home/AdvancedFeaturesSection'
 import type { HomeActivityItem, HomeStats, HomeTestimonial } from '@/components/home/types'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 
@@ -42,10 +44,51 @@ const faqSchema = {
       name: 'Kako deluje LiftGO?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Oddajte brezplačno povpraševanje, mi pa vas povežemo s preverjenimi obrtniki v vaši okolici.',
+        text: 'Oddajte brezplačno povpraševanje, mi pa vas povežemo s preverjenimi obrtniki v vaši okolici. Ponudbe prejmete v 24 urah.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Ali je oddaja povpraševanja brezplačna?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Da, oddaja povpraševanja je za stranke popolnoma brezplačna. Plačate šele, ko se dogovorite z izbranim mojstrom.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Kako so preverjeni mojstri na LiftGO?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Vsak obrtnik gre skozi postopek preverjanja identitete in poklicnih referenc. Na platformi so prikazani samo verificirani mojstri.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Kako hitro dobim ponudbe?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Večina strank prejme prve ponudbe v 24 urah po oddaji povpraševanja.',
       },
     },
   ],
+}
+
+
+interface ReviewRow {
+  id: string
+  rating: number
+  comment: string
+  profiles: {
+    full_name: string | null
+  } | null
+}
+
+interface ActivityRow {
+  id: string
+  location_city: string | null
+  categories: { name: string } | null
+  created_at: string
 }
 
 async function getHomeData(): Promise<{
@@ -55,9 +98,9 @@ async function getHomeData(): Promise<{
   featuredCategories: Array<{ label: string; slug: string }>
 }> {
   try {
-    const [activeCraftsmenQuery, reviewsQuery, activityQuery, categoriesQuery] = await Promise.all([
+    const [activeCraftsmenQuery, reviewsQuery, ratingsAggQuery, activityQuery, categoriesQuery] = await Promise.all([
       supabaseAdmin
-        .from('craftworker_profile')
+        .from('obrtnik_profiles')
         .select('id', { count: 'exact', head: true })
         .eq('is_verified', true),
       supabaseAdmin
@@ -67,46 +110,53 @@ async function getHomeData(): Promise<{
         .not('comment', 'is', null)
         .order('created_at', { ascending: false })
         .limit(6),
+      // Single-row aggregate — no row data shipped, just count + avg
+      supabaseAdmin
+        .rpc('get_ratings_summary'),
       supabaseAdmin
         .from('povprasevanja')
-        .select('id,location_city,kategorija,created_at')
+        .select('id, location_city, categories(name), created_at')
         .order('created_at', { ascending: false })
         .limit(8),
       getActiveCategoriesPublic(),
     ])
 
+    const MIN_REVIEWS_FOR_RATING = 10
+    const totalReviews = (ratingsAggQuery.data as any)?.total ?? 0
+    const rawAvg = (ratingsAggQuery.data as any)?.avg ?? null
+    const avgRating: number | null =
+      totalReviews >= MIN_REVIEWS_FOR_RATING && rawAvg != null
+        ? Math.round(Number(rawAvg) * 10) / 10
+        : null
+
     const stats: HomeStats = {
-      rating: 4.9,
-      reviews: reviewsQuery.data?.length ? reviewsQuery.data.length * 120 : 1234,
-      activeCraftsmen: activeCraftsmenQuery.count || 342,
+      rating: avgRating,
+      reviews: totalReviews >= MIN_REVIEWS_FOR_RATING ? totalReviews : null,
+      activeCraftsmen: activeCraftsmenQuery.count ?? null,
     }
 
-    const testimonials: HomeTestimonial[] = (reviewsQuery.data || []).map((review: any) => {
+    const testimonials: HomeTestimonial[] = ((reviewsQuery.data as ReviewRow[] | null) || []).map((review) => {
       const fullName = review.profiles?.full_name || 'Zadovoljna stranka'
       const nameParts = String(fullName).split(' ')
       return {
         id: review.id,
         name: `${nameParts[0]} ${nameParts[1] ? `${nameParts[1][0]}.` : ''}`.trim(),
-        avatar: nameParts.slice(0, 2).map((item: string) => item[0]).join('').toUpperCase(),
+        avatar: nameParts.slice(0, 2).map((namePart) => namePart[0]).join('').toUpperCase(),
         comment: review.comment,
         rating: review.rating,
       }
     })
 
-    const fallbackTestimonials: HomeTestimonial[] = [
-      { id: '1', name: 'Matej N.', avatar: 'MN', comment: 'Od objave do obiska mojstra manj kot 24 ur. Odlično!', rating: 5 },
-      { id: '2', name: 'Petra K.', avatar: 'PK', comment: 'Prejela sem tri dobre ponudbe in hitro izbrala izvajalca.', rating: 5 },
-    ]
+    const fallbackTestimonials: HomeTestimonial[] = []
 
-    const activity: HomeActivityItem[] = (activityQuery.data || []).map((item: any) => ({
+    const activity: HomeActivityItem[] = ((activityQuery.data as ActivityRow[] | null) || []).map((item) => ({
       id: item.id,
       city: item.location_city || 'neznano mesto',
-      category: item.kategorija || 'splošno storitev',
+      category: item.categories?.name || 'splošno storitev',
       createdAt: item.created_at,
     }))
 
     const featuredCategories = categoriesQuery
-      .slice(0, 6)
       .map((category) => ({ label: category.name, slug: category.slug }))
 
     return {
@@ -118,10 +168,8 @@ async function getHomeData(): Promise<{
   } catch (error) {
     console.error('[homepage] Failed to load server data:', error)
     return {
-      stats: { rating: 4.9, reviews: 1234, activeCraftsmen: 342 },
-      testimonials: [
-        { id: '1', name: 'Matej N.', avatar: 'MN', comment: 'Odličen odziv in transparentna komunikacija.', rating: 5 },
-      ],
+      stats: { rating: null, reviews: null, activeCraftsmen: null },
+      testimonials: [],
       activity: [],
       featuredCategories: [],
     }
@@ -137,9 +185,11 @@ export default async function Page() {
       <JsonLd data={faqSchema} />
       <Navbar />
       <main className="flex-1 pb-20 sm:pb-0">
-        <HeroSection stats={stats} />
+        <HeroSection stats={stats} categories={featuredCategories} />
         <LiveActivityTicker initialItems={activity} />
         <HowItWorksTabs />
+        <PortalOverviewSection />
+        <AdvancedFeaturesSection />
         <CategoryCityGrid categories={featuredCategories} />
         <Testimonials testimonials={testimonials} />
         <FinalCTA />

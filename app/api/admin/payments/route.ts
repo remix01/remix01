@@ -1,21 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 export async function GET() {
   try {
-    // Auth check
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const { data: adminUser } = await supabaseAdmin
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
-    if (!adminUser) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    await requireAdmin()
 
     // offers.partner_id → partners (has company_name, phone_number)
     const { data: offersData, error: offersError } = await supabaseAdmin
@@ -72,11 +61,34 @@ export async function GET() {
       stripe_transfer_id: payout.stripe_transfer_id || '',
     }))
 
-    return NextResponse.json({ transactions, payouts })
+    return NextResponse.json({ ok: true, transactions, payouts })
   } catch (error: unknown) {
     console.error('[admin/payments] error:', error)
+    const authFailure = toAdminAuthFailure(error)
+    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: authFailure.message,
+          canonical_error: {
+            code: authFailure.code,
+            message: authFailure.message,
+          },
+        },
+        { status: authFailure.status }
+      )
+    }
+
+    const message = (error as any)?.message || 'Failed to fetch payment data'
     return NextResponse.json(
-      { error: (error as any)?.message || 'Failed to fetch payment data' },
+      {
+        ok: false,
+        error: message,
+        canonical_error: {
+          code: 'INTERNAL_ERROR',
+          message,
+        },
+      },
       { status: 500 }
     )
   }

@@ -1,12 +1,11 @@
-// @ts-expect-error vi is not exported from @jest/globals in this config
-import { describe, it, expect, beforeEach, afterEach, vi } from '@jest/globals'
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals'
 import { assertEscrowTransition } from '@/lib/agent/state-machine/escrowMachine'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 // Mock Supabase
-vi.mock('@/lib/supabase-admin', () => ({
+jest.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: {
-    from: vi.fn(),
+    from: jest.fn(),
   },
 }))
 
@@ -17,16 +16,16 @@ describe('EscrowMachine', () => {
 
   beforeEach(() => {
     // Reset all mocks
-    vi.clearAllMocks()
+    jest.clearAllMocks()
 
     // Mock select chain
     mockSelect = {
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: (jest.fn() as any).mockResolvedValue({
         data: { status: 'pending', id: 'test-escrow-1' },
         error: null,
       }),
-      single: vi.fn().mockResolvedValue({
+      single: (jest.fn() as any).mockResolvedValue({
         data: { status: 'pending', id: 'test-escrow-1' },
         error: null,
       }),
@@ -34,22 +33,22 @@ describe('EscrowMachine', () => {
 
     // Mock update chain
     mockUpdate = {
-      eq: vi.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
     }
 
     // Mock delete chain
     mockDelete = {
-      eq: vi.fn().mockResolvedValue({ error: null }),
+      eq: (jest.fn() as any).mockResolvedValue({ error: null }),
     }
 
     // Mock from method
     ;(supabaseAdmin.from as any).mockImplementation((table: string) => ({
-      select: vi.fn().mockReturnValue(mockSelect),
-      update: vi.fn().mockReturnValue(mockUpdate),
-      delete: vi.fn().mockReturnValue(mockDelete),
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
+      select: jest.fn().mockReturnValue(mockSelect),
+      update: jest.fn().mockReturnValue(mockUpdate),
+      delete: jest.fn().mockReturnValue(mockDelete),
+      insert: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        single: (jest.fn() as any).mockResolvedValue({
           data: { id: 'test-escrow-1', status: 'pending' },
           error: null,
         }),
@@ -261,10 +260,10 @@ describe('EscrowMachine', () => {
     })
 
     it('fetches and validates current status correctly', async () => {
-      const selectFn = vi.fn().mockReturnValue(mockSelect)
+      const selectFn = jest.fn().mockReturnValue(mockSelect)
       ;(supabaseAdmin.from as any).mockReturnValue({
         select: selectFn,
-        update: vi.fn(),
+        update: jest.fn(),
       })
 
       mockSelect.maybeSingle.mockResolvedValueOnce({

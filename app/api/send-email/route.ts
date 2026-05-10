@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email/resend-utils'
 import { env } from '@/lib/env'
+import { checkEmailRateLimit, escapeHtml, isHoneypotTriggered, sanitizeText } from '@/lib/email/security'
+import { writeEmailLog } from '@/lib/email/email-logs'
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,3 +55,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withRateLimit(emailLimiter, postHandler)

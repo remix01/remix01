@@ -50,7 +50,7 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
 
       if (taskError) throw taskError
 
-      setTask(taskData)
+      setTask(taskData as unknown as Task)
 
       // Load all worker stats (in production, filter by category/location first)
       const { data: workerStats, error: statsError } = await supabase
@@ -67,7 +67,7 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
       }
 
       // Filter qualified workers
-      const qualified = filterQualifiedWorkers(workerStats as WorkerStats[])
+      const qualified = filterQualifiedWorkers(workerStats as unknown as WorkerStats[])
       setTotalQualified(qualified.length)
 
       // Score and rank workers
@@ -76,7 +76,7 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
 
       // Map to MatchedWorker objects
       const matched: MatchedWorker[] = topMatches.map((score: any) => {
-        const stats = workerStats.find((w: any) => w.worker_id === score.worker_id) as WorkerStats
+        const stats = workerStats.find((w: any) => w.worker_id === score.worker_id) as unknown as WorkerStats
 
         return {
           worker_id: score.worker_id,

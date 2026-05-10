@@ -134,6 +134,8 @@ export default async function DashboardPage() {
                 href={`/dashboard/stranka/povprasevanja/${inquiry.id}`}
                 className="block p-6 hover:bg-slate-50 transition-colors"
               >
+                {/* TODO(route-consolidation): keep legacy detail route until
+                    canonical detail parity is fully validated. */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">

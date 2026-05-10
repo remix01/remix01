@@ -17,7 +17,7 @@ async function getPendingVerifications() {
       ajpes_response,
       status,
       created_at,
-      obrtnik_profiles:obrtnik_profiles(id, business_name, email)
+      obrtnik_profiles:obrtnik_profiles(id, business_name, profile:profiles(email))
     `)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
@@ -58,7 +58,7 @@ export default async function VerifikacijePage() {
                       {verification.obrtnik_profiles?.business_name}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      {verification.obrtnik_profiles?.email}
+                      {verification.obrtnik_profiles?.profile?.email ?? "Brez e-pošte"}
                     </p>
                   </div>
                   <Badge variant="outline" className="text-orange-600">

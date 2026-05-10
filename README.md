@@ -133,3 +133,32 @@ See LICENSE for full details (if included).
 ---
 
 *Last updated: 2026-03-21*
+
+---
+
+## 🩺 Production API Health Check
+
+If your frontend renders but API calls fail in production, use the public health endpoint:
+
+- `GET /api/health`
+
+Example:
+
+```bash
+curl -i https://liftgo.net/api/health
+```
+
+What it verifies:
+
+- Process is running and can return JSON from a server route.
+- Required Supabase environment variables are present:
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+
+Response behavior:
+
+- `200 OK` when all required variables are present.
+- `503 Service Unavailable` when one or more required variables are missing.
+
+Use this endpoint before debugging protected endpoints such as `/api/admin/*` to quickly confirm deployment health and environment setup.

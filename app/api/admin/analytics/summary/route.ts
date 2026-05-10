@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 type EventName = 'inquiry_submitted' | 'offer_sent' | 'offer_accepted' | 'payment_completed'
 
@@ -107,30 +107,7 @@ async function getCountWithFallback(eventName: EventName, fromIso: string, toIso
 
 export async function GET(_request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user?.id) {
-      return NextResponse.json({ error: 'Neavtoriziran' }, { status: 401 })
-    }
-
-    const { data: admin, error: adminError } = await supabaseAdmin
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
-
-    if (adminError) {
-      console.error('[admin/analytics/summary] Admin check error:', adminError)
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-    }
-
-    if (!admin) {
-      return NextResponse.json({ error: 'Dostop zavrnjen' }, { status: 403 })
-    }
+    await requireAdmin()
 
     const { todayStart, tomorrowStart, sevenDaysAgo } = getDateWindow()
 
@@ -159,7 +136,7 @@ export async function GET(_request: NextRequest) {
       .lt('created_at', tomorrowStart.toISOString())
 
     if (todayEventsError) {
-      todayEventsCount = todayInquiries.count + funnelOffers.count + todayConversions.count
+      todayEventsCount = todayInquiries.count + todayConversions.count
     } else {
       todayEventsCount = rawTodayEvents ?? 0
     }
@@ -264,6 +241,7 @@ export async function GET(_request: NextRequest) {
       .slice(0, 5)
 
     return NextResponse.json({
+      ok: true,
       today: {
         events: todayEventsCount,
         activeUsers: uniqueActiveUsers,
@@ -291,6 +269,31 @@ export async function GET(_request: NextRequest) {
     })
   } catch (error) {
     console.error('[admin/analytics/summary] Fatal error:', error)
-    return NextResponse.json({ error: 'Napaka pri pridobivanju podatkov' }, { status: 500 })
+    const authFailure = toAdminAuthFailure(error)
+    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: authFailure.message,
+          canonical_error: {
+            code: authFailure.code,
+            message: authFailure.message,
+          },
+        },
+        { status: authFailure.status }
+      )
+    }
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Napaka pri pridobivanju podatkov',
+        canonical_error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Napaka pri pridobivanju podatkov',
+        },
+      },
+      { status: 500 }
+    )
   }
 }

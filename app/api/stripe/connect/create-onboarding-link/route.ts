@@ -4,6 +4,8 @@ import { stripe } from '@/lib/stripe'
 import { env } from '@/lib/env'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { CANONICAL_TABLES, CANONICAL_PROVIDER_RELATIONSHIP } from '@/lib/db/schema-contract'
+import { assertCanAccessProviderDashboard, OnboardingGuardError } from '@/lib/onboarding/guards'
 
 const requestSchema = z.object({
   accountId: z.string().optional(),
@@ -21,37 +23,41 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify user is a craftworker
-    const { data: dbUser, error: userError } = await supabaseAdmin
-      .from('user')
-      .select('role, craftworker_profile(*)')
-      .eq('id', user.id)
+    try {
+      await assertCanAccessProviderDashboard(user.id, { allowStates: ['payout_incomplete'] })
+    } catch (error) {
+      if (error instanceof OnboardingGuardError) {
+        return NextResponse.json({ error: error.message, state: error.state, redirectTo: error.redirectTo }, { status: 403 })
+      }
+      throw error
+    }
+
+    const { data: providerProfile, error: providerError } = await supabaseAdmin
+      .from(CANONICAL_TABLES.provider)
+      .select('id, stripe_account_id')
+      .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
       .single()
 
-    if (userError || !dbUser || dbUser.role !== 'CRAFTWORKER') {
+    if (providerError || !providerProfile) {
       return NextResponse.json(
-        { error: 'Only craftworkers can access onboarding' },
-        { status: 403 }
+        { error: 'Provider profile not found' },
+        { status: 404 }
       )
     }
 
-    const craftworkerProfile = Array.isArray(dbUser.craftworker_profile) 
-      ? dbUser.craftworker_profile[0] 
-      : dbUser.craftworker_profile
-
-    if (!craftworkerProfile?.stripe_account_id) {
+    if (!providerProfile.stripe_account_id) {
       return NextResponse.json(
         { error: 'No Stripe account found. Create one first.' },
-        { status: 404 }
+        { status: 403 }
       )
     }
 
     const body = await request.json().catch(() => ({}))
     const validatedData = requestSchema.parse(body)
-    const accountId = validatedData.accountId ?? craftworkerProfile.stripe_account_id
+    const accountId = validatedData.accountId ?? providerProfile.stripe_account_id
 
     // Verify the account ID matches the user's account
-    if (accountId !== craftworkerProfile.stripe_account_id) {
+    if (accountId !== providerProfile.stripe_account_id) {
       return NextResponse.json(
         { error: 'Account ID mismatch' },
         { status: 403 }

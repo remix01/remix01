@@ -4,6 +4,7 @@ import type { AgentType, AgentMessage, AgentResponse } from '../base/types'
 import { checkPermission, type Session } from '@/lib/agent/permissions'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { enqueue } from '@/lib/jobs/queue'
+import { env } from '@/lib/env'
 import { v4 as uuidv4 } from 'uuid'
 
 export class NotifyAgent extends BaseAgent {
@@ -344,7 +345,7 @@ export class NotifyAgent extends BaseAgent {
 
       // Alert admin (send to admin alert email)
       await enqueue('send_dispute_email', {
-        recipientEmail: 'admin@liftgo.com', // TODO: config
+        recipientEmail: env.ADMIN_EMAIL || 'admin@liftgo.net',
         template: 'dispute_opened_admin_alert',
         templateData: { disputeId, escrowId, openedBy: userId, reason },
       })

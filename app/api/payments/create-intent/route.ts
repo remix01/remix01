@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { paymentService, handleServiceError } from '@/lib/services'
+import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
+import { paymentLimiter } from '@/lib/rate-limit/limiters'
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     const { ponudbaId } = await request.json()
 
@@ -41,5 +43,7 @@ export async function POST(request: NextRequest) {
     return handleServiceError(error)
   }
 }
+
+export const POST = withRateLimit(paymentLimiter, postHandler)
 
 

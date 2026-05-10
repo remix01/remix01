@@ -1,7 +1,7 @@
 export interface HomeStats {
-  rating: number
-  reviews: number
-  activeCraftsmen: number
+  rating: number | null
+  reviews: number | null
+  activeCraftsmen: number | null
 }
 
 export interface HomeActivityItem {

@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PartnerSidebar } from '@/components/partner/sidebar'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,12 +22,12 @@ type PartnerProfile = {
   website_url: string | null
   facebook_url: string | null
   instagram_url: string | null
-  subscription_tier: 'start' | 'pro' | 'elite'
+  subscription_tier: 'start' | 'pro' | 'elite' | null
 }
 
 type UserProfile = {
   id: string
-  email: string
+  email: string | null
   phone: string | null
   location_city: string | null
 }
@@ -80,11 +78,21 @@ export default function AccountPage() {
         if (partnerError) throw partnerError
 
         // Fetch user profile
-        const { data: userData, error: userError } = await supabase
-          .from('profiles')
-          .select('id, email, phone, location_city')
-          .eq('id', user.id)
-          .maybeSingle()
+        const [userByIdRes, userByAuthIdRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, email, phone, location_city')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('id, email, phone, location_city')
+            .eq('auth_user_id', user.id)
+            .maybeSingle(),
+        ])
+
+        const userData = userByIdRes.data ?? userByAuthIdRes.data
+        const userError = userByIdRes.error ?? userByAuthIdRes.error
 
         if (userError) throw userError
 
@@ -260,10 +268,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="flex h-screen">
-      <PartnerSidebar partner={(partner || { business_name: 'Moj portal', subscription_tier: 'start', avg_rating: 0, is_verified: false }) as any} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="mx-auto max-w-3xl p-6 lg:p-8">
+    <div className="mx-auto max-w-3xl p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Moj račun</h1>
             <p className="text-muted-foreground mt-2">Uredite podatke svojega profila in naročnino</p>
@@ -494,9 +499,6 @@ export default function AccountPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: partner?.subscription_tier || 'start' }} />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { runLangGraphChat } from '@/lib/ai/langgraph'
 import { getLangSmithStatus } from '@/lib/ai/langsmith'
+import { getAICapabilityStatus, hasMinimumAIStackReady } from '@/lib/ai/capabilities'
 
 const requestSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required').max(8000),
@@ -44,5 +45,7 @@ export async function GET() {
     service: 'ai-langchain',
     orchestration: 'langgraph',
     tracing: getLangSmithStatus(),
+    capabilities: getAICapabilityStatus(),
+    minimumReady: hasMinimumAIStackReady(),
   })
 }

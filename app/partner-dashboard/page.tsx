@@ -1,22 +1,47 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { PartnerSidebar } from '@/components/partner/sidebar'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
-import { OfferForm } from '@/components/partner/offer-form'
-import { OffersList } from '@/components/partner/offers-list'
 import { PartnerStats } from '@/components/partner/partner-stats'
-import { PaymentsSection } from '@/components/partner/payments-section'
-import { NotificationPreferences } from '@/components/liftgo/NotificationPreferences'
-import { ReferralSection } from '@/components/partner/ReferralSection'
 import { RouteOptimizerCard } from '@/components/partner/RouteOptimizerCard'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
+import type { Offer } from '@/lib/types/offer'
+
+const OfferForm = dynamic(
+  () => import('@/components/partner/offer-form').then((m) => m.OfferForm),
+  { loading: () => null }
+)
+
+const OffersList = dynamic(
+  () => import('@/components/partner/offers-list').then((m) => m.OffersList),
+  { loading: () => null }
+)
+
+const PaymentsSection = dynamic(
+  () => import('@/components/partner/payments-section').then((m) => m.PaymentsSection),
+  { loading: () => null }
+)
+
+const NotificationPreferences = dynamic(
+  () => import('@/components/liftgo/NotificationPreferences').then((m) => m.NotificationPreferences),
+  { loading: () => null }
+)
+
+const ReferralSection = dynamic(
+  () => import('@/components/partner/ReferralSection').then((m) => m.ReferralSection),
+  { loading: () => null }
+)
+
+const ListSyncToolbar = dynamic(
+  () => import('@/components/partner/list-sync-toolbar').then((m) => m.ListSyncToolbar),
+  { loading: () => null }
+)
 
 function PartnerDashboardInner() {
   const router = useRouter()
@@ -25,7 +50,7 @@ function PartnerDashboardInner() {
   const initialTab = 'overview'
   const [partner, setPartner] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [offers, setOffers] = useState<any[]>([])
+  const [offers, setOffers] = useState<Offer[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
@@ -80,32 +105,22 @@ function PartnerDashboardInner() {
       if (partnerData) {
         setPartner(partnerData)
 
-        // Check completion status
-        const status = await getCompletionStatus(partnerData.id)
-        if (status) {
-          setCompletionStatus(status)
-        }
+        const [status, offersRes, openCountRes] = await Promise.all([
+          getCompletionStatus(partnerData.id),
+          sb
+            .from('ponudbe')
+            .select('*')
+            .eq('obrtnik_id', partnerData.id)
+            .order('created_at', { ascending: false }),
+          sb
+            .from('povprasevanja')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'odprto'),
+        ])
 
-        // Fetch offers
-        const { data: offersData } = await sb
-          .from('ponudbe')
-          .select('*')
-          .eq('obrtnik_id', partnerData.id)
-          .order('created_at', { ascending: false })
-
-        if (offersData) {
-          setOffers(offersData)
-        }
-
-        // Fetch open requests count
-        const { count: openCount } = await sb
-          .from('povprasevanja')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'odprto')
-
-        if (openCount !== null) {
-          setOpenRequestsCount(openCount)
-        }
+        if (status) setCompletionStatus(status)
+        if (offersRes.data) setOffers(offersRes.data)
+        if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
       }
 
       setLoading(false)
@@ -125,36 +140,46 @@ function PartnerDashboardInner() {
 
   const getCompletionStatus = async (partnerId: string) => {
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from('obrtnik_profiles')
-        .select('description, hourly_rate, subscription_tier')
-        .eq('id', partnerId)
-        .maybeSingle()
+      const [profileRes, userByIdRes, userByAuthIdRes, offersRes] = await Promise.all([
+        supabase
+          .from('obrtnik_profiles')
+          .select('description, hourly_rate, subscription_tier')
+          .eq('id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('phone')
+          .eq('auth_user_id', partnerId)
+          .maybeSingle(),
+        supabase
+          .from('ponudbe')
+          .select('id', { count: 'exact', head: true })
+          .eq('obrtnik_id', partnerId),
+      ])
 
-      const { data: userProfileById, error: userByIdError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', partnerId)
-        .maybeSingle()
+      const profile = profileRes.data
+      const profileError = profileRes.error
 
-      const { data: userProfileByAuthUserId, error: userByAuthUserIdError } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('auth_user_id', partnerId)
-        .maybeSingle()
+      const userProfileById = userByIdRes.data
+      const userByIdError = userByIdRes.error
+
+      const userProfileByAuthUserId = userByAuthIdRes.data
+      const userByAuthUserIdError = userByAuthIdRes.error
+      const offersCount = offersRes.count
+      const offersError = offersRes.error
 
       const userProfile = userProfileById ?? userProfileByAuthUserId
       const userError = userByIdError ?? userByAuthUserIdError
 
-      const { count: offersCount, error: offersError } = await supabase
-        .from('ponudbe')
-        .select('id', { count: 'exact', head: true })
-        .eq('obrtnik_id', partnerId)
-
       if (!profileError && !userError && !offersError) {
-        const hasDescription = profile?.description != null
+        const hasDescription = typeof profile?.description === 'string' && profile.description.trim().length > 0
         const hasHourlyRate = profile?.hourly_rate != null
-        const hasPhone = userProfile?.phone != null
+        const hasPhone = typeof userProfile?.phone === 'string' && userProfile.phone.trim().length > 0
         const hasOffers = (offersCount || 0) > 0
 
         const completedItems = [hasDescription, hasHourlyRate, hasPhone, hasOffers].filter(Boolean).length
@@ -195,10 +220,7 @@ function PartnerDashboardInner() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-4 md:p-6 lg:p-8">
+    <div className="p-4 md:p-6 lg:p-8">
           {/* Header with business name and subscription badge */}
           <div className="mb-8 flex items-start justify-between">
             <div>
@@ -317,6 +339,7 @@ function PartnerDashboardInner() {
             <TabsContent value="offers" className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Vaše ponudbe</h2>
+                <ListSyncToolbar className="mb-4" />
                 <OffersList offers={offers} onUpdate={() => handleOfferCreated(partner.id)} />
               </Card>
             </TabsContent>
@@ -340,9 +363,6 @@ function PartnerDashboardInner() {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: partner?.subscription_tier === 'elite' ? 'elite' : partner?.subscription_tier === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

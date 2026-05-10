@@ -27,14 +27,24 @@ export class ServiceError extends Error {
 export function handleServiceError(err: unknown): NextResponse {
   if (err instanceof ServiceError) {
     return NextResponse.json(
-      { error: err.message },
+      {
+        ok: false,
+        data: null,
+        error: err.message,
+        error_details: { code: err.code, message: err.message },
+      },
       { status: err.statusCode }
     )
   }
 
   console.error('[API Error]', err)
   return NextResponse.json(
-    { error: 'Internal server error' },
+    {
+      ok: false,
+      data: null,
+      error: 'Internal server error',
+      error_details: { code: 'INTERNAL_SERVER_ERROR', message: 'Internal server error' },
+    },
     { status: 500 }
   )
 }

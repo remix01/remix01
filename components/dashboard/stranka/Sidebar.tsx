@@ -14,21 +14,23 @@ interface SidebarProps {
 const navItems = [
   {
     name: 'Pregled',
-    href: '/dashboard/stranka',
+    href: '/dashboard',
     icon: LayoutGrid,
   },
   {
     name: 'Moja povpraševanja',
-    href: '/dashboard/stranka/povprasevanja',
+    href: '/povprasevanja',
     icon: FileText,
   },
   {
     name: 'Sporočila',
-    href: '/dashboard/stranka/sporocila',
+    href: '/sporocila',
     icon: MessageSquare,
   },
   {
     name: 'Profil',
+    // TODO(route-consolidation): switch to /profil once legacy profile parity
+    // decision is finalized for /dashboard/stranka/profil.
     href: '/dashboard/stranka/profil',
     icon: User,
   },

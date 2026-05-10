@@ -36,10 +36,12 @@ export async function POST(
     }
 
     // Call backend RPC function for task expiry
-    const { data: result, error: rpcError } = await supabase.rpc('expire_task', {
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('expire_task', {
       task_id: taskId,
       reason: expireReason,
     })
+
+    const result = rpcResult as { success: boolean; message?: string; task?: unknown } | null
 
     if (rpcError) {
       console.error('[v0] RPC error in expire_task:', rpcError)

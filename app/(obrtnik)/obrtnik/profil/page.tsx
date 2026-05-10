@@ -92,14 +92,14 @@ export default function ProfilPage() {
         setBusinessName(obrtnikProfile.business_name || '')
         setTagline(obrtnikProfile.tagline || '')
         setDescription(obrtnikProfile.description || '')
-        setHourlyRate(obrtnikProfile.hourly_rate || '')
-        setYearsExperience(obrtnikProfile.years_experience || '')
-        setWorkingSince(obrtnikProfile.working_since || '')
+        setHourlyRate(obrtnikProfile.hourly_rate?.toString() ?? '')
+        setYearsExperience(obrtnikProfile.years_experience?.toString() ?? '')
+        setWorkingSince(obrtnikProfile.working_since?.toString() ?? '')
         setAjpesId(obrtnikProfile.ajpes_id || '')
         setWebsite(obrtnikProfile.website_url || '')
         setFacebook(obrtnikProfile.facebook_url || '')
         setInstagram(obrtnikProfile.instagram_url || '')
-        setResponseTime(obrtnikProfile.response_time_hours || '')
+        setResponseTime(obrtnikProfile.response_time_hours?.toString() ?? '')
 
         // Calculate profile completeness
         const filled = [

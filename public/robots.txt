@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+Allow: /_next/static/
+Allow: /_next/image/
+Allow: /images/
+Allow: /icons/
+
+Disallow: /api/
+Disallow: /admin/
+Disallow: /partner-auth/
+Disallow: /partner-dashboard/
+Disallow: /auth/
+Disallow: /prijava/
+Disallow: /registracija/
+Disallow: /dashboard/
+Disallow: /povprasevanja/
+Disallow: /novo-povprasevanje/
+Disallow: /profil/
+Disallow: /obvestila/
+Disallow: /ocena/
+Disallow: /*?*sort=
+Disallow: /*?*filter=
+Disallow: /*?*page=
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: msnbot
+Allow: /
+
+Sitemap: https://www.liftgo.net/sitemap.xml

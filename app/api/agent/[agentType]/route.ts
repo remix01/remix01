@@ -5,10 +5,28 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
 import { selectModel, estimateCost } from '@/lib/model-router'
 import { getAgentDefinition } from '@/lib/agents/ai-definitions'
-import { isAgentAccessible, getAgentDailyLimit } from '@/lib/agents/ai-router'
+import { AGENT_META } from '@/lib/agents/ai-router'
 import type { AIAgentType } from '@/lib/agents/ai-router'
+import {
+  loadAiUsageProfile,
+  normalizeDailyUsageWindow,
+  evaluateAgentTierAccess,
+  incrementDailyUsage,
+} from '@/lib/agents/route-access-policy'
+import { logAgentUsage } from '@/lib/agents/usage-logging'
 
-const MAX_TOKENS = 800
+// ── Configuration Constants ────────────────────────────────────────────────
+/**
+ * AI model and token configuration
+ */
+const AI_CONFIG = {
+  /** Maximum tokens allowed per API request */
+  MAX_TOKENS: 800,
+  /** Number of previous messages to keep for context window efficiency */
+  HISTORY_CONTEXT_LIMIT: 20,
+  /** Maximum characters to store from user messages in logs */
+  MESSAGE_LOG_PREVIEW_LENGTH: 500,
+} as const
 
 type StoredMessage = {
   role: 'user' | 'agent'
@@ -18,73 +36,81 @@ type StoredMessage = {
 
 type Params = { params: Promise<{ agentType: string }> }
 
+function success(payload: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, data: payload, ...payload })
+}
+
+function fail(message: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      canonical_error: {
+        code,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
+    { status }
+  )
+}
+
+function isValidAgentType(agentType: string): agentType is AIAgentType {
+  return agentType in AGENT_META
+}
+
 // POST — send message to agent
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const { agentType } = await params
+    if (!isValidAgentType(agentType)) {
+      return fail('Neveljaven tip agenta.', 400, 'INVALID_AGENT_TYPE')
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
     }
 
     const { message, context } = await req.json()
     if (!message?.trim()) {
-      return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
+      return fail('Sporočilo je obvezno.', 400, 'VALIDATION_ERROR')
     }
 
-    // Load user profile
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_tier, ai_messages_used_today, ai_messages_reset_at')
-      .eq('id', user.id)
-      .maybeSingle()
-
+    // Load user profile + normalize daily window via shared access policy
+    const profile = await loadAiUsageProfile(user.id)
     const tier = (profile?.subscription_tier ?? 'start') as string
+    const usedToday = await normalizeDailyUsageWindow(user.id, profile)
 
     // Tier access check
-    if (!isAgentAccessible(agentType as AIAgentType, tier)) {
-      return NextResponse.json(
+    const access = evaluateAgentTierAccess(agentType as AIAgentType, tier)
+    if (!access.allowed) {
+      return fail(
+        'Ta agent je na voljo samo za PRO naročnike.',
+        403,
+        'FORBIDDEN',
         {
-          error: 'Ta agent je na voljo samo za PRO naročnike.',
           upgrade_required: true,
           upgrade_url: '/obrtnik/narocnina',
-        },
-        { status: 403 }
+        }
       )
     }
 
     // Daily limit check
-    const dailyLimit = getAgentDailyLimit(agentType as AIAgentType, tier)
+    const dailyLimit = access.dailyLimit
     if (dailyLimit === 0) {
-      return NextResponse.json(
-        { error: 'Ta agent ni dostopen z vašim paketom.', upgrade_required: true },
-        { status: 403 }
-      )
-    }
-
-    // Reset counter if 24h passed
-    let usedToday = profile?.ai_messages_used_today ?? 0
-    const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
-    if (Date.now() - resetAt.getTime() > 24 * 60 * 60 * 1000) {
-      usedToday = 0
-      await supabaseAdmin
-        .from('profiles')
-        .update({ ai_messages_used_today: 0, ai_messages_reset_at: new Date().toISOString() })
-        .eq('id', user.id)
+      return fail('Ta agent ni dostopen z vašim paketom.', 403, 'FORBIDDEN', { upgrade_required: true })
     }
 
     if (usedToday >= dailyLimit) {
-      return NextResponse.json(
-        {
-          error: `Dnevni limit dosežen (${dailyLimit} sporočil). Poskusite jutri.`,
-          limit_reached: true,
-          used: usedToday,
-          limit: dailyLimit,
-        },
-        { status: 429 }
+      return fail(
+        `Dnevni limit dosežen (${dailyLimit} sporočil). Poskusite jutri.`,
+        429,
+        'LIMIT_REACHED',
+        { limit_reached: true, used: usedToday, limit: dailyLimit }
       )
     }
 
@@ -110,8 +136,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
 
-    // Keep last 20 messages for context window efficiency
-    const claudeMessages = history.slice(-20).map(m => ({
+    // Keep last N messages for context window efficiency
+    const claudeMessages = history.slice(-AI_CONFIG.HISTORY_CONTEXT_LIMIT).map(m => ({
       role: (m.role === 'agent' ? 'assistant' : 'user') as 'user' | 'assistant',
       content: m.content,
     }))
@@ -126,7 +152,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       if (cached) {
         await persistConversation(user.id, agentType, conv, history, message, cached)
         await logUsage(user.id, usedToday, agentType, 'cached', 0, 0, 0, 0, cacheKey, message)
-        return NextResponse.json({
+        return success({
           message: cached,
           cached: true,
           agent: agentType,
@@ -149,7 +175,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const response = await client.messages.create({
       model: modelSelection.modelId,
-      max_tokens: MAX_TOKENS,
+      max_tokens: AI_CONFIG.MAX_TOKENS,
       system: systemPrompt,
       messages: [...claudeMessages, { role: 'user', content: message }],
     })
@@ -171,7 +197,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     console.log(`[agent/${agentType}] model=${modelSelection.modelId} tokens=${inputTokens}+${outputTokens} cost=$${costUsd.toFixed(6)}`)
 
-    return NextResponse.json({
+    return success({
       message: assistantText,
       cached: false,
       agent: agentType,
@@ -181,7 +207,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   } catch (error) {
     console.error('[agent/dynamic] error:', error)
     const status = error instanceof Anthropic.APIError ? error.status : 500
-    return NextResponse.json({ error: 'Napaka pri procesiranju. Poskusite znova.' }, { status })
+    return fail('Napaka pri procesiranju. Poskusite znova.', status, error instanceof Anthropic.APIError ? 'AI_API_ERROR' : 'INTERNAL_ERROR')
   }
 }
 
@@ -189,9 +215,13 @@ export async function POST(req: NextRequest, { params }: Params) {
 export async function GET(req: NextRequest, { params }: Params) {
   try {
     const { agentType } = await params
+    if (!isValidAgentType(agentType)) {
+      return fail('Neveljaven tip agenta.', 400, 'INVALID_AGENT_TYPE')
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     const { data } = await supabaseAdmin
       .from('ai_agent_conversations')
@@ -203,9 +233,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       .limit(1)
       .maybeSingle()
 
-    return NextResponse.json({ messages: data?.messages ?? [] })
+    return success({ messages: data?.messages ?? [] })
   } catch {
-    return NextResponse.json({ messages: [] })
+    return success({ messages: [] })
   }
 }
 
@@ -213,9 +243,13 @@ export async function GET(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const { agentType } = await params
+    if (!isValidAgentType(agentType)) {
+      return fail('Neveljaven tip agenta.', 400, 'INVALID_AGENT_TYPE')
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
     await supabaseAdmin
       .from('ai_agent_conversations')
@@ -224,13 +258,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       .eq('agent_type', agentType)
       .eq('status', 'active')
 
-    return NextResponse.json({ success: true })
+    return success({ success: true })
   } catch {
-    return NextResponse.json({ error: 'Napaka pri brisanju.' }, { status: 500 })
+    return fail('Napaka pri brisanju.', 500, 'INTERNAL_ERROR')
   }
 }
 
-// ── helpers ────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────[...]
 
 async function persistConversation(
   userId: string,
@@ -273,21 +307,19 @@ async function logUsage(
   cacheKey: string | null,
   message: string,
 ) {
-  await supabaseAdmin
-    .from('profiles')
-    .update({ ai_messages_used_today: usedToday + 1 })
-    .eq('id', userId)
+  await incrementDailyUsage(userId, usedToday + 1)
 
-  await supabaseAdmin.from('ai_usage_logs').insert({
-    user_id: userId,
-    model_used: modelShortName,
-    tokens_input: inputTokens,
-    tokens_output: outputTokens,
-    cost_usd: costUsd,
-    response_cached: modelShortName === 'cached',
-    message_hash: cacheKey,
-    user_message: message.slice(0, 500),
-    response_time_ms: responseMs,
-    agent_type: agentType,
+  await logAgentUsage({
+    userId,
+    modelUsed: modelShortName,
+    tokensInput: inputTokens,
+    tokensOutput: outputTokens,
+    costUsd,
+    responseCached: modelShortName === 'cached',
+    messageHash: cacheKey,
+    userMessage: message,
+    responseTimeMs: responseMs,
+    agentType,
+    messagePreviewLimit: AI_CONFIG.MESSAGE_LOG_PREVIEW_LENGTH,
   })
 }

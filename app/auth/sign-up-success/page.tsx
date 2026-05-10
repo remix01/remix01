@@ -33,7 +33,7 @@ export default function Page() {
                 Uspešno ste se registrirali. Prosim, preverite svoj email, da potrdite svoj račun, preden se prijavite.
               </p>
 
-              <Link href="/narocnik/dashboard" className="block">
+              <Link href="/dashboard" className="block">
                 <Button className="w-full">
                   Pojdi na dashboard →
                 </Button>

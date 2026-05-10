@@ -15,14 +15,57 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { env } from '@/lib/env'
 
-// Verify cron secret (optional but recommended)
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause,
+    }
+  }
+
+  return {
+    message: typeof error === 'string' ? error : 'Non-Error thrown',
+    raw: error,
+  }
+}
+
+function serializeDbError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return serializeError(error)
+  }
+
+  const dbError = error as Record<string, unknown>
+  return {
+    message: typeof dbError.message === 'string' ? dbError.message : undefined,
+    details: typeof dbError.details === 'string' ? dbError.details : undefined,
+    hint: typeof dbError.hint === 'string' ? dbError.hint : undefined,
+    code: typeof dbError.code === 'string' ? dbError.code : undefined,
+  }
+}
+
+function getCronEnvDiagnostics() {
+  return {
+    nodeEnv: process.env.NODE_ENV,
+    hasCronSecret: Boolean(env.CRON_SECRET),
+    hasSupabaseUrl: Boolean(env.NEXT_PUBLIC_SUPABASE_URL),
+    hasServiceRoleKey: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+  }
+}
+
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
   const cronSecret = process.env.CRON_SECRET
 
   if (!cronSecret) {
-    console.warn('[v0] CRON_SECRET not configured - cron endpoint is public')
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[v0] CRON_SECRET not configured in production — request denied')
+      return false
+    }
     return true
   }
 
@@ -31,13 +74,22 @@ function verifyCronSecret(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   try {
+    const requestId =
+      req.headers.get('x-request-id') ||
+      req.headers.get('x-vercel-id') ||
+      'unknown'
+
     // Verify cron authorization
     if (!verifyCronSecret(req)) {
-      console.error('[v0] Unauthorized cron request')
+      console.error('[v0] Unauthorized cron request', { requestId })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('[v0] SLA task expiry cron job started')
+    console.log('[v0] SLA task expiry cron job started', {
+      requestId,
+      timestamp: new Date().toISOString(),
+      diagnostics: getCronEnvDiagnostics(),
+    })
 
     // Find all tasks that:
     // 1. Are in a non-terminal state (not already expired, completed, or cancelled)
@@ -52,14 +104,19 @@ export async function GET(req: NextRequest) {
       // Keep the projection minimal: selecting non-existent columns on Supabase
       // causes PostgREST to fail the whole query with a 500 response upstream.
       .select('id, sla_deadline, status')
-      .in('status', ['published', 'claimed', 'accepted', 'in_progress'])
+      .in('status', ['open', 'has_ponudbe', 'in_progress'])
       .not('sla_deadline', 'is', null)
       .lt('sla_deadline', now)
 
     if (queryError) {
-      console.error('[v0] Error querying overdue tasks:', queryError)
+      console.error('[v0] Error querying overdue tasks:', {
+        requestId,
+        now,
+        diagnostics: getCronEnvDiagnostics(),
+        queryError: serializeDbError(queryError),
+      })
       return NextResponse.json(
-        { error: 'Failed to query tasks', details: queryError },
+        { error: 'Failed to query tasks', details: serializeDbError(queryError), requestId },
         { status: 500 }
       )
     }
@@ -83,10 +140,7 @@ export async function GET(req: NextRequest) {
       try {
         console.log(`[v0] Expiring task: ${task.id}`)
 
-        const { error: expireError } = await supabaseAdmin.rpc('expire_task', {
-          task_id: task.id,
-          reason: 'SLA deadline passed - automated expiry',
-        })
+        const { error: expireError } = await expireTask(task.id)
 
         if (expireError) {
           console.error(`[v0] Failed to expire task ${task.id}:`, expireError)
@@ -114,16 +168,24 @@ export async function GET(req: NextRequest) {
       message: `Expired ${expiredIds.length} of ${overdueTasks.length} overdue tasks`,
     }
 
-    console.log('[v0] SLA task expiry cron job completed:', summary)
+    console.log('[v0] SLA task expiry cron job completed:', { requestId, ...summary })
 
     return NextResponse.json(summary)
   } catch (error) {
-    console.error('[v0] SLA task expiry cron job failed:', error)
+    console.error('[v0] SLA task expiry cron job failed:', {
+      requestId:
+        req.headers.get('x-request-id') ||
+        req.headers.get('x-vercel-id') ||
+        'unknown',
+      error: serializeError(error),
+      diagnostics: getCronEnvDiagnostics(),
+    })
     return NextResponse.json(
       {
         success: false,
         error: 'Cron job failed',
         message: error instanceof Error ? error.message : 'Unknown error',
+        diagnostics: getCronEnvDiagnostics(),
       },
       { status: 500 }
     )
@@ -157,6 +219,24 @@ async function logAuditEvent(
     console.error('[v0] Error logging audit event:', err)
     // Don't throw - audit logging failure shouldn't stop expiry
   }
+}
+
+async function expireTask(taskId: string) {
+  const firstTry = await supabaseAdmin.rpc('expire_task', {
+    task_id: taskId,
+    reason: 'SLA deadline passed - automated expiry',
+  })
+
+  if (
+    firstTry.error &&
+    (firstTry.error.message?.includes('function') ||
+      firstTry.error.message?.includes('does not exist') ||
+      firstTry.error.message?.includes('No function matches'))
+  ) {
+    return supabaseAdmin.rpc('expire_task', { task_id: taskId })
+  }
+
+  return firstTry
 }
 
 // Also export POST for testing

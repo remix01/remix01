@@ -4,13 +4,34 @@ import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react'
+import type { EarningsResponseDto } from '@/lib/craftsman/earnings/types'
 
 interface PaymentsSectionProps {
   partnerId: string
 }
 
+interface ApiEnvelope<T> {
+  ok?: boolean
+  data?: T
+}
+
+function extractEarningsPayload(payload: unknown): EarningsResponseDto | null {
+  if (!payload || typeof payload !== 'object') return null
+
+  const maybeEnvelope = payload as ApiEnvelope<EarningsResponseDto>
+  if (maybeEnvelope.ok && maybeEnvelope.data) {
+    return maybeEnvelope.data
+  }
+
+  if (maybeEnvelope.data) {
+    return maybeEnvelope.data
+  }
+
+  return payload as EarningsResponseDto
+}
+
 export function PaymentsSection({ partnerId }: PaymentsSectionProps) {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<EarningsResponseDto | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -18,7 +39,8 @@ export function PaymentsSection({ partnerId }: PaymentsSectionProps) {
       try {
         const response = await fetch('/api/craftsman/earnings')
         if (response.ok) {
-          const earnings = await response.json()
+          const payload = await response.json()
+          const earnings = extractEarningsPayload(payload)
           setData(earnings)
         }
       } catch (error) {
@@ -164,13 +186,13 @@ export function PaymentsSection({ partnerId }: PaymentsSectionProps) {
                 </tr>
               </thead>
               <tbody>
-                {data.recentPayouts.map((payout: any) => (
+                {data.recentPayouts.map((payout) => (
                   <tr key={payout.id} className="border-b last:border-0">
                     <td className="py-3 px-4 text-sm">
                       {formatDate(payout.created_at)}
                     </td>
                     <td className="py-3 px-4 text-sm font-medium">
-                      {formatCurrency(Number(payout.amount))}
+                      {formatCurrency(payout.amount)}
                     </td>
                     <td className="py-3 px-4">
                       <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-900/20 dark:text-green-400">

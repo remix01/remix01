@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { acceptPonudba, updatePonudba } from '@/lib/dal/ponudbe'
 import { updatePovprasevanje } from '@/lib/dal/povprasevanja'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
+import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 
 export async function acceptPonudbaAction(
   ponudbaId: string,
@@ -133,11 +134,19 @@ export async function acceptPonudbaAction(
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // STEP 6: Revalidate paths
+    // STEP 6: Analytics + revalidate paths
     // ════════════════════════════════════════════════════════════════════
-    revalidatePath(`/narocnik/povprasevanja/${povprasevanjeId}`)
-    revalidatePath('/narocnik/povprasevanja')
-    revalidatePath('/narocnik/dashboard')
+    trackFunnelEvent(FUNNEL_EVENTS.PONUDBA_ACCEPTED, {
+      povprasevanje_id: povprasevanjeId,
+      category: (povprasevanje as { category_id?: string }).category_id ?? null,
+      location: povprasevanje.location_city ?? null,
+      user_type: 'narocnik',
+      obrtnik_id: ponudbaData.obrtnik_id ?? undefined,
+    }, user.id)
+
+    revalidatePath(`/povprasevanja/${povprasevanjeId}`)
+    revalidatePath('/povprasevanja')
+    revalidatePath('/dashboard')
 
     return { success: true }
   } catch (error) {

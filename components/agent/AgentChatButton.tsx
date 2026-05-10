@@ -22,7 +22,7 @@ const DEDICATED_ASSISTANT_PREFIXES = [
 export function AgentChatButton() {
   const pathname = usePathname()
   const { user, isLoading: authLoading } = useAuth()
-  const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, clearConversation, closeChat, connectionStatus, lastError } = useAgentChat()
+  const { isOpen, setIsOpen, unreadCount, messages, isLoading, sendMessage, clearConversation, closeChat, connectionStatus, lastError, lastWarning, usageInfo } = useAgentChat()
   const hasDedicatedAssistant = pathname === '/' || DEDICATED_ASSISTANT_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
   if (authLoading || !user || hasDedicatedAssistant) {
@@ -59,7 +59,7 @@ export function AgentChatButton() {
 
       {isOpen && (
         <div role="dialog" aria-modal="true" aria-label="LiftGO chat asistent">
-          <AgentChat messages={messages} isLoading={isLoading} connectionStatus={connectionStatus} lastError={lastError} sendMessage={sendMessage} clearConversation={clearConversation} closeChat={closeChat} />
+          <AgentChat messages={messages} isLoading={isLoading} connectionStatus={connectionStatus} lastError={lastError} lastWarning={lastWarning} usageInfo={usageInfo} sendMessage={sendMessage} clearConversation={clearConversation} closeChat={closeChat} />
         </div>
       )}
     </>

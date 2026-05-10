@@ -1,36 +1,69 @@
-import { getPartner } from '@/lib/supabase-partner'
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
+import { getAuthenticatedPartner } from "@/lib/partner/resolver";
+import { canonicalPartnerService } from "@/lib/partner/service";
+import { ok, fail } from "@/lib/api/response";
 
 /**
- * GET — partner profile
+ * GET — partner profile (dual-read: obrtnik_profiles first, fallback partners)
  */
 export async function GET() {
-  const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(partner)
+  const partner = await getAuthenticatedPartner();
+  if (!partner) return fail("UNAUTHORIZED", "Unauthorized", 401);
+
+  return ok({
+    ...partner.profile,
+    user_id: partner.userId,
+    partner_id: partner.partnerId,
+  });
 }
 
 /**
- * PATCH — update partner profile
+ * PATCH — update partner profile (single-write canonical: obrtnik_profiles only)
  */
 export async function PATCH(req: Request) {
-  const partner = await getPartner()
-  if (!partner) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const partner = await getAuthenticatedPartner();
+  if (!partner) return fail("UNAUTHORIZED", "Unauthorized", 401);
 
-  const body = await req.json()
-  const allowed = ['telefon', 'bio', 'specialnosti', 'lokacije',
-                   'cena_min', 'cena_max', 'leta_izkusenj', 'podjetje']
-  const updates: Record<string, unknown> = {}
-  allowed.forEach(k => { if (body[k] !== undefined) updates[k] = body[k] })
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return fail("INVALID_JSON", "Invalid JSON", 400);
+  }
 
-  const { data, error } = await supabaseAdmin
-    .from('partners')
-    .update(updates)
-    .eq('user_id', partner.user_id)
-    .select()
-    .single()
+  const allowed = [
+    // legacy field names (mapped internally)
+    "bio",
+    "podjetje",
+    "leta_izkusenj",
+    // canonical field names
+    "description",
+    "business_name",
+    "years_experience",
+    "hourly_rate",
+    "tagline",
+    "website_url",
+    "facebook_url",
+    "instagram_url",
+    "service_radius_km",
+  ];
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  const filtered: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (body[key] !== undefined) filtered[key] = body[key];
+  }
+
+  try {
+    const data = await canonicalPartnerService.updateProfile(
+      partner.partnerId,
+      filtered,
+    );
+    return ok({
+      ...data,
+      user_id: partner.userId,
+      partner_id: partner.partnerId,
+    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Update failed";
+    return fail("PROFILE_UPDATE_FAILED", msg, 500);
+  }
 }

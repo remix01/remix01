@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PartnerSidebar } from '@/components/partner/sidebar'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,9 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { AlertCircle, Copy, Send, Edit2, Check } from 'lucide-react'
-import Link from 'next/link'
+import { Copy, Send, Edit2, Check, Camera } from 'lucide-react'
+import { TierGate } from '@/components/partner/tier-gate'
 
 const CATEGORIES = [
   'Gradnja & adaptacije',
@@ -125,7 +122,7 @@ export default function OfferGeneratorPage() {
 
     if (!formData.serviceType) newErrors.serviceType = 'Izberite vrsto storitve'
     if (!formData.location.trim()) newErrors.location = 'Vnesite lokacijo'
-    if (formData.description.length < 50) newErrors.description = 'Opis mora imeti najmanj 50 znakov'
+    if (formData.description.trim().length < 50) newErrors.description = 'Opis mora imeti najmanj 50 znakov'
     const estimatedHours = parseFloat(formData.estimatedHours)
     const hourlyRate = parseFloat(formData.hourlyRate)
     const materials = formData.materialsEstimate ? parseFloat(formData.materialsEstimate) : 0
@@ -255,6 +252,21 @@ export default function OfferGeneratorPage() {
     }
   }
 
+  const handleMediaFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const fileUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(new Error('Branje datoteke ni uspelo.'))
+      reader.readAsDataURL(file)
+    })
+
+    setFormData((prev) => ({ ...prev, mediaUrl: fileUrl }))
+    event.target.value = ''
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -266,35 +278,17 @@ export default function OfferGeneratorPage() {
     )
   }
 
-  // Show upgrade prompt if not PRO
   if (paket?.paket !== 'pro' && paket?.paket !== 'elite') {
     return (
-      <div className="flex h-screen bg-background">
-        <PartnerSidebar partner={partner} />
-        <main className="flex-1 flex items-center justify-center p-6 pb-20 md:pb-6">
-          <Card className="max-w-md p-8 text-center border-amber-200 bg-amber-50">
-            <AlertCircle className="h-12 w-12 text-amber-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-foreground mb-2">PRO Paket Obvezen</h2>
-            <p className="text-muted-foreground mb-6">
-              Generator ponudb je dostopen samo za PRO obrtnike.
-              <br />
-              PRO vključuje: Generator ponudb, Materiali in zaloge, Video diagnoza, Povzetek dela – 100 AI sporočil/dan.
-            </p>
-            <Button asChild className="w-full">
-              <Link href="/cenik">Nadgradi v PRO</Link>
-            </Button>
-          </Card>
-        </main>
-        <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
-      </div>
+      <TierGate
+        requiredTier="pro"
+        description="Generator ponudb je dostopen samo za PRO obrtnike. Vključuje: Generator ponudb, Materiali in zaloge, Video diagnoza, Povzetek dela – 100 AI sporočil/dan."
+      />
     )
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-4 md:p-6 lg:p-8">
+    <div className="p-4 md:p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Generator Ponudb</h1>
             <p className="text-muted-foreground">
@@ -408,6 +402,19 @@ export default function OfferGeneratorPage() {
                       value={formData.mediaUrl}
                       onChange={(e) => setFormData(prev => ({ ...prev, mediaUrl: e.target.value }))}
                     />
+                    <label className="inline-flex">
+                      <Input
+                        type="file"
+                        accept="image/*,video/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={handleMediaFileSelect}
+                      />
+                      <span className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <Camera className="mr-2 h-4 w-4" />
+                        Kamera / datoteka
+                      </span>
+                    </label>
                     <Button type="button" variant="outline" onClick={handleAnalyzeMedia} disabled={mediaLoading || !formData.mediaUrl}>
                       {mediaLoading ? 'Analiziram slike...' : 'Analiziraj slike z AI'}
                     </Button>
@@ -515,9 +522,6 @@ export default function OfferGeneratorPage() {
               </div>
             )}
           </div>
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: paket?.paket === 'elite' ? 'elite' : paket?.paket === 'pro' ? 'pro' : 'start' }} />
     </div>
   )
 }

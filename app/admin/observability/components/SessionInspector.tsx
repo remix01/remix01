@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { Json } from '@/types/supabase'
 
 interface SessionLog {
   id: string
-  created_at: string
-  event: string
+  created_at: string | null
+  event: string | null
   tool: string | null
-  params: Record<string, any> | null
-  result: string | null
+  params: Json | null
+  result: unknown
   duration_ms: number | null
 }
 
@@ -85,7 +86,8 @@ export function SessionInspector() {
     }
   }
 
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return '-'
     return new Date(timestamp).toLocaleString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
@@ -135,7 +137,7 @@ export function SessionInspector() {
             </thead>
             <tbody>
               {logs.map(log => {
-                const sanitized = sanitizeParams(log.params)
+                const sanitized = sanitizeParams(log.params as Record<string, any> | null)
                 return (
                   <tr key={log.id} className="border-b border-slate-800 hover:bg-slate-800/50">
                     <td className="py-2 px-3 text-slate-300 whitespace-nowrap">{formatTime(log.created_at)}</td>
@@ -144,7 +146,7 @@ export function SessionInspector() {
                     <td className="py-2 px-3 text-slate-400 font-mono max-w-xs truncate" title={JSON.stringify(sanitized)}>
                       {sanitized ? JSON.stringify(sanitized).slice(0, 50) : '-'}
                     </td>
-                    <td className="py-2 px-3 text-slate-400">{log.result || '-'}</td>
+                    <td className="py-2 px-3 text-slate-400">{typeof log.result === 'string' ? log.result : '-'}</td>
                     <td className="py-2 px-3 text-slate-400">{log.duration_ms ? `${log.duration_ms}ms` : '-'}</td>
                   </tr>
                 )

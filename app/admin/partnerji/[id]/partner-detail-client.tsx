@@ -17,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { StatusBadge } from '@/components/admin/StatusBadge'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { EditPartnerForm } from '@/components/admin/EditPartnerForm'
 import {
   odobriPartnerja,
   zavrniPartnerja,
@@ -26,7 +27,15 @@ import {
 } from '@/app/admin/actions'
 import type { Partner } from '@/types/admin'
 
-export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; partnerId: string }) {
+export function PartnerDetailClient({
+  partner,
+  partnerId,
+  currentTier,
+}: {
+  partner: Partner
+  partnerId: string
+  currentTier?: string
+}) {
   const router = useRouter()
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
@@ -111,6 +120,8 @@ export function PartnerDetailClient({ partner, partnerId }: { partner: Partner; 
           </div>
         </CardContent>
       </Card>
+
+      <EditPartnerForm partner={partner} currentTier={currentTier} />
 
       <div className="flex flex-wrap gap-3">
         {partner.status === 'PENDING' && (

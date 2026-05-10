@@ -11,6 +11,7 @@ import { ServiceError } from './serviceError'
 import { eventBus } from '@/lib/events'
 import { getCommissionRate } from '@/lib/stripe/helpers'
 import type { PlanType } from '@/lib/stripe/config'
+import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 
 export const paymentService = {
   /**
@@ -130,6 +131,13 @@ export const paymentService = {
     //   amount: Math.round(netAmount * 100),
     //   destination: partnerStripeAccountId,
     // })
+
+
+    trackFunnelEvent(FUNNEL_EVENTS.PAYMENT_COMPLETED, {
+      povprasevanje_id: taskId,
+      user_type: 'system',
+      obrtnik_id: partnerId,
+    }, partnerId)
 
     // Emit event for subscribers
     await eventBus.emit('payment.released', {

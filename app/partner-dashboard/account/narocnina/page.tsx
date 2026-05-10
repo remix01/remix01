@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { PartnerSidebar } from '@/components/partner/sidebar'
-import { PartnerBottomNav } from '@/components/partner/bottom-nav'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,7 +11,7 @@ import { Check, Zap, AlertCircle } from 'lucide-react'
 type PartnerProfile = {
   id: string
   business_name: string
-  subscription_tier: 'start' | 'pro' | 'elite'
+  subscription_tier: 'start' | 'pro' | 'elite' | null
   avg_rating: number
   is_verified: boolean
 }
@@ -203,10 +201,7 @@ export default function NarocninaPage() {
   const elitePlan = PLANS.elite
 
   return (
-    <div className="flex h-screen">
-      <PartnerSidebar partner={partner} />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="mx-auto max-w-4xl p-6 lg:p-8">
+    <div className="mx-auto max-w-4xl p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground">Naročnina</h1>
             <p className="text-muted-foreground mt-2">Upravljajte svoj paket in naročnino</p>
@@ -449,9 +444,6 @@ export default function NarocninaPage() {
               <p className="mt-1">Prekličite naročnino kadarkoli brez dodatnih stroškov. Razlika v proviziji se izračuna avtomatično.</p>
             </div>
           </div>
-        </div>
-      </main>
-      <PartnerBottomNav paket={{ paket: partner.subscription_tier }} />
     </div>
   )
 }

@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
+import { EditStrankaForm } from '@/components/admin/EditStrankaForm'
 import { createClient } from '@/lib/supabase/server'
-import { getStranka, getStrankaActivity, updateStrankaStatus, deleteStranka } from '@/app/admin/actions'
+import { getStranka, getStrankaActivity, updateStrankaStatus } from '@/app/admin/actions'
 
 interface PageProps {
   params: {
@@ -51,20 +51,16 @@ export default async function StrankaDetailPage({ params }: PageProps) {
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div>
-            <div className="text-sm font-medium text-muted-foreground">Ime</div>
-            <div className="mt-1 text-base">{stranka.ime}</div>
-          </div>
-          <div>
-            <div className="text-sm font-medium text-muted-foreground">Priimek</div>
-            <div className="mt-1 text-base">{stranka.priimek}</div>
-          </div>
-          <div>
             <div className="text-sm font-medium text-muted-foreground">Email</div>
             <div className="mt-1 text-base">{stranka.email}</div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">Telefon</div>
             <div className="mt-1 text-base">{stranka.telefon || 'Ni na voljo'}</div>
+          </div>
+          <div>
+            <div className="text-sm font-medium text-muted-foreground">Mesto</div>
+            <div className="mt-1 text-base">{stranka.lokacija || 'Ni na voljo'}</div>
           </div>
           <div>
             <div className="text-sm font-medium text-muted-foreground">Status</div>
@@ -83,6 +79,7 @@ export default async function StrankaDetailPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
+      <EditStrankaForm stranka={stranka} />
 
       <Card>
         <CardHeader>
@@ -149,25 +146,6 @@ export default async function StrankaDetailPage({ params }: PageProps) {
             </Button>
           </form>
         )}
-
-        <ConfirmDialog
-          trigger={
-            <Button variant="destructive" className="gap-2">
-              <Trash2 className="h-4 w-4" />
-              Izbriši stranko
-            </Button>
-          }
-          title="Izbriši stranko"
-          description="Ali ste prepričani, da želite izbrisati to stranko? To dejanje je trajno in ga ni mogoče razveljaviti."
-          confirmText="Izbriši"
-          cancelText="Prekliči"
-          variant="destructive"
-          onConfirm={async () => {
-            'use server'
-            await deleteStranka(params.id)
-            redirect('/admin/stranke')
-          }}
-        />
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import { NotificationBellClient } from '@/components/liftgo/NotificationBellClie
 import { ProjectAssistant } from '@/components/customer/ProjectAssistant'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { assertCanAccessBuyerDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
 
 export const metadata = {
   title: 'LiftGO - Naročnik',
@@ -19,47 +20,37 @@ export default async function NarocnikLayout({
 }) {
   const supabase = await createClient()
 
-  // Check authentication - getUser() from server client with cookies
   const { data: { user }, error: userError } = await supabase.auth.getUser()
 
   if (!user || userError) {
-    console.log('[v0] Narocnik layout: No authenticated user, redirecting to login')
     redirect('/prijava?redirectTo=/dashboard')
   }
 
-  // Fetch profile with error handling
-  const { data: profileDataById, error: profileByIdError } = await supabase
+  // Check profiles table (new schema) — narocniki table is legacy and unused
+  const { data: profile } = await supabase
     .from('profiles')
     .select('role, full_name')
     .eq('id', user.id)
     .maybeSingle()
 
-  const { data: profileDataByAuthUserId, error: profileByAuthUserIdError } = await supabase
-    .from('profiles')
-    .select('role, full_name')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
-
-  const profileData = profileDataById ?? profileDataByAuthUserId
-  const profileError = profileByIdError ?? profileByAuthUserIdError
-  const profile = profileData as { role: string | null; full_name: string | null } | null
-
-  // If profile doesn't exist or user is not narocnik, redirect appropriately
-  if (profileError || !profile) {
-    console.log('[v0] Narocnik layout: Profile not found, redirecting to registration')
-    redirect('/registracija')
+  // Obrtniki ne sodijo sem
+  if (profile?.role === 'obrtnik') {
+    redirect('/obrtnik/dashboard')
   }
 
-  if (profile.role !== 'narocnik') {
-    console.log(`[v0] Narocnik layout: User has role ${profile.role}, not narocnik, redirecting`)
-    redirect(profile.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
+  try {
+    await assertCanAccessBuyerDashboard(user.id)
+  } catch (error) {
+    redirectForOnboardingGuard(error)
   }
+
+  const fullName = profile?.full_name ?? user.email?.split('@')[0] ?? null
 
   return (
     <div className="flex flex-col bg-background md:min-h-screen md:flex-row">
       {/* Desktop Sidebar */}
       <div className="hidden md:fixed md:block md:h-screen md:w-64 md:border-r">
-        <NarocnikSidebar fullName={profile.full_name} />
+        <NarocnikSidebar fullName={fullName} />
       </div>
 
       {/* Main Content */}
@@ -74,7 +65,7 @@ export default async function NarocnikLayout({
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-0">
-                <NarocnikSidebar fullName={profile.full_name} />
+                <NarocnikSidebar fullName={fullName} />
               </SheetContent>
             </Sheet>
           </div>

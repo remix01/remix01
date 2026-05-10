@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Stripe from 'stripe'
 import { constructStripeEvent, stripe as stripeProxy } from '@/lib/stripe'
 import { env } from '@/lib/env'
@@ -225,11 +225,13 @@ async function sendEscrowPaymentEmails(
 }
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text()
+  assertEnv()
+
+  const rawBody = Buffer.from(await request.arrayBuffer())
   const sig = request.headers.get('stripe-signature')
 
   if (!sig) {
-    return NextResponse.json({ error: 'Manjka stripe-signature' }, { status: 400 })
+    return fail('Manjka stripe-signature')
   }
 
   let event: Stripe.Event
@@ -237,43 +239,15 @@ export async function POST(request: NextRequest) {
     event = constructStripeEvent(rawBody, sig)
   } catch (err) {
     console.error('[WEBHOOK] Signature fail:', err)
-    return NextResponse.json({ error: 'Neveljaven podpis' }, { status: 400 })
+    return fail('Neveljaven podpis')
   }
 
   if (await isStripeEventProcessed(event.id)) {
-    return NextResponse.json({ received: true, skipped: true })
+    return ok({ received: true, skipped: true })
   }
 
   try {
-    switch (event.type) {
-
-      // Začetni nakup — najpomembnejši event
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session
-        if (session.mode !== 'subscription') break
-        const userId = session.client_reference_id
-        const customerId = session.customer as string
-        const subscriptionId = session.subscription as string
-        if (!customerId) break
-        let tier: 'start' | 'pro' | 'elite' = 'start'
-        if (subscriptionId) {
-          const subscription = await stripeProxy.subscriptions.retrieve(subscriptionId)
-          const priceId = subscription.items.data[0]?.price.id ?? ''
-          tier = tierFromPriceId(priceId)
-        }
-        await updateSubscriptionTier(userId, customerId, tier, subscriptionId)
-        break
-      }
-
-      case 'payment_intent.succeeded': {
-        const pi = event.data.object as Stripe.PaymentIntent
-        const paymentTier = await resolveTierFromPaymentIntent(pi)
-        const paymentUserId = pi.metadata?.user_id || pi.metadata?.obrtnik_id || null
-        const customerId = typeof pi.customer === 'string' ? pi.customer : null
-
-        if (paymentTier && customerId) {
-          await updateSubscriptionTier(paymentUserId, customerId, paymentTier)
-        }
+    const handler = stripeWebhookHandlers[event.type]
 
         try {
           const escrow = await getEscrowByPaymentIntent(pi.id)
@@ -442,10 +416,9 @@ export async function POST(request: NextRequest) {
         console.log('[WEBHOOK] Unhandled event:', event.type)
     }
 
-    return NextResponse.json({ received: true })
-
+    return ok({ received: true })
   } catch (err) {
     console.error('[WEBHOOK PROCESS]', err)
-    return NextResponse.json({ received: true, error: 'Processing error' })
+    return fail('Processing error')
   }
 }

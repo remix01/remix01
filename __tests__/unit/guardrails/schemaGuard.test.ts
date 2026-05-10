@@ -127,7 +127,7 @@ describe('SchemaGuard', () => {
         schemaGuard('submitOffer', {
           inquiryId: '550e8400-e29b-41d4-a716-446655440000',
           amount: 100,
-          message: 'short',
+          message: 'shrt',
         })
       ).rejects.toEqual(expect.objectContaining({ code: 400 }))
     })

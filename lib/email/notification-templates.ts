@@ -55,7 +55,7 @@ export function newRequestMatchedEmail(
             </ul>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/partner/povprasevanja/${requestId}" class="button">Preglej naročilo →</a>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/partner-dashboard/povprasevanja/${requestId}" class="button">Preglej naročilo →</a>
             </div>
 
             <p style="color: #666; font-size: 14px; margin-top: 20px; border-top: 1px solid ${COLORS.border}; padding-top: 20px;">

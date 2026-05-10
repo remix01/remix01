@@ -237,8 +237,9 @@ export async function getStranka(id: string): Promise<Stranka | null> {
     priimek: fullName.split(' ').slice(1).join(' ') || '',
     email: user.email,
     telefon: user.phone || undefined,
+    lokacija: user.location_city || undefined,
     createdAt: new Date(user.created_at),
-    status: 'AKTIVEN' as const,
+    status: user.is_suspended ? ('SUSPENDIRAN' as const) : ('AKTIVEN' as const),
     narocil: 0,
   }
 }
@@ -435,10 +436,130 @@ export async function deleteStranka(id: string) {
   revalidatePath('/admin/stranke')
 }
 
+export async function updateStranka(
+  id: string,
+  data: { ime?: string; priimek?: string; telefon?: string; lokacija?: string }
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+  const updates: Record<string, string | null> = {}
+  if (data.ime !== undefined || data.priimek !== undefined) {
+    const { data: existing } = await supabaseAdmin.from('profiles').select('full_name').eq('id', id).single()
+    const parts = (existing?.full_name || '').split(' ')
+    const newIme = data.ime ?? parts[0] ?? ''
+    const newPriimek = data.priimek ?? parts.slice(1).join(' ') ?? ''
+    updates.full_name = `${newIme} ${newPriimek}`.trim()
+  }
+  if (data.telefon !== undefined) updates.phone = data.telefon || null
+  if (data.lokacija !== undefined) updates.location_city = data.lokacija || null
+
+  const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/admin/stranke/${id}`)
+  return { success: true }
+}
+
 export async function deletePartner(id: string) {
   await ensureAdminAccess()
   await supabaseAdmin.from('obrtnik_profiles').delete().eq('id', id)
   revalidatePath('/admin/partnerji')
+}
+
+export async function updatePartner(
+  id: string,
+  data: { business_name?: string; telefon?: string; lokacija?: string; subscription_tier?: string }
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+  const obrtnikUpdates: Record<string, string | null> = {}
+  if (data.business_name !== undefined) obrtnikUpdates.business_name = data.business_name || null
+  if (data.subscription_tier !== undefined) obrtnikUpdates.subscription_tier = data.subscription_tier || null
+
+  const profileUpdates: Record<string, string | null> = {}
+  if (data.telefon !== undefined) profileUpdates.phone = data.telefon || null
+  if (data.lokacija !== undefined) profileUpdates.location_city = data.lokacija || null
+
+  if (Object.keys(obrtnikUpdates).length) {
+    const { error } = await supabaseAdmin.from('obrtnik_profiles').update(obrtnikUpdates).eq('id', id)
+    if (error) return { success: false, error: error.message }
+  }
+  if (Object.keys(profileUpdates).length) {
+    const { error } = await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id)
+    if (error) return { success: false, error: error.message }
+  }
+  revalidatePath(`/admin/partnerji/${id}`)
+  return { success: true }
+}
+
+export async function getAdminPovprasevanjeDetail(id: string) {
+  await ensureAdminAccess()
+  const { data: row } = await supabaseAdmin
+    .from('povprasevanja')
+    .select('id, title, description, status, location_city, narocnik_id, category_id, urgency, budget_min, budget_max, preferred_date_from, preferred_date_to, assigned_to, admin_opomba')
+    .eq('id', id)
+    .single()
+  if (!row) return null
+
+  const [{ data: narocnik }, { data: category }, { data: obrtniki }] = await Promise.all([
+    row.narocnik_id
+      ? supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()
+      : Promise.resolve({ data: null }),
+    row.category_id
+      ? supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()
+      : Promise.resolve({ data: null }),
+    supabaseAdmin.from('obrtnik_profiles').select('id, business_name').eq('is_verified', true).order('business_name'),
+  ])
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    location_city: row.location_city,
+    category_id: row.category_id,
+    category_name: (category as any)?.name || '—',
+    urgency: row.urgency,
+    budget_min: row.budget_min,
+    budget_max: row.budget_max,
+    preferred_date_from: row.preferred_date_from,
+    preferred_date_to: row.preferred_date_to,
+    assigned_to: row.assigned_to,
+    admin_opomba: row.admin_opomba || '',
+    narocnik_id: row.narocnik_id,
+    narocnik_ime: (narocnik as any)?.full_name || '—',
+    narocnik_email: (narocnik as any)?.email || '—',
+    narocnik_telefon: (narocnik as any)?.phone || '',
+    obrtniki: (obrtniki || []) as { id: string; business_name: string }[],
+  }
+}
+
+export async function updatePovprasevanjeAdmin(
+  id: string,
+  data: {
+    status?: string
+    assigned_to?: string | null
+    urgency?: string
+    budget_min?: number | null
+    budget_max?: number | null
+    preferred_date_from?: string | null
+    preferred_date_to?: string | null
+    admin_opomba?: string
+  }
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+  const updates: Record<string, any> = {}
+  if (data.status !== undefined) updates.status = data.status
+  if (data.assigned_to !== undefined) updates.assigned_to = data.assigned_to || null
+  if (data.urgency !== undefined) updates.urgency = data.urgency
+  if (data.budget_min !== undefined) updates.budget_min = data.budget_min
+  if (data.budget_max !== undefined) updates.budget_max = data.budget_max
+  if (data.preferred_date_from !== undefined) updates.preferred_date_from = data.preferred_date_from || null
+  if (data.preferred_date_to !== undefined) updates.preferred_date_to = data.preferred_date_to || null
+  if (data.admin_opomba !== undefined) updates.admin_opomba = data.admin_opomba
+
+  const { error } = await supabaseAdmin.from('povprasevanja').update(updates).eq('id', id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/admin/povprasevanja/${id}`)
+  revalidatePath('/admin/povprasevanja')
+  return { success: true }
 }
 
 export async function reaktivirajPartnerja(id: string) {
@@ -534,8 +655,7 @@ export async function getAdminInquiryFormOptions() {
       .from('profiles')
       .select('id, full_name, email')
       .eq('role', 'narocnik')
-      .order('created_at', { ascending: false })
-      .limit(500),
+      .order('created_at', { ascending: false }),
   ])
 
   return {
@@ -672,6 +792,141 @@ export async function dodajPartnerja(data: {
     return { success: false, error: e.message || 'Napaka pri dodajanju partnerja' }
   }
 }
+
+// ─── Role / Data-Quality Actions ────────────────────────────────────────────
+
+export async function getProblematicniUporabniki() {
+  await ensureAdminAccess()
+
+  const [nullRoleRes, allObrtnikiRes, existingProfilesRes, adminUsersRes] = await Promise.all([
+    supabaseAdmin
+      .from('profiles')
+      .select('id, email, full_name, created_at')
+      .is('role', null)
+      .order('created_at', { ascending: false }),
+    supabaseAdmin
+      .from('profiles')
+      .select('id, email, full_name, created_at')
+      .eq('role', 'obrtnik')
+      .order('created_at', { ascending: false }),
+    supabaseAdmin.from('obrtnik_profiles').select('id'),
+    supabaseAdmin.from('admin_users').select('auth_user_id'),
+  ])
+
+  const existingObrtnikIds = new Set((existingProfilesRes.data || []).map((p: any) => p.id))
+  // Exclude users already registered as admins — their NULL role is intentional
+  const adminIds = new Set((adminUsersRes.data || []).map((a: any) => a.auth_user_id))
+
+  const obrtnikiBrezProfila = (allObrtnikiRes.data || []).filter(
+    (o: any) => !existingObrtnikIds.has(o.id)
+  )
+
+  return {
+    nullRoleUsers: (nullRoleRes.data || []).filter((u: any) => !adminIds.has(u.id)) as {
+      id: string; email: string; full_name: string | null; created_at: string
+    }[],
+    obrtnikiBrezProfila: obrtnikiBrezProfila as {
+      id: string; email: string; full_name: string | null; created_at: string
+    }[],
+  }
+}
+
+export async function addAsZaposleni(
+  id: string,
+  vloga: 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', id)
+    .single()
+
+  if (!profile) return { success: false, error: 'Profil ne obstaja' }
+
+  const nameParts = (profile.full_name || '').trim().split(' ')
+  const ime = nameParts[0] || profile.email?.split('@')[0] || 'Zaposleni'
+  const priimek = nameParts.slice(1).join(' ') || '—'
+
+  const { error } = await supabaseAdmin.from('admin_users').insert({
+    auth_user_id: id,
+    email: profile.email,
+    ime,
+    priimek,
+    vloga,
+    aktiven: true,
+  })
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/data-quality')
+  revalidatePath('/admin/zaposleni')
+  return { success: true }
+}
+
+export async function setUserRole(
+  id: string,
+  role: 'narocnik' | 'obrtnik'
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+
+  const { error } = await supabaseAdmin.from('profiles').update({ role }).eq('id', id)
+  if (error) return { success: false, error: error.message }
+
+  if (role === 'obrtnik') {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', id)
+      .single()
+    const businessName =
+      profile?.full_name || (profile?.email?.split('@')[0] ?? 'Obrtnik')
+    const { error: opError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
+      id,
+      business_name: businessName,
+      is_verified: false,
+      verification_status: 'pending',
+      is_available: false,
+    })
+    if (opError) return { success: false, error: opError.message }
+  }
+
+  revalidatePath('/admin/data-quality')
+  revalidatePath('/admin/partnerji')
+  revalidatePath('/admin/stranke')
+  return { success: true }
+}
+
+export async function createObrtnikProfile(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  await ensureAdminAccess()
+
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', id)
+    .single()
+
+  if (!profile) return { success: false, error: 'Profil ne obstaja' }
+
+  const businessName = profile.full_name || (profile.email?.split('@')[0] ?? 'Obrtnik')
+  const { error } = await supabaseAdmin.from('obrtnik_profiles').upsert({
+    id,
+    business_name: businessName,
+    is_verified: false,
+    verification_status: 'pending',
+    is_available: false,
+  })
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/data-quality')
+  revalidatePath('/admin/partnerji')
+  return { success: true }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 export async function getAktivneKategorije() {
   await ensureAdminAccess()

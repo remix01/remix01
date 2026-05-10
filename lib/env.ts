@@ -11,14 +11,17 @@ export const env = {
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
   STRIPE_CONNECT_WEBHOOK_SECRET: process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? '',
+  // Optional comma-separated list for rotated/multi-endpoint webhook secrets.
+  // Example: "whsec_old,whsec_new,whsec_connect"
+  STRIPE_WEBHOOK_SECRETS: process.env.STRIPE_WEBHOOK_SECRETS ?? '',
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
 
   // ─── Upstash / QStash ───
   QSTASH_TOKEN: process.env.QSTASH_TOKEN ?? '',
   QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY ?? '',
   QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY ?? '',
-  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ?? '',
-  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? '',
+  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? '',
+  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? '',
 
   // ─── AI Providers ───
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
@@ -46,6 +49,18 @@ export const env = {
 
   // ─── Email & Notifications ───
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? '',
+  FROM_EMAIL: process.env.FROM_EMAIL ?? '',
+  SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ?? '',
+  AWS_SES_REGION: process.env.AWS_SES_REGION ?? '',
+  AWS_SES_ACCESS_KEY_ID: process.env.AWS_SES_ACCESS_KEY_ID ?? '',
+  AWS_SES_SECRET_ACCESS_KEY: process.env.AWS_SES_SECRET_ACCESS_KEY ?? '',
+  RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET ?? '',
+  EMAIL_FROM: process.env.EMAIL_FROM ?? '',
+  DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL ?? '',
+  RESEND_FROM: process.env.RESEND_FROM ?? '',
+  EMAIL_DEV_REDIRECT_TO: process.env.EMAIL_DEV_REDIRECT_TO ?? '',
+  EMAIL_ALLOWED_RECIPIENTS: process.env.EMAIL_ALLOWED_RECIPIENTS ?? '',
   ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL ?? '',
   ADMIN_EMAIL: process.env.ADMIN_EMAIL ?? '',
 
@@ -73,11 +88,50 @@ export const env = {
 
   // ─── App Config ───
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net',
+  APP_BASE_URL: process.env.APP_BASE_URL ?? '',
   NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID ?? '',
   CRON_SECRET: process.env.CRON_SECRET ?? '',
   EMBEDDING_BACKFILL_MAX_PER_RUN: process.env.EMBEDDING_BACKFILL_MAX_PER_RUN ?? '10',
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 } as const
+
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+export function assertQStashProductionEnv(): void {
+  if (env.NODE_ENV !== 'production') return
+
+  const missing: string[] = []
+  if (!env.QSTASH_TOKEN) missing.push('QSTASH_TOKEN')
+  if (!env.QSTASH_CURRENT_SIGNING_KEY) missing.push('QSTASH_CURRENT_SIGNING_KEY')
+  if (!env.QSTASH_NEXT_SIGNING_KEY) missing.push('QSTASH_NEXT_SIGNING_KEY')
+
+  const rawPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  const hasExplicitAppUrl = typeof rawPublicAppUrl === 'string' && rawPublicAppUrl.trim().length > 0
+  if (!hasExplicitAppUrl) {
+    missing.push('NEXT_PUBLIC_APP_URL')
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`[ENV] Missing required production QStash env vars: ${missing.join(', ')}`)
+  }
+
+  if (!isValidHttpUrl(env.NEXT_PUBLIC_APP_URL)) {
+    throw new Error('[ENV] NEXT_PUBLIC_APP_URL must be a valid http(s) URL in production')
+  }
+}
+export function assertEnv() {
+  if (!env.STRIPE_SECRET_KEY) {
+    throw new Error('Missing STRIPE_SECRET_KEY')
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper functions – check before using optional features

@@ -7,7 +7,27 @@ import { selectModel, estimateCost } from '@/lib/model-router'
 import { handleAuthError } from '@/lib/api/auth-errors'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { apiLimiter } from '@/lib/rate-limit/limiters'
+import { loadAiUsageProfile, normalizeDailyUsageWindow, incrementDailyUsage } from '@/lib/agents/route-access-policy'
+import { logAgentUsage } from '@/lib/agents/usage-logging'
 
+function success(payload: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, data: payload, ...payload })
+}
+
+function fail(message: string, status: number, code: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: message,
+      canonical_error: {
+        code,
+        message,
+        ...(details ? { details } : {}),
+      },
+    },
+    { status }
+  )
+}
 
 function anthropicErrorMessage(error: unknown): string {
   if (error instanceof Anthropic.APIError) {
@@ -21,9 +41,9 @@ function anthropicErrorMessage(error: unknown): string {
 
 // Daily message limits per subscription tier
 const TIER_LIMITS: Record<string, number> = {
-  start: 5,
-  pro: 100,
-  elite: 300,
+  start: 20,
+  pro: 200,
+  elite: 500,
   enterprise: Infinity,
 }
 
@@ -135,7 +155,7 @@ export async function GET(req: NextRequest) {
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
     }
 
     const { data } = await supabaseAdmin
@@ -144,7 +164,7 @@ export async function GET(req: NextRequest) {
       .eq('user_id', user.id)
       .maybeSingle()
 
-    return NextResponse.json({ messages: data?.messages ?? [] })
+    return success({ messages: data?.messages ?? [] })
   } catch (error) {
     console.error('[agent/chat] GET error:', error)
     return handleAuthError(error)
@@ -162,7 +182,7 @@ export async function DELETE(req: NextRequest) {
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
     }
 
     await supabaseAdmin
@@ -170,7 +190,7 @@ export async function DELETE(req: NextRequest) {
       .delete()
       .eq('user_id', user.id)
 
-    return NextResponse.json({ success: true })
+    return success({ success: true })
   } catch (error) {
     console.error('[agent/chat] DELETE error:', error)
     return handleAuthError(error)
@@ -192,49 +212,31 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       return handleAuthError(error)
     }
     if (!user) {
-      return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+      return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: 'Agent ni konfiguriran.' }, { status: 503 })
+      return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
     }
 
     const { message } = await req.json()
     if (!message?.trim()) {
-      return NextResponse.json({ error: 'Sporočilo je obvezno.' }, { status: 400 })
+      return fail('Sporočilo je obvezno.', 400, 'VALIDATION_ERROR')
     }
 
-    // Load profile: subscription tier + daily usage
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_tier, ai_messages_used_today, ai_messages_reset_at')
-      .eq('id', user.id)
-      .maybeSingle()
-
+    // Load profile: subscription tier + daily usage via shared access policy
+    const profile = await loadAiUsageProfile(user.id)
     const tier = (profile?.subscription_tier ?? 'start') as string
     const dailyLimit = TIER_LIMITS[tier] ?? TIER_LIMITS.start
-
-    // Reset counter if 24h have passed
-    let usedToday: number = profile?.ai_messages_used_today ?? 0
-    const resetAt = profile?.ai_messages_reset_at ? new Date(profile.ai_messages_reset_at) : new Date(0)
-    if (Date.now() - resetAt.getTime() > 24 * 60 * 60 * 1000) {
-      usedToday = 0
-      await supabaseAdmin
-        .from('profiles')
-        .update({ ai_messages_used_today: 0, ai_messages_reset_at: new Date().toISOString() })
-        .eq('id', user.id)
-    }
+    const usedToday = await normalizeDailyUsageWindow(user.id, profile)
 
     // Hard limit check
     if (usedToday >= dailyLimit) {
-      return NextResponse.json(
-        {
-          error: `Dnevni limit dosežen (${dailyLimit}). ${tier === 'start' ? 'Nadgradite na PRO za 100 sporočil/dan.' : 'Poskusite jutri.'}`,
-          limit_reached: true,
-          used: usedToday,
-          limit: dailyLimit,
-        },
-        { status: 429 }
+      return fail(
+        `Dnevni limit dosežen (${dailyLimit}). ${tier === 'start' ? 'Nadgradite na PRO za 100 sporočil/dan.' : 'Poskusite jutri.'}`,
+        429,
+        'LIMIT_REACHED',
+        { limit_reached: true, used: usedToday, limit: dailyLimit }
       )
     }
 
@@ -249,21 +251,19 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     const cached = await getCachedResponse(cacheKey)
     if (cached) {
       // Increment usage counter even for cached responses
-      await supabaseAdmin
-        .from('profiles')
-        .update({ ai_messages_used_today: usedToday + 1 })
-        .eq('id', user.id)
+      await incrementDailyUsage(user.id, usedToday + 1)
 
       // Log cached usage
-      await supabaseAdmin.from('ai_usage_logs').insert({
-        user_id: user.id,
-        model_used: 'cached',
-        tokens_input: 0,
-        tokens_output: 0,
-        cost_usd: 0,
-        response_cached: true,
-        message_hash: cacheKey,
-        user_message: message.slice(0, 500),
+      await logAgentUsage({
+        userId: user.id,
+        modelUsed: 'cached',
+        tokensInput: 0,
+        tokensOutput: 0,
+        costUsd: 0,
+        responseCached: true,
+        messageHash: cacheKey,
+        userMessage: message,
+        messagePreviewLimit: 500,
       })
 
       // Persist to conversation
@@ -288,7 +288,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
           { onConflict: 'user_id' }
         )
 
-      return NextResponse.json({
+      return success({
         message: cached,
         cached: true,
         ...(softLimitWarning ? { warning: softLimitWarning } : {}),
@@ -337,10 +337,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     await setCachedResponse(cacheKey, assistantText)
 
     // Update profile usage counters
-    await supabaseAdmin
-      .from('profiles')
-      .update({ ai_messages_used_today: usedToday + 1 })
-      .eq('id', user.id)
+    await incrementDailyUsage(user.id, usedToday + 1)
 
     // Increment lifetime totals (best-effort, non-blocking)
     Promise.resolve(supabaseAdmin
@@ -364,15 +361,16 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     const modelShortName = modelSelection.modelId.includes('haiku') ? 'haiku-4' : 'sonnet-4'
 
     // Log usage
-    await supabaseAdmin.from('ai_usage_logs').insert({
-      user_id: user.id,
-      model_used: modelShortName,
-      tokens_input: inputTokens,
-      tokens_output: outputTokens,
-      cost_usd: costUsd,
-      response_cached: false,
-      message_hash: cacheKey,
-      user_message: message.slice(0, 500),
+    await logAgentUsage({
+      userId: user.id,
+      modelUsed: modelShortName,
+      tokensInput: inputTokens,
+      tokensOutput: outputTokens,
+      costUsd,
+      responseCached: false,
+      messageHash: cacheKey,
+      userMessage: message,
+      messagePreviewLimit: 500,
     })
 
     // Persist conversation
@@ -392,7 +390,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
 
     console.log(`[agent/chat] model=${modelSelection.modelId} reason=${modelSelection.reason} tokens=${inputTokens}+${outputTokens} cost=$${costUsd.toFixed(6)}`)
 
-    return NextResponse.json({
+    return success({
       message: assistantText,
       cached: false,
       model: modelSelection.modelId,
@@ -409,7 +407,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     
     const msg = anthropicErrorMessage(error)
     const status = error instanceof Anthropic.APIError ? error.status : 500
-    return NextResponse.json({ error: msg }, { status })
+    return fail(msg, status, error instanceof Anthropic.APIError ? 'AI_API_ERROR' : 'INTERNAL_ERROR')
   }
 }
 

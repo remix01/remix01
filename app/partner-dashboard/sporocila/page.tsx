@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ConversationList } from '@/components/messages/ConversationList'
 import { ChatPanel } from '@/components/messages/ChatPanel'
@@ -10,9 +10,11 @@ import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function PartnerSporocila() {
+  const router = useRouter()
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedPovprasevanje, setSelectedPovprasevanje] = useState<string | null>(null)
   const [selectedReceiver, setSelectedReceiver] = useState<string | null>(null)
+  const [receiverName, setReceiverName] = useState<string | null>(null)
   const [povprasevanjeInfo, setPovprasevanjeInfo] = useState<any>(null)
   const [showMobileChat, setShowMobileChat] = useState(false)
   const supabase = createClient()
@@ -23,12 +25,13 @@ export default function PartnerSporocila() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        redirect('/partner-auth/login')
+        router.replace('/partner-auth/login')
+        return
       }
       setCurrentUser(user)
     }
     checkAuth()
-  }, [supabase])
+  }, [router, supabase])
 
   const { sporocila, sendMessage, isLoading } = useRealtimeSporocila(
     selectedPovprasevanje || '',
@@ -40,16 +43,17 @@ export default function PartnerSporocila() {
     setSelectedReceiver(receiverId)
     setShowMobileChat(true)
 
-    // Fetch povprasevanje info
-    const { data } = await supabase
-      .from('povprasevanja')
-      .select('title')
-      .eq('id', povprasevanjeId)
-      .maybeSingle()
+    const [povData, profData] = await Promise.all([
+      supabase.from('povprasevanja').select('title, naslov').eq('id', povprasevanjeId).maybeSingle(),
+      supabase.from('profiles').select('full_name').eq('id', receiverId).single(),
+    ])
 
-    if (data) {
-      setPovprasevanjeInfo(data)
+    if (povData.data) {
+      setPovprasevanjeInfo(povData.data)
     }
+
+    const prof = profData.data as { full_name?: string | null } | null
+    setReceiverName(prof?.full_name ?? receiverId)
   }
 
   if (!currentUser) {
@@ -61,14 +65,14 @@ export default function PartnerSporocila() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Sporočila</h1>
-        <p className="text-slate-600 mt-1">Komunicirajte s strankami</p>
+    <div className="flex flex-col h-full p-4 md:p-6 lg:p-8">
+      <div className="mb-4 shrink-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Sporočila</h1>
+        <p className="text-muted-foreground mt-1">Komunicirajte s strankami</p>
       </div>
 
       {/* Mobile: Show chat if selected, list otherwise */}
-      <div className="md:hidden">
+      <div className="flex-1 md:hidden overflow-hidden">
         {showMobileChat && selectedPovprasevanje && selectedReceiver ? (
           <div className="space-y-4">
             <Button
@@ -83,11 +87,11 @@ export default function PartnerSporocila() {
             <ChatPanel
               messages={sporocila}
               currentUserId={currentUser.id}
-              otherUserName={selectedReceiver}
+              otherUserName={receiverName || selectedReceiver}
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
             />
           </div>
         ) : (
@@ -100,8 +104,8 @@ export default function PartnerSporocila() {
       </div>
 
       {/* Desktop: 2-panel layout */}
-      <div className="hidden md:flex gap-4 h-[calc(100vh-240px)]">
-        <div className="w-[30%] min-w-[280px]">
+      <div className="hidden md:flex gap-4 flex-1 min-h-0">
+        <div className="w-[30%] min-w-[280px] overflow-y-auto">
           <ConversationList
             currentUserId={currentUser.id}
             selectedConversation={selectedPovprasevanje}
@@ -114,11 +118,11 @@ export default function PartnerSporocila() {
             <ChatPanel
               messages={sporocila}
               currentUserId={currentUser.id}
-              otherUserName={selectedReceiver}
+              otherUserName={receiverName || selectedReceiver}
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
               povprasevanjeId={selectedPovprasevanje}
             />
           ) : (
