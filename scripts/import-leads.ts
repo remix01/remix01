@@ -155,6 +155,7 @@ async function run() {
       obrtnik: {
         id,
         business_name: lead.ime,
+        location_city: lead.mesto,
         description: lead.opis || `${lead.kategorija} v mestu ${lead.mesto}.`,
         is_verified: false,
         is_claimed: false,

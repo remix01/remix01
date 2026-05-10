@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
-export async function POST(req: NextRequest) {
-  const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+function verifyCronSecret(req: NextRequest): boolean {
+  const authHeader = req.headers.get('authorization') || ''
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return process.env.NODE_ENV !== 'production'
+  }
+  return authHeader === `Bearer ${cronSecret}`
+}
+
+export async function GET(req: NextRequest) {
+  if (!verifyCronSecret(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
+  if (!apiKey) {
+    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
+  }
 
-  const body = await req.json()
-  const { limit = 10 } = body
+  const limitParam = req.nextUrl.searchParams.get('limit')
+  const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 50
 
   const { data: leads, error: fetchError } = await supabaseAdmin
     .from('obrtnik_profiles')
@@ -19,7 +31,11 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(limit)
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) {
+    console.error('[cron/leads-auto-process] Fetch error:', fetchError)
+    return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  }
+
   if (!leads || leads.length === 0) {
     return NextResponse.json({ ok: true, processed: 0, approved: [], rejected: [] })
   }
@@ -60,7 +76,7 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
 
       const decision = response.content
         .filter((b) => b.type === 'text')
-        .map((b) => (b as any).text)
+        .map((b) => (b as { type: 'text'; text: string }).text)
         .join('')
         .trim()
         .toUpperCase()
@@ -71,22 +87,39 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
         rejected.push(lead.id)
       }
     } catch (err) {
-      console.error(`[leads/auto-process] Error evaluating lead ${lead.id}:`, err)
+      console.error(`[cron/leads-auto-process] Error evaluating lead ${lead.id}:`, err)
       rejected.push(lead.id)
     }
   }
 
+  const now = new Date().toISOString()
+
   if (approved.length > 0) {
     const { error: approveError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ profile_status: 'active', updated_at: new Date().toISOString() })
+      .update({ profile_status: 'active', updated_at: now })
       .in('id', approved)
 
     if (approveError) {
-      console.error('[leads/auto-process] Error approving leads:', approveError)
+      console.error('[cron/leads-auto-process] Approve error:', approveError)
       return NextResponse.json({ error: approveError.message }, { status: 500 })
     }
   }
+
+  if (rejected.length > 0) {
+    const { error: rejectError } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .update({ profile_status: 'inactive', updated_at: now })
+      .in('id', rejected)
+
+    if (rejectError) {
+      console.error('[cron/leads-auto-process] Reject error:', rejectError)
+    }
+  }
+
+  console.log(
+    `[cron/leads-auto-process] processed=${leads.length} approved=${approved.length} rejected=${rejected.length}`
+  )
 
   return NextResponse.json({
     ok: true,
@@ -94,4 +127,8 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
     approved,
     rejected,
   })
+}
+
+export async function POST(req: NextRequest) {
+  return GET(req)
 }

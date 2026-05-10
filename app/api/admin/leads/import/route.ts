@@ -20,12 +20,14 @@ export async function POST(req: NextRequest) {
     const ime = parts[idx('ime')] || ''
     const mesto = parts[idx('mesto')] || ''
     const kategorija = parts[idx('kategorija')] || 'splošne storitve'
+    const opis = idx('opis') >= 0 ? parts[idx('opis')] || '' : ''
     return {
       profile: { id, role: 'obrtnik', full_name: ime, location_city: mesto },
       obrtnik: {
         id,
         business_name: ime,
-        description: `${kategorija} v mestu ${mesto}.`,
+        location_city: mesto || null,
+        description: opis || `${kategorija} v mestu ${mesto}.`,
         profile_status: 'lead',
         is_claimed: false,
         is_verified: false,

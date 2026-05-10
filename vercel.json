@@ -40,6 +40,10 @@
     {
       "path": "/api/cron/backfill-embeddings",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/leads-auto-process",
+      "schedule": "0 3 * * *"
     }
   ]
 }
