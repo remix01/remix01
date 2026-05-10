@@ -88,6 +88,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, sent: 0 })
     }
 
+    // Chunk digests into batches of 100 to respect sendBatchEmails limit
+    const BATCH_SIZE = 100
+    if (activeProviders.length > BATCH_SIZE) {
+      const chunks = []
+      for (let i = 0; i < activeProviders.length; i += BATCH_SIZE) {
+        chunks.push(activeProviders.slice(i, i + BATCH_SIZE))
+      }
+
+      let totalSent = 0
+      for (const chunk of chunks) {
+        const result = await automationWeeklyProviderDigest(chunk, APP_URL)
+        if (result.success) totalSent += chunk.length
+      }
+
+      return NextResponse.json({ success: true, sent: totalSent, chunks: chunks.length })
+    }
+
     const result = await automationWeeklyProviderDigest(activeProviders, APP_URL)
 
     return NextResponse.json({ success: result.success, sent: activeProviders.length, result })
