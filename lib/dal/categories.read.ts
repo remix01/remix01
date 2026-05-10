@@ -9,10 +9,14 @@ const categoriesGlobalState = globalThis as typeof globalThis & {
 }
 
 export function getPublicSupabaseClient() {
-  return createPublicClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
+  const url = env.NEXT_PUBLIC_SUPABASE_URL
+  if (!url || !url.includes('supabase.co')) {
+    console.error(
+      '[categories] NEXT_PUBLIC_SUPABASE_URL is missing or invalid.',
+      { value: url || '(empty)' }
+    )
+  }
+  return createPublicClient(url, env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 }
 
 export async function getActiveCategoriesPublic(): Promise<Category[]> {

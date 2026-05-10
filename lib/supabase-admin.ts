@@ -3,13 +3,28 @@ import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { env } from './env'
 
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL
+const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseUrl.includes('supabase.co')) {
+  // Log loudly so Vercel runtime logs surface the misconfiguration immediately.
+  console.error(
+    '[supabase-admin] NEXT_PUBLIC_SUPABASE_URL is missing or not a supabase.co URL.',
+    { value: supabaseUrl || '(empty)' }
+  )
+}
+
+if (!serviceRoleKey) {
+  console.error('[supabase-admin] SUPABASE_SERVICE_ROLE_KEY is not set.')
+}
+
 /**
  * Supabase admin client with service_role key.
  * Bypasses RLS - use only in server-side code.
  */
 export const supabaseAdmin = createClient(
-  env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
-  env.SUPABASE_SERVICE_ROLE_KEY || 'development-service-role-key',
+  supabaseUrl || 'http://localhost:54321',
+  serviceRoleKey || 'development-service-role-key',
   {
     auth: {
       autoRefreshToken: false,
