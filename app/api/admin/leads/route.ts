@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error, count } = await supabaseAdmin
     .from('obrtnik_profiles')
-    .select('id, business_name, description, location_city, category_id, profile_status, is_verified, avg_rating, total_reviews, created_at, source', { count: 'exact' })
+    .select('id, business_name, description, location_city, category_id, profile_status, is_verified, avg_rating, total_reviews, created_at, source, updated_at', { count: 'exact' })
     .eq('profile_status', status)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const obrtnikData = {
     id,
     business_name,
-    location_city,
+    location_city: location_city || null,
     category_id: category_id || null,
     description: description || '',
     profile_status: 'lead',
