@@ -9,9 +9,11 @@ import {
   sendEmail,
   sendTemplatedEmail,
   sendBatchEmails,
+} from './resend-utils'
+import {
   generateIdempotencyKey,
   generateBatchIdempotencyKey,
-} from './resend-utils'
+} from './idempotency'
 import {
   welcomeCustomerTemplate,
   welcomeProviderTemplate,
