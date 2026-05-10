@@ -3,13 +3,8 @@
  * Shows both single and batch patterns from the Resend quick-start guide
  */
 
-import {
-  sendEmail,
-  sendBatchEmails,
-  sendTemplatedEmail,
-  generateIdempotencyKey,
-  generateBatchIdempotencyKey,
-} from './resend-utils'
+import { sendEmail, sendBatchEmails, sendTemplatedEmail } from './resend-utils'
+import { generateIdempotencyKey, generateBatchIdempotencyKey } from './idempotency'
 import {
   welcomeEmailTemplate,
   newJobRequestEmailTemplate,
