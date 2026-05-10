@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           totalSent += chunk.length
         } else {
           allSuccess = false
-          console.error('[daily-review-reminders] Chunk send failed:', result.error)
+          console.error('[daily-review-reminders] Chunk send failed:', result.error || 'Unknown error')
         }
       }
 

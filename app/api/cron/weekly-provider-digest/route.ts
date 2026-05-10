@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
           totalSent += chunk.length
         } else {
           allSuccess = false
-          console.error('[weekly-provider-digest] Chunk send failed:', result.error)
+          console.error('[weekly-provider-digest] Chunk send failed:', result.error || 'Unknown error')
         }
       }
 
