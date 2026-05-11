@@ -1,9 +1,12 @@
 name: Notify Vercel
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions: {}
 
 permissions:
   contents: read
@@ -11,6 +14,8 @@ permissions:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    permissions:
+      statuses: write
     steps:
       - name: Notify Vercel deployment status
         uses: vercel/repository-dispatch/actions/status@v1
