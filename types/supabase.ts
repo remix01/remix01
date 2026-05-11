@@ -249,7 +249,7 @@ export interface Database {
           role: 'narocnik' | 'obrtnik' | null
           location_city: string | null
           location_region: string | null
-          subscription_tier: 'start' | 'pro' | null
+          subscription_tier: 'start' | 'pro' | 'elite' | null
           ai_messages_used_today: number
           ai_messages_reset_at: string
           ai_total_tokens_used: number
