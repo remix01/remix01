@@ -1,0 +1,59 @@
+##############################################################################
+# LiftGO – Local Development Override
+#
+# Extends docker-compose.yml with developer-friendly settings:
+#   - MinIO API (9000) and Console (9001) are exposed to the host
+#   - Next.js runs in dev mode with hot-reload
+#   - Redis exposed on localhost:6380
+#   - No SSL / Nginx (use Next.js dev server directly)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Or add an alias to your shell:
+#   alias liftgo-dev='docker compose -f docker-compose.yml -f docker-compose.dev.yml'
+##############################################################################
+
+version: '3.8'
+
+services:
+  app:
+    # In dev, run with `npm run dev` instead of the production build
+    build:
+      context: .
+      dockerfile: Dockerfile.dev     # Lightweight dev Dockerfile (see below)
+      args:
+        - NODE_ENV=development
+    environment:
+      - NODE_ENV=development
+      - STORAGE_PROVIDER=minio
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_PUBLIC_URL=http://localhost:9000
+      - MINIO_REGION=us-east-1
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source so hot-reload works
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+
+  # Expose MinIO ports in development
+  minio:
+    ports:
+      - "9000:9000"   # S3 API – used by Next.js app and SDK clients
+      - "9001:9001"   # MinIO Console – open http://localhost:9001
+
+  # Expose Redis in development (different host port to avoid conflicts)
+  redis:
+    ports:
+      - "6380:6379"
+
+  # Disable Nginx in dev – access app directly on port 3000
+  nginx:
+    profiles:
+      - production-only
+
+volumes:
+  minio-data:
+    driver: local

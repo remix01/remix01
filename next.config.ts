@@ -9,15 +9,47 @@ process.env.QSTASH_CURRENT_SIGNING_KEY ||= 'development-current-signing-key'
 process.env.QSTASH_NEXT_SIGNING_KEY ||= 'development-next-signing-key'
 process.env.QSTASH_TOKEN ||= 'development-qstash-token'
 
+// MinIO public URL – used at build-time for image remote patterns and CSP.
+// Defaults to localhost for local dev; set MINIO_PUBLIC_URL in production.
+const MINIO_PUBLIC_URL = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000'
+// Extract hostname + optional port for Next.js remotePatterns
+function parseHostname(rawUrl: string): { protocol: 'http' | 'https'; hostname: string; port?: string } {
+  try {
+    const u = new URL(rawUrl)
+    return {
+      protocol: u.protocol.replace(':', '') as 'http' | 'https',
+      hostname: u.hostname,
+      port: u.port || undefined,
+    }
+  } catch {
+    return { protocol: 'http', hostname: 'localhost', port: '9000' }
+  }
+}
+const minioHost = parseHostname(MINIO_PUBLIC_URL)
+
 // Cache bust: 2026-03-23
+
+// MinIO origin – included in CSP only when a real public host is configured
+const minioOrigin = MINIO_PUBLIC_URL.startsWith('http://localhost')
+  ? '' // localhost is already covered by 'self' + browser default
+  : MINIO_PUBLIC_URL.replace(/\/$/, '')
 
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://us.i.posthog.com https://app.posthog.com https://www.googletagmanager.com https://www.google-analytics.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://maps.gstatic.com https://maps.googleapis.com https://www.googletagmanager.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://eu.i.posthog.com https://app.posthog.com https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com",
+  [
+    "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com",
+    "https://maps.gstatic.com https://maps.googleapis.com https://www.googletagmanager.com",
+    minioOrigin,
+  ].filter(Boolean).join(' '),
+  [
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com",
+    "https://*.sentry.io https://us.i.posthog.com https://eu.i.posthog.com https://app.posthog.com",
+    "https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com",
+    minioOrigin,
+  ].filter(Boolean).join(' '),
   "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
   "object-src 'none'",
   "base-uri 'self'",
@@ -61,6 +93,13 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'whabaeatixtymbccwigu.supabase.co',
+      },
+      // MinIO – self-hosted object storage (development + production)
+      {
+        protocol: minioHost.protocol,
+        hostname: minioHost.hostname,
+        ...(minioHost.port ? { port: minioHost.port } : {}),
+        pathname: '/**',
       },
     ],
     
