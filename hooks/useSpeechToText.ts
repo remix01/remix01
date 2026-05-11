@@ -47,6 +47,11 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const transcriptRef = useRef('')
+  // Keep latest callbacks in refs so the effect never needs to re-run due to inline functions
+  const onFinalTranscriptRef = useRef(onFinalTranscript)
+  const onSpeechEndRef = useRef(onSpeechEnd)
+  useEffect(() => { onFinalTranscriptRef.current = onFinalTranscript }, [onFinalTranscript])
+  useEffect(() => { onSpeechEndRef.current = onSpeechEnd }, [onSpeechEnd])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -99,7 +104,7 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
     }
 
     recognition.onspeechend = () => {
-      onSpeechEnd?.()
+      onSpeechEndRef.current?.()
     }
 
     recognition.onerror = (event) => {
@@ -116,7 +121,7 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
       setInterimTranscript('')
       const text = transcriptRef.current.trim()
       if (text) {
-        onFinalTranscript(text)
+        onFinalTranscriptRef.current(text)
         transcriptRef.current = ''
         setTranscript('')
       }
@@ -128,8 +133,7 @@ export function useSpeechToText({ language, onFinalTranscript, onSpeechEnd, sile
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
       recognition.stop()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, onFinalTranscript, onSpeechEnd, silenceMs])
+  }, [language, silenceMs])
 
   const start = () => {
     setError(null)
