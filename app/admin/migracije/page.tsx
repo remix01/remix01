@@ -1,8 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Table,
   TableBody,
@@ -11,266 +9,136 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { MigratePartnerAction } from '@/components/admin/MigratePartnerAction'
-import { MigrateAllPartnersAction } from '@/components/admin/MigrateAllPartnersAction'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
-async function getMigrationStats() {
+async function getObrtnikiStats() {
   try {
     const [
-      { count: totalNonMigrated, error: nonMigratedError },
-      { count: totalMigrated, error: migratedError },
-      { data: nonMigratedPartners, error: partnersError }
+      { count: totalVerified, error: verifiedError },
+      { count: totalUnverified, error: unverifiedError },
+      { data: recent, error: recentError }
     ] = await Promise.all([
       supabaseAdmin
-        .from('partners')
+        .from('obrtnik_profiles')
         .select('*', { count: 'exact', head: true })
-        .is('new_profile_id', null),
+        .eq('is_verified', true),
       supabaseAdmin
-        .from('partners')
+        .from('obrtnik_profiles')
         .select('*', { count: 'exact', head: true })
-        .not('new_profile_id', 'is', null),
+        .eq('is_verified', false),
       supabaseAdmin
-        .from('partners')
-        .select('id, company_name, phone_number, created_at')
-        .is('new_profile_id', null)
+        .from('obrtnik_profiles')
+        .select('id, business_name, is_verified, avg_rating, created_at')
         .order('created_at', { ascending: false })
         .limit(20)
     ])
 
-    if (nonMigratedError) {
-      console.error('[v0] Non-migrated count error:', nonMigratedError)
-      throw nonMigratedError
-    }
-    if (migratedError) {
-      console.error('[v0] Migrated count error:', migratedError)
-      throw migratedError
-    }
-    if (partnersError) {
-      console.error('[v0] Partners list error:', partnersError)
-      throw partnersError
-    }
+    const err = verifiedError || unverifiedError || recentError
+    if (err) throw err
 
     return {
       success: true,
-      totalNonMigrated: totalNonMigrated || 0,
-      totalMigrated: totalMigrated || 0,
-      nonMigratedPartners: nonMigratedPartners || [],
+      totalVerified: totalVerified || 0,
+      totalUnverified: totalUnverified || 0,
+      recent: recent || [],
       error: null
     }
   } catch (error) {
-    console.error('[v0] getMigrationStats error:', error)
     const errorMsg = error instanceof Error ? error.message : 'Unknown error'
-    return {
-      success: false,
-      totalNonMigrated: 0,
-      totalMigrated: 0,
-      nonMigratedPartners: [],
-      error: errorMsg
-    }
+    return { success: false, totalVerified: 0, totalUnverified: 0, recent: [], error: errorMsg }
   }
 }
 
 export default async function MigracijePage() {
-  const stats = await getMigrationStats()
+  const stats = await getObrtnikiStats()
 
-  // Error state - show migration setup instructions
-  if (!stats.success || stats.error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Migracija partnerjev</h1>
-          <p className="text-muted-foreground mt-1">
-            Povežite stare partnerje s novim sistemom obrtnik_profiles
-          </p>
-        </div>
-
-        <Alert variant="destructive" className="border-red-300 bg-red-50">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="mt-4 space-y-4">
-            <div>
-              <p className="font-semibold text-red-900">Podatki trenutno niso dosegljivi</p>
-              <p className="text-sm text-red-800 mt-1">
-                {stats.error || 'Unknown error fetching migration data'}
-              </p>
-            </div>
-
-            <div className="bg-white p-4 rounded border border-red-200">
-              <p className="text-xs font-semibold text-gray-900 mb-2">
-                🔧 Možni vzrok: SQL migracija še ni bila zagnana v Supabase
-              </p>
-              <p className="text-xs text-gray-600 mb-3">
-                Zaženite naslednjo SQL migracijsko skripto v Supabase konzoli:
-              </p>
-              <pre className="text-xs overflow-x-auto text-gray-700 bg-gray-100 p-3 rounded border border-gray-300 font-mono leading-relaxed">
-{`ALTER TABLE public.partners 
-ADD COLUMN IF NOT EXISTS new_profile_id uuid,
-ADD COLUMN IF NOT EXISTS migrated_at timestamptz;
-
--- Create index for better performance
-CREATE INDEX IF NOT EXISTS idx_partners_new_profile_id 
-ON public.partners(new_profile_id);`}
-              </pre>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 text-red-600 border-red-300 hover:bg-red-100"
-                asChild
-              >
-                <a href="/admin/migracije">
-                  <RefreshCw className="h-4 w-4" />
-                  Poskusi znova
-                </a>
-              </Button>
-              <Button 
-                variant="outline"
-                size="sm"
-                asChild
-              >
-                <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">
-                  Odpri Supabase
-                </a>
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  const migrationPercentage = stats.totalMigrated + stats.totalNonMigrated > 0
-    ? Math.round((stats.totalMigrated / (stats.totalMigrated + stats.totalNonMigrated)) * 100)
-    : 0
+  const total = stats.totalVerified + stats.totalUnverified
+  const pct = total > 0 ? Math.round((stats.totalVerified / total) * 100) : 0
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Migracija partnerjev</h1>
+        <h1 className="text-3xl font-bold">Obrtniki — pregled</h1>
         <p className="text-muted-foreground mt-1">
-          Povežite stare partnerje s novim sistemom obrtnik_profiles
+          Vsi obrtniki so v tabeli <code>obrtnik_profiles</code>. Stara tabela <code>partners</code> ni bila nikoli ustvarjena.
         </p>
       </div>
 
-      {/* Stats Cards */}
+      {stats.error && (
+        <div className="rounded border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+          Napaka pri branju podatkov: {stats.error}
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Čakajočih na migracijo
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Skupaj</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.totalNonMigrated}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              partnerjev brez novi profil
-            </p>
+            <div className="text-2xl font-bold">{total}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Že migrirani
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Verificiranih</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.totalMigrated}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              uspešno povezanih partnerjev
-            </p>
+            <div className="text-2xl font-bold text-green-600">{stats.totalVerified}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Napredek
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Čakajočih verifikacije</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{migrationPercentage}%</div>
+            <div className="text-2xl font-bold text-orange-600">{stats.totalUnverified}</div>
             <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-600 transition-all"
-                style={{ width: `${migrationPercentage}%` }}
-              />
+              <div className="h-full bg-green-600 transition-all" style={{ width: `${pct}%` }} />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Actions */}
-      {stats.totalNonMigrated > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Akcije</CardTitle>
-            <CardDescription>
-              Migrirajte partnerje individualno ali v skupinah
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <MigrateAllPartnersAction
-              totalNonMigrated={stats.totalNonMigrated}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Non-migrated Partners Table */}
-      {stats.nonMigratedPartners.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              Zadnjih 20 partnerjev, ki čakajo na migracijo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Zadnjih 20 registriranih</CardTitle>
+          <CardDescription>Urejeno po datumu registracije (najnovejši najprej)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Podjetje</TableHead>
-                  <TableHead>Telefon</TableHead>
-                  <TableHead>Datum registracije</TableHead>
-                  <TableHead className="text-right">Akcija</TableHead>
+                  <TableHead>Ocena</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Registriran</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stats.nonMigratedPartners.map((partner: any) => (
-                  <TableRow key={partner.id}>
-                    <TableCell className="font-medium">
-                      {partner.company_name || '-'}
+                {stats.recent.map((o: any) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-medium">{o.business_name}</TableCell>
+                    <TableCell>{o.avg_rating ?? '—'}</TableCell>
+                    <TableCell>
+                      <Badge variant={o.is_verified ? 'default' : 'secondary'}>
+                        {o.is_verified ? 'Verificiran' : 'Čaka'}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {partner.phone_number || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {partner.created_at ? new Date(partner.created_at).toLocaleDateString('sl-SI') : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <MigratePartnerAction partnerId={partner.id} />
+                      {o.created_at ? new Date(o.created_at).toLocaleDateString('sl-SI') : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="py-8 text-center">
-            <p className="text-green-900 font-semibold">
-              ✓ Vsi partnerji so že migrirani v novi sistem!
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
