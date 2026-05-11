@@ -56,7 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_events_type
 -- Row-level security for marketplace_events (service role only)
 ALTER TABLE marketplace_events ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS marketplace_events_service_only
+CREATE POLICY marketplace_events_service_only
   ON marketplace_events
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
