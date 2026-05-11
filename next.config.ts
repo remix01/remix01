@@ -29,10 +29,9 @@ const minioHost = parseHostname(MINIO_PUBLIC_URL)
 
 // Cache bust: 2026-03-23
 
-// MinIO origin – included in CSP only when a real public host is configured
-const minioOrigin = MINIO_PUBLIC_URL.startsWith('http://localhost')
-  ? '' // localhost is already covered by 'self' + browser default
-  : MINIO_PUBLIC_URL.replace(/\/$/, '')
+// MinIO origin for CSP – always included; 'self' only covers the app's own
+// port so a separate localhost:9000 origin must be listed explicitly.
+const minioOrigin = MINIO_PUBLIC_URL.replace(/\/$/, '')
 
 const CSP = [
   "default-src 'self'",
