@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, Edit, Ban, Trash2, Star, Building2, Clock } from 'lucide-react'
+import { Eye, Edit, Ban, Trash2, Star, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -22,7 +22,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from './StatusBadge'
-import { PendingPartnerCard } from './PendingPartnerCard'
 import { zavrniPartnerja, suspendiranjPartnerja, reaktivirajPartnerja, deletePartner } from '@/app/admin/actions'
 import type { Partner } from '@/types/admin'
 
@@ -38,9 +37,6 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
     partnerId: null,
   })
   const [razlog, setRazlog] = useState('')
-
-  const pendingPartnerji = partnerji.filter(p => p.status === 'PENDING')
-  const activepartnerji = partnerji.filter(p => p.status !== 'PENDING')
 
   const handleReject = async () => {
     if (rejectDialog.partnerId && razlog.trim().length >= 3) {
@@ -65,19 +61,6 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
 
   return (
     <div className="space-y-4">
-      {/* Pending Partners Section */}
-      {pendingPartnerji.length > 0 && (
-        <div className="mb-6 p-4 border border-yellow-200 bg-yellow-50 dark:bg-yellow-950 rounded-xl">
-          <h3 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-3 flex items-center gap-2">
-            <Clock className="h-4 w-4" /> Čakajo odobritev ({pendingPartnerji.length})
-          </h3>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {pendingPartnerji.map(p => (
-              <PendingPartnerCard key={p.id} partner={p} />
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="rounded-lg border">
         <Table>
@@ -88,7 +71,7 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
               <TableHead>Telefon</TableHead>
               <TableHead>Tip</TableHead>
               <TableHead>Ocena</TableHead>
-              <TableHead>Prevozov</TableHead>
+              <TableHead>Naročil</TableHead>
               <TableHead>Datum registracije</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Akcije</TableHead>
