@@ -47,13 +47,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid bucket' }, { status: 400 })
   }
 
-  // Private buckets require explicit ownership via path prefix
-  if (PRIVATE_BUCKETS.has(bucket)) {
-    if (!path?.startsWith(user.id)) {
-      return NextResponse.json({ error: 'Access denied to private bucket' }, { status: 403 })
-    }
-  }
-
   if (!path || typeof path !== 'string' || path.length > 512) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
   }
@@ -63,18 +56,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
   }
 
+  // Private buckets: path must start with "<userId>/" (slash required to prevent
+  // prefix collisions such as "<userId>-other/..." matching another user's id)
+  if (PRIVATE_BUCKETS.has(bucket)) {
+    if (!path.startsWith(`${user.id}/`)) {
+      return NextResponse.json({ error: 'Access denied to private bucket' }, { status: 403 })
+    }
+  }
+
   if (!contentType || typeof contentType !== 'string') {
     return NextResponse.json({ error: 'contentType is required' }, { status: 400 })
   }
 
-  // Validate against file limits using a synthetic File-like object
-  if (size !== undefined) {
-    const syntheticFile = new File([], 'upload', { type: contentType })
-    Object.defineProperty(syntheticFile, 'size', { value: size })
-    const validation = validateFile(syntheticFile)
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.error }, { status: 422 })
-    }
+  // size is mandatory – without it we cannot validate file limits and an
+  // authenticated caller could obtain an unbounded upload URL.
+  if (typeof size !== 'number' || size <= 0) {
+    return NextResponse.json({ error: 'size (bytes) is required and must be a positive number' }, { status: 400 })
+  }
+
+  // Validate file type and size against configured limits
+  const syntheticFile = new File([], 'upload', { type: contentType })
+  Object.defineProperty(syntheticFile, 'size', { value: size })
+  const validation = validateFile(syntheticFile)
+  if (!validation.valid) {
+    return NextResponse.json({ error: validation.error }, { status: 422 })
   }
 
   try {
