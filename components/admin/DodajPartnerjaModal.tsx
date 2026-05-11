@@ -40,7 +40,7 @@ export function DodajPartnerjaModal({ categories }: DodajPartnerjaModalProps) {
     lokacija: '',
     category_id: '',
     verifyNow: false,
-    subscription_tier: 'start' as 'start' | 'pro' | 'elite',
+    subscription_tier: 'start' as 'start' | 'pro',
     payment_confirmed: false,
   })
 
@@ -191,11 +191,10 @@ export function DodajPartnerjaModal({ categories }: DodajPartnerjaModalProps) {
               id="subscription_tier"
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={form.subscription_tier}
-              onChange={e => setForm(f => ({ ...f, subscription_tier: e.target.value as 'start' | 'pro' | 'elite' }))}
+              onChange={e => setForm(f => ({ ...f, subscription_tier: e.target.value as 'start' | 'pro' }))}
             >
               <option value="start">START</option>
               <option value="pro">PRO</option>
-              <option value="elite">ELITE</option>
             </select>
             <p className="text-xs text-muted-foreground">
               PRO/ELITE dodelitev je dovoljena samo, ko je plačilo potrjeno.

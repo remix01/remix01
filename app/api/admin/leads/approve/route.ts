@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
 
+// Valid profile_status values per DB constraint: lead | claimed | verified
+const ALLOWED_STATUSES = ['lead', 'claimed', 'verified'] as const
+
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req)
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { ids, status = 'active' } = body
+  const { ids, status = 'verified' } = body
 
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'ids array is required' }, { status: 400 })
   }
 
-  const allowedStatuses = ['lead', 'claimed', 'active', 'inactive']
-  if (!allowedStatuses.includes(status)) {
-    return NextResponse.json({ error: `Status must be one of: ${allowedStatuses.join(', ')}` }, { status: 400 })
+  if (!ALLOWED_STATUSES.includes(status)) {
+    return NextResponse.json({ error: `Status must be one of: ${ALLOWED_STATUSES.join(', ')}` }, { status: 400 })
   }
 
   const { error } = await supabaseAdmin

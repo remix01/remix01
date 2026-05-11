@@ -12,9 +12,11 @@ export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
 
-export type ProfileStatus = 'lead' | 'claimed' | 'active' | 'inactive'
+// DB CHECK constraint: lead | claimed | verified
+export type ProfileStatus = 'lead' | 'claimed' | 'verified'
 
-export type LeadSource = 'import' | 'direct' | 'organic'
+// DB CHECK constraint: manual | import | signup
+export type LeadSource = 'manual' | 'import' | 'signup'
 
 export interface Profile {
   id: string

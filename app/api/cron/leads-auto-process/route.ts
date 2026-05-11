@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     .from('obrtnik_profiles')
     .select('id, business_name, description, location_city, avg_rating, total_reviews, source, created_at')
     .eq('profile_status', 'lead')
+    .neq('verification_status', 'rejected')
     .order('created_at', { ascending: true })
     .limit(limit)
 
@@ -97,7 +98,7 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
   if (approved.length > 0) {
     const { error: approveError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ profile_status: 'active', updated_at: now })
+      .update({ profile_status: 'verified', updated_at: now })
       .in('id', approved)
 
     if (approveError) {
@@ -109,7 +110,7 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
   if (rejected.length > 0) {
     const { error: rejectError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ profile_status: 'inactive', updated_at: now })
+      .update({ verification_status: 'rejected', updated_at: now })
       .in('id', rejected)
 
     if (rejectError) {

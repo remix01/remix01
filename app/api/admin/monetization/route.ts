@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const pendingPayouts = commissions
       ?.filter((c: any) => c.status === 'pending' || c.status === 'earned')
       .reduce((sum, c: any) => sum + ((c.partner_payout_cents || c.payout_amount || 0) / (c.partner_payout_cents ? 100 : 1)), 0) || 0
-    const proUsers = (subscriptions || []).filter(s => s.subscription_tier === 'pro' || s.subscription_tier === 'elite').length
+    const proUsers = (subscriptions || []).filter(s => s.subscription_tier === 'pro').length
 
     // Fetch user statistics - only select existing columns
     const { data: userStats, error: userError } = await supabase

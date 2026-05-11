@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckCircle, XCircle, AlertCircle, Zap, RefreshCw, Trash2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Zap, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Lead {
@@ -10,7 +10,7 @@ interface Lead {
   description: string | null
   location_city: string
   category_id: string | null
-  profile_status: 'lead' | 'claimed' | 'active' | 'inactive'
+  profile_status: 'lead' | 'claimed' | 'verified'
   is_verified: boolean
   avg_rating: number
   total_reviews: number
@@ -18,20 +18,18 @@ interface Lead {
   source: string
 }
 
-type StatusFilter = 'lead' | 'claimed' | 'active' | 'inactive' | 'all'
+type StatusFilter = 'lead' | 'claimed' | 'verified' | 'all'
 
 const statusIcons: Record<Lead['profile_status'], React.ReactNode> = {
   lead: <AlertCircle className="h-5 w-5 text-yellow-500" />,
   claimed: <AlertCircle className="h-5 w-5 text-blue-500" />,
-  active: <CheckCircle className="h-5 w-5 text-green-500" />,
-  inactive: <XCircle className="h-5 w-5 text-red-500" />,
+  verified: <CheckCircle className="h-5 w-5 text-green-500" />,
 }
 
 const statusColors: Record<Lead['profile_status'], string> = {
   lead: 'bg-yellow-100 text-yellow-800',
   claimed: 'bg-blue-100 text-blue-800',
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-red-100 text-red-800',
+  verified: 'bg-green-100 text-green-800',
 }
 
 export default function LeadsPage() {
@@ -39,6 +37,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('lead')
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
@@ -55,7 +54,7 @@ export default function LeadsPage() {
 
       let leads: Lead[] = []
       if (statusFilter === 'all') {
-        const statuses = ['lead', 'claimed', 'active', 'inactive'] as const
+        const statuses = ['lead', 'claimed', 'verified'] as const
         const allLeads: Lead[] = []
         for (const status of statuses) {
           const response = await fetch(`/api/admin/leads?status=${status}&limit=100`, {
@@ -110,7 +109,7 @@ export default function LeadsPage() {
         },
         body: JSON.stringify({
           ids: Array.from(selectedLeads),
-          status: 'active',
+          status: 'verified',
         }),
       })
 
@@ -118,7 +117,7 @@ export default function LeadsPage() {
 
       setLeads((prev) =>
         prev.map((l) =>
-          selectedLeads.has(l.id) ? { ...l, profile_status: 'active' as const } : l
+          selectedLeads.has(l.id) ? { ...l, profile_status: 'verified' as const } : l
         )
       )
       setSelectedLeads(new Set())
@@ -167,6 +166,38 @@ export default function LeadsPage() {
     }
   }
 
+  const handleFetchPublic = async () => {
+    const url = window.prompt('URL javnega vira (CSV ali JSON):')
+    if (!url?.trim()) return
+
+    try {
+      setImporting(true)
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      const response = await fetch('/api/admin/leads/fetch-public', {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: url.trim() }),
+      })
+
+      const data = (await response.json()) as { ok: boolean; total_imported: number; error?: string }
+      if (!response.ok) throw new Error(data.error || 'Napaka pri uvozu')
+
+      await fetchLeads()
+      alert(`Uvoženo: ${data.total_imported} novih leadov`)
+    } catch (err) {
+      console.error('[admin/leads] Error fetching public source:', err)
+      alert('Napaka pri uvozu iz vira')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const filteredLeads = useMemo(() => {
     if (statusFilter === 'all') return leads
     return leads.filter((l) => l.profile_status === statusFilter)
@@ -208,6 +239,14 @@ export default function LeadsPage() {
             Osveži
           </button>
           <button
+            onClick={handleFetchPublic}
+            disabled={importing}
+            className="inline-flex items-center gap-2 rounded-md bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-60"
+          >
+            <RefreshCw className="h-4 w-4" />
+            {importing ? 'Uvažam...' : 'Uvozi iz vira'}
+          </button>
+          <button
             onClick={handleAutoProcess}
             disabled={processing}
             className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
@@ -225,7 +264,7 @@ export default function LeadsPage() {
       )}
 
       <div className="flex gap-2">
-        {(['all', 'lead', 'claimed', 'active', 'inactive'] as StatusFilter[]).map((status) => (
+        {(['all', 'lead', 'claimed', 'verified'] as StatusFilter[]).map((status) => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
@@ -233,7 +272,7 @@ export default function LeadsPage() {
               statusFilter === status ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-muted'
             }`}
           >
-            {status === 'all' ? 'Vsi' : status}
+            {status === 'all' ? 'Vsi' : status === 'verified' ? 'Odobreni' : status === 'lead' ? 'Leadi' : 'Terjatev'}
           </button>
         ))}
       </div>

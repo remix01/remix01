@@ -735,7 +735,7 @@ export async function dodajPartnerja(data: {
   lokacija?: string
   category_id?: string
   verifyNow?: boolean
-  subscription_tier?: 'start' | 'pro' | 'elite'
+  subscription_tier?: 'start' | 'pro'
   payment_confirmed?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   try {
