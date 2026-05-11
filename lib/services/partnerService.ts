@@ -75,51 +75,6 @@ export const partnerService = {
     lokacija?: string
     includeUnverified?: boolean
   }) {
-    const runLegacyQuery = async (selectColumns: string) => {
-      let query = supabaseAdmin
-        .from('obrtniki')
-        .select(selectColumns)
-        .order('ocena', { ascending: false })
-
-      if (!options?.includeUnverified) {
-        query = query.eq('status', 'verified')
-      }
-
-      if (options?.storitev) {
-        query = query.contains('specialnosti', [options.storitev])
-      }
-
-      if (options?.lokacija) {
-        query = query.overlaps('lokacije', [options.lokacija])
-      }
-
-      return query
-    }
-
-    const primaryColumns = 'id,ime,priimek,podjetje,email,telefon,specialnosti,lokacije,cena_min,cena_max,ocena,stevilo_ocen,leta_izkusenj,profilna_slika_url,status'
-    const fallbackColumns = 'id,ime,priimek,podjetje,email,telefon,specialnosti,lokacije,ocena,status'
-
-    const primary = await runLegacyQuery(primaryColumns)
-    if (!primary.error) return primary.data || []
-    if (!isSchemaCompatibilityError(primary.error)) {
-      throw new ServiceError(primary.error.message, 'DB_ERROR', 500)
-    }
-
-    const fallback = await runLegacyQuery(fallbackColumns)
-    if (!fallback.error) {
-      return (fallback.data || []).map((item: any) => ({
-        ...item,
-        cena_min: item.cena_min ?? null,
-        cena_max: item.cena_max ?? null,
-        stevilo_ocen: item.stevilo_ocen ?? 0,
-        leta_izkusenj: item.leta_izkusenj ?? 0,
-      }))
-    }
-    if (!isSchemaCompatibilityError(fallback.error)) {
-      throw new ServiceError(fallback.error.message, 'DB_ERROR', 500)
-    }
-
-    // Newer schema fallback where contractor data is stored in obrtnik_profiles.
     const runProfilesQuery = async (selectColumns: string) => {
       let profileQuery = supabaseAdmin
         .from('obrtnik_profiles')
@@ -230,7 +185,7 @@ export const partnerService = {
    */
   async createObrtnik(data: any) {
     const { data: result, error } = await supabaseAdmin
-      .from('obrtniki')
+      .from('obrtnik_profiles')
       .insert(data)
       .select()
       .single()
