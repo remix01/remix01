@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.escrow_transactions (
 
     -- Povezave
     inquiry_id            UUID REFERENCES public.inquiries(id) ON DELETE SET NULL,
-    partner_id            UUID REFERENCES public.partners(id) ON DELETE SET NULL,
+    partner_id            UUID REFERENCES public.obrtnik_profiles(id) ON DELETE SET NULL,
     customer_email        TEXT NOT NULL,
 
     -- Zneski (v centih, da se izognemo floating point napakam)
