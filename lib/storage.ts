@@ -87,8 +87,9 @@ export function uploadWithProgress(
 }
 
 export const LIMITS = {
-  video: { maxMB: 100, types: ['video/mp4', 'video/quicktime', 'video/avi', 'video/mov'] },
-  image: { maxMB: 10, types: ['image/jpeg', 'image/png', 'image/webp'] },
+  video: { maxMB: 100, types: ['video/mp4', 'video/quicktime', 'video/avi', 'video/mov', 'video/webm'] },
+  image: { maxMB: 10, types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
+  audio: { maxMB: 25, types: ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/aac'] },
   document: {
     maxMB: 5,
     types: [
@@ -102,8 +103,9 @@ export const LIMITS = {
 export function validateFile(file: File): { valid: boolean; error?: string } {
   const isVideo = file.type.startsWith('video/')
   const isImage = file.type.startsWith('image/')
+  const isAudio = file.type.startsWith('audio/')
   const isDocument = file.type.includes('pdf') || file.type.includes('word')
-  const limitKey = isVideo ? 'video' : isImage ? 'image' : isDocument ? 'document' : null
+  const limitKey = isVideo ? 'video' : isImage ? 'image' : isAudio ? 'audio' : isDocument ? 'document' : null
 
   if (!limitKey) return { valid: false, error: 'Nepodprt tip datoteke' }
 

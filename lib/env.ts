@@ -7,6 +7,18 @@ export const env = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
 
+  // ─── Object Storage ───
+  // 'minio' = self-hosted MinIO (Docker), 'supabase' = Supabase Storage (default)
+  STORAGE_PROVIDER: (process.env.STORAGE_PROVIDER ?? 'supabase') as 'minio' | 'supabase',
+  // MinIO – server-side only (never exposed to browser)
+  MINIO_ENDPOINT: process.env.MINIO_ENDPOINT ?? 'http://minio:9000',
+  MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY ?? '',
+  MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY ?? '',
+  MINIO_REGION: process.env.MINIO_REGION ?? 'us-east-1',
+  // Public base URL for constructing object URLs (e.g. https://storage.liftgo.net)
+  // Falls back to MINIO_ENDPOINT when not set (useful for local dev)
+  MINIO_PUBLIC_URL: process.env.MINIO_PUBLIC_URL ?? process.env.MINIO_ENDPOINT ?? '',
+
   // ─── Stripe ───
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',

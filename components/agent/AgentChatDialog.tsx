@@ -1,17 +1,16 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import { X, Send, Minimize2, MessageCircle, Loader2, AlertCircle, Check, Paperclip } from 'lucide-react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { X, Send, Minimize2, MessageCircle, Loader2, Check, Paperclip, Mic, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { format } from 'date-fns'
 import { sl } from 'date-fns/locale'
-import { uploadFile, generateFilePath } from '@/lib/storage'
+import { uploadFile, generateFilePath, validateFile } from '@/lib/storage'
+import { useSpeechToText } from '@/hooks/useSpeechToText'
 
 export type AgentType =
   | 'work_description'
@@ -225,9 +224,29 @@ export function AgentChatDialog({
   const [isTyping, setIsTyping] = useState(false)
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
   const [attachmentName, setAttachmentName] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const audioStreamRef = useRef<MediaStream | null>(null)
+
+  const handleFinalTranscript = useCallback((text: string) => {
+    setInputValue((prev) => (prev ? `${prev} ${text}` : text))
+  }, [])
+
+  const { start: startSTT, stop: stopSTT, isListening, isSupported: sttSupported } = useSpeechToText({
+    language: 'sl',
+    onFinalTranscript: handleFinalTranscript,
+  })
+
+  useEffect(() => {
+    return () => {
+      audioStreamRef.current?.getTracks().forEach((t) => t.stop())
+    }
+  }, [])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -237,32 +256,32 @@ export function AgentChatDialog({
   }, [messages])
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return
+    if (!inputValue.trim() && !attachmentUrl) return
 
-    // Add user message
+    const messageContent = [
+      inputValue.trim(),
+      attachmentUrl ? `[Priponka: ${attachmentName || attachmentUrl}]` : '',
+    ].filter(Boolean).join('\n')
+
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
-      content: inputValue,
+      content: messageContent,
       timestamp: new Date(),
     }
 
     setMessages((prev) => [...prev, userMessage])
     setInputValue('')
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-    }
+    clearAttachment()
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
-    // Show typing indicator
     setIsTyping(true)
 
     try {
-      // Call the onSendMessage callback if provided
       if (onSendMessage) {
-        await onSendMessage(inputValue)
+        await onSendMessage(messageContent)
       }
 
-      // Simulate agent response (in real app, this would come from API)
       setTimeout(() => {
         const agentMessage: ChatMessage = {
           id: `msg-${Date.now()}`,
@@ -274,9 +293,63 @@ export function AgentChatDialog({
         setIsTyping(false)
       }, 1500)
     } catch (error) {
-      console.error('[v0] Error sending message:', error)
+      console.error('[AgentChatDialog] Error sending message:', error)
       setIsTyping(false)
     }
+  }
+
+  const handleMicClick = async () => {
+    setUploadError(null)
+    if (isListening) { stopSTT(); return }
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true })
+      startSTT()
+    } catch {
+      setUploadError('Mikrofon ni dostopen. Preverite dovoljenja brskalnika.')
+    }
+  }
+
+  const startAudioRecording = async () => {
+    setUploadError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioStreamRef.current = stream
+      audioChunksRef.current = []
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      const recorder = new MediaRecorder(stream, { mimeType })
+      mediaRecorderRef.current = recorder
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        audioStreamRef.current = null
+        const blob = new Blob(audioChunksRef.current, { type: mimeType })
+        const ext = mimeType.includes('webm') ? 'webm' : 'mp4'
+        const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType })
+        setIsLoading(true)
+        try {
+          const path = generateFilePath('chat', file.name)
+          const { url, error } = await uploadFile('chat-attachments', path, file)
+          if (url) {
+            setAttachmentUrl(url)
+            setAttachmentName('Glasovni posnetek')
+          } else {
+            setUploadError(error || 'Nalaganje ni uspelo.')
+          }
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      recorder.start()
+      setIsRecordingAudio(true)
+    } catch {
+      setUploadError('Mikrofon ni dostopen. Preverite dovoljenja brskalnika.')
+    }
+  }
+
+  const stopAudioRecording = () => {
+    mediaRecorderRef.current?.stop()
+    setIsRecordingAudio(false)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -294,31 +367,38 @@ export function AgentChatDialog({
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadError(null)
+    const validation = validateFile(file)
+    if (!validation.valid) {
+      setUploadError(validation.error || 'Nepodprt tip datoteke.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
 
     setIsLoading(true)
     try {
-      const file = e.target.files[0]
       const path = generateFilePath('chat', file.name)
       const { url, error } = await uploadFile('chat-attachments', path, file)
-
       if (url) {
         setAttachmentUrl(url)
         setAttachmentName(file.name)
       } else {
-        console.error('[v0] Upload error:', error)
+        setUploadError(error || 'Nalaganje datoteke ni uspelo.')
       }
     } finally {
       setIsLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
   const clearAttachment = () => {
     setAttachmentUrl(null)
     setAttachmentName(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
+    setUploadError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   if (dialogState === 'minimized') {
@@ -412,23 +492,65 @@ export function AgentChatDialog({
               </button>
             </div>
           )}
+          {uploadError && (
+            <p className="text-xs text-red-600 px-1">{uploadError}</p>
+          )}
+          {isRecordingAudio && (
+            <p className="text-xs font-medium text-red-600 px-1 animate-pulse">Snemate... kliknite stop za zaključek</p>
+          )}
+          {isListening && (
+            <p className="text-xs font-medium text-emerald-600 px-1 animate-pulse">Poslušam... govorite</p>
+          )}
           <div className="flex gap-2">
+            {/* File attach */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded p-2 transition"
-              disabled={isLoading}
-              title="Priloži datoteko"
+              disabled={isLoading || isRecordingAudio}
+              title="Priloži datoteko (slika, video, avdio, PDF)"
             >
               <Paperclip className="h-5 w-5" />
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*,application/pdf"
+              accept="image/*,video/*,audio/*,application/pdf"
               onChange={handleFileSelect}
               className="hidden"
             />
+            {/* Audio record */}
+            <button
+              type="button"
+              onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
+              disabled={isLoading || isListening}
+              title={isRecordingAudio ? 'Ustavi snemanje' : 'Posnemite glasovno sporočilo'}
+              className={cn(
+                'rounded p-2 transition',
+                isRecordingAudio
+                  ? 'text-red-600 bg-red-50 hover:bg-red-100 animate-pulse'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              {isRecordingAudio ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-5 w-5" />}
+            </button>
+            {/* Speech-to-text mic */}
+            {sttSupported && (
+              <button
+                type="button"
+                onClick={handleMicClick}
+                disabled={isLoading || isRecordingAudio}
+                title={isListening ? 'Ustavi poslušanje' : 'Govorno vnašanje (pretvorba v besedilo)'}
+                className={cn(
+                  'rounded p-2 transition',
+                  isListening
+                    ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 animate-pulse'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                )}
+              >
+                <Mic className={cn('h-5 w-5', isListening && 'text-emerald-600')} />
+              </button>
+            )}
             <Textarea
               ref={textareaRef}
               value={inputValue}

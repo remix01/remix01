@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Bot, Globe, Mic, Paperclip, Volume2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Bot, Globe, Mic, MicOff, Paperclip, Square, Volume2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useSpeechToText } from '@/hooks/useSpeechToText'
 import { useTextToSpeech } from '@/hooks/useTextToSpeech'
 import { useLanguage } from '@/hooks/useLanguage'
-import { generateFilePath, uploadFile } from '@/lib/storage'
+import { generateFilePath, uploadFile, validateFile } from '@/lib/storage'
 import type { ConciergeLanguage } from '@/lib/ai/concierge-types'
 
 type WidgetLanguage = 'sl' | 'en'
@@ -17,11 +17,13 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
     title: 'LiftGO AI Pomočnik',
     subtitle: 'Vprašajte za nasvet ali pomoč pri oddaji povpraševanja',
     placeholder: 'Opišite težavo ali storitev, ki jo potrebujete...',
-    listening: 'Poslušam...',
+    listening: 'Poslušam... (kliknite za zaustavitev)',
+    recording: 'Snemate zvok... (kliknite za zaustavitev)',
     submit: 'Vprašaj AI',
     speechUnavailable: 'Brskalnik ne podpira govornega vnosa.',
-    micDenied: 'Mikrofon ni dovoljen. Če je widget v iframe, dodajte allow="microphone".',
+    micDenied: 'Mikrofon ni dovoljen. Prosim dovolite dostop do mikrofona.',
     uploadError: 'Nalaganje datoteke ni uspelo. Poskusite znova.',
+    uploadValidationError: 'Nepodprt tip ali prevelika datoteka.',
     genericError: 'Prišlo je do napake. Poskusite znova.',
     uploading: 'Nalagam datoteko...',
     thinking: 'Pripravljam odgovor...',
@@ -32,16 +34,23 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
     languageLabel: 'Slo/Eng',
     open: 'Odpri LiftGO Concierge',
     close: 'Zapri LiftGO Concierge',
+    attachFile: 'Priloži datoteko (slika, video, avdio)',
+    recordAudio: 'Posnemite glasovno sporočilo',
+    stopRecording: 'Ustavi snemanje',
+    speechInput: 'Govorno vnašanje (pretvorba v besedilo)',
+    audioRecorded: 'Zvočni posnetek pripravljen',
   },
   en: {
     title: 'LiftGO Concierge',
     subtitle: 'Ask for advice or help with submitting a request',
     placeholder: 'Describe the issue or service you need...',
-    listening: 'Listening...',
+    listening: 'Listening... (click to stop)',
+    recording: 'Recording audio... (click to stop)',
     submit: 'Ask AI',
     speechUnavailable: 'Speech recognition is not supported in this browser.',
-    micDenied: 'Microphone permission denied. If embedded in iframe, add allow="microphone".',
+    micDenied: 'Microphone permission denied. Please allow microphone access.',
     uploadError: 'File upload failed. Please try again.',
+    uploadValidationError: 'Unsupported file type or file too large.',
     genericError: 'Something went wrong. Please try again.',
     uploading: 'Uploading file...',
     thinking: 'Preparing response...',
@@ -52,6 +61,11 @@ const I18N: Record<WidgetLanguage, Record<string, string>> = {
     languageLabel: 'Slo/Eng',
     open: 'Open LiftGO Concierge',
     close: 'Close LiftGO Concierge',
+    attachFile: 'Attach file (image, video, audio)',
+    recordAudio: 'Record a voice message',
+    stopRecording: 'Stop recording',
+    speechInput: 'Speech input (convert to text)',
+    audioRecorded: 'Audio recording ready',
   },
 }
 
@@ -65,7 +79,14 @@ export function AIConciergePopup() {
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null)
   const [attachmentName, setAttachmentName] = useState<string | null>(null)
+  const [attachmentType, setAttachmentType] = useState<'image' | 'video' | 'audio' | 'file' | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+
+  // Audio recording state
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const audioStreamRef = useRef<MediaStream | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { language, setLanguage } = useLanguage('sl')
@@ -74,9 +95,10 @@ export function AIConciergePopup() {
   const { supported: ttsSupported, speak } = useTextToSpeech(activeLanguage)
 
   const speechLanguage: ConciergeLanguage = activeLanguage
+  const handleFinalTranscript = useCallback((text: string) => setInput(text), [])
   const { start, stop, isListening, interimTranscript, isSupported } = useSpeechToText({
     language: speechLanguage,
-    onFinalTranscript: (text) => setInput(text),
+    onFinalTranscript: handleFinalTranscript,
   })
 
   const quickChips = useMemo(
@@ -102,11 +124,24 @@ export function AIConciergePopup() {
     return () => window.removeEventListener('liftgo:open-concierge', handler as EventListener)
   }, [])
 
+  // Stop audio recording stream on unmount/close
+  useEffect(() => {
+    return () => {
+      audioStreamRef.current?.getTracks().forEach((t) => t.stop())
+    }
+  }, [])
+
   const handleMicClick = async () => {
     setErrorMessage(null)
 
     if (isListening) {
       stop()
+      return
+    }
+
+    // Stop audio recording if active
+    if (isRecordingAudio) {
+      stopAudioRecording()
       return
     }
 
@@ -118,11 +153,71 @@ export function AIConciergePopup() {
     }
   }
 
+  const startAudioRecording = async () => {
+    setErrorMessage(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioStreamRef.current = stream
+      audioChunksRef.current = []
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      const recorder = new MediaRecorder(stream, { mimeType })
+      mediaRecorderRef.current = recorder
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        audioStreamRef.current = null
+
+        const blob = new Blob(audioChunksRef.current, { type: mimeType })
+        const ext = mimeType.includes('webm') ? 'webm' : 'mp4'
+        const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType })
+
+        setIsUploading(true)
+        try {
+          const path = generateFilePath('ai-concierge', file.name)
+          const { url, error } = await uploadFile('inquiry-attachments', path, file)
+          if (!url || error) {
+            setErrorMessage(t.uploadError)
+          } else {
+            setAttachmentUrl(url)
+            setAttachmentName(t.audioRecorded)
+            setAttachmentType('audio')
+            setAttachmentPreview(null)
+          }
+        } finally {
+          setIsUploading(false)
+        }
+      }
+
+      recorder.start()
+      setIsRecordingAudio(true)
+    } catch {
+      setErrorMessage(t.micDenied)
+    }
+  }
+
+  const stopAudioRecording = () => {
+    mediaRecorderRef.current?.stop()
+    setIsRecordingAudio(false)
+  }
+
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     setErrorMessage(null)
+
+    const validation = validateFile(file)
+    if (!validation.valid) {
+      setErrorMessage(validation.error || t.uploadValidationError)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     setIsUploading(true)
 
     try {
@@ -134,21 +229,30 @@ export function AIConciergePopup() {
         return
       }
 
+      const mediaType = file.type.startsWith('image/')
+        ? 'image'
+        : file.type.startsWith('video/')
+          ? 'video'
+          : file.type.startsWith('audio/')
+            ? 'audio'
+            : 'file'
+
       setAttachmentUrl(url)
       setAttachmentName(file.name)
+      setAttachmentType(mediaType)
       setAttachmentPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
     } finally {
       setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
   const removeAttachment = () => {
-    if (attachmentPreview) {
-      URL.revokeObjectURL(attachmentPreview)
-    }
+    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview)
     setAttachmentPreview(null)
     setAttachmentName(null)
     setAttachmentUrl(null)
+    setAttachmentType(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -167,7 +271,7 @@ export function AIConciergePopup() {
         message: query,
         language,
         attachments: attachmentUrl ? [attachmentUrl] : [],
-        imageUrl: attachmentUrl || undefined,
+        imageUrl: attachmentType === 'image' ? attachmentUrl : undefined,
         source: 'ai_concierge_widget',
       }
 
@@ -177,9 +281,7 @@ export function AIConciergePopup() {
         body: JSON.stringify(payload),
       })
 
-      if (!response.ok) {
-        throw new Error('Submit failed')
-      }
+      if (!response.ok) throw new Error('Submit failed')
 
       const data = await response.json().catch(() => ({}))
       const reply = typeof data.message === 'string' ? data.message : ''
@@ -209,6 +311,7 @@ export function AIConciergePopup() {
 
       {open && (
         <div className="max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-lg sm:max-h-[80vh]">
+          {/* Header */}
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="flex items-center gap-2 text-base font-semibold text-slate-900">
@@ -222,6 +325,7 @@ export function AIConciergePopup() {
             </Button>
           </div>
 
+          {/* Quick chips */}
           <div className="mt-3 flex flex-wrap gap-2">
             {quickChips.map((chip) => (
               <button
@@ -235,6 +339,7 @@ export function AIConciergePopup() {
             ))}
           </div>
 
+          {/* Text input */}
           <textarea
             aria-label="LiftGO concierge input"
             className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-emerald-500"
@@ -253,8 +358,10 @@ export function AIConciergePopup() {
             <span className="font-medium text-slate-700">{t.tipsLabel}</span> {t.tipsText}
           </p>
 
+          {/* Action bar */}
           <div className="mt-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
+              {/* Language toggle */}
               <Button
                 type="button"
                 variant="outline"
@@ -265,60 +372,97 @@ export function AIConciergePopup() {
                 {t.languageLabel}
               </Button>
 
-              <Button type="button" variant="outline" className="h-12 min-w-12" onClick={() => fileInputRef.current?.click()}>
+              {/* File attach */}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 min-w-12"
+                title={t.attachFile}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isRecordingAudio}
+              >
                 <Paperclip className="h-5 w-5" />
               </Button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,video/*"
+                accept="image/*,video/*,audio/*"
                 className="hidden"
                 onChange={handleFileSelect}
               />
+
+              {/* Audio record button */}
+              <Button
+                type="button"
+                variant="outline"
+                title={isRecordingAudio ? t.stopRecording : t.recordAudio}
+                className={cn(
+                  'h-12 min-w-12',
+                  isRecordingAudio && 'animate-pulse border-red-500 text-red-600'
+                )}
+                onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
+                disabled={isListening || isUploading}
+              >
+                {isRecordingAudio ? <Square className="h-5 w-5 fill-current" /> : <MicOff className="h-5 w-5" />}
+              </Button>
             </div>
 
+            {/* Speech-to-text mic */}
             <Button
               type="button"
               aria-label="microphone"
               variant="outline"
+              title={t.speechInput}
               className={cn(
                 'h-12 min-w-12 rounded-full border-2',
                 isListening && 'animate-pulse border-emerald-500 text-emerald-600'
               )}
               onClick={handleMicClick}
-              disabled={!isSupported}
+              disabled={!isSupported || isRecordingAudio || isUploading}
             >
               <Mic className="h-6 w-6" />
             </Button>
           </div>
 
+          {/* Status messages */}
           {isListening && <p className="mt-2 text-xs font-medium text-emerald-600">{t.listening}</p>}
+          {isRecordingAudio && <p className="mt-2 text-xs font-medium text-red-600">{t.recording}</p>}
           {!isSupported && <p className="mt-2 text-xs text-amber-600">{t.speechUnavailable}</p>}
 
-          {attachmentUrl && (
+          {/* Attachment preview */}
+          {(attachmentUrl || isUploading) && (
             <div className="mt-3 relative w-fit rounded-xl border border-slate-200 p-2">
-              {attachmentPreview ? (
+              {isUploading ? (
+                <p className="text-xs text-slate-500">{t.uploading}</p>
+              ) : attachmentType === 'image' && attachmentPreview ? (
                 <img src={attachmentPreview} alt="Attachment preview" className="h-20 w-20 rounded-lg object-cover" />
+              ) : attachmentType === 'audio' ? (
+                <div className="flex items-center gap-2 px-2">
+                  <Mic className="h-4 w-4 text-emerald-600" />
+                  <p className="max-w-52 text-xs text-slate-600">{attachmentName}</p>
+                </div>
               ) : (
                 <p className="max-w-52 text-xs text-slate-600">{attachmentName}</p>
               )}
-              <button
-                type="button"
-                aria-label="Remove attachment"
-                className="absolute -right-2 -top-2 rounded-full bg-slate-900 p-1 text-white"
-                onClick={removeAttachment}
-              >
-                <X className="h-3 w-3" />
-              </button>
+              {!isUploading && (
+                <button
+                  type="button"
+                  aria-label="Remove attachment"
+                  className="absolute -right-2 -top-2 rounded-full bg-slate-900 p-1 text-white"
+                  onClick={removeAttachment}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
           )}
 
-          {(errorMessage || statusMessage || isUploading) && (
-            <p className={cn('mt-3 text-xs', errorMessage ? 'text-red-600' : 'text-emerald-700')}>
-              {isUploading ? t.uploading : errorMessage || statusMessage}
-            </p>
+          {/* Error message */}
+          {errorMessage && (
+            <p className="mt-3 text-xs text-red-600">{errorMessage}</p>
           )}
 
+          {/* AI reply */}
           {assistantReply && (
             <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
