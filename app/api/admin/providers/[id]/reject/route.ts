@@ -67,6 +67,18 @@ export async function POST(
 
   await logAction(admin.id, 'PROVIDER_REJECTED', 'obrtnik_profiles', id, current, updates)
 
+  // Sync verifications queue: mark any pending verification for this provider as rejected
+  await supabaseAdmin
+    .from('verifications')
+    .update({
+      status: 'rejected',
+      reviewed_by: admin.id,
+      reviewed_at: new Date().toISOString(),
+      notes: reason,
+    })
+    .eq('obrtnik_id', id)
+    .eq('status', 'pending')
+
   try {
     await transitionOnboardingState(id)
   } catch (error) {

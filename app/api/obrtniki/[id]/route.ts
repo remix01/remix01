@@ -31,7 +31,7 @@ export async function PATCH(
     updates.blocked_reason = null
   } else if (body.status === 'blocked') {
     updates.is_verified = false
-    updates.verification_status = 'blocked'
+    updates.verification_status = 'rejected'
     updates.is_available = false
     if (body.blocked_reason) updates.blocked_reason = body.blocked_reason
   } else if (body.status === 'pending') {

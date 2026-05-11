@@ -62,6 +62,18 @@ export async function POST(
 
   await logAction(admin.id, 'PROVIDER_APPROVED', 'obrtnik_profiles', id, current, updates)
 
+  // Sync verifications queue: mark any pending verification for this provider as approved
+  await supabaseAdmin
+    .from('verifications')
+    .update({
+      status: 'approved',
+      reviewed_by: admin.id,
+      reviewed_at: new Date().toISOString(),
+      notes: 'Odobril administrator',
+    })
+    .eq('obrtnik_id', id)
+    .eq('status', 'pending')
+
   try {
     await transitionOnboardingState(id)
   } catch (error) {
