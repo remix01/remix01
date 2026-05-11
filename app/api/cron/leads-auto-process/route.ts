@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     .from('obrtnik_profiles')
     .select('id, business_name, description, location_city, avg_rating, total_reviews, source, created_at')
     .eq('profile_status', 'lead')
+    .neq('verification_status', 'rejected')
     .order('created_at', { ascending: true })
     .limit(limit)
 
@@ -106,11 +107,10 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
     }
   }
 
-  // Rejected leads stay as 'lead' (valid DB value); no status change needed
   if (rejected.length > 0) {
     const { error: rejectError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ updated_at: now })
+      .update({ verification_status: 'rejected', updated_at: now })
       .in('id', rejected)
 
     if (rejectError) {

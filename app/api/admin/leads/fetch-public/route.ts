@@ -156,11 +156,15 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, total_imported: total, results })
 }
 
+function verifyCronSecret(req: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) return process.env.NODE_ENV !== 'production'
+  return req.headers.get('authorization') === `Bearer ${cronSecret}`
+}
+
 // GET — called by cron using PUBLIC_LEADS_SOURCE_URLS env var
 export async function GET(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  const auth = req.headers.get('authorization') || ''
-  if (cronSecret && auth !== `Bearer ${cronSecret}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
