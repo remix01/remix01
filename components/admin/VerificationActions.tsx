@@ -2,15 +2,20 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { manuallyVerifyObrtnik } from '@/lib/mcp/ajpes'
+import { createClient } from '@/lib/supabase/client'
 
 interface VerificationActionsProps {
   verificationId: string
   obrtknikId: string
 }
 
+async function getAuthToken(): Promise<string | null> {
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.access_token ?? null
+}
+
 export function VerificationActions({
-  verificationId,
   obrtknikId,
 }: VerificationActionsProps) {
   const [loading, setLoading] = useState(false)
@@ -18,34 +23,50 @@ export function VerificationActions({
   const handleApprove = async () => {
     setLoading(true)
     try {
-      const result = await manuallyVerifyObrtnik({
-        obrtknikId,
-        adminId: 'admin-id-placeholder', // Will be set by server action
-        approved: true,
-        notes: 'Odobril administrator',
+      const token = await getAuthToken()
+      const res = await fetch(`/api/admin/providers/${obrtknikId}/approve`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
       })
 
-      if (result.success) {
-        window.location.reload()
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(err.error || 'Napaka pri odobritvi')
+        return
       }
+
+      window.location.reload()
     } finally {
       setLoading(false)
     }
   }
 
   const handleReject = async () => {
+    const reason = window.prompt('Vnesite razlog za zavrnitev:')
+    if (!reason?.trim()) return
+
     setLoading(true)
     try {
-      const result = await manuallyVerifyObrtnik({
-        obrtknikId,
-        adminId: 'admin-id-placeholder', // Will be set by server action
-        approved: false,
-        notes: 'Zavrnul administrator',
+      const token = await getAuthToken()
+      const res = await fetch(`/api/admin/providers/${obrtknikId}/reject`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: reason.trim() }),
       })
 
-      if (result.success) {
-        window.location.reload()
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(err.error || 'Napaka pri zavrnitvi')
+        return
       }
+
+      window.location.reload()
     } finally {
       setLoading(false)
     }

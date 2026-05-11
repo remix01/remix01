@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
-import { Search, Download, AlertCircle } from 'lucide-react'
+import { Download, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { PartnerjiTable } from '@/components/admin/PartnerjiTable'
 import { PendingPartnerCard } from '@/components/admin/PendingPartnerCard'
+import { PartnerjiFilters } from '@/components/admin/PartnerjiFilters'
 import { DodajPartnerjaModal } from '@/components/admin/DodajPartnerjaModal'
 import { getAktivneKategorije, getPartnerji } from '../actions'
 
@@ -20,17 +20,18 @@ interface PageProps {
 }
 
 export default async function PartnerjiPage({ searchParams }: PageProps) {
-  const { search = '', status, page: pageParam = '1' } = await searchParams
-  const statusFilter = status
+  const { search = '', status = '', page: pageParam = '1' } = await searchParams
   const page = Number(pageParam) || 1
 
   const [{ partnerji, total, pages }, pendingData, categories] = await Promise.all([
-    getPartnerji(search, statusFilter, 'createdAt', page, 25),
+    getPartnerji(search, status || undefined, 'createdAt', page, 25),
     getPartnerji(undefined, 'PENDING', 'createdAt', 1, 10),
     getAktivneKategorije(),
   ])
 
   const pendingPartnerji = pendingData.partnerji
+  // Exclude pending from main table when no status filter is active
+  const tablePartnerji = status ? partnerji : partnerji.filter(p => p.status !== 'PENDING')
 
   return (
     <div className="space-y-6">
@@ -49,7 +50,7 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
       </div>
 
       {/* Pending Verifications Alert */}
-      {pendingPartnerji.length > 0 && (
+      {pendingPartnerji.length > 0 && !status && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Čakajoče verifikacije</AlertTitle>
@@ -59,8 +60,8 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
         </Alert>
       )}
 
-      {/* Pending Partners Grid */}
-      {pendingPartnerji.length > 0 && (
+      {/* Pending Partners Grid — only shown when no status filter */}
+      {pendingPartnerji.length > 0 && !status && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Čakajoči na verifikacijo</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -76,25 +77,12 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
           <CardTitle>Seznam partnerjev ({total})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Išči po imenu, emailu ali podjetju..."
-                className="pl-9"
-                defaultValue={search}
-              />
-            </div>
-            <select className="rounded-md border px-3 py-2">
-              <option value="">Vsi statusi</option>
-              <option value="PENDING">Čakajo verifikacijo</option>
-              <option value="AKTIVEN">Aktivni</option>
-              <option value="SUSPENDIRAN">Suspendirani</option>
-            </select>
+          <div className="mb-4">
+            <PartnerjiFilters defaultSearch={search} defaultStatus={status} />
           </div>
 
           <Suspense fallback={<div>Nalaganje...</div>}>
-            <PartnerjiTable partnerji={partnerji} currentPage={page} totalPages={pages} />
+            <PartnerjiTable partnerji={tablePartnerji} currentPage={page} totalPages={pages} />
           </Suspense>
         </CardContent>
       </Card>

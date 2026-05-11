@@ -13,55 +13,78 @@ export async function PATCH(
 
   const { id } = await params
   const body = await req.json()
+
   const { data: current } = await supabaseAdmin
-    .from('obrtniki').select('*').eq('id', id).single()
+    .from('obrtnik_profiles')
+    .select('id, is_verified, verification_status, blocked_reason')
+    .eq('id', id)
+    .maybeSingle()
 
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const updates: Record<string, unknown> = { ...body }
+  const updates: Record<string, unknown> = {}
 
   if (body.status === 'verified') {
+    updates.is_verified = true
+    updates.verification_status = 'verified'
     updates.verified_at = new Date().toISOString()
-    updates.blocked_at = null
     updates.blocked_reason = null
-  }
-  if (body.status === 'blocked') {
-    updates.blocked_at = new Date().toISOString()
+  } else if (body.status === 'blocked') {
+    updates.is_verified = false
+    updates.verification_status = 'rejected'
+    updates.is_available = false
+    if (body.blocked_reason) updates.blocked_reason = body.blocked_reason
+  } else if (body.status === 'pending') {
+    updates.is_verified = false
+    updates.verification_status = 'pending'
   }
 
   const { data, error } = await supabaseAdmin
-    .from('obrtniki').update(updates).eq('id', id).select().single()
+    .from('obrtnik_profiles')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   await logAction(admin.id, `STATUS_${body.status?.toUpperCase() || 'UPDATE'}`,
-    'obrtniki', id, current, updates)
+    'obrtnik_profiles', id, current, updates)
 
-  // Email obrtnik on verification
-  if (body.status === 'verified' && current.email && resend) {
+  // Fetch email from profiles for notifications
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', id)
+    .maybeSingle()
+
+  const email = profile?.email
+  const ime = profile?.full_name?.split(' ')[0] || 'Obrtnik'
+
+  if (body.status === 'verified' && email && resend) {
     try {
       await resend.emails.send({
         from: getDefaultFrom(),
-        to: resolveEmailRecipients(current.email).to,
+        to: resolveEmailRecipients(email).to,
         subject: '✓ Vaš profil je verificiran na LiftGO!',
         html: `
-          <h2>Čestitamo ${current.ime}!</h2>
+          <h2>Čestitamo ${ime}!</h2>
           <p>Vaš profil je bil verificiran. Zdaj boste prejemali povpraševanja.</p>
           <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/dashboard">
             Odprite dashboard →
           </a>
         `,
       })
-    } catch (emailError) {
-      console.log('[v0] Email send skipped')
+    } catch {
+      console.log('[api/obrtniki] Email send skipped')
     }
   }
 
-  if (body.status === 'blocked' && current.email && resend) {
+  if (body.status === 'blocked' && email && resend) {
     try {
       await resend.emails.send({
         from: getDefaultFrom(),
-        to: resolveEmailRecipients(current.email).to,
+        to: resolveEmailRecipients(email).to,
         subject: 'LiftGO — Vaš račun je bil blokiran',
         html: `
           <p>Žal vam sporočamo, da je bil vaš račun blokiran.</p>
@@ -69,8 +92,8 @@ export async function PATCH(
           <p>Za več informacij nas kontaktirajte: info@liftgo.net</p>
         `,
       })
-    } catch (emailError) {
-      console.log('[v0] Email send skipped')
+    } catch {
+      console.log('[api/obrtniki] Email send skipped')
     }
   }
 

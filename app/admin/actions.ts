@@ -197,7 +197,12 @@ export async function odobriPartnerja(id: string) {
   await ensureAdminAccess()
   await supabaseAdmin
     .from('obrtnik_profiles')
-    .update({ is_verified: true })
+    .update({
+      is_verified: true,
+      verification_status: 'verified',
+      verified_at: new Date().toISOString(),
+      blocked_reason: null,
+    })
     .eq('id', id)
   revalidatePath('/admin/partnerji')
 }
@@ -206,7 +211,11 @@ export async function zavrniPartnerja(id: string, razlog: string) {
   await ensureAdminAccess()
   await supabaseAdmin
     .from('obrtnik_profiles')
-    .update({ is_verified: false })
+    .update({
+      is_verified: false,
+      verification_status: 'rejected',
+      blocked_reason: razlog || null,
+    })
     .eq('id', id)
   revalidatePath('/admin/partnerji')
 }

@@ -75,51 +75,6 @@ export const partnerService = {
     lokacija?: string
     includeUnverified?: boolean
   }) {
-    const runLegacyQuery = async (selectColumns: string) => {
-      let query = supabaseAdmin
-        .from('obrtniki')
-        .select(selectColumns)
-        .order('ocena', { ascending: false })
-
-      if (!options?.includeUnverified) {
-        query = query.eq('status', 'verified')
-      }
-
-      if (options?.storitev) {
-        query = query.contains('specialnosti', [options.storitev])
-      }
-
-      if (options?.lokacija) {
-        query = query.overlaps('lokacije', [options.lokacija])
-      }
-
-      return query
-    }
-
-    const primaryColumns = 'id,ime,priimek,podjetje,email,telefon,specialnosti,lokacije,cena_min,cena_max,ocena,stevilo_ocen,leta_izkusenj,profilna_slika_url,status'
-    const fallbackColumns = 'id,ime,priimek,podjetje,email,telefon,specialnosti,lokacije,ocena,status'
-
-    const primary = await runLegacyQuery(primaryColumns)
-    if (!primary.error) return primary.data || []
-    if (!isSchemaCompatibilityError(primary.error)) {
-      throw new ServiceError(primary.error.message, 'DB_ERROR', 500)
-    }
-
-    const fallback = await runLegacyQuery(fallbackColumns)
-    if (!fallback.error) {
-      return (fallback.data || []).map((item: any) => ({
-        ...item,
-        cena_min: item.cena_min ?? null,
-        cena_max: item.cena_max ?? null,
-        stevilo_ocen: item.stevilo_ocen ?? 0,
-        leta_izkusenj: item.leta_izkusenj ?? 0,
-      }))
-    }
-    if (!isSchemaCompatibilityError(fallback.error)) {
-      throw new ServiceError(fallback.error.message, 'DB_ERROR', 500)
-    }
-
-    // Newer schema fallback where contractor data is stored in obrtnik_profiles.
     const runProfilesQuery = async (selectColumns: string) => {
       let profileQuery = supabaseAdmin
         .from('obrtnik_profiles')
@@ -226,21 +181,60 @@ export const partnerService = {
   },
 
   /**
-   * Create new obrtnik entry
+   * Create new obrtnik entry from legacy payload.
+   * Accepts { email, ime, priimek, podjetje?, telefon?, storitve?, lokacija? }
+   * and creates auth user + profiles + obrtnik_profiles records.
    */
-  async createObrtnik(data: any) {
-    const { data: result, error } = await supabaseAdmin
-      .from('obrtniki')
-      .insert(data)
+  async createObrtnik(data: {
+    email: string
+    ime: string
+    priimek: string
+    podjetje?: string
+    telefon?: string
+    storitve?: string[]
+    lokacija?: string
+  }) {
+    const email = data.email.trim().toLowerCase()
+    const fullName = `${data.ime.trim()} ${data.priimek.trim()}`.trim()
+    const businessName = data.podjetje?.trim() || fullName
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { first_name: data.ime, last_name: data.priimek },
+    })
+    if (authError) throw new ServiceError(authError.message, 'DB_ERROR', 500)
+
+    const userId = authData.user.id
+
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
+      id: userId,
+      email,
+      full_name: fullName,
+      phone: data.telefon || null,
+      location_city: data.lokacija || null,
+      role: 'obrtnik',
+    })
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+      throw new ServiceError(profileError.message, 'DB_ERROR', 500)
+    }
+
+    const { data: result, error: obrtnikError } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .insert({
+        id: userId,
+        business_name: businessName,
+        is_verified: false,
+        verification_status: 'pending',
+        is_available: false,
+      })
       .select()
       .single()
 
-    if (error) {
-      throw new ServiceError(
-        error.message,
-        'DB_ERROR',
-        500
-      )
+    if (obrtnikError) {
+      await supabaseAdmin.auth.admin.deleteUser(userId)
+      throw new ServiceError(obrtnikError.message, 'DB_ERROR', 500)
     }
 
     return result
