@@ -79,7 +79,7 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
   if (approved.length > 0) {
     const { error: approveError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ profile_status: 'active', updated_at: new Date().toISOString() })
+      .update({ profile_status: 'verified', updated_at: new Date().toISOString() })
       .in('id', approved)
 
     if (approveError) {

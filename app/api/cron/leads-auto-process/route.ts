@@ -97,7 +97,7 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
   if (approved.length > 0) {
     const { error: approveError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ profile_status: 'active', updated_at: now })
+      .update({ profile_status: 'verified', updated_at: now })
       .in('id', approved)
 
     if (approveError) {
@@ -106,10 +106,11 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
     }
   }
 
+  // Rejected leads stay as 'lead' (valid DB value); no status change needed
   if (rejected.length > 0) {
     const { error: rejectError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ profile_status: 'inactive', updated_at: now })
+      .update({ updated_at: now })
       .in('id', rejected)
 
     if (rejectError) {

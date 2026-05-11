@@ -44,6 +44,10 @@
     {
       "path": "/api/cron/leads-auto-process",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/admin/leads/fetch-public",
+      "schedule": "0 2 * * *"
     }
   ]
 }

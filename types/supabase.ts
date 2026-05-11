@@ -249,7 +249,7 @@ export interface Database {
           role: 'narocnik' | 'obrtnik' | null
           location_city: string | null
           location_region: string | null
-          subscription_tier: 'start' | 'pro' | 'elite' | 'enterprise' | null
+          subscription_tier: 'start' | 'pro' | null
           ai_messages_used_today: number
           ai_messages_reset_at: string
           ai_total_tokens_used: number
@@ -410,8 +410,8 @@ export interface Database {
           is_verified: boolean
           is_claimed: boolean
           verification_status: 'pending' | 'verified' | 'rejected'
-          profile_status: 'lead' | 'claimed' | 'active' | 'inactive'
-          source: 'import' | 'direct' | 'organic' | null
+          profile_status: 'lead' | 'claimed' | 'verified'
+          source: 'manual' | 'import' | 'signup' | null
           avg_rating: number
           total_reviews: number
           response_time_hours: number | null
@@ -438,14 +438,14 @@ export interface Database {
           is_verified?: boolean
           is_claimed?: boolean
           verification_status?: 'pending' | 'verified' | 'rejected'
-          profile_status?: 'lead' | 'claimed' | 'active' | 'inactive'
-          source?: 'import' | 'direct' | 'organic' | null
+          profile_status?: 'lead' | 'claimed' | 'verified'
+          source?: 'manual' | 'import' | 'signup' | null
           avg_rating?: number
           total_reviews?: number
           response_time_hours?: number | null
           is_available?: boolean
           created_at?: string
-          subscription_tier?: 'start' | 'pro' | 'elite' | null
+          subscription_tier?: 'start' | 'pro' | null
           stripe_customer_id?: string | null
           stripe_account_id?: string | null
           tagline?: string | null
