@@ -34,7 +34,10 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
   const isApiRoute = pathname.startsWith('/api/')
-  if (host.includes('vercel.app') && !host.includes('localhost') && !isApiRoute) {
+  // RSC navigation requests (_rsc param) are browser fetch() calls — same
+  // cross-origin risk as API routes, so exempt them from the canonical redirect.
+  const isRscRequest = request.nextUrl.searchParams.has('_rsc')
+  if (host.includes('vercel.app') && !host.includes('localhost') && !isApiRoute && !isRscRequest) {
     const url = request.nextUrl.clone()
     url.host = 'liftgo.net'
     url.protocol = 'https'
