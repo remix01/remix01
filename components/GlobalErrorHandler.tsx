@@ -26,9 +26,15 @@ export function GlobalErrorHandler() {
 
     const attemptChunkRecovery = () => {
       if (typeof window === 'undefined') return false
-      const recoveryKey = '__chunk_load_retry_once__'
-      if (window.sessionStorage.getItem(recoveryKey) === '1') return false
-      window.sessionStorage.setItem(recoveryKey, '1')
+
+      const recoveryKey = '__chunk_load_retry_at__'
+      const now = Date.now()
+      const previousAttemptAt = Number(window.sessionStorage.getItem(recoveryKey) || '0')
+
+      // Prevent reload loops on persistent failures, but allow retry later in the same tab.
+      if (Number.isFinite(previousAttemptAt) && now - previousAttemptAt < 60_000) return false
+
+      window.sessionStorage.setItem(recoveryKey, String(now))
       window.location.reload()
       return true
     }
