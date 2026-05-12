@@ -63,9 +63,9 @@ export async function GET() {
       },
     }, { status: 200 })
   } catch (error) {
-    console.error('[admin/me] Error:', error)
     const authFailure = toAdminAuthFailure(error)
     if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
+      console.warn('[admin/me] Auth rejected:', authFailure.code)
       return NextResponse.json(
         {
           ok: false,
@@ -79,6 +79,7 @@ export async function GET() {
       )
     }
 
+    console.error('[admin/me] Unexpected error:', error)
     return NextResponse.json(
       {
         ok: false,
