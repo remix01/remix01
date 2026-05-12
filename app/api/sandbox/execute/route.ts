@@ -1,13 +1,26 @@
 import { Sandbox } from 'e2b'
 import { NextResponse } from 'next/server'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 const templateMap = {
   python: 'base',
   nodejs: 'base',
 } as const
 
+const sandboxOwnerMap = new Map<string, string>()
+
 export async function POST(req: Request) {
   try {
+    const supabase = await createServerClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { code, language, sandboxId } = await req.json()
 
     if (!process.env.E2B_API_KEY) {
@@ -17,24 +30,27 @@ export async function POST(req: Request) {
     let sandbox: Sandbox
 
     if (sandboxId) {
+      const ownerId = sandboxOwnerMap.get(sandboxId)
+      if (ownerId !== user.id) {
+        return NextResponse.json({ error: 'Sandbox ni v vaši lasti.' }, { status: 403 })
+      }
+
       sandbox = await Sandbox.connect(sandboxId, { apiKey: process.env.E2B_API_KEY })
     } else {
       sandbox = await Sandbox.create(templateMap[language as keyof typeof templateMap] ?? 'base', {
         apiKey: process.env.E2B_API_KEY,
       })
+      sandboxOwnerMap.set(sandbox.sandboxId, user.id)
     }
 
-    const command = language === 'python'
-      ? `python -c ${JSON.stringify(code)}`
-      : `node -e ${JSON.stringify(code)}`
+    const command = language === 'python' ? `python -c ${JSON.stringify(code)}` : `node -e ${JSON.stringify(code)}`
 
     const execution = await sandbox.commands.run(command, {
       timeoutMs: 120000,
-      onStdout(data: { line: string }) {
-        // trenutno vračamo stdout kot agregat; SSE stream lahko priklopite tukaj.
+      onStdout(data: string) {
         void data
       },
-      onStderr(data: { line: string }) {
+      onStderr(data: string) {
         void data
       },
     })
