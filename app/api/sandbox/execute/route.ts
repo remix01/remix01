@@ -1,5 +1,6 @@
 import { Sandbox } from 'e2b'
 import { NextResponse } from 'next/server'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 const templateMap = {
   python: 'base',
@@ -8,6 +9,16 @@ const templateMap = {
 
 export async function POST(req: Request) {
   try {
+    const supabase = await createServerClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { code, language, sandboxId } = await req.json()
 
     if (!process.env.E2B_API_KEY) {
@@ -24,14 +35,11 @@ export async function POST(req: Request) {
       })
     }
 
-    const command = language === 'python'
-      ? `python -c ${JSON.stringify(code)}`
-      : `node -e ${JSON.stringify(code)}`
+    const command = language === 'python' ? `python -c ${JSON.stringify(code)}` : `node -e ${JSON.stringify(code)}`
 
     const execution = await sandbox.commands.run(command, {
       timeoutMs: 120000,
       onStdout(data: { line: string }) {
-        // trenutno vračamo stdout kot agregat; SSE stream lahko priklopite tukaj.
         void data
       },
       onStderr(data: { line: string }) {
