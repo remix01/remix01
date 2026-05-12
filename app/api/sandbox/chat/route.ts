@@ -1,6 +1,8 @@
 import { anthropic } from '@ai-sdk/anthropic'
 import { openai } from '@ai-sdk/openai'
 import { streamText } from 'ai'
+import { NextResponse } from 'next/server'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 const modelMap = {
   'gpt-4o': openai('gpt-4o'),
@@ -8,6 +10,16 @@ const modelMap = {
 } as const
 
 export async function POST(req: Request) {
+  const supabase = await createServerClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { messages, model = 'gpt-4o' } = await req.json()
 
   const result = streamText({
