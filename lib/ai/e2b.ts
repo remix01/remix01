@@ -6,18 +6,13 @@ export interface E2BExecutionResult {
   exitCode: number
 }
 
-interface SandboxExecution {
-  text?: string
-  error?: {
-    message?: string
-  }
+// v2 Execution shape from @e2b/code-interpreter
+interface E2BExecution {
+  logs: { stdout: string[]; stderr: string[] }
+  error: { name: string; value: string; traceback: string[] } | null
 }
 
-/**
- * Execute code in E2B code-interpreter sandbox via official SDK.
- * Requires E2B_API_KEY from environment variables.
- */
-export async function runInE2B(code: string, language: 'python' | 'javascript' = 'python'): Promise<E2BExecutionResult> {
+export async function runInE2B(code: string, _language: 'python' | 'javascript' = 'python'): Promise<E2BExecutionResult> {
   if (!env.E2B_API_KEY) {
     throw new Error('E2B_API_KEY is missing. Set it in Vercel Environment Variables.')
   }
@@ -26,11 +21,13 @@ export async function runInE2B(code: string, language: 'python' | 'javascript' =
   const sandbox = await Sandbox.create({ apiKey: env.E2B_API_KEY })
 
   try {
-    const execution = await sandbox.runCode(code, { language }) as SandboxExecution
+    // v2: runCode returns Execution with logs.stdout[]/logs.stderr[] arrays;
+    // language is determined by the sandbox template, not a runCode option.
+    const execution = await sandbox.runCode(code) as E2BExecution
 
     return {
-      stdout: execution.text ?? '',
-      stderr: execution.error?.message ?? '',
+      stdout: execution.logs.stdout.join('\n'),
+      stderr: execution.logs.stderr.join('\n'),
       exitCode: execution.error ? 1 : 0,
     }
   } finally {
