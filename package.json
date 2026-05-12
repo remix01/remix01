@@ -80,7 +80,7 @@
     "langchain": "^0.3.36",
     "lucide-react": "^0.544.0",
     "minimist": "^1.2.8",
-    "next": "16.2.3",
+    "next": "16.2.6",
     "next-themes": "^0.4.6",
     "posthog-js": "^1.253.0",
     "react": "19.2.3",
