@@ -15,6 +15,7 @@ import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { fetchWithRetry } from '@/lib/fetchWithRetry'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
 import { env } from '@/lib/env'
+import { notFound } from 'next/navigation'
 
 interface Props {
   params: Promise<{ category: string; city: string }>
@@ -169,9 +170,13 @@ export default async function CategoryCityPage(props: Props) {
   const citySlug = normalized.city ?? ''
   const pathname = `/${normalized.category}/${citySlug}`
 
-  // Exclude static files and reserved paths
-  if (EXCLUDED_PATHS.includes(normalized.category) || citySlug.includes('.')) {
-    return null
+  // Exclude static files, reserved paths, and dotfile-style segments (e.g. /.aws/credentials)
+  if (
+    EXCLUDED_PATHS.includes(normalized.category) ||
+    normalized.category.includes('.') ||
+    citySlug.includes('.')
+  ) {
+    notFound()
   }
 
   const resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
