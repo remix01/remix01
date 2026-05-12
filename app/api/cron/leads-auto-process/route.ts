@@ -6,8 +6,10 @@ function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
-    return process.env.NODE_ENV !== 'production'
+    console.error('[cron/leads-auto-process] CRON_SECRET is not configured')
+    return false
   }
+
   return authHeader === `Bearer ${cronSecret}`
 }
 
