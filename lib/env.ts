@@ -42,6 +42,7 @@ export const env = {
   PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY ?? '',
   BRAVE_API_KEY: process.env.BRAVE_API_KEY ?? '',
   VOYAGE_API_KEY: process.env.VOYAGE_API_KEY ?? '',
+  E2B_API_KEY: process.env.E2B_API_KEY ?? '',
 
   // ─── Observability ───
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? '',
@@ -173,6 +174,7 @@ export const hasGemini = () => !!env.GEMINI_API_KEY
 export const hasPerplexity = () => !!env.PERPLEXITY_API_KEY
 export const hasBraveSearch = () => !!env.BRAVE_API_KEY
 export const hasVoyageAPI = () => !!env.VOYAGE_API_KEY
+export const hasE2B = () => !!env.E2B_API_KEY
 
 // Check if ANY AI provider is available
 export const hasAnyAI = () =>

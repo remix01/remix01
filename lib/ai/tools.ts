@@ -49,6 +49,18 @@ export const AI_TOOLS: Tool[] = [
     },
   },
   {
+    name: 'execute_code_in_sandbox',
+    description: 'Varno zažene kratko Python/JavaScript kodo v E2B sandboxu',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        code: { type: 'string', description: 'Koda za izvedbo' },
+        language: { type: 'string', enum: ['python', 'javascript'], description: 'Jezik izvedbe' },
+      },
+      required: ['code'],
+    },
+  },
+  {
     name: 'find_matching_obrtniki',
     description: 'Najde mojstre, ki ustrezajo povpraševanju',
     input_schema: {
@@ -101,6 +113,12 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
       median: prices[Math.floor(prices.length / 2)],
       sample_size: prices.length,
     }
+  },
+
+  async execute_code_in_sandbox(input) {
+    const { code, language = 'python' } = input as { code: string; language?: 'python' | 'javascript' }
+    const { runInE2B } = await import('./e2b')
+    return runInE2B(code, language)
   },
 
   async find_matching_obrtniki(input) {
@@ -161,14 +179,14 @@ export function getToolsForAgent(agentType: string): Tool[] {
     onboarding_assistant: ['search_similar_tasks', 'get_market_price_range'],
     provider_coach: ['search_similar_tasks', 'get_market_price_range', 'find_matching_obrtniki'],
     payment_helper: ['get_task_details'],
-    support_agent: ['search_similar_tasks', 'get_task_details'],
+    support_agent: ['search_similar_tasks', 'get_task_details', 'execute_code_in_sandbox'],
 
     // Legacy aliases during migration
     work_description: ['search_similar_tasks', 'get_market_price_range'],
     offer_comparison: ['get_market_price_range'],
     scheduling_assistant: ['find_matching_obrtniki'],
     general_chat: ['search_similar_tasks'],
-    default: ['search_similar_tasks'],
+    default: ['search_similar_tasks', 'execute_code_in_sandbox'],
   }
 
   const toolNames = agentTools[agentType] || agentTools.default
