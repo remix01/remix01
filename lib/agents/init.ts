@@ -11,7 +11,7 @@ export function ensureAgentsInitialized() {
   if (!initialized) {
     initializeAgents()
     initialized = true
-    console.log('[Agents] Initialized all 5 agents')
+    console.log('[Agents] Initialized all 6 agents')
     console.log('[Agents] Registered agents:', messageBus.getRegistered().join(', '))
   }
 }

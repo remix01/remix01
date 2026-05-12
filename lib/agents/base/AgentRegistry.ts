@@ -19,6 +19,7 @@ import { messageBus } from './MessageBus'
  * - EscrowAgent: Manages payment escrows, capture, release, refund
  * - DisputeAgent: Handles dispute creation and resolution
  * - NotifyAgent: Sends notifications and broadcasts events
+ * - SupervisorAgent: Reports health and topology for MAS runtime
  */
 export async function initializeAgents(): Promise<void> {
   try {
@@ -28,6 +29,7 @@ export async function initializeAgents(): Promise<void> {
     const { EscrowAgent } = await import('../escrow-agent/EscrowAgent')
     const { DisputeAgent } = await import('../dispute-agent/DisputeAgent')
     const { NotifyAgent } = await import('../notify-agent/NotifyAgent')
+    const { SupervisorAgent } = await import('../supervisor-agent/SupervisorAgent')
 
     // Register each agent with the bus
     messageBus.register(new OrchestratorAgent())
@@ -35,6 +37,7 @@ export async function initializeAgents(): Promise<void> {
     messageBus.register(new EscrowAgent())
     messageBus.register(new DisputeAgent())
     messageBus.register(new NotifyAgent())
+    messageBus.register(new SupervisorAgent())
 
     console.log('[AgentRegistry] Multi-agent system initialized')
     console.log('[AgentRegistry] Registered agents:', messageBus.getRegistered().join(', '))
@@ -52,6 +55,6 @@ export async function initializeAgents(): Promise<void> {
  */
 export function agentsInitialized(): boolean {
   const registered = messageBus.getRegistered()
-  // All 5 agents should be registered
-  return registered.length === 5
+  // All 6 agents should be registered
+  return registered.length === 6
 }
