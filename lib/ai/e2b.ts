@@ -1,45 +1,39 @@
 import { env } from '@/lib/env'
 
-const E2B_BASE_URL = process.env.E2B_BASE_URL ?? 'https://api.e2b.dev'
-
 export interface E2BExecutionResult {
   stdout: string
   stderr: string
   exitCode: number
 }
 
+interface SandboxExecution {
+  text?: string
+  error?: {
+    message?: string
+  }
+}
+
 /**
- * Execute code in E2B sandbox via REST API.
- * Requires E2B_API_KEY from Vercel Environment Variables.
+ * Execute code in E2B code-interpreter sandbox via official SDK.
+ * Requires E2B_API_KEY from environment variables.
  */
 export async function runInE2B(code: string, language: 'python' | 'javascript' = 'python'): Promise<E2BExecutionResult> {
   if (!env.E2B_API_KEY) {
     throw new Error('E2B_API_KEY is missing. Set it in Vercel Environment Variables.')
   }
 
-  const response = await fetch(`${E2B_BASE_URL}/v1/sandboxes/code/execute`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.E2B_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ code, language }),
-  })
+  const { Sandbox } = await import('@e2b/code-interpreter')
+  const sandbox = await Sandbox.create({ apiKey: env.E2B_API_KEY })
 
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`E2B execution failed (${response.status}): ${body}`)
-  }
+  try {
+    const execution = await sandbox.runCode(code, { language }) as SandboxExecution
 
-  const json = await response.json() as {
-    stdout?: string
-    stderr?: string
-    exitCode?: number
-  }
-
-  return {
-    stdout: json.stdout ?? '',
-    stderr: json.stderr ?? '',
-    exitCode: json.exitCode ?? 0,
+    return {
+      stdout: execution.text ?? '',
+      stderr: execution.error?.message ?? '',
+      exitCode: execution.error ? 1 : 0,
+    }
+  } finally {
+    await sandbox.kill()
   }
 }
