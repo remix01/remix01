@@ -13,9 +13,39 @@ export function GlobalErrorHandler() {
   const [errors, setErrors] = useState<ErrorMessage[]>([])
 
   useEffect(() => {
+
+    const isRecoverableChunkLoadError = (message: string) => {
+      const normalized = message.toLowerCase()
+      return (
+        normalized.includes('load failed') ||
+        normalized.includes('chunkloaderror') ||
+        normalized.includes('loading chunk') ||
+        normalized.includes('failed to fetch dynamically imported module')
+      )
+    }
+
+    const attemptChunkRecovery = () => {
+      if (typeof window === 'undefined') return false
+
+      const recoveryKey = '__chunk_load_retry_at__'
+      const now = Date.now()
+      const previousAttemptAt = Number(window.sessionStorage.getItem(recoveryKey) || '0')
+
+      // Prevent reload loops on persistent failures, but allow retry later in the same tab.
+      if (Number.isFinite(previousAttemptAt) && now - previousAttemptAt < 60_000) return false
+
+      window.sessionStorage.setItem(recoveryKey, String(now))
+      window.location.reload()
+      return true
+    }
     // Catch unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const message = event.reason?.message || String(event.reason) || 'Unknown error'
+
+      if (isRecoverableChunkLoadError(message)) {
+        event.preventDefault()
+        if (attemptChunkRecovery()) return
+      }
       addError(message)
       console.error('[GlobalErrorHandler] Unhandled rejection:', event.reason)
       
@@ -32,6 +62,11 @@ export function GlobalErrorHandler() {
 
     // Catch global errors
     const handleError = (event: ErrorEvent) => {
+      if (isRecoverableChunkLoadError(event.message || '')) {
+        event.preventDefault()
+        if (attemptChunkRecovery()) return
+      }
+
       addError(event.message)
       console.error('[GlobalErrorHandler] Global error:', event.error)
       
