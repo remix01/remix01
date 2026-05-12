@@ -39,7 +39,7 @@ export function useAdminRole(): UseAdminRoleReturn {
         const response = await fetch('/api/admin/me');
         
         if (!response.ok) {
-          if (response.status === 401) {
+          if (response.status === 401 || response.status === 403) {
             setAdmin(null);
           } else {
             throw new Error(`Failed to fetch admin role: ${response.statusText}`);

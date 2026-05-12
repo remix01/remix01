@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
-import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
+import { AdminAuthError, requireAdmin } from '@/lib/admin-auth'
 
 export async function GET() {
   try {
@@ -63,19 +63,18 @@ export async function GET() {
       },
     }, { status: 200 })
   } catch (error) {
-    const authFailure = toAdminAuthFailure(error)
-    if (authFailure.code === 'UNAUTHORIZED' || authFailure.code === 'FORBIDDEN') {
-      console.warn('[admin/me] Auth rejected:', authFailure.code)
+    if (error instanceof AdminAuthError) {
+      console.warn('[admin/me] Auth rejected:', error.code)
       return NextResponse.json(
         {
           ok: false,
-          error: authFailure.status === 401 ? 'Not authenticated' : 'Not an active admin',
+          error: error.status === 401 ? 'Not authenticated' : 'Not an active admin',
           canonical_error: {
-            code: authFailure.code,
-            message: authFailure.status === 401 ? 'Not authenticated' : 'Not an active admin',
+            code: error.code,
+            message: error.status === 401 ? 'Not authenticated' : 'Not an active admin',
           },
         },
-        { status: authFailure.status }
+        { status: error.status }
       )
     }
 

@@ -58,8 +58,6 @@ export async function requireAdmin(allowedRoles?: AdminRole[]): Promise<AdminCon
     throw new AdminAuthError('UNAUTHORIZED')
   }
 
-  const jwtRole = String(user.app_metadata?.role || '').toLowerCase()
-
   const { data: adminByAuthUserId, error: adminByAuthUserIdError } = await supabaseAdmin
     .from('admin_users')
     .select('id, vloga, aktiven')
@@ -68,7 +66,7 @@ export async function requireAdmin(allowedRoles?: AdminRole[]): Promise<AdminCon
     .maybeSingle()
 
   if (adminByAuthUserIdError) {
-    throw new AdminAuthError('FORBIDDEN')
+    throw new Error(`Admin lookup failed: ${adminByAuthUserIdError.message}`)
   }
 
   const adminUser = adminByAuthUserId
@@ -78,10 +76,6 @@ export async function requireAdmin(allowedRoles?: AdminRole[]): Promise<AdminCon
   }
 
   const role = ROLE_MAP[adminUser.vloga] || 'support'
-
-  if (jwtRole && !['admin', 'super_admin', 'support', 'finance'].includes(jwtRole)) {
-    throw new AdminAuthError('FORBIDDEN')
-  }
 
   if (allowedRoles && !allowedRoles.includes(role)) {
     throw new AdminAuthError('FORBIDDEN')
@@ -109,7 +103,11 @@ export function withAdminAuth(handler: RouteHandler, allowedRoles?: AdminRole[])
     try {
       await requireAdmin(allowedRoles)
     } catch (error: any) {
-      const status = error instanceof AdminAuthError && error.code === 'UNAUTHORIZED' ? 401 : 403
+      if (!(error instanceof AdminAuthError)) {
+        console.error('[withAdminAuth] Unexpected error:', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      }
+      const status = error.code === 'UNAUTHORIZED' ? 401 : 403
       const message = status === 401 ? 'Nepooblaščen dostop.' : 'Prepovedano.'
       return NextResponse.json({ error: message }, { status })
     }
