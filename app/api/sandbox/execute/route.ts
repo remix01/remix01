@@ -30,11 +30,10 @@ export async function POST(req: Request) {
 
     const execution = await sandbox.commands.run(command, {
       timeoutMs: 120000,
-      onStdout(data: { line: string }) {
-        // trenutno vračamo stdout kot agregat; SSE stream lahko priklopite tukaj.
+      onStdout(data: string) {
         void data
       },
-      onStderr(data: { line: string }) {
+      onStderr(data: string) {
         void data
       },
     })
