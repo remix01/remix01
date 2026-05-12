@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "next dev",
-    "build": "rm -f middleware.ts && next build && node scripts/report-build-success.mjs",
+    "build": "next build && node scripts/report-build-success.mjs",
     "start": "next start",
     "lint": "tsc --noEmit",
     "generate-icons": "node scripts/generate-icons.js",

@@ -22,7 +22,11 @@ export async function proxy(request: NextRequest) {
   // Block common scanner/attack paths
   const blockedPaths = [
     '/wp-login.php', '/wp-admin', '/xmlrpc.php',
-    '/.env', '/admin.php', '/phpmyadmin', '/wp-content', '/wp-includes',
+    '/.env', '/.env.local', '/.env.production', '/.env.staging', '/.env.development', '/.env.example',
+    '/admin.php', '/phpmyadmin', '/wp-content', '/wp-includes',
+    '/secrets.json', '/serviceAccountKey.json', '/credentials.json', '/config.json',
+    '/.git', '/.ssh', '/.aws',
+    '/__depproxyproof',
   ]
   if (blockedPaths.some(p => request.nextUrl.pathname.startsWith(p))) {
     return new NextResponse(null, { status: 404 })
@@ -208,6 +212,22 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // Sensitive file paths that credential scanners probe
+    '/.env',
+    '/.env.local',
+    '/.env.production',
+    '/.env.staging',
+    '/.env.development',
+    '/.env.example',
+    '/secrets.json',
+    '/serviceAccountKey.json',
+    '/credentials.json',
+    '/config.json',
+    '/__depproxyproof',
+    '/.git/:path*',
+    '/.aws/:path*',
+    '/.ssh/:path*',
+    // Auth-protected routes
     '/:category((?!api|_next|icons|images|fonts|admin|dashboard|partner-dashboard|obrtnik|prijava|registracija)[^/]+)/:city',
     '/dashboard',
     '/dashboard/:path*',
