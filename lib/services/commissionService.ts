@@ -158,29 +158,62 @@ export const commissionService = {
    */
   async retryFailedTransfers() {
     const retryCutoffMs = Date.now() - 60 * 60 * 1000
+    const retryCutoffIso = new Date(retryCutoffMs).toISOString()
+    const batchSize = 500
 
-    const { data: failedLogs, error } = await supabaseAdmin
+    let failedLogs: any[] = []
+
+    const primaryQuery = await supabaseAdmin
       .from('commission_logs')
       .select('*')
       .eq('status', 'failed')
       .lt('transfer_attempts', 3)  // Max 3 attempts
+      .or(`last_attempted_at.lt.${retryCutoffIso},and(last_attempted_at.is.null,failed_at.lt.${retryCutoffIso})`)
+      .order('failed_at', { ascending: true, nullsFirst: false })
+      .limit(batchSize)
 
-    if (error) {
-      console.error('[CommissionService] Failed to fetch failed transfers:', error)
-      return { retried: 0, succeeded: 0, failed: 0 }
+    if (primaryQuery.error) {
+      const isMissingColumn = primaryQuery.error.code === '42703'
+
+      if (!isMissingColumn) {
+        console.error('[CommissionService] Failed to fetch failed transfers:', primaryQuery.error)
+        return { retried: 0, succeeded: 0, failed: 0 }
+      }
+
+      console.warn('[CommissionService] Falling back to legacy query due to schema mismatch:', primaryQuery.error)
+
+      const fallbackQuery = await supabaseAdmin
+        .from('commission_logs')
+        .select('*')
+        .eq('status', 'failed')
+        .order('failed_at', { ascending: true, nullsFirst: false })
+        .limit(batchSize)
+
+      if (fallbackQuery.error) {
+        console.error('[CommissionService] Legacy fallback query failed:', fallbackQuery.error)
+        return { retried: 0, succeeded: 0, failed: 0 }
+      }
+
+      failedLogs = fallbackQuery.data || []
+    } else {
+      failedLogs = primaryQuery.data || []
     }
 
     let succeeded = 0
     let failed = 0
 
-    const eligibleLogs = (failedLogs || []).filter((log: any) => {
-      if (!log.last_attempted_at) return true
+    const eligibleLogs = failedLogs.filter((log: any) => {
+      const attempts = typeof log.transfer_attempts === 'number' ? log.transfer_attempts : null
+      if (attempts !== null && attempts >= 3) return false
 
-      const attemptedAtMs = new Date(log.last_attempted_at).getTime()
+      const attemptedAtRaw = log.last_attempted_at || log.failed_at || log.created_at
+      if (!attemptedAtRaw) return false
+
+      const attemptedAtMs = new Date(attemptedAtRaw).getTime()
       if (Number.isNaN(attemptedAtMs)) {
-        console.warn('[CommissionService] Skipping invalid last_attempted_at value', {
+        console.warn('[CommissionService] Skipping invalid retry timestamp value', {
           commissionLogId: log.id,
-          lastAttemptedAt: log.last_attempted_at,
+          attemptedAtRaw,
         })
         return false
       }
