@@ -157,12 +157,13 @@ export const commissionService = {
    * Attempts to re-transfer commissions that failed
    */
   async retryFailedTransfers() {
+    const retryCutoffIso = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+
     const { data: failedLogs, error } = await supabaseAdmin
       .from('commission_logs')
       .select('*')
       .eq('status', 'failed')
       .lt('transfer_attempts', 3)  // Max 3 attempts
-      .lt('last_attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())  // At least 1hr since last attempt
 
     if (error) {
       console.error('[CommissionService] Failed to fetch failed transfers:', error)
@@ -172,7 +173,12 @@ export const commissionService = {
     let succeeded = 0
     let failed = 0
 
-    for (const log of failedLogs || []) {
+    const eligibleLogs = (failedLogs || []).filter((log: any) => {
+      if (!log.last_attempted_at) return true
+      return new Date(log.last_attempted_at).toISOString() < retryCutoffIso
+    })
+
+    for (const log of eligibleLogs) {
       if (!log.stripe_account_id) {
         continue
       }
@@ -191,7 +197,7 @@ export const commissionService = {
     }
 
     return {
-      retried: (failedLogs?.length || 0),
+      retried: eligibleLogs.length,
       succeeded,
       failed,
     }
