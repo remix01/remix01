@@ -104,6 +104,33 @@ function PrijavaContent() {
 
         if (!active) return
         setStrankaLoading(true)
+
+        // Create the profiles row if this is a first Google OAuth sign-in.
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', session.user.id)
+          .maybeSingle()
+
+        if (!existingProfile) {
+          let intendedRole: 'narocnik' | 'obrtnik' = 'narocnik'
+          try {
+            const stored = sessionStorage.getItem('oauth_intended_role')
+            if (stored === 'obrtnik') intendedRole = 'obrtnik'
+            sessionStorage.removeItem('oauth_intended_role')
+          } catch {}
+
+          await supabase.from('profiles').insert({
+            id: session.user.id,
+            role: intendedRole,
+            email: session.user.email ?? null,
+            full_name:
+              session.user.user_metadata?.full_name ??
+              session.user.user_metadata?.name ??
+              null,
+          })
+        }
+
         await routeAuthenticatedUser(session.user.id)
       } catch {
         if (!active) return

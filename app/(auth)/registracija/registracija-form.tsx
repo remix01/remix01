@@ -133,6 +133,10 @@ export function RegistracijaForm() {
     setGoogleLoading(true)
 
     try {
+      // Persist the role choice across the OAuth redirect so the callback
+      // can create the profiles row with the correct role.
+      try { sessionStorage.setItem('oauth_intended_role', selectedRole) } catch {}
+
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
