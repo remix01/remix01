@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
       }
 
-      const pov = task.povprasevanja as { narocnik_id: string } | null
+      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
       if (!pov || pov.narocnik_id !== user.id) {
         return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
       }
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
       }
 
-      const pov = task.povprasevanja as { narocnik_id: string } | null
+      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
       if (!pov || pov.narocnik_id !== user.id) {
         return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
       }
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
       }
 
-      const pov = task.povprasevanja as { narocnik_id: string } | null
+      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
       if (!pov || pov.narocnik_id !== user.id) {
         return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
       }
