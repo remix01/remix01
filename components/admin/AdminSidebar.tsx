@@ -158,7 +158,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   }
 
   return (
-    <div className="h-full w-64 border-r bg-card p-4 md:p-6 flex flex-col">
+    <div className="flex h-full w-full max-w-64 flex-col border-r bg-card p-4 md:p-6">
       <div className="mb-5">
         <h1 className="font-display text-2xl font-bold text-primary">
           Lift<span className="text-accent">GO</span>

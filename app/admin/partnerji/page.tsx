@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { Download, AlertCircle } from 'lucide-react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -22,6 +23,10 @@ interface PageProps {
 export default async function PartnerjiPage({ searchParams }: PageProps) {
   const { search = '', status = '', page: pageParam = '1' } = await searchParams
   const page = Number(pageParam) || 1
+  const exportParams = new URLSearchParams()
+
+  if (search) exportParams.set('search', search)
+  if (status) exportParams.set('status', status)
 
   const [{ partnerji, total, pages }, pendingData, categories] = await Promise.all([
     getPartnerji(search, status || undefined, 'createdAt', page, 25),
@@ -35,16 +40,18 @@ export default async function PartnerjiPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Partnerji</h1>
           <p className="text-muted-foreground">Upravljanje z vsemi partnerji</p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
           <DodajPartnerjaModal categories={categories} />
-          <Button variant="outline" className="gap-2">
+          <Button asChild variant="outline" className="w-full gap-2">
+            <Link href={`/api/admin/partnerji/export?${exportParams.toString()}`}>
             <Download className="h-4 w-4" />
             Izvozi CSV
+            </Link>
           </Button>
         </div>
       </div>
