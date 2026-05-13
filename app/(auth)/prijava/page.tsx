@@ -105,6 +105,13 @@ function PrijavaContent() {
         if (!active) return
         setStrankaLoading(true)
 
+        let intendedRole: 'narocnik' | 'obrtnik' = 'narocnik'
+        try {
+          const stored = sessionStorage.getItem('oauth_intended_role')
+          if (stored === 'obrtnik') intendedRole = 'obrtnik'
+          sessionStorage.removeItem('oauth_intended_role')
+        } catch {}
+
         // Create the profiles row if this is a first Google OAuth sign-in.
         const { data: existingProfile } = await supabase
           .from('profiles')
@@ -113,13 +120,6 @@ function PrijavaContent() {
           .maybeSingle()
 
         if (!existingProfile) {
-          let intendedRole: 'narocnik' | 'obrtnik' = 'narocnik'
-          try {
-            const stored = sessionStorage.getItem('oauth_intended_role')
-            if (stored === 'obrtnik') intendedRole = 'obrtnik'
-            sessionStorage.removeItem('oauth_intended_role')
-          } catch {}
-
           await supabase.from('profiles').insert({
             id: session.user.id,
             role: intendedRole,
@@ -129,6 +129,17 @@ function PrijavaContent() {
               session.user.user_metadata?.name ??
               null,
           })
+
+          if (intendedRole === 'obrtnik') {
+            await supabase.from('obrtnik_profiles').insert({
+              id: session.user.id,
+              business_name:
+                session.user.user_metadata?.full_name ??
+                session.user.user_metadata?.name ??
+                session.user.email ??
+                'Novi partner',
+            })
+          }
         }
 
         await routeAuthenticatedUser(session.user.id)
