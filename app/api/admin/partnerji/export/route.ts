@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 
 export async function GET(req: Request) {
-  const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    await requireAdmin()
+  } catch (error) {
+    const failure = toAdminAuthFailure(error)
+    return NextResponse.json({ error: failure.message }, { status: failure.status })
+  }
 
   const { searchParams } = new URL(req.url)
   const search = searchParams.get('search')?.trim().toLowerCase()
