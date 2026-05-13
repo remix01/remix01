@@ -1,13 +1,15 @@
 /**
  * Task Orchestrator Integration - Main entry point
- * 
+ *
  * This route integrates the Task Orchestrator with the Liquidity Engine.
  * When creating a task, automatically triggers matching and broadcasts.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { taskOrchestrator } from '@/lib/services'
+import { paymentService } from '@/lib/services'
 import { liquidityEngine } from '@/lib/marketplace/liquidityEngine'
 
 export async function POST(request: NextRequest) {
@@ -19,19 +21,13 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Route to appropriate orchestrator action
     if (action === 'create_task') {
-      // Create new task
       const task = await taskOrchestrator.createTask(data)
-      
-      // Trigger Liquidity Engine — auto-matching, broadcast, instant offers
-      // Fire and forget — don't block API response
+
       liquidityEngine.onNewRequest(
         data.requestId,
         data.lat,
@@ -40,62 +36,183 @@ export async function POST(request: NextRequest) {
         user.id
       ).catch(err => {
         console.error('[tasks] Liquidity engine error:', err)
-        // Log but don't fail — task was already created
       })
 
       return NextResponse.json({ success: true, data: task })
     }
 
     if (action === 'accept_offer') {
-      // Accept offer — orchestrator will enqueue escrow creation
-      // This endpoint just triggers the orchestrator state transition
-      // TODO: Implement full accept_offer flow with orchestrator
-      return NextResponse.json(
-        { error: 'Not yet implemented' },
-        { status: 501 }
-      )
+      const { ponudbaId } = data
+
+      if (!taskId || !ponudbaId) {
+        return NextResponse.json({ error: 'taskId and ponudbaId are required' }, { status: 400 })
+      }
+
+      // Verify user owns the task via povprasevanja
+      const { data: task, error: taskError } = await supabaseAdmin
+        .from('service_requests')
+        .select('id, status, povprasevanje_id, povprasevanja(narocnik_id)')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError || !task) {
+        return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
+      }
+
+      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
+      if (!pov || pov.narocnik_id !== user.id) {
+        return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
+      }
+
+      // Fetch ponudba
+      const { data: ponudba, error: ponudbaError } = await supabaseAdmin
+        .from('ponudbe')
+        .select('id, obrtnik_id, price_estimate, povprasevanje_id')
+        .eq('id', ponudbaId)
+        .eq('povprasevanje_id', task.povprasevanje_id)
+        .single()
+
+      if (ponudbaError || !ponudba) {
+        return NextResponse.json({ error: 'Ponudba ni bila najdena' }, { status: 404 })
+      }
+
+      // Mark ponudba as accepted
+      await supabaseAdmin
+        .from('ponudbe')
+        .update({ status: 'sprejeta' })
+        .eq('id', ponudbaId)
+
+      // Reject other ponudbe for this povprasevanje
+      await supabaseAdmin
+        .from('ponudbe')
+        .update({ status: 'zavrnjena' })
+        .eq('povprasevanje_id', task.povprasevanje_id)
+        .neq('id', ponudbaId)
+
+      await taskOrchestrator.updateTaskStatus(taskId, 'accepted', {
+        customerId: user.id,
+        partnerId: ponudba.obrtnik_id,
+        offerId: ponudbaId,
+        agreedPrice: ponudba.price_estimate ?? 0,
+        amount: ponudba.price_estimate ?? 0,
+      })
+
+      return NextResponse.json({ success: true, data: { taskId, ponudbaId } })
     }
 
     if (action === 'start_task') {
-      // Mark task as started — orchestrator will enqueue job
-      // TODO: Implement start_task flow
-      return NextResponse.json(
-        { error: 'Not yet implemented' },
-        { status: 501 }
-      )
+      if (!taskId) {
+        return NextResponse.json({ error: 'taskId is required' }, { status: 400 })
+      }
+
+      // Verify user is the obrtnik assigned to this task
+      const { data: task, error: taskError } = await supabaseAdmin
+        .from('service_requests')
+        .select('id, status, povprasevanje_id')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError || !task) {
+        return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
+      }
+
+      // Find the accepted ponudba to verify the user is the assigned obrtnik
+      const { data: ponudba } = await supabaseAdmin
+        .from('ponudbe')
+        .select('obrtnik_id')
+        .eq('povprasevanje_id', task.povprasevanje_id)
+        .eq('status', 'sprejeta')
+        .single()
+
+      if (!ponudba || ponudba.obrtnik_id !== user.id) {
+        return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
+      }
+
+      await taskOrchestrator.updateTaskStatus(taskId, 'in_progress')
+
+      return NextResponse.json({ success: true, data: { taskId } })
     }
 
     if (action === 'complete_task') {
-      // Mark task as completed — orchestrator will enqueue escrow release
-      // TODO: Implement complete_task flow
-      return NextResponse.json(
-        { error: 'Not yet implemented' },
-        { status: 501 }
-      )
+      if (!taskId) {
+        return NextResponse.json({ error: 'taskId is required' }, { status: 400 })
+      }
+
+      // Verify user owns the task (narocnik confirms completion)
+      const { data: task, error: taskError } = await supabaseAdmin
+        .from('service_requests')
+        .select('id, status, povprasevanje_id, povprasevanja(narocnik_id)')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError || !task) {
+        return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
+      }
+
+      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
+      if (!pov || pov.narocnik_id !== user.id) {
+        return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
+      }
+
+      // Get accepted ponudba for partner + price info
+      const { data: ponudba } = await supabaseAdmin
+        .from('ponudbe')
+        .select('obrtnik_id, price_estimate')
+        .eq('povprasevanje_id', task.povprasevanje_id)
+        .eq('status', 'sprejeta')
+        .single()
+
+      if (!ponudba) {
+        return NextResponse.json({ error: 'Sprejeta ponudba ni bila najdena' }, { status: 400 })
+      }
+
+      await taskOrchestrator.updateTaskStatus(taskId, 'completed', {
+        customerId: user.id,
+        partnerId: ponudba.obrtnik_id,
+        finalPrice: ponudba.price_estimate ?? 0,
+      })
+
+      return NextResponse.json({ success: true, data: { taskId } })
     }
 
     if (action === 'get_task') {
-      // Fetch task by ID
-      // TODO: Implement get_task
-      return NextResponse.json(
-        { error: 'Not yet implemented' },
-        { status: 501 }
-      )
+      if (!taskId) {
+        return NextResponse.json({ error: 'taskId is required' }, { status: 400 })
+      }
+
+      const { data: task, error } = await supabaseAdmin
+        .from('service_requests')
+        .select('*, povprasevanja(narocnik_id, title, description)')
+        .eq('id', taskId)
+        .single()
+
+      if (error || !task) {
+        return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
+      }
+
+      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
+      if (!pov || pov.narocnik_id !== user.id) {
+        return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
+      }
+
+      return NextResponse.json({ success: true, data: task })
     }
 
     if (action === 'list_tasks') {
-      // List user's tasks
-      // TODO: Implement list_tasks
-      return NextResponse.json(
-        { error: 'Not yet implemented' },
-        { status: 501 }
-      )
+      const { data: tasks, error } = await supabaseAdmin
+        .from('service_requests')
+        .select('*, povprasevanja(title, description)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return NextResponse.json({ error: 'Napaka pri nalaganju nalog' }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, data: tasks ?? [] })
     }
 
-    return NextResponse.json(
-      { error: 'Unknown action' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   } catch (error) {
     console.error('[tasks] error:', error)
     return NextResponse.json(

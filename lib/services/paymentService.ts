@@ -10,6 +10,7 @@ import { createPaymentIntent } from '@/lib/mcp/payments'
 import { ServiceError } from './serviceError'
 import { eventBus } from '@/lib/events'
 import { getCommissionRate } from '@/lib/stripe/helpers'
+import { stripe } from '@/lib/stripe/client'
 import type { PlanType } from '@/lib/stripe/config'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 
@@ -115,23 +116,40 @@ export const paymentService = {
    */
   async releasePayment(taskId: string, partnerId: string, amount: number) {
     const supabase = await createClient()
-    const { data: partnerProfile } = await supabase
-      .from('profiles')
-      .select('subscription_tier')
-      .eq('id', partnerId)
-      .single()
+
+    const [{ data: partnerProfile }, { data: obrtnikProfile }] = await Promise.all([
+      supabase.from('profiles').select('subscription_tier').eq('id', partnerId).single(),
+      supabase.from('obrtnik_profiles').select('stripe_account_id').eq('id', partnerId).single(),
+    ])
 
     const plan: PlanType = partnerProfile?.subscription_tier === 'pro' ? 'PRO' : 'START'
     const commissionPercent = getCommissionRate(plan)
     const commissionAmount = Math.round(amount * (commissionPercent / 100) * 100) / 100
     const netAmount = amount - commissionAmount
+    const netAmountCents = Math.round(netAmount * 100)
 
-    // TODO: Call Stripe transfer API
-    // const transfer = await stripe.transfers.create({
-    //   amount: Math.round(netAmount * 100),
-    //   destination: partnerStripeAccountId,
-    // })
+    let stripeTransferId: string | undefined
 
+    if (obrtnikProfile?.stripe_account_id) {
+      const transfer = await (stripe as any).transfers.create({
+        amount: netAmountCents,
+        currency: 'eur',
+        destination: obrtnikProfile.stripe_account_id,
+        metadata: { taskId, partnerId },
+        description: `LiftGO izplačilo za nalogo ${taskId}`,
+      })
+      stripeTransferId = transfer.id
+
+      await supabase.from('payouts').insert({
+        obrtnik_id: partnerId,
+        amount_eur: amount,
+        commission_eur: commissionAmount,
+        stripe_transfer_id: transfer.id,
+        status: 'completed',
+      })
+    } else {
+      console.warn(`[paymentService] Obrtnik ${partnerId} nima Stripe računa — izplačilo preskočeno`)
+    }
 
     trackFunnelEvent(FUNNEL_EVENTS.PAYMENT_COMPLETED, {
       povprasevanje_id: taskId,
@@ -139,7 +157,6 @@ export const paymentService = {
       obrtnik_id: partnerId,
     }, partnerId)
 
-    // Emit event for subscribers
     await eventBus.emit('payment.released', {
       taskId,
       partnerId,
@@ -147,7 +164,7 @@ export const paymentService = {
       commission: commissionAmount,
       netAmount,
       releasedAt: new Date().toISOString(),
-      // stripeTransferId: transfer.id,
+      stripeTransferId,
     })
 
     return {
@@ -156,6 +173,7 @@ export const paymentService = {
       amount,
       commission: commissionAmount,
       netAmount,
+      stripeTransferId,
     }
   },
 }

@@ -37,6 +37,13 @@ export const stripe = {
   refunds: {
     create: (...args: [params: any, options?: any]) => getStripeClient().refunds.create(...args),
   },
+  transfers: {
+    create: (...args: [params: any, options?: any]) => getStripeClient().transfers.create(...args),
+    retrieve: (...args: [id: any, params?: any, options?: any]) => getStripeClient().transfers.retrieve(...args),
+  },
+  accounts: {
+    retrieve: (...args: [id: any, params?: any, options?: any]) => getStripeClient().accounts.retrieve(...args),
+  },
   webhooks: {
     constructEvent: (payload: string | Buffer, sig: string, secret: string) =>
       getStripeClient().webhooks.constructEvent(payload, sig, secret),
