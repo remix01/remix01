@@ -43,8 +43,14 @@ export function registerEscrowSubscriber() {
       const skip = await idempotency.checkAndMark('task.completed', 'escrow', payload.taskId)
       if (skip) return
 
-      console.log('[EscrowSubscriber] Scheduling escrow release for task:', payload.taskId)
-      // TODO: Implement if scheduleEscrowRelease method exists in paymentService
+      if (!payload.partnerId || !payload.finalPrice) {
+        console.warn('[EscrowSubscriber] Missing partnerId or finalPrice on task.completed:', payload.taskId)
+        return
+      }
+
+      console.log('[EscrowSubscriber] Releasing escrow for task:', payload.taskId)
+      await paymentService.releasePayment(payload.taskId, payload.partnerId, payload.finalPrice)
+      console.log('[EscrowSubscriber] Escrow released for task:', payload.taskId)
     } catch (err) {
       console.error('[EscrowSubscriber] Error on task.completed:', err)
     }
