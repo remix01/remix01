@@ -880,8 +880,28 @@ export async function setUserRole(
 ): Promise<{ success: boolean; error?: string }> {
   await ensureAdminAccess()
 
-  const { error } = await supabaseAdmin.from('profiles').update({ role }).eq('id', id)
-  if (error) return { success: false, error: error.message }
+  const { data: existing } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (existing) {
+    const { error } = await supabaseAdmin.from('profiles').update({ role }).eq('id', id)
+    if (error) return { success: false, error: error.message }
+  } else {
+    // No profiles row — happens for Google/OAuth users who bypassed /api/registracija.
+    // Fetch identity data from auth.users and create the row now.
+    const { data: authData } = await supabaseAdmin.auth.admin.getUserById(id)
+    const u = authData?.user
+    const { error } = await supabaseAdmin.from('profiles').insert({
+      id,
+      role,
+      email: u?.email ?? null,
+      full_name: u?.user_metadata?.full_name ?? u?.user_metadata?.name ?? null,
+    })
+    if (error) return { success: false, error: error.message }
+  }
 
   if (role === 'obrtnik') {
     const { data: profile } = await supabaseAdmin
