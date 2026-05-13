@@ -76,7 +76,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Ponudba ni bila najdena' }, { status: 404 })
       }
 
-      // Mark ponudba as accepted
+      // Validate transition before mutating any offer rows.
+      // accepted is only reachable from offer_sent; matched→offer_sent is the
+      // normal path when a craftsman submits a ponudba via the queue worker, but
+      // the customer can accept directly while the task is still in matched.
+      const currentStatus = task.status as import('@/lib/services/taskOrchestrator').TaskStatus
+      if (currentStatus !== 'offer_sent' && currentStatus !== 'matched') {
+        return NextResponse.json(
+          { error: `Neveljavno stanje naloge za sprejem ponudbe: ${currentStatus}` },
+          { status: 409 }
+        )
+      }
+
+      // Advance to offer_sent so the orchestrator accepts the next transition.
+      if (currentStatus === 'matched') {
+        await taskOrchestrator.updateTaskStatus(taskId, 'offer_sent')
+      }
+
+      // Only mutate offer rows after the state machine gate has passed.
       await supabaseAdmin
         .from('ponudbe')
         .update({ status: 'sprejeta' })
