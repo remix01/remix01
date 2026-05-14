@@ -68,7 +68,7 @@ export function parseLocation(location: string): { lat: number; lon: number } | 
 export function filterWorkersByLocation(
   workers: WorkerStats[],
   taskLocation: string,
-  radiusKm: number = MATCHING_RULES.CONSIDER_WITHIN_RADIUS_KM
+  radiusKm: number = MATCHING_RULES.DEFAULT_SERVICE_RADIUS_KM
 ): WorkerStats[] {
   const taskCoords = parseLocation(taskLocation)
 

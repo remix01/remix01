@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     // Chunk digests into batches of 100 to respect sendBatchEmails limit
     const BATCH_SIZE = 100
     if (activeProviders.length > BATCH_SIZE) {
-      const chunks = []
+      const chunks: (typeof activeProviders)[] = []
       for (let i = 0; i < activeProviders.length; i += BATCH_SIZE) {
         chunks.push(activeProviders.slice(i, i + BATCH_SIZE))
       }

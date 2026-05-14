@@ -35,28 +35,23 @@ export async function POST(
       throw new Error('Supabase client not initialized')
     }
 
-    // Call backend RPC function for task expiry
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('expire_task', {
-      task_id: taskId,
-      reason: expireReason,
-    })
+    // Expire task via direct table update
+    const { data: task, error: rpcError } = await supabase
+      .from('tasks')
+      .update({ status: 'expired' })
+      .eq('id', taskId)
+      .select()
+      .single()
 
-    const result = rpcResult as { success: boolean; message?: string; task?: unknown } | null
-
-    if (rpcError) {
-      console.error('[v0] RPC error in expire_task:', rpcError)
+    if (rpcError || !task) {
+      console.error('[v0] Error expiring task:', rpcError)
       return NextResponse.json(
         { error: 'Failed to expire task', details: rpcError },
         { status: 400 }
       )
     }
 
-    if (!result || !result.success) {
-      return NextResponse.json(
-        { error: result?.message || 'Expiry failed' },
-        { status: 400 }
-      )
-    }
+    const result = { success: true, task }
 
     console.log('[v0] Task expired successfully:', {
       taskId,

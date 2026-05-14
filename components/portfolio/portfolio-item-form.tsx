@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { X, Upload, ArrowUp, ArrowDown, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -192,7 +192,7 @@ export function PortfolioItemForm({
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
               placeholder="npr. Preurejanje kopalnice"
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
@@ -203,7 +203,7 @@ export function PortfolioItemForm({
             <label className="block text-sm font-medium text-foreground mb-2">Kategorija</label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">Izberite...</option>
@@ -219,7 +219,7 @@ export function PortfolioItemForm({
             <label className="block text-sm font-medium text-foreground mb-2">Opis</label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value.slice(0, 500))}
               placeholder="Opišite projekt..."
               maxLength={500}
               rows={3}
@@ -234,7 +234,7 @@ export function PortfolioItemForm({
             <input
               type="date"
               value={completedAt}
-              onChange={(e) => setCompletedAt(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setCompletedAt(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
@@ -246,7 +246,7 @@ export function PortfolioItemForm({
               <input
                 type="number"
                 value={durationDays}
-                onChange={(e) => setDurationDays(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setDurationDays(e.target.value)}
                 placeholder="npr. 5"
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
@@ -256,7 +256,7 @@ export function PortfolioItemForm({
               <input
                 type="number"
                 value={priceApprox}
-                onChange={(e) => setPriceApprox(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setPriceApprox(e.target.value)}
                 placeholder="npr. 500"
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
@@ -269,7 +269,7 @@ export function PortfolioItemForm({
             <input
               type="text"
               value={locationCity}
-              onChange={(e) => setLocationCity(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setLocationCity(e.target.value)}
               placeholder="npr. Ljubljana"
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
@@ -309,7 +309,7 @@ export function PortfolioItemForm({
             {/* Previews */}
             {imageUrls.length > 0 && (
               <div className="mt-4 space-y-2">
-                {imageUrls.map((url, idx) => (
+                {imageUrls.map((url: string, idx: number) => (
                   <div
                     key={idx}
                     className="flex items-center gap-3 p-2 bg-gray-50 rounded border relative"
@@ -347,7 +347,7 @@ export function PortfolioItemForm({
                         </button>
                       )}
                       <button
-                        onClick={() => setImageUrls(imageUrls.filter((_, i) => i !== idx))}
+                        onClick={() => setImageUrls(imageUrls.filter((_: string, i: number) => i !== idx))}
                         className="p-1 hover:bg-white rounded"
                       >
                         <X className="w-4 h-4" />

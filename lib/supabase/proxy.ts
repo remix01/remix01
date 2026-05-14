@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 import { env } from '../env'
 
 export async function updateSession(request: NextRequest) {
@@ -39,7 +40,7 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: If you remove getUser() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
   
-  let user = null
+  let user: User | null = null
   try {
     const { data: { user: authUser }, error } = await supabase.auth.getUser()
     
