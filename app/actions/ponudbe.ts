@@ -122,8 +122,8 @@ export async function acceptPonudbaAction(
         narocnikId: user.id,
         obrtknikId: ponudbaData.obrtnik_id,
         title: povprasevanje.title,
-        description: povprasevanje.description,
-        locationCity: povprasevanje.location_city,
+        description: povprasevanje.description ?? '',
+        locationCity: povprasevanje.location_city ?? '',
         startDateTime: startDateTime.toISOString(),
         endDateTime: endDateTime.toISOString(),
         ponudbaId
