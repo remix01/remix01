@@ -118,14 +118,23 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = createAdminClient()
-    const { data, error } = await supabase
+    const { data: rawData, error } = await (supabase as any)
       .from('obrtnik_profiles')
       .select('is_online, is_busy, last_seen_at, max_active_leads, active_lead_count, service_radius_km')
       .eq('id', user.id)
       .single()
 
-    if (error || !data) {
+    if (error || !rawData) {
       return NextResponse.json({ error: 'Profil ne obstaja' }, { status: 404 })
+    }
+
+    const data = rawData as {
+      is_online: boolean
+      is_busy: boolean
+      last_seen_at: string | null
+      max_active_leads: number
+      active_lead_count: number
+      service_radius_km: number
     }
 
     return NextResponse.json({
