@@ -69,15 +69,17 @@ export async function POST(req: NextRequest) {
     const tier = (profile?.subscription_tier as string) || 'start'
     const maxLeads = TIER_MAX_LEADS[tier.toLowerCase()] ?? 3
 
-    // Update availability
+    // Update availability (cast needed until generated types are regenerated)
+    const availabilityUpdate = {
+      is_online: isOnline,
+      is_busy: isBusy,
+      last_seen_at: new Date().toISOString(),
+      max_active_leads: maxLeads,
+    } as Record<string, unknown>
+
     const { error: updateError } = await supabase
       .from('obrtnik_profiles')
-      .update({
-        is_online: isOnline,
-        is_busy: isBusy,
-        last_seen_at: new Date().toISOString(),
-        max_active_leads: maxLeads,
-      })
+      .update(availabilityUpdate as any)
       .eq('id', user.id)
 
     if (updateError) {
