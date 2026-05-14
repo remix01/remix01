@@ -15,6 +15,7 @@ import { writeEmailLog } from '@/lib/email/email-logs'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { newRequestMatchedEmail } from '@/lib/email/notification-templates'
+import { createHash } from 'crypto'
 
 type PublicInquiryBody = {
   storitev?: unknown
@@ -30,6 +31,8 @@ type PublicInquiryBody = {
   company_url?: unknown
   user_id?: unknown
 }
+
+type LeadStatus = 'new' | 'matched' | 'opened' | 'accepted' | 'quoted' | 'completed' | 'cancelled' | 'expired'
 
 function successResponse<T extends Record<string, unknown>>(legacy: T, status = 200) {
   return NextResponse.json(
@@ -191,22 +194,51 @@ async function resolveLocationName(locationName: string): Promise<string> {
 async function hasRecentDuplicateInquiry(input: {
   storitev: string
   lokacija: string
+  opis?: string
   stranka_email?: string
   stranka_telefon?: string
+  fingerprint: string
 }): Promise<boolean> {
-  const since = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-
-  if (!input.stranka_email && !input.stranka_telefon) return false
+  const debounceSince = new Date(Date.now() - 90 * 1000).toISOString()
+  const duplicateSince = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  const contactSince = new Date(Date.now() - 30 * 60 * 1000).toISOString()
 
   try {
+    if (!input.stranka_email && !input.stranka_telefon) {
+      const { data } = await supabaseAdmin
+        .from('povprasevanja')
+        .select('id')
+        .eq('lead_fingerprint', input.fingerprint)
+        .gte('created_at', duplicateSince)
+        .limit(1)
+      return !!data?.length
+    }
+
+    // 1) Hard debounce by exact fingerprint
+    const { data: debounceMatch } = await supabaseAdmin
+      .from('povprasevanja')
+      .select('id')
+      .eq('lead_fingerprint', input.fingerprint)
+      .gte('created_at', debounceSince)
+      .limit(1)
+    if (debounceMatch && debounceMatch.length > 0) return true
+
+    // 2) Duplicate detection by same lead fingerprint in last 15 min
+    const { data: fingerprintMatch } = await supabaseAdmin
+      .from('povprasevanja')
+      .select('id')
+      .eq('lead_fingerprint', input.fingerprint)
+      .gte('created_at', duplicateSince)
+      .limit(1)
+    if (fingerprintMatch && fingerprintMatch.length > 0) return true
+
+    // 3) Contact-level duplicate detection in last 30 min
     if (input.stranka_email) {
       const { data, error } = await supabaseAdmin
         .from('povprasevanja')
         .select('id')
-        .eq('title', input.storitev)
-        .eq('location_city', input.lokacija)
         .eq('stranka_email', input.stranka_email)
-        .gte('created_at', since)
+        .gte('created_at', contactSince)
         .limit(1)
 
       if (!error && data && data.length > 0) return true
@@ -216,10 +248,8 @@ async function hasRecentDuplicateInquiry(input: {
       const { data, error } = await supabaseAdmin
         .from('povprasevanja')
         .select('id')
-        .eq('title', input.storitev)
-        .eq('location_city', input.lokacija)
         .eq('stranka_telefon', input.stranka_telefon)
-        .gte('created_at', since)
+        .gte('created_at', contactSince)
         .limit(1)
 
       if (!error && data && data.length > 0) return true
@@ -229,6 +259,60 @@ async function hasRecentDuplicateInquiry(input: {
   }
 
   return false
+}
+
+function normalizePhone(phone?: string): string | undefined {
+  if (!phone) return undefined
+  const normalized = phone.replace(/[^\d+]/g, '')
+  return normalized || undefined
+}
+
+function buildLeadFingerprint(input: {
+  storitev: string
+  lokacija: string
+  opis: string
+  stranka_email?: string
+  stranka_telefon?: string
+}): string {
+  const seed = [
+    input.storitev.trim().toLowerCase(),
+    input.lokacija.trim().toLowerCase(),
+    input.opis.trim().toLowerCase().slice(0, 280),
+    input.stranka_email?.trim().toLowerCase() || '',
+    normalizePhone(input.stranka_telefon) || '',
+  ].join('|')
+
+  return createHash('sha256').update(seed).digest('hex')
+}
+
+async function writeLeadAuditEvent(payload: {
+  povprasevanjeId: string
+  status: LeadStatus
+  actorType: 'customer' | 'contractor' | 'system'
+  actorId?: string | null
+  responseTimeMs?: number
+  metadata?: Record<string, unknown>
+}) {
+  await supabaseAdmin.from('lead_audit_log').insert({
+    povprasevanje_id: payload.povprasevanjeId,
+    status: payload.status,
+    actor_type: payload.actorType,
+    actor_id: payload.actorId ?? null,
+    response_time_ms: payload.responseTimeMs ?? null,
+    metadata: payload.metadata ?? {},
+    conversion: payload.status === 'accepted' || payload.status === 'quoted' || payload.status === 'completed',
+  })
+}
+
+async function updateLeadStatusSafe(povprasevanjeId: string, leadStatus: LeadStatus) {
+  const result = await supabaseAdmin
+    .from('povprasevanja')
+    .update({ lead_status: leadStatus } as any)
+    .eq('id', povprasevanjeId)
+
+  if (result.error) {
+    console.warn('[public] lead_status update skipped', result.error)
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -308,12 +392,22 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedLocation = await resolveLocationName(lokacija)
+    const normalizedPhone = normalizePhone(stranka_telefon)
+    const leadFingerprint = buildLeadFingerprint({
+      storitev,
+      lokacija: normalizedLocation,
+      opis,
+      stranka_email,
+      stranka_telefon: normalizedPhone,
+    })
 
     const isDuplicate = await hasRecentDuplicateInquiry({
       storitev,
       lokacija: normalizedLocation,
+      opis,
       stranka_email,
-      stranka_telefon,
+      stranka_telefon: normalizedPhone,
+      fingerprint: leadFingerprint,
     })
 
     if (isDuplicate) {
@@ -332,7 +426,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (stranka_email) modernInsertData.stranka_email = stranka_email
-    if (stranka_telefon) modernInsertData.stranka_telefon = stranka_telefon
+    if (normalizedPhone) modernInsertData.stranka_telefon = normalizedPhone
     if (stranka_ime) modernInsertData.stranka_ime = stranka_ime
 
     let { data, error } = await supabaseAdmin
@@ -340,6 +434,14 @@ export async function POST(request: NextRequest) {
       .insert(modernInsertData)
       .select('id')
       .single()
+
+    const shouldRetryWithModernPlusLeadColumns =
+      !error &&
+      !!data &&
+      (await supabaseAdmin
+        .from('povprasevanja')
+        .update({ lead_status: 'new', lead_fingerprint: leadFingerprint } as any)
+        .eq('id', data.id)).error === null
 
     const shouldRetryWithLegacySchema =
       !!error &&
@@ -367,7 +469,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (stranka_email) legacyInsertData.stranka_email = stranka_email
-      if (stranka_telefon) legacyInsertData.stranka_telefon = stranka_telefon
+      if (normalizedPhone) legacyInsertData.stranka_telefon = normalizedPhone
 
       const retryResult = await supabaseAdmin
         .from('povprasevanja')
@@ -515,6 +617,22 @@ export async function POST(request: NextRequest) {
       return errorResponse('Napaka pri shranjevanju', 500, 'MISSING_INSERT_ROW')
     }
 
+    if (!shouldRetryWithModernPlusLeadColumns && data?.id) {
+      await updateLeadStatusSafe(data.id, 'new')
+    }
+
+    await writeLeadAuditEvent({
+      povprasevanjeId: data.id,
+      status: 'new',
+      actorType: 'system',
+      actorId: null,
+      metadata: {
+        requestId,
+        location: normalizedLocation,
+        actor_source: 'public_unauthenticated_endpoint',
+      },
+    }).catch((error) => console.warn('[public] lead audit log write failed', error))
+
     trackFunnelEvent(FUNNEL_EVENTS.POVPRASEVANJE_SUBMITTED, {
       povprasevanje_id: data.id,
       category: storitev,
@@ -561,7 +679,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return successResponse({ success: true, id: data.id })
+    return successResponse({ success: true, id: data.id, lead_status: 'new' })
   } catch (err) {
     console.error('[public] Unexpected error:', { requestId, error: err })
     return errorResponse('Napaka strežnika', 500, 'INTERNAL_SERVER_ERROR')
