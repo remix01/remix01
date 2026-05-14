@@ -32,6 +32,11 @@ type UserProfile = {
   location_city: string | null
 }
 
+function coerceSubscriptionTier(value: string | null | undefined): PartnerProfile['subscription_tier'] {
+  if (value === 'start' || value === 'pro' || value === 'elite') return value
+  return null
+}
+
 export default function AccountPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -97,17 +102,31 @@ export default function AccountPage() {
         if (userError) throw userError
 
         if (partnerData) {
-          setPartner(partnerData)
+          const normalizedPartner: PartnerProfile = {
+            id: partnerData.id,
+            business_name: partnerData.business_name ?? '',
+            description: partnerData.description ?? null,
+            tagline: partnerData.tagline ?? null,
+            hourly_rate: partnerData.hourly_rate ?? null,
+            years_experience: partnerData.years_experience ?? null,
+            service_radius_km: partnerData.service_radius_km ?? null,
+            website_url: partnerData.website_url ?? null,
+            facebook_url: partnerData.facebook_url ?? null,
+            instagram_url: partnerData.instagram_url ?? null,
+            subscription_tier: coerceSubscriptionTier(partnerData.subscription_tier),
+          }
+
+          setPartner(normalizedPartner)
           setFormData({
-            business_name: partnerData.business_name || '',
-            description: partnerData.description || '',
-            tagline: partnerData.tagline || '',
-            hourly_rate: partnerData.hourly_rate ? partnerData.hourly_rate.toString() : '',
-            years_experience: partnerData.years_experience ? partnerData.years_experience.toString() : '',
-            service_radius_km: partnerData.service_radius_km ? partnerData.service_radius_km.toString() : '',
-            website_url: partnerData.website_url || '',
-            facebook_url: partnerData.facebook_url || '',
-            instagram_url: partnerData.instagram_url || '',
+            business_name: normalizedPartner.business_name || '',
+            description: normalizedPartner.description || '',
+            tagline: normalizedPartner.tagline || '',
+            hourly_rate: normalizedPartner.hourly_rate ? normalizedPartner.hourly_rate.toString() : '',
+            years_experience: normalizedPartner.years_experience ? normalizedPartner.years_experience.toString() : '',
+            service_radius_km: normalizedPartner.service_radius_km ? normalizedPartner.service_radius_km.toString() : '',
+            website_url: normalizedPartner.website_url || '',
+            facebook_url: normalizedPartner.facebook_url || '',
+            instagram_url: normalizedPartner.instagram_url || '',
             phone: userData?.phone || '',
             location_city: userData?.location_city || '',
           })
