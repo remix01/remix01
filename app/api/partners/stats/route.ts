@@ -45,8 +45,8 @@ export async function GET(request: Request) {
       totalOffers: offers?.length || 0,
       acceptedOffers: offers?.filter(o => o.status === 'accepted').length || 0,
       pendingOffers: offers?.filter(o => o.status === 'pending').length || 0,
-      totalEarnings: payouts?.reduce((sum, p) => sum + (p.amount_eur || 0), 0) || 0,
-      pendingPayouts: payouts?.filter(p => p.status === 'pending').length || 0,
+      totalEarnings: payouts?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0,
+      pendingPayouts: 0,
     }
 
     return NextResponse.json({ success: true, data: stats })

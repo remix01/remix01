@@ -29,8 +29,8 @@ export async function POST(
 
     // 2. Call RPC function - permission and state validation happens in backend
     const { data, error } = await supabase.rpc('publish_task', {
-      task_id: taskId,
-      sla_hours: slaHours,
+      p_task_id: taskId,
+      p_actor_id: user.id,
     })
 
     if (error) {

@@ -26,10 +26,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
   return {
     title: `${povprasevanje.title} | LiftGO`,
-    description: povprasevanje.description.substring(0, 160),
+    description: (povprasevanje.description ?? '').substring(0, 160),
     openGraph: {
       title: povprasevanje.title,
-      description: povprasevanje.description,
+      description: povprasevanje.description ?? '',
       type: 'website',
       locale: 'sl_SI',
       siteName: 'LiftGO',

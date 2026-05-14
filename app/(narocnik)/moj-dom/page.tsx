@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -43,7 +43,9 @@ export default function MojDomPage() {
 
   const addLog = async () => {
     if (!eventName.trim() || !performedAt) return
-    await supabase.from('home_maintenance_log').insert({ event_name: eventName, performed_at: performedAt })
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('home_maintenance_log').insert({ user_id: user.id, event_name: eventName, performed_at: performedAt })
     setEventName('')
     setPerformedAt('')
     await load()
@@ -58,8 +60,8 @@ export default function MojDomPage() {
 
       <Card className="p-4 space-y-3">
         <h2 className="font-semibold">Dodaj vzdrževalni dogodek</h2>
-        <Input value={eventName} onChange={(e) => setEventName(e.target.value)} placeholder="npr. Servis klime" />
-        <Input type="date" value={performedAt} onChange={(e) => setPerformedAt(e.target.value)} />
+        <Input value={eventName} onChange={(e: ChangeEvent<HTMLInputElement>) => setEventName(e.target.value)} placeholder="npr. Servis klime" />
+        <Input type="date" value={performedAt} onChange={(e: ChangeEvent<HTMLInputElement>) => setPerformedAt(e.target.value)} />
         <Button className="bg-teal-600 hover:bg-teal-700" onClick={addLog}>Shrani</Button>
       </Card>
 
@@ -69,7 +71,7 @@ export default function MojDomPage() {
           <p className="text-sm text-muted-foreground">Dodajte nekaj dogodkov za personalizirane nasvete.</p>
         ) : (
           <ul className="list-disc pl-5 text-sm space-y-1">
-            {tips.map((tip) => <li key={tip}>{tip}</li>)}
+            {tips.map((tip: string) => <li key={tip}>{tip}</li>)}
           </ul>
         )}
       </Card>
@@ -77,7 +79,7 @@ export default function MojDomPage() {
       <Card className="p-4">
         <h2 className="font-semibold mb-2">Zgodovina</h2>
         <ul className="space-y-2 text-sm">
-          {items.map((item) => (
+          {items.map((item: LogItem) => (
             <li key={item.id} className="border-b pb-2">{item.event_name} — {new Date(item.performed_at).toLocaleDateString('sl-SI')}</li>
           ))}
         </ul>

@@ -48,11 +48,40 @@ export const NOTIFICATION_CONFIG = {
 
 // Worker matching rules
 export const MATCHING_RULES = {
-  CONSIDER_WITHIN_RADIUS_KM: 10,      // Only match workers within 10km
-  TOP_MATCHES_COUNT: 5,               // Show top 5 matches
-  FILTER_BY_CATEGORY_MATCH: true,    // Only match same category workers
-  CONSIDER_HISTORICAL_RATING: true,  // Weight past ratings
-  REQUIRE_VERIFIED_BADGE: false,     // Don't require verification
+  // Hard radius cap — leads never sent beyond this distance
+  MAX_HARD_RADIUS_KM: 75,
+  // Default service radius per contractor (can be overridden in obrtnik_profiles)
+  DEFAULT_SERVICE_RADIUS_KM: 30,
+  // Number of contractors notified (sequentially, not all at once)
+  TOP_MATCHES_COUNT: 5,
+  // Hours contractor has to respond before lead escalates to next
+  LEAD_SLA_HOURS: 4,
+  // Max active leads per tier (START / PRO / ELITE / ENTERPRISE)
+  MAX_ACTIVE_LEADS_START: 3,
+  MAX_ACTIVE_LEADS_PRO: 10,
+  MAX_ACTIVE_LEADS_ELITE: 20,
+  MAX_ACTIVE_LEADS_ENTERPRISE: 50,
+  // Minimum rating to be eligible for matching
+  MIN_RATING: 3.0,
+  // Require verified status
+  REQUIRE_VERIFIED: true,
+} as const
+
+// Score weights (must sum to 100)
+export const SCORE_WEIGHTS = {
+  CATEGORY: 25,     // Exact category match
+  LOCATION: 25,     // Proximity within service radius
+  RESPONSE: 20,     // Avg response time (hours)
+  RATING: 20,       // Avg review score (0–5 → 0–20 pts)
+  ACTIVITY: 10,     // Online/offline/busy status
+} as const
+
+// Subscription tier boost multipliers
+export const TIER_BOOST = {
+  START: 1.0,
+  PRO: 1.2,
+  ELITE: 1.4,
+  ENTERPRISE: 1.5,
 } as const
 
 // Error codes

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
@@ -249,7 +249,7 @@ export default function ProfilPage() {
           .eq('obrtnik_id', user.id)
           .eq('category_id', categoryId)
 
-        setSelectedCategories(selectedCategories.filter(c => c !== categoryId))
+        setSelectedCategories(selectedCategories.filter((c: string) => c !== categoryId))
       } else {
         // Check if already at max (5)
         if (selectedCategories.length >= 5) {
@@ -375,7 +375,7 @@ export default function ProfilPage() {
               id="firstName"
               type="text"
               value={firstName}
-              onChange={e => setFirstName(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFirstName(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
@@ -385,7 +385,7 @@ export default function ProfilPage() {
               id="lastName"
               type="text"
               value={lastName}
-              onChange={e => setLastName(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setLastName(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
@@ -398,7 +398,7 @@ export default function ProfilPage() {
               id="phone"
               type="tel"
               value={phone}
-              onChange={e => setPhone(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
@@ -408,7 +408,7 @@ export default function ProfilPage() {
               id="city"
               type="text"
               value={locationCity}
-              onChange={e => setLocationCity(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setLocationCity(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
@@ -433,7 +433,7 @@ export default function ProfilPage() {
               id="businessName"
               type="text"
               value={businessName}
-              onChange={e => setBusinessName(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setBusinessName(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               required
             />
@@ -446,7 +446,7 @@ export default function ProfilPage() {
             type="text"
             maxLength={100}
             value={tagline}
-            onChange={e => setTagline(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setTagline(e.target.value)}
             className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             placeholder="npr. Hitro, kvalitetno, zanesljivo"
           />
@@ -458,7 +458,7 @@ export default function ProfilPage() {
             id="description"
             maxLength={1000}
             value={description}
-            onChange={e => setDescription(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
             rows={4}
             className="w-full mt-1 px-3 py-2 border rounded-lg"
             placeholder="Povejte kaj vas naredi posebnega..."
@@ -473,7 +473,7 @@ export default function ProfilPage() {
               type="number"
               step="0.01"
               value={hourlyRate}
-              onChange={e => setHourlyRate(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setHourlyRate(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
@@ -483,7 +483,7 @@ export default function ProfilPage() {
               id="yearsExp"
               type="number"
               value={yearsExperience}
-              onChange={e => setYearsExperience(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setYearsExperience(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
@@ -493,7 +493,7 @@ export default function ProfilPage() {
               id="workingSince"
               type="year"
               value={workingSince}
-              onChange={e => setWorkingSince(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setWorkingSince(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="2010"
             />
@@ -507,7 +507,7 @@ export default function ProfilPage() {
               id="ajpes"
               type="text"
               value={ajpesId}
-              onChange={e => setAjpesId(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setAjpesId(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             />
           </div>
@@ -516,7 +516,7 @@ export default function ProfilPage() {
             <select
               id="response"
               value={responseTime}
-              onChange={e => setResponseTime(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setResponseTime(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             >
               <option value="">Izberite...</option>
@@ -535,7 +535,7 @@ export default function ProfilPage() {
               id="website"
               type="url"
               value={website}
-              onChange={e => setWebsite(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setWebsite(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://..."
             />
@@ -546,7 +546,7 @@ export default function ProfilPage() {
               id="facebook"
               type="url"
               value={facebook}
-              onChange={e => setFacebook(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFacebook(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://facebook.com/..."
             />
@@ -557,7 +557,7 @@ export default function ProfilPage() {
               id="instagram"
               type="url"
               value={instagram}
-              onChange={e => setInstagram(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setInstagram(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
               placeholder="https://instagram.com/..."
             />
@@ -581,7 +581,7 @@ export default function ProfilPage() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {allCategories.map(cat => (
+          {allCategories.map((cat: { id: string; name: string; icon?: string | null }) => (
             <button
               key={cat.id}
               onClick={() => toggleCategory(cat.id)}
@@ -592,7 +592,7 @@ export default function ProfilPage() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="text-lg">{cat.icon_name}</span>
+                <span className="text-lg">{cat.icon}</span>
                 <div>
                   <p className="font-medium">{cat.name}</p>
                   <p className="text-xs text-gray-600">{selectedCategories.includes(cat.id) ? '✓ Izbrano' : ''}</p>
@@ -663,7 +663,7 @@ export default function ProfilPage() {
           <div className="mt-4 space-y-2">
             <p className="text-sm font-medium">Naloženi certifikati:</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {certificateUrls.map((url, idx) => (
+              {certificateUrls.map((url: string, idx: number) => (
                 <a
                   key={idx}
                   href={url}

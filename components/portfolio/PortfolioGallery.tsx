@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
@@ -70,7 +70,7 @@ export function PortfolioGallery({ images, title = 'Portfelj' }: PortfolioGaller
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={(e) => {
+                onClick={(e: MouseEvent) => {
                   e.stopPropagation()
                   setSelectedIndex(selectedIndex === 0 ? images.length - 1 : selectedIndex - 1)
                 }}
@@ -81,7 +81,7 @@ export function PortfolioGallery({ images, title = 'Portfelj' }: PortfolioGaller
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={(e) => {
+                onClick={(e: MouseEvent) => {
                   e.stopPropagation()
                   setSelectedIndex(selectedIndex === images.length - 1 ? 0 : selectedIndex + 1)
                 }}
@@ -95,7 +95,7 @@ export function PortfolioGallery({ images, title = 'Portfelj' }: PortfolioGaller
           {/* Image */}
           <div
             className="relative w-full h-full max-w-4xl"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: MouseEvent) => e.stopPropagation()}
           >
             <Image
               src={currentImage.url}
