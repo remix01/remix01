@@ -51,7 +51,7 @@ export function ChatPanel({
       try {
         // Load existing messages
         const { data, error } = await supabase
-          .from('messages')
+          .from('sporocila')
           .select('*')
           .eq('povprasevanje_id', povprasevanjeId)
           .or(
@@ -70,7 +70,7 @@ export function ChatPanel({
             {
               event: 'INSERT',
               schema: 'public',
-              table: 'messages',
+              table: 'sporocila',
               filter: `povprasevanje_id=eq.${povprasevanjeId}`,
             },
             (payload: any) => {
@@ -109,7 +109,7 @@ export function ChatPanel({
 
     setSending(true)
     try {
-      const { error } = await supabase.from('messages').insert([
+      const { error } = await supabase.from('sporocila').insert([
         {
           sender_id: currentUserId,
           receiver_id: otherUserId,
