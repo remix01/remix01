@@ -55,7 +55,7 @@ export async function POST(
 
     if (!result || !result.success) {
       return NextResponse.json(
-        { error: result?.message || 'Assignment failed' },
+        { error: 'Assignment failed' },
         { status: 400 }
       )
     }
