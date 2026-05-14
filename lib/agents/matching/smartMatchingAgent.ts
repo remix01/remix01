@@ -1,40 +1,49 @@
-import { getErrorMessage } from '@/lib/utils/error'
 /**
- * Smart Matching Agent
- * 
- * Implements advanced partner matching algorithm based on:
- * - Location proximity (max 40 points)
- * - Partner rating/quality (max 30 points)
- * - Response rate performance (max 20 points)
- * - Category expertise match (max 10 points)
- * - Subscription tier boost (multiplier: 1.0 START, 1.2 PRO, 1.4 ELITE)
- * 
- * Composite score: 0-100+ for each partner (with boost applied)
- * Returns: Top 5 matches sorted by finalScore DESC
- * Performance: Target < 500ms execution time
+ * Smart Matching Agent — Production v3
+ *
+ * MATCH SCORE (0–100 base, then subscription multiplier):
+ *   25 pts  — Category match (exact)
+ *   25 pts  — City proximity (Haversine, hard filter >75km)
+ *   20 pts  — Response speed (avg response_time_hours)
+ *   20 pts  — Review score (avg_rating 0–5)
+ *   10 pts  — Activity status (online/offline/busy)
+ *   ×1.0–1.5 — Subscription tier boost multiplier
+ *
+ * Hard filters (disqualify before scoring):
+ *   • Must be verified
+ *   • is_available = true, is_busy = false
+ *   • Category in obrtnik's categories
+ *   • Distance ≤ min(contractor.service_radius_km, MAX_HARD_RADIUS_KM)
+ *   • active_lead_count < max_active_leads
+ *
+ * Returns: top MAX_MATCHES partners, sorted by finalScore DESC
+ * Logs:    matching_logs table + console structured log
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
-import type { Database } from '@/types/supabase'
-import type { ObrtnikProfile, Povprasevanje } from '@/types/marketplace'
+
+export const MAX_HARD_RADIUS_KM = 75   // never send leads beyond 75km
+export const MAX_MATCHES = 5            // top N to notify
+export const LEAD_SLA_HOURS = 4        // hours contractor has to respond
 
 export interface MatchBreakdown {
-  locationScore: number
-  ratingScore: number
-  responseScore: number
-  categoryScore: number
-  subscriptionBoost: number
-  baseScore: number
+  categoryScore: number       // 0–25
+  locationScore: number       // 0–25
+  responseScore: number       // 0–20
+  ratingScore: number         // 0–20
+  activityScore: number       // 0–10
+  subscriptionBoost: number   // points added by multiplier
+  baseScore: number           // sum before boost
 }
 
 export interface MatchResult {
   partnerId: string
-  partnerName: string
-  score: number
+  score: number               // final (boosted) score
   breakdown: MatchBreakdown
   distanceKm: number
   estimatedResponseMinutes: number
   subscriptionTier: string
+  rank: number
 }
 
 interface MatchingInput {
@@ -44,271 +53,246 @@ interface MatchingInput {
   requestId: string
 }
 
-/**
- * Calculate distance between two coordinates using Haversine formula
- * Returns distance in km
- */
-function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371 // Earth's radius in km
+// ─── Haversine ───────────────────────────────────────────────────────────────
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
   const dLat = ((lat2 - lat1) * Math.PI) / 180
   const dLng = ((lng2 - lng1) * Math.PI) / 180
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
+      Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// ─── Score functions (each returns 0–max) ────────────────────────────────────
+
+function scoreCategory(partnerCategories: string[], requestCategoryId: string): number {
+  return partnerCategories.includes(requestCategoryId) ? 25 : 0
 }
 
 /**
- * Score location proximity (max 40 points)
- * <5km: 40, <10km: 30, <20km: 20, <50km: 10, else: 0
+ * 25 pts max.  Linear within service radius, drops to 0 beyond MAX_HARD_RADIUS_KM.
+ * <5km=25  <15km=20  <30km=15  <50km=8  <75km=3  else=0
  */
-function scoreLocation(distanceKm: number): number {
-  if (distanceKm < 5) return 40
-  if (distanceKm < 10) return 30
-  if (distanceKm < 20) return 20
-  if (distanceKm < 50) return 10
+function scoreLocation(distanceKm: number, serviceRadiusKm: number): number {
+  const effectiveMax = Math.min(serviceRadiusKm, MAX_HARD_RADIUS_KM)
+  if (distanceKm > effectiveMax) return 0
+  if (distanceKm < 5) return 25
+  if (distanceKm < 15) return 20
+  if (distanceKm < 30) return 15
+  if (distanceKm < 50) return 8
+  if (distanceKm < 75) return 3
   return 0
 }
 
 /**
- * Score partner rating (max 30 points)
- * Converts 0-5 rating scale to 0-30 points
- */
-function scoreRating(rating: number): number {
-  const normalized = Math.max(0, Math.min(5, rating)) / 5
-  return normalized * 30
-}
-
-/**
- * Score response performance (max 20 points)
- * Uses response_time_hours: lower response time = higher score
- * Converts to ratio: assume 24h = 0 points, 0h = 20 points
+ * 20 pts max.  Lower response time = higher score.
+ * response_time_hours: <1h=20  <4h=15  <8h=10  <24h=5  >=24h=0
  */
 function scoreResponse(responseTimeHours: number | null): number {
   if (!responseTimeHours || responseTimeHours >= 24) return 0
-  // Linear: 24h → 0 points, 1h → 19.17 points, 0h → 20 points
-  return Math.max(0, 20 - (responseTimeHours / 24) * 20)
+  if (responseTimeHours < 1) return 20
+  if (responseTimeHours < 4) return 15
+  if (responseTimeHours < 8) return 10
+  if (responseTimeHours < 24) return 5
+  return 0
 }
 
 /**
- * Score category expertise (max 10 points)
- * Exact match: 10 points, no match: 0 points
+ * 20 pts max.  avg_rating 0–5.
+ * <3.0 = disqualified upstream
+ * 3.0=0  4.0=10  4.5=15  5.0=20
  */
-function scoreCategory(
-  partnerCategories: string[],
-  requestCategoryId: string
-): number {
-  return partnerCategories.includes(requestCategoryId) ? 10 : 0
+function scoreRating(avgRating: number): number {
+  if (avgRating < 3.0) return 0
+  if (avgRating >= 5.0) return 20
+  return ((avgRating - 3.0) / 2.0) * 20
 }
 
 /**
- * Calculate subscription tier boost multiplier
- * START (free): 1.0x (no boost)
- * PRO (€29/mo): 1.2x (+20%)
- * ELITE (€79/mo): 1.4x (+40%)
- * enterprise: 1.5x (+50%)
+ * 10 pts max.  Measures real-time availability.
+ * online + not busy = 10
+ * offline + not busy = 5   (available but not actively online)
+ * busy               = 0   (filtered upstream anyway, but included for completeness)
  */
-function getSubscriptionBoostMultiplier(tier: string | null): number {
+function scoreActivity(isOnline: boolean, isBusy: boolean): number {
+  if (isBusy) return 0
+  return isOnline ? 10 : 5
+}
+
+/**
+ * Subscription tier multiplier.
+ * START=1.0x  PRO=1.2x  ELITE=1.4x  ENTERPRISE=1.5x
+ */
+function subscriptionMultiplier(tier: string | null): number {
   switch (tier?.toLowerCase()) {
-    case 'pro':
-      return 1.2
-    case 'elite':
-      return 1.4
-    case 'enterprise':
-      return 1.5
-    case 'start':
-    default:
-      return 1.0
+    case 'pro': return 1.2
+    case 'elite': return 1.4
+    case 'enterprise': return 1.5
+    default: return 1.0
   }
 }
 
-/**
- * Filter partners by eligibility requirements
- */
-function filterEligiblePartners<T extends {
-    id: string
-    is_verified: boolean
-    is_available: boolean
-    avg_rating: number
-    total_reviews: number
-    categories: string[]
-    subscription_tier?: string | null
-    response_time_hours?: number | null
-    profile?: unknown
-  }>(
-  partners: T[],
-  categoryId: string
-): T[] {
-  return partners.filter((p) => {
-    // Must be verified
-    if (!p.is_verified) return false
+// ─── Internal types ───────────────────────────────────────────────────────────
 
-    // Must be active
-    if (!p.is_available) return false
-
-    // Must have the service category
-    if (!p.categories.includes(categoryId)) return false
-
-    // Must have at least 3.0 rating (if they have reviews)
-    if (p.total_reviews > 0 && p.avg_rating < 3.0) return false
-
-    return true
-  })
+interface PartnerCandidate {
+  id: string
+  is_online: boolean
+  avg_rating: number
+  total_reviews: number
+  response_time_hours: number | null
+  service_radius_km: number
+  max_active_leads: number
+  active_lead_count: number
+  lat: number | null
+  lng: number | null
+  subscription_tier: string
+  categories: string[]
 }
 
-/**
- * Main matching algorithm
- * Calculates composite score for each eligible partner, with subscription boost applied
- */
+interface ScoredPartner {
+  partnerId: string
+  score: number
+  breakdown: MatchBreakdown
+  distanceKm: number
+  estimatedResponseMinutes: number
+  subscriptionTier: string
+}
+
+// ─── Main export ─────────────────────────────────────────────────────────────
+
 export async function matchPartnersForRequest(input: MatchingInput) {
   const startTime = Date.now()
 
   try {
     const supabase = createAdminClient()
 
-    // 1. Fetch request details
-    const { data: povprasevanje, error: povError } = await supabase
+    // 1. Load request
+    const { data: pov, error: povError } = await supabase
       .from('povprasevanja')
-      .select('*')
+      .select('id, title, location_city')
       .eq('id', input.requestId)
       .single()
 
-    if (povError || !povprasevanje) {
-      throw new Error('Povpraševanja ni bilo mogoče naložiti')
-    }
+    if (povError || !pov) throw new Error('Povpraševanje ni bilo mogoče naložiti')
 
-    // 2. Fetch all eligible partners with their categories AND subscription tier
-    const { data: partnersData, error: partnersError } = await supabase
+    // 2. Fetch candidates: verified, available, not busy, not over lead cap
+    const { data: rawPartners, error: partnersError } = await supabase
       .from('obrtnik_profiles')
-      .select(
-        `
+      .select(`
         id,
         is_verified,
         is_available,
+        is_online,
+        is_busy,
         avg_rating,
         total_reviews,
         response_time_hours,
+        service_radius_km,
+        max_active_leads,
+        active_lead_count,
         profile:profiles(
+          lat,
+          lng,
           location_city,
-          location_region,
           subscription_tier
         ),
-        obrtnik_categories!obrtnik_id(
-          category_id
-        )
-      `
-      )
+        obrtnik_categories!obrtnik_id(category_id)
+      `)
       .eq('is_verified', true)
       .eq('is_available', true)
+      .eq('is_busy', false)
 
-    if (partnersError || !partnersData) {
-      throw new Error('Obrtnike ni bilo mogoče naložiti')
-    }
+    if (partnersError || !rawPartners) throw new Error('Obrtnike ni bilo mogoče naložiti')
 
-    // 3. Transform data and extract categories and subscription tier
-    const partnersWithCategories = partnersData.map((p: any) => ({
-      id: p.id,
-      is_verified: p.is_verified,
-      is_available: p.is_available,
-      avg_rating: p.avg_rating || 0,
-      total_reviews: p.total_reviews || 0,
-      response_time_hours: p.response_time_hours || null,
-      profile: p.profile,
-      subscription_tier: p.profile?.subscription_tier || 'start',
-      categories: (p.obrtnik_categories || []).map((c: any) => c.category_id),
+    // 3. Transform
+    const partners: PartnerCandidate[] = rawPartners.map((p: any) => ({
+      id: p.id as string,
+      is_online: p.is_online as boolean,
+      avg_rating: (p.avg_rating as number) || 0,
+      total_reviews: (p.total_reviews as number) || 0,
+      response_time_hours: p.response_time_hours as number | null,
+      service_radius_km: (p.service_radius_km as number) || 30,
+      max_active_leads: (p.max_active_leads as number) || 3,
+      active_lead_count: (p.active_lead_count as number) || 0,
+      lat: (p.profile as any)?.lat as number | null,
+      lng: (p.profile as any)?.lng as number | null,
+      subscription_tier: ((p.profile as any)?.subscription_tier as string) || 'start',
+      categories: ((p.obrtnik_categories as any[]) || []).map((c: any) => c.category_id as string),
     }))
 
-    // 4. Filter eligible partners
-    const eligible = filterEligiblePartners(
-      partnersWithCategories,
-      input.categoryId
-    )
+    // 4. Hard filters
+    const eligible = partners.filter((p) => {
+      // Category must match
+      if (!p.categories.includes(input.categoryId)) return false
+      // Must have minimum rating (if reviewed)
+      if (p.total_reviews > 0 && p.avg_rating < 3.0) return false
+      // Must not be over active lead cap
+      if (p.active_lead_count >= p.max_active_leads) return false
+      // Distance hard filter (only if coordinates available)
+      if (p.lat && p.lng) {
+        const dist = haversineKm(input.lat, input.lng, p.lat, p.lng)
+        const radiusLimit = Math.min(p.service_radius_km, MAX_HARD_RADIUS_KM)
+        if (dist > radiusLimit) return false
+      }
+      return true
+    })
 
     if (eligible.length === 0) {
-      return {
-        matches: [],
-        matchingId: null,
-        error: 'Ni primerno ujemanje za to povpraševanje',
-      }
+      return { matches: [], matchingId: null, error: 'Ni primernih obrtnikov v dosegu' }
     }
 
-    // 5. Calculate scores for each partner
-    const scored = eligible
-      .map((partner) => {
-        // Get partner's location (fallback to city if coords not available)
-        const partnerLat = (partner.profile as any)?.lat || null
-        const partnerLng = (partner.profile as any)?.lng || null
+    // 5. Score
+    const scored: ScoredPartner[] = eligible
+      .map((p: PartnerCandidate) => {
+        const distanceKm = p.lat && p.lng
+          ? Math.round(haversineKm(input.lat, input.lng, p.lat, p.lng) * 10) / 10
+          : 999
 
-        // Calculate distance (if coordinates available)
-        let distance = 999
-        if (partnerLat && partnerLng) {
-          distance = calculateDistance(
-            input.lat,
-            input.lng,
-            partnerLat,
-            partnerLng
-          )
-        }
+        const categoryScore = scoreCategory(p.categories, input.categoryId)
+        const locationScore = scoreLocation(distanceKm, p.service_radius_km)
+        const responseScore = scoreResponse(p.response_time_hours)
+        const ratingScore = Math.round(scoreRating(p.avg_rating) * 10) / 10
+        const activityScore = scoreActivity(p.is_online, false)
 
-        // Score components (base score: 0-100)
-        const locationScore = scoreLocation(distance)
-        const ratingScore = scoreRating(partner.avg_rating)
-        const responseScore = scoreResponse(partner.response_time_hours)
-        const categoryScore = scoreCategory(
-          partner.categories,
-          input.categoryId
-        )
+        const baseScore = categoryScore + locationScore + responseScore + ratingScore + activityScore
 
-        const baseScore =
-          locationScore + ratingScore + responseScore + categoryScore
-
-        // Apply subscription tier boost
-        const boostMultiplier = getSubscriptionBoostMultiplier(
-          partner.subscription_tier ?? null
-        )
-        const subscriptionBoost = (boostMultiplier - 1) * baseScore * 100 // Convert to points for logging
-        const finalScore = baseScore * boostMultiplier
+        const multiplier = subscriptionMultiplier(p.subscription_tier)
+        const finalScore = Math.round(baseScore * multiplier * 100) / 100
+        const subscriptionBoost = Math.round((finalScore - baseScore) * 100) / 100
 
         return {
-          partnerId: partner.id,
-          score: Math.round(finalScore * 100) / 100,
+          partnerId: p.id,
+          score: finalScore,
           breakdown: {
-            locationScore,
-            ratingScore,
-            responseScore,
             categoryScore,
-            subscriptionBoost: Math.round(subscriptionBoost * 100) / 100,
-            baseScore: Math.round(baseScore * 100) / 100,
+            locationScore,
+            responseScore,
+            ratingScore,
+            activityScore,
+            subscriptionBoost,
+            baseScore,
           },
-          distanceKm: Math.round(distance * 10) / 10,
-          estimatedResponseMinutes: partner.response_time_hours
-            ? Math.round(partner.response_time_hours * 60)
-            : 120,
-          subscriptionTier: partner.subscription_tier ?? 'start',
+          distanceKm,
+          estimatedResponseMinutes: p.response_time_hours
+            ? Math.round(p.response_time_hours * 60)
+            : 240,
+          subscriptionTier: p.subscription_tier,
         }
       })
-      .sort((a, b) => b.score - a.score)
+      .sort((a: ScoredPartner, b: ScoredPartner) => b.score - a.score)
 
-    // 6. Get top 5 matches
-    const topMatches = scored.slice(0, 5)
+    // 6. Top MAX_MATCHES
+    const topMatches: MatchResult[] = scored
+      .slice(0, MAX_MATCHES)
+      .map((m: ScoredPartner, i: number) => ({ ...m, rank: i + 1 }))
 
-    if (topMatches.length === 0) {
-      return {
-        matches: [],
-        matchingId: null,
-      }
-    }
+    if (topMatches.length === 0) return { matches: [], matchingId: null }
 
-    // 7. Log results with enhanced details
+    // 7. Log
     const executionTime = Date.now() - startTime
     const { data: logData, error: logError } = await supabase
       .from('matching_logs' as any)
@@ -318,21 +302,27 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         top_score: topMatches[0].score,
         top_partner_tier: topMatches[0].subscriptionTier,
         all_matches: topMatches,
-        algorithm_version: '2.0-subscription-boost',
+        algorithm_version: '3.0-production',
         execution_time_ms: executionTime,
       })
       .select('id')
       .single()
 
     if (logError) {
-      console.error('[v0] Error logging matching results:', logError)
-      // Don't fail - still return matches even if logging fails
+      console.error('[Matching] Log error (non-fatal):', logError.message)
     }
 
-    // 8. Log subscription boost details
-    console.log(
-      `[Matching] Request ${input.requestId}: Top match = ${topMatches[0]!.partnerId} (${topMatches[0]!.subscriptionTier.toUpperCase()}) with score ${topMatches[0]!.score} (base: ${topMatches[0]!.breakdown.baseScore}, boost: +${topMatches[0]!.breakdown.subscriptionBoost})`
-    )
+    console.log(JSON.stringify({
+      level: 'info',
+      event: 'matching_complete',
+      requestId: input.requestId,
+      topPartnerId: topMatches[0].partnerId,
+      topScore: topMatches[0].score,
+      tier: topMatches[0].subscriptionTier,
+      candidatesTotal: partners.length,
+      eligibleTotal: eligible.length,
+      executionMs: executionTime,
+    }))
 
     return {
       matches: topMatches,
@@ -341,7 +331,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
     }
   } catch (error) {
     const executionTime = Date.now() - startTime
-    console.error('[v0] Matching algorithm error:', error)
+    console.error('[Matching] Error:', error)
     return {
       matches: [],
       matchingId: null,
