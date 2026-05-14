@@ -1725,6 +1725,41 @@ export type Database = {
         }
         Relationships: []
       }
+      home_maintenance_log: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: string
+          notes: string | null
+          performed_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: string
+          notes?: string | null
+          performed_at: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: string
+          notes?: string | null
+          performed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "home_maintenance_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inquiries: {
         Row: {
           created_at: string
