@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     // 3. Map filter type to RPC parameters
-    let p_status: string | null = null
-    let p_assigned_to: string | null = null
+    let p_status: string | undefined
+    let p_assigned_to: string | undefined
     if (filterType === 'my_tasks') {
       p_assigned_to = user.id
     } else if (filterType === 'available') {
@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase.rpc('filter_tasks', {
       p_status,
-      p_category_id: null,
       p_assigned_to,
       p_limit: limit,
     })
