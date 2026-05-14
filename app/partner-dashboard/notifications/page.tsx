@@ -39,17 +39,21 @@ export default async function PartnerNotificationsPage() {
             <div className="space-y-3">
               {notifications.map(n => {
                 const type = typeLabels[n.type] || { label: n.type, icon: '📬', color: 'gray' }
+                const isRead = Boolean((n as any).is_read ?? (n as any).read)
+                const createdAtLabel = n.created_at
+                  ? new Date(n.created_at).toLocaleString('sl-SI')
+                  : 'Neznan čas'
                 return (
-                  <div key={n.id} className={`bg-white rounded-xl border p-4 flex gap-3 ${!n.is_read ? 'border-teal-200 bg-teal-50' : ''}`}>
+                  <div key={n.id} className={`bg-white rounded-xl border p-4 flex gap-3 ${!isRead ? 'border-teal-200 bg-teal-50' : ''}`}>
                     <span className="text-2xl">{type.icon}</span>
                     <div className="flex-1">
                       <p className="font-medium text-sm">{type.label}</p>
                       <p className="text-sm text-muted-foreground">{n.message || n.body}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(n.created_at).toLocaleString('sl-SI')}
+                        {createdAtLabel}
                       </p>
                     </div>
-                    {!n.is_read && <div className="w-2 h-2 rounded-full bg-teal-500 mt-1 flex-shrink-0" />}
+                    {!isRead && <div className="w-2 h-2 rounded-full bg-teal-500 mt-1 flex-shrink-0" />}
                   </div>
                 )
               })}

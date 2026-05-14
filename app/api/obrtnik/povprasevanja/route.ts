@@ -130,12 +130,16 @@ export async function GET(request: NextRequest) {
     if (data?.length) {
       const openedIds = data.map((p) => p.id)
       try {
-        await supabaseAdmin
+        const updateResult = await supabaseAdmin
           .from('povprasevanja')
           .update({ lead_status: 'opened' } as any)
           .in('id', openedIds)
           .eq('lead_status', 'matched')
-        await supabaseAdmin.from('lead_audit_log').insert(
+
+        if (updateResult.error) {
+          console.warn('[lead-flow] opened status update skipped:', updateResult.error)
+        } else {
+          await supabaseAdmin.from('lead_audit_log').insert(
           openedIds.map((id) => ({
             povprasevanje_id: id,
             status: 'opened',
@@ -143,7 +147,8 @@ export async function GET(request: NextRequest) {
             actor_id: resolvedObrtnikId,
             metadata: { endpoint: '/api/obrtnik/povprasevanja' },
           }))
-        )
+          )
+        }
       } catch (trackingError) {
         console.warn('[lead-flow] opened tracking skipped:', trackingError)
       }

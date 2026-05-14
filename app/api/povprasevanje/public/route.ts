@@ -426,7 +426,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (stranka_email) modernInsertData.stranka_email = stranka_email
-    if (stranka_telefon) modernInsertData.stranka_telefon = stranka_telefon
+    if (normalizedPhone) modernInsertData.stranka_telefon = normalizedPhone
     if (stranka_ime) modernInsertData.stranka_ime = stranka_ime
 
     let { data, error } = await supabaseAdmin
@@ -469,7 +469,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (stranka_email) legacyInsertData.stranka_email = stranka_email
-      if (stranka_telefon) legacyInsertData.stranka_telefon = stranka_telefon
+      if (normalizedPhone) legacyInsertData.stranka_telefon = normalizedPhone
 
       const retryResult = await supabaseAdmin
         .from('povprasevanja')
