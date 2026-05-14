@@ -130,7 +130,7 @@ export async function GET() {
                      (account.requirements?.currently_due?.length ?? 0) > 0
 
     // Get restriction reason if exists
-    let restrictionReason = null
+    let restrictionReason: string | null = null
     if (account.requirements?.disabled_reason) {
       restrictionReason = account.requirements.disabled_reason
     }

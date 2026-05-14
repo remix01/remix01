@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       .select('id, title, description, location_city')
       .eq('id', povprasevanje_id).maybeSingle()
 
-    let ponudba = null
+    let ponudba: { id: string; price_estimate: number | null; price_type: string | null; estimated_duration: number | null; accepted_at: string | null } | null = null
     if (ponudba_id) {
       const { data: p } = await supabaseAdmin
         .from('ponudbe')
