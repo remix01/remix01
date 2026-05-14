@@ -97,7 +97,10 @@ export default function AccountPage() {
         if (userError) throw userError
 
         if (partnerData) {
-          setPartner(partnerData)
+          setPartner({
+            ...partnerData,
+            subscription_tier: (partnerData.subscription_tier as 'start' | 'pro' | 'elite' | null) || null
+          })
           setFormData({
             business_name: partnerData.business_name || '',
             description: partnerData.description || '',
