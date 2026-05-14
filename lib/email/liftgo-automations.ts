@@ -309,7 +309,7 @@ export async function automationPaymentConfirmed(
     true
   )
 
-  const emails = []
+  const emails: { to: string; subject: string; html: string; tags: { name: string; value: string }[] }[] = []
 
   // Always send customer confirmation
   emails.push({
