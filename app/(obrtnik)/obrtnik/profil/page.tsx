@@ -458,7 +458,7 @@ export default function ProfilPage() {
             id="description"
             maxLength={1000}
             value={description}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
             rows={4}
             className="w-full mt-1 px-3 py-2 border rounded-lg"
             placeholder="Povejte kaj vas naredi posebnega..."
