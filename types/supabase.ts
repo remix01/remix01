@@ -130,6 +130,44 @@ export type Database = {
           },
         ]
       }
+      agent_alerts: {
+        Row: {
+          created_at: string
+          details: string
+          id: string
+          resolved: boolean
+          severity: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: string
+          id?: string
+          resolved?: boolean
+          severity?: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: string
+          id?: string
+          resolved?: boolean
+          severity?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_alerts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_conversations: {
         Row: {
           created_at: string | null
