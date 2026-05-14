@@ -9,7 +9,7 @@ interface Message {
   sender_id: string
   receiver_id: string
   message: string
-  is_read: boolean
+  read: boolean
   read_at: string | null
   created_at: string
 }
@@ -38,15 +38,15 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           .order('created_at', { ascending: true })
 
         if (err) throw err
-        setSporocila(data || [])
+        setSporocila((data || []).map((m:any)=>({ ...m, is_read: !!m.is_read, created_at: m.created_at || new Date().toISOString() })))
 
         // Mark as read
         await supabaseRef.current
           .from('sporocila')
-          .update({ is_read: true, read_at: new Date().toISOString() })
+          .update({ read: true, read_at: new Date().toISOString() })
           .eq('povprasevanje_id', povprasevanjeId)
           .eq('receiver_id', currentUserId)
-          .eq('is_read', false)
+          .eq('read', false)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Napaka pri nalaganju sporočil')
       } finally {
@@ -84,7 +84,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           if (currentUserId && newMessage.receiver_id === currentUserId) {
             supabaseRef.current
               .from('sporocila')
-              .update({ is_read: true, read_at: new Date().toISOString() })
+              .update({ read: true, read_at: new Date().toISOString() })
               .eq('id', newMessage.id)
               .eq('receiver_id', currentUserId)
               .then()
@@ -112,7 +112,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
             sender_id: currentUserId,
             receiver_id: receiverId,
             message: text.trim(),
-            is_read: false,
+            read: false,
           })
 
         if (err) throw err
@@ -126,7 +126,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
             title: 'Novo sporočilo',
             body: text.trim().substring(0, 100),
             data: { povprasevanje_id: povprasevanjeId },
-            is_read: false,
+            read: false,
           })
 
         if (notificationError) {

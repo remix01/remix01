@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { scoreWorkers } from '@/lib/task-engine/scoring'
 import { filterQualifiedWorkers, getTopMatches } from '@/lib/task-engine/matching-utils'
@@ -34,7 +34,7 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
     setError(null)
 
     try {
-      const supabase = createClient()
+      const supabase: any = createClient()
       if (!supabase) {
         throw new Error('Supabase client not initialized')
       }
@@ -122,5 +122,3 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
   }
 }
 
-// Add React import
-import React from 'react'
