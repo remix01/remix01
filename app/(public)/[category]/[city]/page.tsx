@@ -36,7 +36,7 @@ export async function generateStaticParams() {
   try {
     const categories = await getActiveCategoriesPublic()
 
-    const params = []
+    const params: { category: string; city: string }[] = []
     for (const category of categories) {
       for (const city of SLOVENIAN_CITIES) {
         params.push({
