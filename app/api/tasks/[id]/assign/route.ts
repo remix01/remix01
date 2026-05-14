@@ -33,14 +33,17 @@ export async function POST(
       throw new Error('Supabase client not initialized')
     }
 
-    // Call backend RPC function for assignment
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('assign_task', {
-      task_id: taskId,
-      worker_id,
-      auto_assign: auto_assign || false,
-    })
+    // Assign task directly via table update
+    const { data: task, error: rpcError } = await supabase
+      .from('tasks')
+      .update({ assigned_to: worker_id })
+      .eq('id', taskId)
+      .select()
+      .single()
 
-    const result = rpcResult as { success: boolean; message?: string; assignment_id?: string; task?: unknown } | null
+    const result = task
+      ? { success: true, task, assignment_id: taskId }
+      : null
 
     if (rpcError) {
       console.error('[v0] RPC error in assign_task:', rpcError)
