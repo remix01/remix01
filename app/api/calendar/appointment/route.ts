@@ -55,10 +55,10 @@ export async function POST(request: Request) {
 
     const result = await createAppointmentEvent({
       narocnikId: povprasevanje.narocnik_id,
-      obrtknikId: ponudba.obrtnik_id,
-      title: ponudba.povprasevanje.title,
-      description: ponudba.povprasevanje.description,
-      locationCity: ponudba.povprasevanje.location_city,
+      obrtknikId: ponudba.obrtnik_id ?? '',
+      title: ponudba.povprasevanje.title ?? '',
+      description: ponudba.povprasevanje.description ?? '',
+      locationCity: ponudba.povprasevanje.location_city ?? '',
       startDateTime,
       endDateTime,
       ponudbaId
