@@ -52,7 +52,7 @@ export const notificationService = {
 
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ read: true })
       .eq('id', notificationId)
       .eq('user_id', userId)
 
@@ -75,9 +75,9 @@ export const notificationService = {
 
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ read: true })
       .eq('user_id', userId)
-      .eq('is_read', false)
+      .eq('read', false)
 
     if (error) {
       throw new ServiceError(

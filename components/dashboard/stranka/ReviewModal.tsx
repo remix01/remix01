@@ -34,7 +34,7 @@ export function ReviewModal({ povprasevanjId }: ReviewModalProps) {
       // Get the accepted offer for this inquiry
       const { data: offer } = await supabase
         .from('ponudbe')
-        .select('obrtnik_id')
+        .select('id, obrtnik_id')
         .eq('povprasevanje_id', povprasevanjId)
         .eq('status', 'sprejeta')
         .single()
@@ -45,12 +45,22 @@ export function ReviewModal({ povprasevanjId }: ReviewModalProps) {
         return
       }
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
+
       // Create review
       const { error: reviewError } = await supabase.from('ocene').insert({
-        povprasevanje_id: povprasevanjId,
+        ponudba_id: offer.id,
+        narocnik_id: user.id,
         obrtnik_id: offer.obrtnik_id,
         rating,
-        text: text || null,
+        comment: text || null,
+        is_public: true,
       })
 
       if (reviewError) throw reviewError

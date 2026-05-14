@@ -51,7 +51,7 @@ export function ChatPanel({
       try {
         // Load existing messages
         const { data, error } = await supabase
-          .from('messages')
+          .from('sporocila')
           .select('*')
           .eq('povprasevanje_id', povprasevanjeId)
           .or(
@@ -60,21 +60,21 @@ export function ChatPanel({
           .order('created_at', { ascending: true })
 
         if (error) throw error
-        setMessages((data || []) as Message[])
+        setMessages(((data || []) as any[]).map((msg) => ({ ...msg, content: msg.message })))
 
         // Subscribe to new messages
         const subscription = supabase
-          .channel(`messages:${povprasevanjeId}`)
+          .channel(`sporocila:${povprasevanjeId}`)
           .on(
             'postgres_changes',
             {
               event: 'INSERT',
               schema: 'public',
-              table: 'messages',
+              table: 'sporocila',
               filter: `povprasevanje_id=eq.${povprasevanjeId}`,
             },
             (payload: any) => {
-              setMessages((prev) => [...prev, payload.new as Message])
+              setMessages((prev) => [...prev, { ...(payload.new as any), content: (payload.new as any).message } as Message])
             }
           )
           .subscribe()
@@ -109,13 +109,12 @@ export function ChatPanel({
 
     setSending(true)
     try {
-      const { error } = await supabase.from('messages').insert([
+      const { error } = await supabase.from('sporocila').insert([
         {
           sender_id: currentUserId,
           receiver_id: otherUserId,
           povprasevanje_id: povprasevanjeId,
-          content: newMessage.trim(),
-          sender_name: currentUserName,
+          message: newMessage.trim(),
         },
       ])
 
