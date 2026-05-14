@@ -141,11 +141,9 @@ export const paymentService = {
       stripeTransferId = transfer.id
 
       await supabase.from('payouts').insert({
-        obrtnik_id: partnerId,
-        amount_eur: amount,
-        commission_eur: commissionAmount,
+        craftsman_id: partnerId,
+        amount,
         stripe_transfer_id: transfer.id,
-        status: 'completed',
       })
     } else {
       console.warn(`[paymentService] Obrtnik ${partnerId} nima Stripe računa — izplačilo preskočeno`)
