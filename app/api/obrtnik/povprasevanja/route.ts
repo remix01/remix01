@@ -126,6 +126,34 @@ export async function GET(request: NextRequest) {
       return errorResponse(500, 'QUERY_FAILED', error.message)
     }
 
+    // Best-effort lead flow tracking: contractor opened lead list
+    if (data?.length) {
+      const openedIds = data.map((p) => p.id)
+      try {
+        const updateResult = await supabaseAdmin
+          .from('povprasevanja')
+          .update({ lead_status: 'opened' } as any)
+          .in('id', openedIds)
+          .eq('lead_status', 'matched')
+
+        if (updateResult.error) {
+          console.warn('[lead-flow] opened status update skipped:', updateResult.error)
+        } else {
+          await supabaseAdmin.from('lead_audit_log').insert(
+          openedIds.map((id) => ({
+            povprasevanje_id: id,
+            status: 'opened',
+            actor_type: 'contractor',
+            actor_id: resolvedObrtnikId,
+            metadata: { endpoint: '/api/obrtnik/povprasevanja' },
+          }))
+          )
+        }
+      } catch (trackingError) {
+        console.warn('[lead-flow] opened tracking skipped:', trackingError)
+      }
+    }
+
     // Group by status
     const grouped = {
       novo: data?.filter((p) => p.status === 'novo') || [],
