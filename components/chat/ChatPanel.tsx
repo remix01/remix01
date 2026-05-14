@@ -12,7 +12,7 @@ interface Message {
   sender_id: string
   receiver_id: string
   povprasevanje_id: string
-  content: string
+  message: string
   created_at: string
   sender_name?: string
 }
@@ -60,7 +60,7 @@ export function ChatPanel({
           .order('created_at', { ascending: true })
 
         if (error) throw error
-        setMessages((data || []) as Message[])
+        setMessages((data || []) as unknown as Message[])
 
         // Subscribe to new messages
         const subscription = supabase
@@ -114,7 +114,7 @@ export function ChatPanel({
           sender_id: currentUserId,
           receiver_id: otherUserId,
           povprasevanje_id: povprasevanjeId,
-          content: newMessage.trim(),
+          message: newMessage.trim(),
           sender_name: currentUserName,
         },
       ])
@@ -164,7 +164,7 @@ export function ChatPanel({
                       : 'bg-slate-200 text-slate-900 rounded-bl-none'
                   }`}
                 >
-                  <p className="break-words">{msg.content}</p>
+                  <p className="break-words">{msg.message}</p>
                   <p
                     className={`text-xs mt-1 ${
                       isCurrentUser ? 'text-blue-100' : 'text-slate-600'
