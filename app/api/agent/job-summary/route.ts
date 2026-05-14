@@ -37,14 +37,12 @@ export async function POST(req: NextRequest) {
       .select('id, title, description, location_city')
       .eq('id', povprasevanje_id).maybeSingle()
 
-    let ponudba: { id: string; price_estimate: number | null; price_type: string | null; estimated_duration: number | null; accepted_at: string | null } | null = null
-    if (ponudba_id) {
-      const { data: p } = await supabaseAdmin
-        .from('ponudbe')
-        .select('id, price_estimate, price_type, estimated_duration, accepted_at')
-        .eq('id', ponudba_id).maybeSingle()
-      ponudba = p
-    }
+    const ponudba = ponudba_id
+      ? (await supabaseAdmin
+          .from('ponudbe')
+          .select('id, price_estimate, price_type, estimated_duration, accepted_at')
+          .eq('id', ponudba_id).maybeSingle()).data ?? null
+      : null
 
     const agentDef = await getAgentDefinition('job_summary')
     const context = {
