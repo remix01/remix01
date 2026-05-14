@@ -16,7 +16,7 @@ interface PortfolioItem {
   price_approx?: number | null
   location_city?: string | null
   image_urls: string[] | null
-  is_featured: boolean
+  is_featured: boolean | null
   sort_order: number
 }
 
@@ -63,14 +63,14 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
   }
 
   const handleToggleFeatured = async (item: PortfolioItem) => {
-    const featured = sortedItems.filter((i) => i.is_featured)
+    const featured = sortedItems.filter((i: PortfolioItem) => i.is_featured)
 
     if (!item.is_featured && featured.length >= 3) {
       alert('Največ 3 izpostavljeni projekti')
       return
     }
 
-    const newItems = sortedItems.map((i) =>
+    const newItems = sortedItems.map((i: PortfolioItem) =>
       i.id === item.id ? { ...i, is_featured: !i.is_featured } : i
     )
     setSortedItems(newItems)
@@ -84,7 +84,7 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {sortedItems.map((item, idx) => (
+        {sortedItems.map((item: PortfolioItem, idx: number) => (
           <PortfolioItemCard
             key={item.id}
             item={item}
@@ -107,7 +107,7 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
             setEditingItem(null)
             window.location.reload()
           }}
-          featuredCount={sortedItems.filter((i) => i.is_featured && i.id !== editingItem.id).length}
+          featuredCount={sortedItems.filter((i: PortfolioItem) => i.is_featured && i.id !== editingItem.id).length}
         />
       )}
     </>
