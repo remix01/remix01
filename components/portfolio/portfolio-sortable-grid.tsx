@@ -17,7 +17,7 @@ interface PortfolioItem {
   location_city?: string | null
   image_urls: string[] | null
   is_featured: boolean | null
-  sort_order: number
+  sort_order: number | null
 }
 
 interface PortfolioSortableGridProps {
