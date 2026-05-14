@@ -12,7 +12,7 @@ type PartnerProfile = {
   id: string
   business_name: string
   subscription_tier: 'start' | 'pro' | 'elite' | null
-  avg_rating: number
+  avg_rating: number | null
   is_verified: boolean
 }
 
@@ -92,7 +92,10 @@ export default function NarocninaPage() {
         if (error) throw error
 
         if (partnerData) {
-          setPartner(partnerData)
+          setPartner({
+            ...partnerData,
+            subscription_tier: (partnerData.subscription_tier as 'start' | 'pro' | 'elite' | null) || null
+          })
         }
       } catch (err: any) {
         console.error('Error loading partner:', err)
