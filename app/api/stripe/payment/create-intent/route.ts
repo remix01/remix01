@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     // Get partner info to determine commission rate
     const { data: partner, error: partnerError } = await supabase
       .from('obrtnik_profiles')
-      .select('id, subscription_tier')
+      .select('id, stripe_account_id, subscription_tier')
       .eq('id', craftsmanId)
       .maybeSingle()
 
@@ -34,11 +34,16 @@ export async function POST(req: NextRequest) {
     // Determine commission rate based on subscription tier
     // START = 10%, PRO = 5%
     const commissionRate = partner.subscription_tier === 'pro' ? 0.05 : 0.10
+    const applicationFeeAmount = Math.round(amount * commissionRate)
 
-    // Create PaymentIntent (Connect transfer handled separately via webhooks)
+    // Create PaymentIntent with application fee
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Amount in cents (EUR)
       currency: 'eur',
+      application_fee_amount: applicationFeeAmount,
+      transfer_data: {
+        destination: partner.stripe_account_id!, // Craftsman's Stripe Connect account
+      },
       metadata: {
         offerId,
         craftsmanId,

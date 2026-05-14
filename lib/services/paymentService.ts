@@ -117,8 +117,10 @@ export const paymentService = {
   async releasePayment(taskId: string, partnerId: string, amount: number) {
     const supabase = await createClient()
 
-    const { data: partnerProfile } = await supabase
-      .from('profiles').select('subscription_tier').eq('id', partnerId).single()
+    const [{ data: partnerProfile }, { data: obrtnikProfile }] = await Promise.all([
+      supabase.from('profiles').select('subscription_tier').eq('id', partnerId).single(),
+      supabase.from('obrtnik_profiles').select('stripe_account_id').eq('id', partnerId).single(),
+    ])
 
     const plan: PlanType = partnerProfile?.subscription_tier === 'pro' ? 'PRO' : 'START'
     const commissionPercent = getCommissionRate(plan)
@@ -126,9 +128,26 @@ export const paymentService = {
     const netAmount = amount - commissionAmount
     const netAmountCents = Math.round(netAmount * 100)
 
-    const stripeTransferId: string | undefined = undefined
-    // Connect transfers handled via Stripe webhooks (obrtnik_profiles has no stripe_account_id)
-    console.warn(`[paymentService] Obrtnik ${partnerId} nima Stripe računa — izplačilo preskočeno`)
+    let stripeTransferId: string | undefined
+
+    if (obrtnikProfile?.stripe_account_id) {
+      const transfer = await (stripe as any).transfers.create({
+        amount: netAmountCents,
+        currency: 'eur',
+        destination: obrtnikProfile.stripe_account_id,
+        metadata: { taskId, partnerId },
+        description: `LiftGO izplačilo za nalogo ${taskId}`,
+      })
+      stripeTransferId = transfer.id
+
+      await supabase.from('payouts').insert({
+        craftsman_id: partnerId,
+        amount,
+        stripe_transfer_id: transfer.id,
+      })
+    } else {
+      console.warn(`[paymentService] Obrtnik ${partnerId} nima Stripe računa — izplačilo preskočeno`)
+    }
 
     trackFunnelEvent(FUNNEL_EVENTS.PAYMENT_COMPLETED, {
       povprasevanje_id: taskId,

@@ -2653,7 +2653,9 @@ export type Database = {
           response_time_hours: number | null
           service_radius_km: number | null
           source: string
+          stripe_account_id: string | null
           stripe_customer_id: string | null
+          stripe_onboarding_complete: boolean | null
           stripe_subscription_id: string | null
           subscription_tier: string
           tagline: string | null
@@ -2697,7 +2699,9 @@ export type Database = {
           response_time_hours?: number | null
           service_radius_km?: number | null
           source?: string
+          stripe_account_id?: string | null
           stripe_customer_id?: string | null
+          stripe_onboarding_complete?: boolean | null
           stripe_subscription_id?: string | null
           subscription_tier?: string
           tagline?: string | null
@@ -2741,7 +2745,9 @@ export type Database = {
           response_time_hours?: number | null
           service_radius_km?: number | null
           source?: string
+          stripe_account_id?: string | null
           stripe_customer_id?: string | null
+          stripe_onboarding_complete?: boolean | null
           stripe_subscription_id?: string | null
           subscription_tier?: string
           tagline?: string | null
@@ -3249,6 +3255,7 @@ export type Database = {
           created_at: string | null
           id: string
           offer_id: string | null
+          status: string
           stripe_transfer_id: string
           updated_at: string | null
         }
@@ -3258,6 +3265,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           offer_id?: string | null
+          status?: string
           stripe_transfer_id: string
           updated_at?: string | null
         }
@@ -3267,6 +3275,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           offer_id?: string | null
+          status?: string
           stripe_transfer_id?: string
           updated_at?: string | null
         }
@@ -4754,6 +4763,10 @@ export type Database = {
         Returns: boolean
       }
       archive_ai_usage_logs: { Args: never; Returns: undefined }
+      assign_task: {
+        Args: { p_assigned_by?: string; p_task_id: string; p_worker_id: string }
+        Returns: undefined
+      }
       can_access_povprasevanje: {
         Args: { check_user_id?: string; pov_id: string }
         Returns: boolean
@@ -4777,6 +4790,7 @@ export type Database = {
           next_rank: number
         }[]
       }
+      expire_task: { Args: { p_task_id: string }; Returns: undefined }
       expire_tasks: { Args: never; Returns: number }
       f_ai_daily_usage_admin: {
         Args: never
@@ -4790,6 +4804,26 @@ export type Database = {
           total_tool_calls: number
           usage_date: string
           user_id: string
+        }[]
+      }
+      filter_tasks: {
+        Args: {
+          p_assigned_to?: string
+          p_category_id?: string
+          p_limit?: number
+          p_status?: string
+        }
+        Returns: {
+          assigned_to: string
+          category_id: string
+          created_at: string
+          created_by: string
+          description: string
+          expires_at: string
+          id: string
+          published_at: string
+          status: string
+          title: string
         }[]
       }
       get_ai_daily_limit: { Args: { tier?: string }; Returns: number }

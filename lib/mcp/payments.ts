@@ -73,7 +73,12 @@ export async function createObrtnikStripeAccount(params: {
       },
     })
 
-    // stripe_account_id is not stored in obrtnik_profiles; account ID returned to caller
+    // Save account ID to obrtnik_profiles
+    const supabase = await createClient()
+    await supabase
+      .from('obrtnik_profiles')
+      .update({ stripe_account_id: account.id })
+      .eq('id', params.obrtknikId)
 
     return { accountId: account.id }
   } catch (error) {

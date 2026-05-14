@@ -30,24 +30,28 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10)
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
-    // 3. Query tasks based on filter type
-    let query = supabase.from('tasks').select('*')
-
+    // 3. Map filter type to RPC parameters
+    let p_status: string | null = null
+    let p_assigned_to: string | null = null
     if (filterType === 'my_tasks') {
-      query = query.eq('customer_id', user.id)
+      p_assigned_to = user.id
     } else if (filterType === 'available') {
-      query = query.eq('status', 'published')
-    } else if (filterType === 'overdue') {
-      query = query.lt('expires_at', new Date().toISOString()).not('status', 'in', '("completed","expired","cancelled")')
+      p_status = 'open'
     } else if (filterType === 'completed') {
-      query = query.eq('status', 'completed')
+      p_status = 'completed'
+    } else if (filterType === 'overdue') {
+      p_status = 'expired'
     }
-    // 'all' returns everything
 
-    const { data, error } = await query.range(offset, offset + limit - 1).order('created_at', { ascending: false })
+    const { data, error } = await supabase.rpc('filter_tasks', {
+      p_status,
+      p_category_id: null,
+      p_assigned_to,
+      p_limit: limit,
+    })
 
     if (error) {
-      console.error('[v0] Query error:', error)
+      console.error('[v0] RPC error:', error)
       return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
     }
 
