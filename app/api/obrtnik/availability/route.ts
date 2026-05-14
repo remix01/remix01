@@ -9,7 +9,7 @@
  * Body: { status: 'online' | 'offline' | 'busy' }
  *
  * Updates: is_online, is_busy, last_seen_at on obrtnik_profiles.
- * Also adjusts max_active_leads based on subscription tier if not already set.
+ * Also adjusts max_active_leads based on subscription tier.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -27,14 +27,12 @@ const TIER_MAX_LEADS: Record<string, number> = {
 
 export async function POST(req: NextRequest) {
   try {
-    // Auth
     const userClient = await createClient()
     const { data: { user }, error: authError } = await userClient.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Validate body
     const body = await req.json().catch(() => null)
     const status = body?.status as AvailabilityStatus | undefined
     if (!status || !VALID_STATUSES.includes(status)) {
@@ -43,15 +41,16 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
     const isOnline = status === 'online'
     const isBusy = status === 'busy'
 
     const supabase = createAdminClient()
 
-    // Check profile exists + get tier
+    // Check profile exists
     const { data: obrtnik, error: profileError } = await supabase
       .from('obrtnik_profiles')
-      .select('id, max_active_leads')
+      .select('id')
       .eq('id', user.id)
       .single()
 
@@ -59,27 +58,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Profil obrtnika ne obstaja' }, { status: 404 })
     }
 
-    // Get subscription tier to set appropriate max_active_leads
+    // Get subscription tier
     const { data: profile } = await supabase
       .from('profiles')
       .select('subscription_tier')
       .eq('id', user.id)
       .single()
 
-    const tier = (profile?.subscription_tier as string) || 'start'
+    const tier = profile?.subscription_tier || 'start'
     const maxLeads = TIER_MAX_LEADS[tier.toLowerCase()] ?? 3
-
-    // Update availability (cast needed until generated types are regenerated)
-    const availabilityUpdate = {
-      is_online: isOnline,
-      is_busy: isBusy,
-      last_seen_at: new Date().toISOString(),
-      max_active_leads: maxLeads,
-    } as Record<string, unknown>
 
     const { error: updateError } = await supabase
       .from('obrtnik_profiles')
-      .update(availabilityUpdate as any)
+      .update({
+        is_online: isOnline,
+        is_busy: isBusy,
+        last_seen_at: new Date().toISOString(),
+        max_active_leads: maxLeads,
+      })
       .eq('id', user.id)
 
     if (updateError) {
@@ -96,13 +92,7 @@ export async function POST(req: NextRequest) {
       maxLeads,
     }))
 
-    return NextResponse.json({
-      success: true,
-      status,
-      is_online: isOnline,
-      is_busy: isBusy,
-      max_active_leads: maxLeads,
-    })
+    return NextResponse.json({ success: true, status, is_online: isOnline, is_busy: isBusy, max_active_leads: maxLeads })
   } catch (error) {
     console.error('[Availability] Error:', error)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
@@ -118,23 +108,14 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = createAdminClient()
-    const { data: rawData, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('obrtnik_profiles')
       .select('is_online, is_busy, last_seen_at, max_active_leads, active_lead_count, service_radius_km')
       .eq('id', user.id)
       .single()
 
-    if (error || !rawData) {
+    if (error || !data) {
       return NextResponse.json({ error: 'Profil ne obstaja' }, { status: 404 })
-    }
-
-    const data = rawData as {
-      is_online: boolean
-      is_busy: boolean
-      last_seen_at: string | null
-      max_active_leads: number
-      active_lead_count: number
-      service_radius_km: number
     }
 
     return NextResponse.json({
