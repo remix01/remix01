@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Chunk reminders into batches of 100 to respect sendBatchEmails limit
     const BATCH_SIZE = 100
     if (pendingReviews.length > BATCH_SIZE) {
-      const chunks = []
+      const chunks: (typeof pendingReviews)[] = []
       for (let i = 0; i < pendingReviews.length; i += BATCH_SIZE) {
         chunks.push(pendingReviews.slice(i, i + BATCH_SIZE))
       }

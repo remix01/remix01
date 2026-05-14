@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { type NextRequest, NextResponse } from 'next/server'
 import { validateCsrfOrigin, isCsrfExempt, csrfForbidden } from '@/lib/csrf'
+import type { User } from '@supabase/supabase-js'
 
 const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
   'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard',
@@ -78,7 +79,7 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  let user = null
+  let user: User | null = null
   try {
     const { data: { user: authUser }, error } = await supabase.auth.getUser()
 

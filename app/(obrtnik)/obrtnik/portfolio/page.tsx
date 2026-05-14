@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { PortfolioSortableGrid } from '@/components/portfolio/portfolio-sortable-grid'
 import { PortfolioAddButton } from '@/components/portfolio/PortfolioAddButton'
+import type { Database } from '@/types/supabase'
+
+type PortfolioItemRow = Database['public']['Tables']['portfolio_items']['Row']
 
 export const metadata = { title: 'Portfelj | LiftGO' }
 
@@ -26,7 +29,7 @@ export default async function PortfolioPage() {
     .order('sort_order', { ascending: true })
     .order('is_featured', { ascending: false })
 
-  const featuredCount = portfolioItems?.filter(item => item.is_featured).length || 0
+  const featuredCount = portfolioItems?.filter((item: PortfolioItemRow) => item.is_featured).length || 0
 
   return (
     <div className="space-y-6">

@@ -17,7 +17,7 @@ interface WeeklyScheduleSectionProps {
   initialSchedule: Array<{
     id: string
     day_of_week: number
-    is_available: boolean
+    is_available: boolean | null
     time_from: string | null
     time_to: string | null
   }>
@@ -128,7 +128,7 @@ export function WeeklyScheduleSection({
     const workdaySchedule = schedule.filter((s) => s.day_of_week < 5 && s.is_available)
     const weekendSchedule = schedule.filter((s) => s.day_of_week >= 5 && s.is_available)
 
-    const parts = []
+    const parts: string[] = []
     if (workdaySchedule.length > 0) {
       parts.push(
         `Pon-Pet ${workdaySchedule[0].time_from}-${workdaySchedule[0].time_to}`

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   console.log(`[CRON AUTO-RELEASE] Claimed ${claimed.length} transactions for processing`)
 
   // Process only the transactions THIS cron instance claimed
-  const results = []
+  const results: { id: string; success: boolean; error?: string }[] = []
   for (const tx of claimed) {
     try {
       console.log(`[CRON AUTO-RELEASE] Processing transaction ${tx.id}`)
