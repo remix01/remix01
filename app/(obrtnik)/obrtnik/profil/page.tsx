@@ -516,7 +516,7 @@ export default function ProfilPage() {
             <select
               id="response"
               value={responseTime}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setResponseTime(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setResponseTime(e.target.value)}
               className="w-full mt-1 px-3 py-2 border rounded-lg h-12 md:h-10 text-base md:text-sm"
             >
               <option value="">Izberite...</option>
