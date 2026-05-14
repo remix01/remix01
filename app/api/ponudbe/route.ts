@@ -65,9 +65,31 @@ export async function POST(request: NextRequest) {
 
     const { data: povprasevanjeMeta } = await supabaseAdmin
       .from('povprasevanja')
-      .select('location_city, categories:category_id(name)')
+      .select('location_city, created_at, categories:category_id(name)')
       .eq('id', povprasevanje_id)
       .maybeSingle()
+
+    // Best-effort lead flow tracking: contractor sent quote
+    try {
+      const responseTimeMs = povprasevanjeMeta?.created_at
+        ? Date.now() - new Date(povprasevanjeMeta.created_at).getTime()
+        : null
+      await supabaseAdmin
+        .from('povprasevanja')
+        .update({ lead_status: 'quoted' } as any)
+        .eq('id', povprasevanje_id)
+      await supabaseAdmin.from('lead_audit_log').insert({
+        povprasevanje_id,
+        status: 'quoted',
+        actor_type: 'contractor',
+        actor_id: user.id,
+        response_time_ms: responseTimeMs,
+        conversion: true,
+        metadata: { endpoint: '/api/ponudbe', obrtnik_id },
+      })
+    } catch (trackingError) {
+      console.warn('[lead-flow] quoted tracking skipped:', trackingError)
+    }
 
     trackFunnelEvent(FUNNEL_EVENTS.PONUDBA_SENT, {
       povprasevanje_id,
