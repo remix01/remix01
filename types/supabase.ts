@@ -2589,6 +2589,7 @@ export type Database = {
           avg_rating: number | null
           business_name: string
           category_id: string | null
+          certificate_urls: string[] | null
           created_at: string
           description: string | null
           embedding: string | null
@@ -2632,6 +2633,7 @@ export type Database = {
           avg_rating?: number | null
           business_name: string
           category_id?: string | null
+          certificate_urls?: string[] | null
           created_at?: string
           description?: string | null
           embedding?: string | null
@@ -2675,6 +2677,7 @@ export type Database = {
           avg_rating?: number | null
           business_name?: string
           category_id?: string | null
+          certificate_urls?: string[] | null
           created_at?: string
           description?: string | null
           embedding?: string | null
