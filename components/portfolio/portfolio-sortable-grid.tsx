@@ -26,8 +26,8 @@ interface PortfolioSortableGridProps {
 }
 
 export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGridProps) {
-  const [sortedItems, setSortedItems] = useState<PortfolioItem[]>(items)
-  const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null)
+  const [sortedItems, setSortedItems] = useState<PortfolioGridItem[]>(items)
+  const [editingItem, setEditingItem] = useState<PortfolioGridItem | null>(null)
   const supabase = createClient()
 
   const handleMoveUp = async (idx: number) => {
@@ -85,7 +85,7 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {sortedItems.map((item: PortfolioGridItem, idx: number) => (
-          <PortfolioItemCard
+          <PortfolioGridItemCard
             key={item.id}
             item={item}
             idx={idx}
@@ -114,7 +114,7 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
   )
 }
 
-function PortfolioItemCard({
+function PortfolioGridItemCard({
   item,
   idx,
   total,
