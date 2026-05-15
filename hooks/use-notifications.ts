@@ -10,7 +10,7 @@ export interface Notification {
   title: string
   body: string
   data: Record<string, any>
-  is_read: boolean
+  read: boolean
   created_at: string
 }
 
@@ -47,7 +47,7 @@ export function useNotifications() {
       if (response.ok) {
         setNotifications(prev =>
           prev.map(n =>
-            n.id === notificationId ? { ...n, is_read: true } : n
+            n.id === notificationId ? { ...n, read: true } : n
           )
         )
         setUnreadCount(prev => Math.max(0, prev - 1))
@@ -66,7 +66,7 @@ export function useNotifications() {
       
       if (response.ok) {
         setNotifications(prev =>
-          prev.map(n => ({ ...n, is_read: true }))
+          prev.map(n => ({ ...n, read: true }))
         )
         setUnreadCount(0)
       }
@@ -126,7 +126,7 @@ export function useNotifications() {
             )
             
             // Recalculate unread count
-            if ((payload.new as Notification).is_read) {
+            if ((payload.new as Notification).read) {
               setUnreadCount(prev => Math.max(0, prev - 1))
             }
           }

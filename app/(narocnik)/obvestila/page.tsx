@@ -54,7 +54,7 @@ export default async function NotificationsPage() {
   }
 
   // Mark all as read on page load
-  if (notifications.some((n) => !n.is_read)) {
+  if (notifications.some((n) => !n.read)) {
     await markAllAsRead(user.id).catch(err => {
       console.error('[v0] Error marking all as read:', err)
     })
@@ -80,7 +80,7 @@ export default async function NotificationsPage() {
                 <Card
                   className={`p-4 cursor-pointer transition-all hover:shadow-md ${
                     notificationColors[notification.type] || 'bg-gray-100'
-                  } ${!notification.is_read ? 'border-2' : 'border'}`}
+                  } ${!notification.read ? 'border-2' : 'border'}`}
                 >
                   <div className="flex items-start gap-4">
                     {/* Colored dot */}
@@ -94,7 +94,7 @@ export default async function NotificationsPage() {
                       {/* Title */}
                       <h3
                         className={`text-base ${
-                          notification.is_read
+                          notification.read
                             ? 'font-normal text-gray-700'
                             : 'font-semibold text-gray-900'
                         }`}
@@ -114,7 +114,7 @@ export default async function NotificationsPage() {
                     </div>
 
                     {/* Unread indicator */}
-                    {!notification.is_read && (
+                    {!notification.read && (
                       <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
                     )}
                   </div>

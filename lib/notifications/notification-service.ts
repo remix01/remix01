@@ -17,7 +17,7 @@ export interface Notification {
   title: string
   body: string
   data: Record<string, any>
-  is_read: boolean
+  read: boolean
   created_at: string
 }
 
@@ -68,7 +68,7 @@ export class NotificationService {
     try {
       const { error } = await supabaseAdmin
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('id', notificationId)
         .eq('user_id', userId)
 
@@ -91,9 +91,9 @@ export class NotificationService {
     try {
       const { error } = await supabaseAdmin
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('user_id', userId)
-        .eq('is_read', false)
+        .eq('read', false)
 
       if (error) {
         console.error('[NotificationService] MarkAllRead error:', error)
@@ -146,7 +146,7 @@ export class NotificationService {
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('is_read', false)
+        .eq('read', false)
 
       return {
         notifications: (notifications || []) as Notification[],
@@ -168,7 +168,7 @@ export class NotificationService {
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('is_read', false)
+        .eq('read', false)
 
       return count || 0
     } catch (error) {
