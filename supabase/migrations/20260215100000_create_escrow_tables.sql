@@ -48,11 +48,13 @@ CREATE TABLE IF NOT EXISTS public.escrow_transactions (
 
 ALTER TABLE public.escrow_transactions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Partners see own transactions"
+DROP POLICY IF EXISTS "Partners see own transactions" ON public.escrow_transactions;
+CREATE POLICY "Partners see own transactions"
     ON public.escrow_transactions FOR SELECT
     USING (auth.uid() = partner_id);
 
-CREATE POLICY IF NOT EXISTS "Service role full access escrow"
+DROP POLICY IF EXISTS "Service role full access escrow" ON public.escrow_transactions;
+CREATE POLICY "Service role full access escrow"
     ON public.escrow_transactions FOR ALL
     USING (auth.role() = 'service_role');
 
@@ -94,7 +96,8 @@ CREATE TABLE IF NOT EXISTS public.escrow_audit_log (
 ALTER TABLE public.escrow_audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Audit log je write-once — nihče ne sme brisati ali urejati
-CREATE POLICY IF NOT EXISTS "Partners see own audit"
+DROP POLICY IF EXISTS "Partners see own audit" ON public.escrow_audit_log;
+CREATE POLICY "Partners see own audit"
     ON public.escrow_audit_log FOR SELECT
     USING (
         auth.uid() = (
@@ -103,7 +106,8 @@ CREATE POLICY IF NOT EXISTS "Partners see own audit"
         )
     );
 
-CREATE POLICY IF NOT EXISTS "Service role audit full"
+DROP POLICY IF EXISTS "Service role audit full" ON public.escrow_audit_log;
+CREATE POLICY "Service role audit full"
     ON public.escrow_audit_log FOR ALL
     USING (auth.role() = 'service_role');
 
@@ -142,7 +146,8 @@ CREATE TRIGGER disputes_updated_at
     BEFORE UPDATE ON public.escrow_disputes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-CREATE POLICY IF NOT EXISTS "Parties see own disputes"
+DROP POLICY IF EXISTS "Parties see own disputes" ON public.escrow_disputes;
+CREATE POLICY "Parties see own disputes"
     ON public.escrow_disputes FOR SELECT
     USING (
         opened_by_id = auth.uid()::text OR
@@ -152,7 +157,8 @@ CREATE POLICY IF NOT EXISTS "Parties see own disputes"
         )
     );
 
-CREATE POLICY IF NOT EXISTS "Service role disputes full"
+DROP POLICY IF EXISTS "Service role disputes full" ON public.escrow_disputes;
+CREATE POLICY "Service role disputes full"
     ON public.escrow_disputes FOR ALL
     USING (auth.role() = 'service_role');
 

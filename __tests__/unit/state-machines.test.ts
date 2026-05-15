@@ -51,15 +51,15 @@ describe('Generic transition guard', () => {
   it('rejects an undefined transition', () => {
     expect(() =>
       assertTransitionValid(
-        LeadStatus.LEAD,
         LeadStatus.ACTIVE,
+        LeadStatus.LEAD,
         LEAD_TRANSITIONS,
         LEAD_TERMINAL,
       ),
     ).toThrow(TransitionError)
 
     try {
-      assertTransitionValid(LeadStatus.LEAD, LeadStatus.ACTIVE, LEAD_TRANSITIONS, LEAD_TERMINAL)
+      assertTransitionValid(LeadStatus.ACTIVE, LeadStatus.LEAD, LEAD_TRANSITIONS, LEAD_TERMINAL)
     } catch (err) {
       const te = err as TransitionError
       expect(te.reason).toBe('INVALID_TRANSITION')
@@ -99,10 +99,9 @@ describe('LeadStatus state machine', () => {
     ).toThrow(TransitionError)
   })
 
-  it('lead → active is invalid (must go through qualified)', () => {
-    expect(() =>
-      assertTransitionValid(LeadStatus.LEAD, LeadStatus.ACTIVE, LEAD_TRANSITIONS, LEAD_TERMINAL),
-    ).toThrow(TransitionError)
+  it('lead → active is valid (auto-process shortcut for pre-screened imports)', () => {
+    const r = assertTransitionValid(LeadStatus.LEAD, LeadStatus.ACTIVE, LEAD_TRANSITIONS, LEAD_TERMINAL)
+    expect(r.allowed).toBe(true)
   })
 
   it('active → lead is invalid (no backward jump)', () => {

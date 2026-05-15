@@ -44,7 +44,7 @@ export const LeadStatus = {
 export type LeadStatus = (typeof LeadStatus)[keyof typeof LeadStatus]
 
 export const LEAD_TRANSITIONS: Record<LeadStatus, readonly LeadStatus[]> = {
-  [LeadStatus.LEAD]:      [LeadStatus.QUALIFIED, LeadStatus.REJECTED],
+  [LeadStatus.LEAD]:      [LeadStatus.QUALIFIED, LeadStatus.ACTIVE, LeadStatus.REJECTED],
   [LeadStatus.QUALIFIED]:  [LeadStatus.CLAIMED, LeadStatus.ACTIVE, LeadStatus.REJECTED],
   [LeadStatus.CLAIMED]:    [LeadStatus.ACTIVE, LeadStatus.INACTIVE, LeadStatus.REJECTED],
   [LeadStatus.ACTIVE]:     [LeadStatus.INACTIVE],

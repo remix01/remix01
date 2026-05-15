@@ -9,6 +9,28 @@ import { eventBus } from '@/lib/events'
 
 type OnboardingState = OnboardingStatus
 
+/**
+ * Maps legacy persisted onboarding_state values to the new canonical enum.
+ * Previous code wrote 'completed', 'blocked', etc. — these must be
+ * translated before validating against the new transition graph.
+ */
+const LEGACY_ONBOARDING_MAP: Record<string, OnboardingStatus> = {
+  completed: OnboardingStatus.ACTIVE,
+  blocked: OnboardingStatus.SUSPENDED,
+  profile_incomplete: OnboardingStatus.PROFILE_INCOMPLETE,
+  verification_pending: OnboardingStatus.VERIFICATION_PENDING,
+  payout_setup_required: OnboardingStatus.PAYOUT_SETUP_REQUIRED,
+  // New values map to themselves
+  draft: OnboardingStatus.DRAFT,
+  active: OnboardingStatus.ACTIVE,
+  rejected: OnboardingStatus.REJECTED,
+  suspended: OnboardingStatus.SUSPENDED,
+}
+
+function migrateOnboardingState(raw: string): OnboardingStatus {
+  return LEGACY_ONBOARDING_MAP[raw] ?? (raw as OnboardingStatus)
+}
+
 type ProviderSnapshot = {
   userId: string
   role: 'narocnik' | 'obrtnik' | null
@@ -91,12 +113,14 @@ export async function transitionOnboardingState(userId: string): Promise<{ state
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (existing?.state && existing.state !== derivedState) {
+  const migratedPrevious = existing?.state ? migrateOnboardingState(existing.state) : null
+
+  if (migratedPrevious && migratedPrevious !== derivedState) {
     try {
-      assertOnboardingTransitionValid(existing.state as OnboardingState, derivedState)
+      assertOnboardingTransitionValid(migratedPrevious, derivedState)
     } catch (err) {
       if (err instanceof TransitionError) {
-        console.warn(`[ONBOARDING] Rejected transition for ${userId}: ${existing.state} → ${derivedState} (${err.reason})`)
+        console.warn(`[ONBOARDING] Rejected transition for ${userId}: ${migratedPrevious} (was: ${existing!.state}) → ${derivedState} (${err.reason})`)
         throw err
       }
       throw err
@@ -115,10 +139,10 @@ export async function transitionOnboardingState(userId: string): Promise<{ state
 
   if (error) throw error
 
-  if (existing?.state && existing.state !== derivedState) {
+  if (migratedPrevious && migratedPrevious !== derivedState) {
     eventBus.emit('onboarding.transitioned', {
       userId,
-      fromState: existing.state,
+      fromState: migratedPrevious,
       toState: derivedState,
       blockedReasons,
       transitionedAt: new Date().toISOString(),

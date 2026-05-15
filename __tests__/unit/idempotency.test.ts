@@ -33,10 +33,12 @@ jest.mock('@/lib/supabase-admin', () => ({
 
 import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
-function makeRequest(key?: string): NextRequest {
+function makeRequest(key?: string, opts?: { auth?: string; path?: string }): NextRequest {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   if (key) headers['idempotency-key'] = key
-  return new NextRequest('http://localhost/api/test', {
+  if (opts?.auth) headers['authorization'] = opts.auth
+  const url = `http://localhost${opts?.path ?? '/api/test'}`
+  return new NextRequest(url, {
     method: 'POST',
     headers,
     body: JSON.stringify({ test: true }),
@@ -137,6 +139,22 @@ describe('withIdempotency', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
+  it('returns 503 when lock acquisition fails due to DB error (fail closed)', async () => {
+    // No cached response
+    mockSelectEqMaybeSingle.mockResolvedValue({ data: null, error: null })
+    // Lock fails with non-duplicate DB error
+    mockInsert.mockResolvedValue({ error: { code: '42P01', message: 'relation does not exist' } })
+
+    const wrapped = withIdempotency(handler)
+    const req = makeRequest('db-fail-key-12345')
+
+    const response = await wrapped(req)
+    expect(response.status).toBe(503)
+    const body = await response.json()
+    expect(body.error).toContain('unavailable')
+    expect(handler).not.toHaveBeenCalled()
+  })
+
   it('releases lock if handler throws', async () => {
     mockSelectEqMaybeSingle.mockResolvedValue({ data: null, error: null })
     mockInsert.mockResolvedValue({ error: null })
@@ -173,5 +191,56 @@ describe('withIdempotency', () => {
 
     const response = await wrapped(req)
     expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  describe('endpoint + actor scoping', () => {
+    it('scopes keys by path — same raw key on different paths does not replay', async () => {
+      // First call: cache a response on /api/escrow/create
+      mockSelectEqMaybeSingle.mockResolvedValue({ data: null, error: null })
+      mockInsert.mockResolvedValue({ error: null })
+      mockUpdateEq.mockResolvedValue({ error: null })
+
+      const wrapped = withIdempotency(handler)
+      const req1 = makeRequest('shared-key-123456', { path: '/api/escrow/create' })
+      await wrapped(req1)
+
+      // The scoped key used for insert includes the path
+      const insertedKey1 = mockInsert.mock.calls[0]?.[0]?.key as string
+      expect(insertedKey1).toContain('/api/escrow/create')
+
+      // Second call: same raw key, different path
+      mockInsert.mockReset()
+      mockInsert.mockResolvedValue({ error: null })
+      mockSelectEqMaybeSingle.mockResolvedValue({ data: null, error: null })
+
+      const req2 = makeRequest('shared-key-123456', { path: '/api/escrow/release' })
+      await wrapped(req2)
+
+      const insertedKey2 = mockInsert.mock.calls[0]?.[0]?.key as string
+      expect(insertedKey2).toContain('/api/escrow/release')
+      expect(insertedKey1).not.toBe(insertedKey2)
+    })
+
+    it('scopes keys by auth — same raw key from different users does not replay', async () => {
+      mockSelectEqMaybeSingle.mockResolvedValue({ data: null, error: null })
+      mockInsert.mockResolvedValue({ error: null })
+      mockUpdateEq.mockResolvedValue({ error: null })
+
+      const wrapped = withIdempotency(handler)
+
+      const reqUser1 = makeRequest('shared-key-123456', { auth: 'Bearer token-user-1' })
+      await wrapped(reqUser1)
+      const key1 = mockInsert.mock.calls[0]?.[0]?.key as string
+
+      mockInsert.mockReset()
+      mockInsert.mockResolvedValue({ error: null })
+      mockSelectEqMaybeSingle.mockResolvedValue({ data: null, error: null })
+
+      const reqUser2 = makeRequest('shared-key-123456', { auth: 'Bearer token-user-2' })
+      await wrapped(reqUser2)
+      const key2 = mockInsert.mock.calls[0]?.[0]?.key as string
+
+      expect(key1).not.toBe(key2)
+    })
   })
 })

@@ -6,6 +6,9 @@
  * cached in `idempotency_keys`.  Subsequent calls with the same key
  * return the cached response without re-executing the handler.
  *
+ * Keys are scoped to method + path + caller so the same raw key from
+ * different endpoints or users never collides.
+ *
  * Keys expire after 24 hours.
  *
  * Usage:
@@ -24,14 +27,40 @@ export interface IdempotencyOptions {
   required?: boolean
 }
 
+/**
+ * Build a scoped key that includes method, path, and caller identity
+ * so the same raw Idempotency-Key from different endpoints/users
+ * never replays another request's cached response.
+ */
+function buildScopedKey(req: NextRequest, rawKey: string): string {
+  const method = req.method
+  const path = req.nextUrl.pathname
+  // Use Authorization header hash as caller fingerprint (works for both
+  // Bearer tokens and cookie-based auth forwarded by middleware)
+  const authHeader = req.headers.get('authorization') ?? ''
+  const callerFingerprint = authHeader
+    ? simpleHash(authHeader)
+    : 'anon'
+  return `${method}:${path}:${callerFingerprint}:${rawKey}`
+}
+
+/** Fast non-crypto hash — sufficient for key scoping, not for security. */
+function simpleHash(input: string): string {
+  let h = 0
+  for (let i = 0; i < input.length; i++) {
+    h = ((h << 5) - h + input.charCodeAt(i)) | 0
+  }
+  return Math.abs(h).toString(36)
+}
+
 export function withIdempotency(
   handler: RouteHandler,
   options: IdempotencyOptions = {},
 ): RouteHandler {
   return async (req: NextRequest, ctx?: any) => {
-    const key = req.headers.get(IDEMPOTENCY_HEADER)
+    const rawKey = req.headers.get(IDEMPOTENCY_HEADER)
 
-    if (!key) {
+    if (!rawKey) {
       if (options.required) {
         return NextResponse.json(
           { error: 'Idempotency-Key header is required for this endpoint' },
@@ -41,12 +70,14 @@ export function withIdempotency(
       return handler(req, ctx)
     }
 
-    if (!/^[a-zA-Z0-9_-]{8,128}$/.test(key)) {
+    if (!/^[a-zA-Z0-9_-]{8,128}$/.test(rawKey)) {
       return NextResponse.json(
         { error: 'Invalid Idempotency-Key format (8-128 alphanumeric chars, dashes, underscores)' },
         { status: 400 },
       )
     }
+
+    const key = buildScopedKey(req, rawKey)
 
     const cached = await getCachedResponse(key)
     if (cached) {
@@ -56,11 +87,18 @@ export function withIdempotency(
       })
     }
 
-    const locked = await acquireLock(key)
-    if (!locked) {
+    const lockResult = await acquireLock(key)
+    if (lockResult === 'duplicate') {
       return NextResponse.json(
         { error: 'A request with this Idempotency-Key is already in progress' },
         { status: 409 },
+      )
+    }
+    if (lockResult === 'error') {
+      // Fail closed: reject the request rather than silently disabling deduplication
+      return NextResponse.json(
+        { error: 'Idempotency service unavailable. Please retry.' },
+        { status: 503 },
       )
     }
 
@@ -107,7 +145,7 @@ async function getCachedResponse(key: string): Promise<{
   return data
 }
 
-async function acquireLock(key: string): Promise<boolean> {
+async function acquireLock(key: string): Promise<'ok' | 'duplicate' | 'error'> {
   const { error } = await supabaseAdmin.from('idempotency_keys').insert({
     key,
     status: 'processing',
@@ -116,13 +154,13 @@ async function acquireLock(key: string): Promise<boolean> {
 
   if (error) {
     if (error.code === '23505') {
-      return false
+      return 'duplicate'
     }
-    console.error('[Idempotency] Lock error:', error.message)
-    return true
+    console.error('[Idempotency] Lock acquisition failed — rejecting request:', error.message)
+    return 'error'
   }
 
-  return true
+  return 'ok'
 }
 
 async function cacheResponse(
