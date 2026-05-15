@@ -157,7 +157,7 @@ export function rankPartnersByMatch(
       ...p,
       matchScore: map.get(p.id) ?? 0,
     }))
-    .sort((a, b) => b.matchScore - a.matchScore)
+    .sort((a, b) => b.matchScore - a.matchScore || a.id.localeCompare(b.id))
 
   const audit = buildScoringAudit(results)
   console.log('[matching:classic:audit]', audit)

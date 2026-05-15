@@ -1,4 +1,4 @@
-import { scoreClassicCandidates } from '@/lib/services/matching'
+import { rankPartnersByMatch, scoreClassicCandidates } from '@/lib/services/matching'
 import { buildScoringAudit, type ScoringCandidate, type ScoringInput, type ScoringResult } from '@/lib/services/matchingScoringContract'
 
 describe('matching scoring contract', () => {
@@ -43,6 +43,26 @@ describe('matching scoring contract', () => {
       mainReasons: [],
       pipelineVersion: 'classic-v1',
     })
+  })
+
+
+
+  it('keeps rank ordering aligned with audit tie-breaker', () => {
+    const povprasevanje: any = {
+      id: 'req-1',
+      category_id: 'cat-1',
+      location_city: 'Ljubljana',
+      location_region: 'Osrednjeslovenska',
+    }
+
+    const partners: any[] = [
+      { id: 'b', is_available: false, avg_rating: 4.0, profile: { location_city: 'Ljubljana', location_region: 'Osrednjeslovenska' }, categories: [{ id: 'cat-1' }] },
+      { id: 'a', is_available: false, avg_rating: 4.0, profile: { location_city: 'Ljubljana', location_region: 'Osrednjeslovenska' }, categories: [{ id: 'cat-1' }] },
+    ]
+
+    const ranked = rankPartnersByMatch(partners, povprasevanje)
+    expect(ranked[0].id).toBe('a')
+    expect(ranked[1].id).toBe('b')
   })
 
   it('filters unavailable partners via score impact and keeps stable order on tie', () => {
