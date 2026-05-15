@@ -30,7 +30,10 @@ export function ConnectOnboarding({ userEmail }: { userEmail: string }) {
     try {
       setLoading(true)
       const response = await fetch('/api/stripe/connect/status')
-      if (!response.ok) throw new Error('Failed to fetch status')
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Failed to fetch status')
+      }
       const data = await response.json()
       setStatus(data)
     } catch (err) {
@@ -54,7 +57,8 @@ export function ConnectOnboarding({ userEmail }: { userEmail: string }) {
       })
 
       if (!createResponse.ok) {
-        throw new Error('Failed to create account')
+        const payload = await createResponse.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Failed to create account')
       }
 
       const { accountId } = await createResponse.json()
@@ -67,7 +71,8 @@ export function ConnectOnboarding({ userEmail }: { userEmail: string }) {
       })
 
       if (!linkResponse.ok) {
-        throw new Error('Failed to create onboarding link')
+        const payload = await linkResponse.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Failed to create onboarding link')
       }
 
       const { url } = await linkResponse.json()
@@ -95,7 +100,8 @@ export function ConnectOnboarding({ userEmail }: { userEmail: string }) {
       })
 
       if (!linkResponse.ok) {
-        throw new Error('Failed to create onboarding link')
+        const payload = await linkResponse.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Failed to create onboarding link')
       }
 
       const { url } = await linkResponse.json()

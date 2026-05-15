@@ -10,6 +10,10 @@
 export const OnboardingStatus = {
   DRAFT: 'draft',
   PROFILE_INCOMPLETE: 'profile_incomplete',
+  REGISTERED: 'registered',
+  EMAIL_VERIFIED: 'email_verified',
+  PROFILE_COMPLETED: 'profile_completed',
+  PAYMENT_CONNECTED: 'payment_connected',
   VERIFICATION_PENDING: 'verification_pending',
   PAYOUT_SETUP_REQUIRED: 'payout_setup_required',
   ACTIVE: 'active',
@@ -20,9 +24,13 @@ export const OnboardingStatus = {
 export type OnboardingStatus = (typeof OnboardingStatus)[keyof typeof OnboardingStatus]
 
 export const ONBOARDING_TRANSITIONS: Record<OnboardingStatus, readonly OnboardingStatus[]> = {
-  [OnboardingStatus.DRAFT]:                  [OnboardingStatus.PROFILE_INCOMPLETE, OnboardingStatus.REJECTED],
+  [OnboardingStatus.DRAFT]:                  [OnboardingStatus.REGISTERED, OnboardingStatus.PROFILE_INCOMPLETE, OnboardingStatus.REJECTED],
+  [OnboardingStatus.REGISTERED]:             [OnboardingStatus.EMAIL_VERIFIED, OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.REJECTED],
+  [OnboardingStatus.EMAIL_VERIFIED]:         [OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.REJECTED],
+  [OnboardingStatus.PROFILE_COMPLETED]:      [OnboardingStatus.EMAIL_VERIFIED, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.REJECTED],
+  [OnboardingStatus.PAYMENT_CONNECTED]:      [OnboardingStatus.ACTIVE, OnboardingStatus.PAYOUT_SETUP_REQUIRED],
   [OnboardingStatus.PROFILE_INCOMPLETE]:     [OnboardingStatus.VERIFICATION_PENDING, OnboardingStatus.REJECTED],
-  [OnboardingStatus.VERIFICATION_PENDING]:   [OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.REJECTED],
+  [OnboardingStatus.VERIFICATION_PENDING]:   [OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.REJECTED],
   [OnboardingStatus.PAYOUT_SETUP_REQUIRED]:  [OnboardingStatus.ACTIVE],
   [OnboardingStatus.ACTIVE]:                 [OnboardingStatus.SUSPENDED],
   [OnboardingStatus.REJECTED]:               [OnboardingStatus.DRAFT],

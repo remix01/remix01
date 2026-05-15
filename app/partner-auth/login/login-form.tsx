@@ -99,7 +99,7 @@ export function PartnerLoginForm() {
                 </div>
                 <div className="mt-4 text-center text-sm">
                   Še niste registrirani?{' '}
-                  <Link href="/partner-auth/sign-up" className="underline underline-offset-4">
+                  <Link href="/registracija-mojster" className="underline underline-offset-4">
                     Registracija
                   </Link>
                 </div>

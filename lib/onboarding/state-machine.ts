@@ -6,6 +6,7 @@ import {
 } from '@/lib/state-machine/statuses'
 import { assertTransitionValid, TransitionError } from '@/lib/state-machine/transition'
 import { eventBus } from '@/lib/events'
+import { PartnerOnboardingStatus } from '@/lib/onboarding/status'
 
 type OnboardingState = OnboardingStatus
 
@@ -22,6 +23,10 @@ const LEGACY_ONBOARDING_MAP: Record<string, OnboardingStatus> = {
   payout_setup_required: OnboardingStatus.PAYOUT_SETUP_REQUIRED,
   // New values map to themselves
   draft: OnboardingStatus.DRAFT,
+  registered: OnboardingStatus.REGISTERED,
+  email_verified: OnboardingStatus.EMAIL_VERIFIED,
+  profile_completed: OnboardingStatus.PROFILE_COMPLETED,
+  payment_connected: OnboardingStatus.PAYMENT_CONNECTED,
   active: OnboardingStatus.ACTIVE,
   rejected: OnboardingStatus.REJECTED,
   suspended: OnboardingStatus.SUSPENDED,
@@ -59,14 +64,27 @@ export function deriveOnboardingState(snapshot: ProviderSnapshot): { state: Onbo
   if (snapshot.role === 'obrtnik' && !snapshot.stripeAccountId) blockedReasons.push('missing_stripe_account')
   if (snapshot.role === 'obrtnik' && !!snapshot.stripeAccountId && !snapshot.stripeOnboarded) blockedReasons.push('stripe_onboarding_incomplete')
 
-  let state: OnboardingState = OnboardingStatus.PROFILE_INCOMPLETE
-  if (!snapshot.role) state = OnboardingStatus.SUSPENDED
-  else if (snapshot.role === 'narocnik') state = OnboardingStatus.ACTIVE
-  else if (!snapshot.obrtnikProfileExists) state = OnboardingStatus.PROFILE_INCOMPLETE
-  else if (snapshot.verificationStatus === 'rejected') state = OnboardingStatus.REJECTED
-  else if (snapshot.isVerified && !!snapshot.stripeAccountId && snapshot.stripeOnboarded) state = OnboardingStatus.ACTIVE
-  else if (snapshot.isVerified && (!snapshot.stripeAccountId || !snapshot.stripeOnboarded)) state = OnboardingStatus.PAYOUT_SETUP_REQUIRED
-  else if (!snapshot.isVerified && (snapshot.verificationStatus ?? 'pending') === 'pending') state = OnboardingStatus.VERIFICATION_PENDING
+  let state: OnboardingState = OnboardingStatus.DRAFT
+  if (!snapshot.role) return { state: OnboardingStatus.SUSPENDED, blockedReasons }
+  if (snapshot.role === 'narocnik') return { state: OnboardingStatus.ACTIVE, blockedReasons }
+  if (!snapshot.obrtnikProfileExists) return { state: OnboardingStatus.DRAFT, blockedReasons }
+  if (snapshot.verificationStatus === 'rejected') return { state: OnboardingStatus.REJECTED, blockedReasons }
+
+  state = PartnerOnboardingStatus.REGISTERED as OnboardingState
+  const hasCompletedProfile = cleanText(snapshot.businessName) !== '' && cleanText(snapshot.description) !== ''
+  if (hasCompletedProfile) {
+    state = PartnerOnboardingStatus.PROFILE_COMPLETED as OnboardingState
+  }
+
+  if (snapshot.isVerified || snapshot.verificationStatus === 'verified') {
+    state = PartnerOnboardingStatus.EMAIL_VERIFIED as OnboardingState
+  } else if ((snapshot.verificationStatus ?? 'pending') === 'pending') {
+    state = OnboardingStatus.VERIFICATION_PENDING
+  }
+
+  if (!!snapshot.stripeAccountId && snapshot.stripeOnboarded) return { state: OnboardingStatus.ACTIVE, blockedReasons }
+  if (!!snapshot.stripeAccountId) return { state: PartnerOnboardingStatus.PAYMENT_CONNECTED as OnboardingState, blockedReasons }
+  if (snapshot.isVerified) return { state: OnboardingStatus.PAYOUT_SETUP_REQUIRED, blockedReasons }
 
   return { state, blockedReasons }
 }
