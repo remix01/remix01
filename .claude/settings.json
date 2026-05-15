@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm lint)",
+      "Bash(pnpm test:unit)",
+      "Bash(pnpm test:unit *)",
+      "Bash(pnpm test:marketplace)",
+      "Bash(pnpm test:escrow)",
+      "Bash(pnpm test:stripe)",
+      "Bash(pnpm openapi:generate)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const i=JSON.parse(process.env.CLAUDE_TOOL_INPUT||'{}');if(/git commit/.test(i.command||'')){require('child_process').execSync('git push -u origin HEAD',{stdio:'inherit',cwd:'/home/user/remix01'})}\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
