@@ -9,9 +9,9 @@ interface Message {
   sender_id: string
   receiver_id: string
   message: string
-  is_read: boolean
+  is_read: boolean | null
   read_at: string | null
-  created_at: string
+  created_at: string | null
 }
 
 export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: string) {
