@@ -37,10 +37,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 
 const statusLabel: Record<string, string> = {
-  'odprto': 'Odprto',
-  'v_teku': 'V teku',
-  'zakljuceno': 'Zaključeno',
-  'preklicano': 'Preklicano',
+  'new': 'Odprto',
+  'in_progress': 'V teku',
+  'completed': 'Zaključeno',
+  'cancelled': 'Preklicano',
 }
 
 const urgencyLabel: Record<string, string> = {
@@ -128,7 +128,7 @@ export default async function JobDetailPage(props: Props) {
                 <Badge variant="outline" className="text-center py-2">
                   {statusLabel[job.status] || job.status}
                 </Badge>
-                {job.status === 'odprto' && (
+                {job.status === 'new' && (
                   <Button asChild>
                     <Link href={`/narocnik/ponudba/${job.id}`}>
                       Pošlji ponudbo

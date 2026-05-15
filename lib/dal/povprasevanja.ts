@@ -9,6 +9,15 @@ import type {
   PovprasevanjeUpdate,
   PovprasevanjeFilters 
 } from '@/types/marketplace'
+import { toCanonicalLeadStatus, toLegacyInquiryStatus } from '@/lib/lead-status'
+
+
+function mapInquiryStatus<T extends { status?: string | null }>(item: T): T {
+  return {
+    ...item,
+    status: toCanonicalLeadStatus(item.status),
+  }
+}
 
 /**
  * Get povprasevanje by ID with relations
@@ -36,10 +45,10 @@ export async function getPovprasevanje(id: string): Promise<Povprasevanje | null
   }
 
   // Add ponudbe count
-  const result = {
+  const result = mapInquiryStatus({
     ...data!,
     ponudbe_count: (data as any).ponudbe?.length || 0
-  }
+  })
 
   return result as unknown as Povprasevanje
 }
@@ -75,7 +84,7 @@ export async function listPovprasevanja(filters?: PovprasevanjeFilters & {
   }
 
   if (filters?.status) {
-    query = query.eq('status', filters.status)
+    query = query.eq('status', toLegacyInquiryStatus(filters.status))
   }
 
   if (filters?.budget_max) {
@@ -100,7 +109,7 @@ export async function listPovprasevanja(filters?: PovprasevanjeFilters & {
   }
 
   // Add ponudbe counts
-  const results = data.map((item: any) => ({
+  const results = data.map((item: any) => mapInquiryStatus({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -135,7 +144,7 @@ export async function getNarocnikPovprasevanja(narocnikId: string, limit?: numbe
     return []
   }
 
-  const results = data.map((item: any) => ({
+  const results = data.map((item: any) => mapInquiryStatus({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -161,7 +170,7 @@ export async function getOpenPovprasevanjaForObrtnik(
       category:categories(*),
       ponudbe(id, status, obrtnik_id)
     `)
-    .eq('status', 'odprto')
+    .eq('status', toLegacyInquiryStatus('new'))
 
   if (categoryIds && categoryIds.length > 0) {
     query = query.in('category_id', categoryIds)
@@ -186,7 +195,7 @@ export async function getOpenPovprasevanjaForObrtnik(
     return !hasSubmitted
   })
 
-  const results = filtered.map((item: any) => ({
+  const results = filtered.map((item: any) => mapInquiryStatus({
     ...item,
     ponudbe_count: item.ponudbe?.length || 0
   }))
@@ -250,7 +259,7 @@ export async function createPovprasevanje(
     budget_min: povprasevanje.budget_min || null,
     budget_max: povprasevanje.budget_max || null,
     attachment_urls: povprasevanje.attachment_urls || null,
-    status: 'odprto',      // ⭐ prisilimo status
+    status: toLegacyInquiryStatus('new'),
   }
 
   const { data, error } = await supabase
@@ -311,9 +320,12 @@ export async function createPovprasevanje(
 export async function updatePovprasevanje(id: string, updates: PovprasevanjeUpdate): Promise<Povprasevanje | null> {
   const supabase = await createClient()
   
+  const payload = { ...updates } as any
+  if (payload.status) payload.status = toLegacyInquiryStatus(payload.status)
+
   const { data, error } = await supabase
     .from('povprasevanja')
-    .update(updates)
+    .update(payload)
     .eq('id', id)
     .select(`
       *,
@@ -327,7 +339,7 @@ export async function updatePovprasevanje(id: string, updates: PovprasevanjeUpda
     return null
   }
 
-  return data as unknown as Povprasevanje
+  return mapInquiryStatus(data as any) as unknown as Povprasevanje
 }
 
 /**
@@ -365,7 +377,7 @@ export async function deletePovprasevanje(id: string): Promise<boolean> {
  * Cancel povprasevanje (soft delete by status change)
  */
 export async function cancelPovprasevanje(id: string): Promise<boolean> {
-  const result = await updatePovprasevanje(id, { status: 'preklicano' })
+  const result = await updatePovprasevanje(id, { status: 'cancelled' })
   return result !== null
 }
 
@@ -387,7 +399,8 @@ export async function countNarocnikPovprasevanjaByStatus(narocnikId: string): Pr
 
   const counts: Record<string, number> = {}
   data.forEach((item: any) => {
-    counts[item.status] = (counts[item.status] || 0) + 1
+    const canonical = toCanonicalLeadStatus(item.status)
+    counts[canonical] = (counts[canonical] || 0) + 1
   })
 
   return counts

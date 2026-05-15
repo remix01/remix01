@@ -4,7 +4,9 @@ export type UserRole = 'narocnik' | 'obrtnik'
 
 export type UrgencyLevel = 'normalno' | 'kmalu' | 'nujno'
 
-export type PovprasevanjeStatus = 'odprto' | 'v_teku' | 'zakljuceno' | 'preklicano'
+import type { CanonicalLeadStatus } from '@/lib/lead-status'
+
+export type PovprasevanjeStatus = CanonicalLeadStatus
 
 export type PonudbaStatus = 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena'
 

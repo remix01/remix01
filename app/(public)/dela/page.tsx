@@ -34,7 +34,7 @@ const urgencyColor: Record<string, string> = {
 export default async function JobsListPage() {
   // Fetch open jobs
   const jobs = await listPovprasevanja({
-    status: 'odprto',
+    status: 'new',
     limit: 50,
   })
 
