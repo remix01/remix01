@@ -111,13 +111,14 @@ export async function sendOrchestratedNotification(input: OrchestratedNotificati
 
       attempts.push({ channel, success: true, attempt })
       recordMetric('notification_channel_delivery', 1, { channel, status: 'success' })
-      await deliveryLog.write({
+      // Fire-and-forget: delivery log is observability, not on the critical path
+      deliveryLog.write({
         correlationId,
         userId: input.userId,
         channel,
         status: 'success',
         attemptCount: attempt,
-      })
+      }).catch(() => {/* logged inside deliveryLog */})
       return { delivered: true, errorCode: null }
     } catch (error) {
       const errorCode = error instanceof Error ? error.message : String(error)
@@ -140,8 +141,10 @@ export async function sendOrchestratedNotification(input: OrchestratedNotificati
   for (const channel of channels) {
     let delivered = false
     let lastError: string | null = null
+    let actualAttempts = 0
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      actualAttempts = attempt
       if (attempt > 1) {
         recordMetric('notification_retry_attempt', 1, { channel, attempt: String(attempt) })
       }
@@ -174,14 +177,14 @@ export async function sendOrchestratedNotification(input: OrchestratedNotificati
 
     if (!delivered) {
       recordMetric('notification_retry_exhausted', 1, { channel })
-      await deliveryLog.write({
+      deliveryLog.write({
         correlationId,
         userId: input.userId,
         channel,
         status: 'retry_exhausted',
-        attemptCount: MAX_ATTEMPTS,
+        attemptCount: actualAttempts,
         lastError: lastError ?? 'unknown',
-      })
+      }).catch(() => {/* logged inside deliveryLog */})
 
       // Try fallback channels before giving up
       for (const fallback of fallbacks) {

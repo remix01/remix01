@@ -6,6 +6,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { alerting } from '@/lib/monitoring/alerting'
 import { outbox } from './outbox'
 
 export const deadLetterQueue = {
@@ -13,7 +14,7 @@ export const deadLetterQueue = {
    * Move failed event to DLQ (called after 3 failed attempts)
    */
   async send(outboxRow: any, reason: string): Promise<void> {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient() as any
 
     try {
       await supabase.from('event_dlq').insert({
@@ -33,20 +34,18 @@ export const deadLetterQueue = {
         attemptCount: outboxRow.attempt_count,
       }))
 
-      // Alert admin — fire and forget (must not block or throw)
-      import('@/lib/monitoring/alerting').then(({ alerting }) => {
-        alerting.send({
-          type: 'dlq_spike',
-          severity: 'warn',
-          message: `[DLQ] Permanent failure: ${outboxRow.event_name}`,
-          metadata: {
-            outboxId: outboxRow.id,
-            eventName: outboxRow.event_name,
-            reason,
-            attemptCount: outboxRow.attempt_count,
-          },
-        }).catch((err: any) => console.error('[DLQ] Alert send failed:', err))
-      }).catch(() => {/* import failure is non-fatal */})
+      // Fire-and-forget — alert must not block the caller or throw
+      alerting.send({
+        type: 'dlq_spike',
+        severity: 'warn',
+        message: `[DLQ] Permanent failure: ${outboxRow.event_name}`,
+        metadata: {
+          outboxId: outboxRow.id,
+          eventName: outboxRow.event_name,
+          reason,
+          attemptCount: outboxRow.attempt_count,
+        },
+      }).catch((err) => console.error('[DLQ] Alert send failed:', err))
     } catch (err) {
       console.error('[DLQ] Failed to insert into DLQ:', err)
     }
@@ -57,7 +56,7 @@ export const deadLetterQueue = {
    * Re-inserts to outbox with new idempotency key
    */
   async replay(dlqId: string, adminUserId: string): Promise<void> {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient() as any
 
     try {
       const { data: dlqItem, error } = await supabase.from('event_dlq')
@@ -100,7 +99,7 @@ export const deadLetterQueue = {
    * List unresolved DLQ items (for admin dashboard)
    */
   async listUnresolved() {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient() as any
 
     try {
       const { data, error } = await supabase.from('event_dlq')

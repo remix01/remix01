@@ -67,11 +67,6 @@ export async function GET(request: NextRequest) {
           .eq('category_id', p.category_id)
 
         if (!matchedCategories?.length) {
-          // Mark as notified even with no matches so we don't re-check every run
-          await supabase
-            .from('povprasevanja')
-            .update({ notified_at: new Date().toISOString() })
-            .eq('id', p.id)
           skipped++
           continue
         }
@@ -86,10 +81,21 @@ export async function GET(request: NextRequest) {
           .eq('is_available', true)
 
         if (!obrtniki?.length) {
-          await supabase
-            .from('povprasevanja')
-            .update({ notified_at: new Date().toISOString() })
-            .eq('id', p.id)
+          skipped++
+          continue
+        }
+
+        // Atomic claim: set notified_at only if still NULL.
+        // If another concurrent sweep worker already claimed this item, skip it.
+        // Using SELECT after UPDATE to detect the race.
+        const { data: claimed } = await supabase
+          .from('povprasevanja')
+          .update({ notified_at: new Date().toISOString() })
+          .eq('id', p.id)
+          .is('notified_at', null)
+          .select('id')
+
+        if (!claimed?.length) {
           skipped++
           continue
         }
@@ -122,27 +128,13 @@ export async function GET(request: NextRequest) {
             povprasevanjeId: p.id,
             error: notifError.message,
           }))
-          // Don't set notified_at on insert failure — will retry on next sweep
+          // Reset claim so next sweep run retries this item
+          await supabase
+            .from('povprasevanja')
+            .update({ notified_at: null })
+            .eq('id', p.id)
           skipped++
           continue
-        }
-
-        // Mark as notified so subsequent sweep runs skip it
-        const { error: updateErr } = await supabase
-          .from('povprasevanja')
-          .update({ notified_at: new Date().toISOString() })
-          .eq('id', p.id)
-
-        if (updateErr) {
-          console.warn(JSON.stringify({
-            level: 'warn',
-            message: '[notification-sweep] notified_at update failed',
-            sweepId,
-            correlationId: itemCorrelationId,
-            povprasevanjeId: p.id,
-            error: updateErr.message,
-          }))
-          // Notifications were sent; log the miss but don't fail the item
         }
 
         notified++

@@ -32,7 +32,8 @@ export const GET = withAdminAuth(async () => {
       unread1h,
       outboxPending,
       outboxRetrying,
-      dlqAll,
+      dlqCount,
+      dlqItems,
       dlqNotificationRelated,
       deliveryStats,
       recentFailures,
@@ -65,7 +66,13 @@ export const GET = withAdminAuth(async () => {
         .gt('attempt_count', 0)
         .lt('attempt_count', 3),
 
-      // All unresolved DLQ entries
+      // Exact count of all unresolved DLQ entries (separate from items for accuracy)
+      supabase
+        .from('event_dlq')
+        .select('*', { count: 'exact', head: true })
+        .eq('resolved', false),
+
+      // Most recent 20 DLQ items for display
       supabase
         .from('event_dlq')
         .select('id, event_name, failure_reason, attempt_count, failed_at')
@@ -88,12 +95,12 @@ export const GET = withAdminAuth(async () => {
     ])
 
     // Overall pipeline health
-    const dlqCount = dlqAll.data?.length ?? 0
+    const dlqTotal = dlqCount.count ?? 0
     const exhausted = deliveryStats.retryExhausted ?? 0
     const health =
-      dlqCount >= 10 || exhausted >= 5
+      dlqTotal >= 10 || exhausted >= 5
         ? 'critical'
-        : dlqCount >= 3 || exhausted >= 2
+        : dlqTotal >= 3 || exhausted >= 2
           ? 'degraded'
           : 'healthy'
 
@@ -115,9 +122,9 @@ export const GET = withAdminAuth(async () => {
       },
 
       dlq: {
-        unresolved: dlqCount,
+        unresolved: dlqTotal,
         notificationRelated: dlqNotificationRelated.count ?? 0,
-        items: dlqAll.data ?? [],
+        items: dlqItems.data ?? [],
       },
 
       lastErrors: recentFailures,
