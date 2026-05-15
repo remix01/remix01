@@ -1,11 +1,12 @@
 /**
  * Dead Letter Queue — Failed Event Recovery
- * 
+ *
  * Events that fail 3+ times go here for manual admin review + replay.
  * Provides visibility into system failures and recovery mechanism.
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { alerting } from '@/lib/monitoring/alerting'
 import { outbox } from './outbox'
 
 export const deadLetterQueue = {
@@ -13,7 +14,7 @@ export const deadLetterQueue = {
    * Move failed event to DLQ (called after 3 failed attempts)
    */
   async send(outboxRow: any, reason: string): Promise<void> {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient() as any
 
     try {
       await supabase.from('event_dlq').insert({
@@ -24,12 +25,27 @@ export const deadLetterQueue = {
         attempt_count: outboxRow.attempt_count,
       })
 
-      console.error(`[DLQ] Event failed permanently: ${outboxRow.event_name}`, {
-        id: outboxRow.id,
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[DLQ] Event failed permanently',
+        eventName: outboxRow.event_name,
+        outboxId: outboxRow.id,
         reason,
-      })
+        attemptCount: outboxRow.attempt_count,
+      }))
 
-      // TODO: alert admin via notificationService.alertAdmin()
+      // Fire-and-forget — alert must not block the caller or throw
+      alerting.send({
+        type: 'dlq_spike',
+        severity: 'warn',
+        message: `[DLQ] Permanent failure: ${outboxRow.event_name}`,
+        metadata: {
+          outboxId: outboxRow.id,
+          eventName: outboxRow.event_name,
+          reason,
+          attemptCount: outboxRow.attempt_count,
+        },
+      }).catch((err) => console.error('[DLQ] Alert send failed:', err))
     } catch (err) {
       console.error('[DLQ] Failed to insert into DLQ:', err)
     }
@@ -40,7 +56,7 @@ export const deadLetterQueue = {
    * Re-inserts to outbox with new idempotency key
    */
   async replay(dlqId: string, adminUserId: string): Promise<void> {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient() as any
 
     try {
       const { data: dlqItem, error } = await supabase.from('event_dlq')
@@ -66,7 +82,13 @@ export const deadLetterQueue = {
         })
         .eq('id', dlqId)
 
-      console.log('[DLQ] Event replayed:', { dlqId, adminUserId })
+      console.info(JSON.stringify({
+        level: 'info',
+        message: '[DLQ] Event replayed',
+        dlqId,
+        adminUserId,
+        eventName: dlqItem.event_name,
+      }))
     } catch (err) {
       console.error('[DLQ] Failed to replay event:', err)
       throw err
@@ -77,7 +99,7 @@ export const deadLetterQueue = {
    * List unresolved DLQ items (for admin dashboard)
    */
   async listUnresolved() {
-    const supabase = createAdminClient() as any as any
+    const supabase = createAdminClient() as any
 
     try {
       const { data, error } = await supabase.from('event_dlq')

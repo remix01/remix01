@@ -5,6 +5,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import { deliveryLog } from '@/lib/notifications/delivery-log'
 
 export const metrics = {
   async getSnapshot() {
@@ -63,11 +64,23 @@ export const metrics = {
       funnelCounts[ev] = count ?? 0
     }
 
+    // Notification delivery stats (parallel with rest)
+    const notificationStats = await deliveryLog.getStats(24).catch(() => ({
+      success: 0, failed: 0, retryExhausted: 0,
+    }))
+
+    // Unread in-app notifications last 1h (user-visible pending)
+    const { count: unreadNotifs1h } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('read', false)
+      .gte('created_at', h1ago)
+
     // Overall status determination
     const status =
       (dlqUnresolved.count ?? 0) >= 10 || (sagasFailed.count ?? 0) > 0
         ? 'critical'
-        : (dlqUnresolved.count ?? 0) >= 3 || (alertsOpen.count ?? 0) > 0
+        : (dlqUnresolved.count ?? 0) >= 3 || (alertsOpen.count ?? 0) > 0 || notificationStats.retryExhausted >= 5
           ? 'degraded'
           : 'healthy'
 
@@ -79,6 +92,12 @@ export const metrics = {
         dlqUnresolved: dlqUnresolved.count ?? 0,
         eventsLast1h: eventsLast1h.count ?? 0,
         eventsLast24h: eventsLast24h.count ?? 0,
+      },
+      notifications: {
+        unreadLast1h:    unreadNotifs1h ?? 0,
+        delivered24h:    notificationStats.success,
+        failed24h:       notificationStats.failed,
+        retryExhausted:  notificationStats.retryExhausted,
       },
       sagas: {
         running: sagasRunning.count ?? 0,
