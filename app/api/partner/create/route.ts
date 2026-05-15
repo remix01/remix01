@@ -100,12 +100,15 @@ export async function POST(req: Request) {
       return fail("PARTNER_CREATE_FAILED", error.message, 500);
     }
 
-    const onboarding = await transitionOnboardingState(user_id);
-    const isActive = isPartnerActiveStatus(onboarding.state);
     if (data && typeof data === "object") {
-      (data as any).aktiven = isActive;
-      (data as any).onboarding_state = onboarding.state;
-      (data as any).onboarding_blocked_reasons = onboarding.blockedReasons;
+      // IMPORTANT: do not attempt canonical onboarding transition in
+      // schema-compat fallback mode. The same compatibility issue that
+      // forced the fallback can make transitionOnboardingState fail and
+      // incorrectly convert a successful legacy insert into a 500.
+      (data as any).onboarding_state = null;
+      (data as any).onboarding_blocked_reasons = [];
+      (data as any).onboarding_transition_skipped = true;
+      (data as any).onboarding_transition_reason = "schema_compatibility_fallback";
     }
 
     return ok(data, undefined, 201);
