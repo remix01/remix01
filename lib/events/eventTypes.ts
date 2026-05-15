@@ -82,6 +82,31 @@ export interface EscrowRefundedPayload {
   refundedAt: string
 }
 
+export interface LeadTransitionPayload {
+  leadId: string
+  fromStatus: string
+  toStatus: string
+  actor: string
+  transitionedAt: string
+}
+
+export interface PaymentTransitionPayload {
+  transactionId: string
+  fromStatus: string
+  toStatus: string
+  actor: string
+  transitionedAt: string
+  stripeEventId?: string
+}
+
+export interface OnboardingTransitionPayload {
+  userId: string
+  fromState: string
+  toState: string
+  blockedReasons: string[]
+  transitionedAt: string
+}
+
 // Event map — type-safe dispatch
 export interface LiftGOEvents {
   'task.created': TaskCreatedPayload
@@ -92,6 +117,9 @@ export interface LiftGOEvents {
   'offer.sent': OfferSentPayload
   'review.submitted': ReviewSubmittedPayload
   'escrow.refunded': EscrowRefundedPayload
+  'lead.transitioned': LeadTransitionPayload
+  'payment.transitioned': PaymentTransitionPayload
+  'onboarding.transitioned': OnboardingTransitionPayload
 }
 
 export type EventName = keyof LiftGOEvents

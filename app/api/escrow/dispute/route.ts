@@ -9,8 +9,9 @@ import { validateStringLength, collectErrors } from '@/lib/validation'
 import { badRequest, unauthorized, conflict, internalError, apiSuccess } from '@/lib/api-response'
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
 import { enqueue } from '@/lib/jobs/queue'
+import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     // 1. AVTENTIKACIJA
     const cookieStore = await cookies()
@@ -139,3 +140,5 @@ export async function POST(request: NextRequest) {
     return internalError('Failed to open dispute.')
   }
 }
+
+export const POST = withIdempotency(handler)

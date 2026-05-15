@@ -9,8 +9,9 @@ import { validateRequiredString, validateAmount, collectErrors } from '@/lib/val
 import { badRequest, forbidden, apiSuccess, internalError, conflict } from '@/lib/api-response'
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
 import { enqueue } from '@/lib/jobs/queue'
+import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     // 1. AVTENTIKACIJA — samo admin
     const cookieStore = await cookies()
@@ -109,3 +110,5 @@ export async function POST(request: NextRequest) {
     return internalError('Failed to process refund.')
   }
 }
+
+export const POST = withIdempotency(handler)

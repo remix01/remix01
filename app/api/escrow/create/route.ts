@@ -5,8 +5,9 @@ import { writeAuditLog } from '@/lib/escrow'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { validateEmail, validateAmount, validateRequiredString, validateUUID, collectErrors } from '@/lib/validation'
 import { apiSuccess, badRequest, notFound, tooManyRequests, internalError } from '@/lib/api-response'
+import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     const body = await request.json()
     const {
@@ -132,3 +133,5 @@ export async function POST(request: NextRequest) {
     return internalError('Stripe error. Please try again.')
   }
 }
+
+export const POST = withIdempotency(handler)

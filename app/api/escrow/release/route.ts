@@ -9,8 +9,9 @@ import { validateRequiredString, collectErrors } from '@/lib/validation'
 import { badRequest, unauthorized, forbidden, internalError, apiSuccess, conflict } from '@/lib/api-response'
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
 import { enqueue } from '@/lib/jobs/queue'
+import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     // 1. AVTENTIKACIJA — samo prijavljen partner ali admin
     const cookieStore = await cookies()
@@ -225,3 +226,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withIdempotency(handler)
