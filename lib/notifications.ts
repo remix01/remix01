@@ -19,7 +19,7 @@ export interface Notification {
   title: string
   message: string
   link?: string
-  is_read: boolean
+  read: boolean
   metadata: Record<string, unknown>
   created_at: string
 }
@@ -96,7 +96,7 @@ export async function markAsRead(
 
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ read: true })
       .eq('id', notificationId)
 
     if (error) {
@@ -122,9 +122,9 @@ export async function markAllAsRead(
 
     const { error } = await supabase
       .from('notifications')
-      .update({ is_read: true })
+      .update({ read: true })
       .eq('user_id', userId)
-      .eq('is_read', false)
+      .eq('read', false)
 
     if (error) {
       console.error('[v0] Error marking all as read:', error)
@@ -151,7 +151,7 @@ export async function getUnreadCount(
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .eq('is_read', false)
+      .eq('read', false)
 
     if (error) {
       console.error('[v0] Error getting unread count:', error)
@@ -187,7 +187,17 @@ export async function getRecentNotifications(
       return []
     }
 
-    return (data || []) as Notification[]
+    return (data || []).map((n: any) => ({
+      id: n.id,
+      user_id: n.user_id || "",
+      type: n.type,
+      title: n.title || "",
+      message: n.message || n.body || "",
+      link: n.action_url || undefined,
+      read: !!n.read,
+      metadata: (n.data as Record<string, unknown>) || {},
+      created_at: n.created_at || new Date().toISOString(),
+    })) as Notification[]
   } catch (error) {
     console.error('[v0] Error in getRecentNotifications:', error)
     return []
@@ -225,7 +235,11 @@ export async function getAllNotifications(
       return { notifications: [], total: 0 }
     }
 
-    return { notifications: (data || []) as Notification[], total: count || 0 }
+    return { notifications: (data || []).map((n: any) => ({
+      id: n.id, user_id: n.user_id || "", type: n.type, title: n.title || "",
+      message: n.message || n.body || "", link: n.action_url || undefined, read: !!n.read,
+      metadata: (n.data as Record<string, unknown>) || {}, created_at: n.created_at || new Date().toISOString(),
+    })) as Notification[], total: count || 0 }
   } catch (error) {
     console.error('[v0] Error in getAllNotifications:', error)
     return { notifications: [], total: 0 }

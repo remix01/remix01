@@ -5,7 +5,7 @@ import { generateReferralCode } from './generateCode'
  * Create referral code for user if they don't have one
  */
 export async function ensureReferralCode(userId: string): Promise<string> {
-  const supabase = createAdminClient()
+  const supabase: any = createAdminClient()
   
   // Check if user already has a referral code
   const { data: profileData } = await supabase
@@ -63,7 +63,7 @@ export async function processReferralCode(
   referralCode: string,
   referredUserId: string
 ): Promise<boolean> {
-  const supabase = createAdminClient()
+  const supabase: any = createAdminClient()
   
   // Find referrer by code
   const { data: referrerData } = await supabase
@@ -113,7 +113,7 @@ export async function processReferralCode(
  * Award referral bonus when referred user completes first job
  */
 export async function awardReferralBonus(referredUserId: string): Promise<boolean> {
-  const supabase = createAdminClient()
+  const supabase: any = createAdminClient()
   
   // Find the referral record
   const { data: referral } = await supabase
@@ -181,7 +181,7 @@ export async function awardReferralBonus(referredUserId: string): Promise<boolea
  * Get referral stats for a user
  */
 export async function getReferralStats(userId: string) {
-  const supabase = createAdminClient()
+  const supabase: any = createAdminClient()
   
   // Get referral code
   const { data: profileData2 } = await supabase

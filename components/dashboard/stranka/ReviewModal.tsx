@@ -59,6 +59,7 @@ export function ReviewModal({ povprasevanjId }: ReviewModalProps) {
         obrtnik_id: offer.obrtnik_id,
         rating,
         comment: text || null,
+        is_public: true,
       })
 
       if (reviewError) throw reviewError

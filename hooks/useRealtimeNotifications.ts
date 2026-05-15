@@ -43,7 +43,7 @@ export function useRealtimeNotifications(userId: string | null) {
                 title: newNotif.title,
                 body: newNotif.message || newNotif.body,
                 resourceId: newNotif.resource_id,
-                read: newNotif.is_read || newNotif.read || false,
+                read: newNotif.read || newNotif.read || false,
                 createdAt: newNotif.created_at,
               }
               setNotifications(prev => [notification, ...prev])
@@ -71,7 +71,7 @@ export function useRealtimeNotifications(userId: string | null) {
         .from('notifications')
         .select('*')
         .eq('user_id', userId ?? '')
-        .eq('is_read', false)
+        .eq('read', false)
         .order('created_at', { ascending: false })
         .limit(20)
         .then(({ data, error }: { data: any; error: any }) => {
@@ -86,7 +86,7 @@ export function useRealtimeNotifications(userId: string | null) {
               title: n.title,
               body: n.message || n.body,
               resourceId: n.resource_id,
-              read: n.is_read || n.read || false,
+              read: n.read || n.read || false,
               createdAt: n.created_at,
             }))
             setNotifications(mapped)
@@ -109,7 +109,7 @@ export function useRealtimeNotifications(userId: string | null) {
       const supabase = createClient()
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('id', notificationId)
 
       if (error) {
@@ -131,9 +131,9 @@ export function useRealtimeNotifications(userId: string | null) {
       const supabase = createClient()
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('user_id', userId ?? '')
-        .eq('is_read', false)
+        .eq('read', false)
 
       if (error) {
         console.error('[v0] Error marking all notifications as read:', error)
