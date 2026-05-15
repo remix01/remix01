@@ -126,7 +126,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
             title: 'Novo sporočilo',
             body: text.trim().substring(0, 100),
             data: { povprasevanje_id: povprasevanjeId },
-            is_read: false,
+            read: false,
           })
 
         if (notificationError) {
