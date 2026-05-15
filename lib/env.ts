@@ -137,8 +137,8 @@ function getFeatureMissing(feature: FeatureName): string[] {
 }
 
 export function getReadinessReport() {
-  const requiredFeatures: FeatureName[] = ['supabase', 'stripe', 'notifications', 'app']
-  const optionalFeatures: FeatureName[] = []
+  const requiredFeatures: FeatureName[] = ['supabase', 'stripe', 'app']
+  const optionalFeatures: FeatureName[] = ['notifications']
   if (env.AI_FEATURE_ENABLED === 'true') requiredFeatures.push('ai')
   else optionalFeatures.push('ai')
   if (env.OBSERVABILITY_REQUIRED === 'true') requiredFeatures.push('observability')
