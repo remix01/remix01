@@ -33,6 +33,8 @@ jest.mock('@/lib/monitoring/alerting', () => ({
 jest.mock('@/lib/events/idempotency', () => ({
   idempotency: {
     checkAndMark: jest.fn(async () => false),
+    check: jest.fn(async () => false),
+    mark: jest.fn(async () => undefined),
   },
 }))
 
@@ -79,7 +81,7 @@ describe('sendOrchestratedNotification', () => {
 
   it('skips duplicate when idempotencyKey already processed', async () => {
     const { idempotency } = jest.requireMock('@/lib/events/idempotency')
-    idempotency.checkAndMark.mockResolvedValueOnce(true) // already processed
+    idempotency.check.mockResolvedValueOnce(true) // already processed
 
     const result = await sendOrchestratedNotification({
       userId: 'u3',

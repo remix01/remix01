@@ -54,6 +54,10 @@ export async function GET(request: NextRequest) {
 
     for (const p of pending) {
       const itemCorrelationId = randomUUID()
+      // Tracks whether we successfully claimed notified_at for this item.
+      // The catch block resets the claim if an unexpected exception fires
+      // after claiming, so future sweeps can retry the item.
+      let didClaim = false
       try {
         if (!p.category_id) {
           skipped++
@@ -99,6 +103,7 @@ export async function GET(request: NextRequest) {
           skipped++
           continue
         }
+        didClaim = true
 
         // Insert in-app notification for each matched obrtnik
         const notifications = obrtniki.map((o) => ({
@@ -154,12 +159,23 @@ export async function GET(request: NextRequest) {
           obrtnikiCount: obrtniki.length,
         }))
       } catch (itemErr) {
+        // Release the claim so the next sweep run retries this item.
+        // Best-effort: if the reset itself fails, the item is stuck but
+        // an admin can manually clear notified_at.
+        if (didClaim) {
+          await supabase
+            .from('povprasevanja')
+            .update({ notified_at: null })
+            .eq('id', p.id)
+            .catch(() => {/* logged below */})
+        }
         console.error(JSON.stringify({
           level: 'error',
           message: '[notification-sweep] item error',
           sweepId,
           correlationId: itemCorrelationId,
           povprasevanjeId: p.id,
+          claimReleased: didClaim,
           error: String(itemErr),
         }))
         skipped++

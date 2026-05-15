@@ -54,14 +54,16 @@ export async function sendOrchestratedNotification(input: OrchestratedNotificati
   const attempts: DeliveryAttempt[] = []
   const MAX_ATTEMPTS = 3
 
-  // Idempotency guard: skip if this notification was already successfully sent
+  // Idempotency guard — check only (no write yet).
+  // We mark AFTER confirmed delivery so a transient failure doesn't consume
+  // the key and turn a retryable error into a permanent silent drop.
   if (input.idempotencyKey) {
-    const skip = await idempotency.checkAndMark(
+    const alreadySent = await idempotency.check(
       'notification',
       'orchestrate',
       input.idempotencyKey
     )
-    if (skip) {
+    if (alreadySent) {
       console.info(JSON.stringify({
         level: 'info',
         message: '[Orchestration] Skipped duplicate notification',
@@ -71,6 +73,15 @@ export async function sendOrchestratedNotification(input: OrchestratedNotificati
       }))
       return { success: true, correlationId, attempts, skipped: true }
     }
+  }
+
+  // Marks the idempotency key after a confirmed successful delivery.
+  // Fire-and-forget: a missed mark means a possible duplicate send on the
+  // next retry, which is acceptable — better than a silent drop.
+  const markDelivered = () => {
+    if (!input.idempotencyKey) return
+    idempotency.mark('notification', 'orchestrate', input.idempotencyKey)
+      .catch(() => {/* non-fatal */})
   }
 
   const executeChannel = async (channel: NotificationChannel, attempt: number) => {
@@ -191,10 +202,12 @@ export async function sendOrchestratedNotification(input: OrchestratedNotificati
         if (fallback === channel) continue
         const fallbackResult = await executeChannel(fallback, 1)
         if (fallbackResult.delivered) {
+          markDelivered()
           return { success: true, correlationId, attempts }
         }
       }
     } else {
+      markDelivered()
       return { success: true, correlationId, attempts }
     }
   }
