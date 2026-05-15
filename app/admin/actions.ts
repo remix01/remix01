@@ -1,9 +1,10 @@
 'use server'
 
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin, logAction } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
 import { requireAdmin } from '@/lib/admin-auth'
+import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 
 async function ensureAdminAccess() {
   await requireAdmin()
@@ -129,7 +130,7 @@ export async function getPartnerji(
     .select('*', { count: 'exact' })
 
   if (statusFilter === 'PENDING') {
-    query = query.eq('is_verified', false)
+    query = query.eq('is_verified', false).eq('verification_status', 'pending')
   } else if (statusFilter === 'AKTIVEN') {
     query = query.eq('is_verified', true)
   }
@@ -194,29 +195,101 @@ export async function getPartnerji(
 }
 
 export async function odobriPartnerja(id: string) {
-  await ensureAdminAccess()
-  await supabaseAdmin
+  const admin = await requireAdmin()
+
+  const { data: current } = await supabaseAdmin
     .from('obrtnik_profiles')
-    .update({
-      is_verified: true,
-      verification_status: 'verified',
-      verified_at: new Date().toISOString(),
-      blocked_reason: null,
-    })
+    .select('id, verification_status, is_verified')
     .eq('id', id)
+    .maybeSingle()
+
+  if (!current) throw new Error('Partner not found')
+
+  const updates = {
+    is_verified: true,
+    verification_status: 'verified',
+    verified_at: new Date().toISOString(),
+    blocked_reason: null,
+  }
+
+  await supabaseAdmin.from('obrtnik_profiles').update(updates).eq('id', id)
+
+  await supabaseAdmin.from('provider_approval_transitions').insert({
+    provider_id: id,
+    from_state: current.verification_status,
+    to_state: 'verified',
+    actor: admin.userId,
+    reason: null,
+  })
+
+  await supabaseAdmin
+    .from('verifications')
+    .update({
+      status: 'approved',
+      reviewed_by: admin.userId,
+      reviewed_at: new Date().toISOString(),
+      notes: 'Odobril administrator',
+    })
+    .eq('obrtnik_id', id)
+    .eq('status', 'pending')
+
+  await logAction(admin.userId, 'PROVIDER_APPROVED', 'obrtnik_profiles', id, current, updates)
+
+  try {
+    await transitionOnboardingState(id)
+  } catch (error) {
+    console.error('[odobriPartnerja] onboarding transition failed:', error)
+  }
+
   revalidatePath('/admin/partnerji')
 }
 
 export async function zavrniPartnerja(id: string, razlog: string) {
-  await ensureAdminAccess()
-  await supabaseAdmin
+  const admin = await requireAdmin()
+
+  const { data: current } = await supabaseAdmin
     .from('obrtnik_profiles')
-    .update({
-      is_verified: false,
-      verification_status: 'rejected',
-      blocked_reason: razlog || null,
-    })
+    .select('id, verification_status, is_verified')
     .eq('id', id)
+    .maybeSingle()
+
+  if (!current) throw new Error('Partner not found')
+
+  const updates = {
+    is_verified: false,
+    verification_status: 'rejected',
+    blocked_reason: razlog || null,
+  }
+
+  await supabaseAdmin.from('obrtnik_profiles').update(updates).eq('id', id)
+
+  await supabaseAdmin.from('provider_approval_transitions').insert({
+    provider_id: id,
+    from_state: current.verification_status,
+    to_state: 'rejected',
+    actor: admin.userId,
+    reason: razlog,
+  })
+
+  await supabaseAdmin
+    .from('verifications')
+    .update({
+      status: 'rejected',
+      reviewed_by: admin.userId,
+      reviewed_at: new Date().toISOString(),
+      notes: razlog,
+    })
+    .eq('obrtnik_id', id)
+    .eq('status', 'pending')
+
+  await logAction(admin.userId, 'PROVIDER_REJECTED', 'obrtnik_profiles', id, current, updates)
+
+  try {
+    await transitionOnboardingState(id)
+  } catch (error) {
+    console.error('[zavrniPartnerja] onboarding transition failed:', error)
+  }
+
   revalidatePath('/admin/partnerji')
 }
 

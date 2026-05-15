@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Star, Trash2 } from 'lucide-react'
@@ -37,23 +37,48 @@ export function PartnerDetailClient({
   currentTier?: string
 }) {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
 
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex gap-1">
-        {[...Array(5)].map((_, i) => (
-          <Star
-            key={i}
-            className={`h-4 w-4 ${
-              i < Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-            }`}
-          />
-        ))}
-      </div>
-    )
-  }
+  const renderStars = (rating: number) => (
+    <div className="flex gap-1">
+      {[...Array(5)].map((_, i) => (
+        <Star
+          key={i}
+          className={`h-4 w-4 ${
+            i < Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+          }`}
+        />
+      ))}
+    </div>
+  )
+
+  const handleApprove = () =>
+    startTransition(async () => {
+      await odobriPartnerja(partnerId)
+      router.refresh()
+    })
+
+  const handleSuspend = () =>
+    startTransition(async () => {
+      await suspendiranjPartnerja(partnerId)
+      router.refresh()
+    })
+
+  const handleReactivate = () =>
+    startTransition(async () => {
+      await reaktivirajPartnerja(partnerId)
+      router.refresh()
+    })
+
+  const handleReject = () =>
+    startTransition(async () => {
+      await zavrniPartnerja(partnerId, rejectReason)
+      setRejectDialogOpen(false)
+      setRejectReason('')
+      router.refresh()
+    })
 
   return (
     <div className="space-y-6">
@@ -126,31 +151,39 @@ export function PartnerDetailClient({
       <div className="flex flex-wrap gap-3">
         {partner.status === 'PENDING' && (
           <>
-            <form action={() => odobriPartnerja(partnerId)}>
-              <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
-                Odobri
-              </Button>
-            </form>
-            <Button variant="destructive" onClick={() => setRejectDialogOpen(true)}>
+            <Button
+              variant="default"
+              className="bg-green-600 hover:bg-green-700"
+              disabled={isPending}
+              onClick={handleApprove}
+            >
+              Odobri
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={isPending}
+              onClick={() => setRejectDialogOpen(true)}
+            >
               Zavrni
             </Button>
           </>
         )}
 
         {partner.status === 'AKTIVEN' && (
-          <form action={() => suspendiranjPartnerja(partnerId)}>
-            <Button type="submit" variant="destructive">
-              Suspendiraj
-            </Button>
-          </form>
+          <Button variant="destructive" disabled={isPending} onClick={handleSuspend}>
+            Suspendiraj
+          </Button>
         )}
 
         {partner.status === 'SUSPENDIRAN' && (
-          <form action={() => reaktivirajPartnerja(partnerId)}>
-            <Button type="submit" variant="default" className="bg-green-600 hover:bg-green-700">
-              Reaktiviraj
-            </Button>
-          </form>
+          <Button
+            variant="default"
+            className="bg-green-600 hover:bg-green-700"
+            disabled={isPending}
+            onClick={handleReactivate}
+          >
+            Reaktiviraj
+          </Button>
         )}
 
         <ConfirmDialog
@@ -188,11 +221,13 @@ export function PartnerDetailClient({
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
               Prekliči
             </Button>
-            <form action={() => zavrniPartnerja(partnerId, rejectReason)}>
-              <Button type="submit" variant="destructive" disabled={!rejectReason.trim()}>
-                Zavrni
-              </Button>
-            </form>
+            <Button
+              variant="destructive"
+              disabled={!rejectReason.trim() || isPending}
+              onClick={handleReject}
+            >
+              {isPending ? 'Shranjujem...' : 'Zavrni'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckCircle, XCircle, AlertCircle, Zap, RefreshCw, Trash2 } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, Zap, RefreshCw, Trash2, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Lead {
@@ -42,6 +42,7 @@ export default function LeadsPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('lead')
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -180,6 +181,35 @@ export default function LeadsPage() {
     }
   }
 
+  const handleDeleteLead = async (id: string) => {
+    if (!confirm('Ali res želite izbrisati tega leada? To dejanje je trajno.')) return
+    try {
+      setDeletingId(id)
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      const response = await fetch(`/api/admin/leads/${id}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+
+      if (!response.ok) throw new Error(`Napaka pri brisanju (${response.status})`)
+
+      setLeads((prev) => prev.filter((l) => l.id !== id))
+      setSelectedLeads((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    } catch (err) {
+      console.error('[admin/leads] Error deleting lead:', err)
+      alert('Napaka pri brisanju leada')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedLeads)
     if (newSelected.has(id)) {
@@ -270,12 +300,13 @@ export default function LeadsPage() {
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Opis</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Vir</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Status</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Akcije</th>
             </tr>
           </thead>
           <tbody>
             {filteredLeads.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-muted-foreground">
+                <td colSpan={7} className="px-6 py-4 text-center text-muted-foreground">
                   Ni leadov
                 </td>
               </tr>
@@ -305,6 +336,20 @@ export default function LeadsPage() {
                         {lead.profile_status}
                       </span>
                     </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <button
+                      onClick={() => handleDeleteLead(lead.id)}
+                      disabled={deletingId === lead.id}
+                      title="Izbriši lead"
+                      className="rounded p-1 text-muted-foreground hover:text-destructive disabled:opacity-40"
+                    >
+                      {deletingId === lead.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
                   </td>
                 </tr>
               ))
