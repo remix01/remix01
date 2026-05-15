@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (await isStripeEventProcessed(event.id)) {
+    console.info('[WEBHOOK] Duplicate Stripe event skipped', { stripeEventId: event.id, eventType: event.type })
     return ok({ received: true, skipped: true })
   }
 
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     } else {
       console.log('[WEBHOOK] Unhandled event:', event.type)
     }
+
 
     return ok({ received: true })
   } catch (err) {
