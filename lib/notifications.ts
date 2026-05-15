@@ -194,7 +194,7 @@ export async function getRecentNotifications(
       title: n.title || "",
       message: n.message || n.body || "",
       link: n.action_url || undefined,
-      is_read: !!n.read,
+      read: !!n.read,
       metadata: (n.data as Record<string, unknown>) || {},
       created_at: n.created_at || new Date().toISOString(),
     })) as Notification[]
@@ -237,7 +237,7 @@ export async function getAllNotifications(
 
     return { notifications: (data || []).map((n: any) => ({
       id: n.id, user_id: n.user_id || "", type: n.type, title: n.title || "",
-      message: n.message || n.body || "", link: n.action_url || undefined, is_read: !!n.read,
+      message: n.message || n.body || "", link: n.action_url || undefined, read: !!n.read,
       metadata: (n.data as Record<string, unknown>) || {}, created_at: n.created_at || new Date().toISOString(),
     })) as Notification[], total: count || 0 }
   } catch (error) {

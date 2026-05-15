@@ -38,7 +38,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           .order('created_at', { ascending: true })
 
         if (err) throw err
-        setSporocila((data || []).map((m:any)=>({ ...m, is_read: !!m.is_read, created_at: m.created_at || new Date().toISOString() })))
+        setSporocila((data || []).map((m: any) => ({ ...m, read: !!m.read, created_at: m.created_at || new Date().toISOString() })))
 
         // Mark as read
         await supabaseRef.current
