@@ -4,6 +4,7 @@ import { handlePaymentSucceeded } from './paymentSucceeded'
 import { handlePaymentFailed } from './paymentFailed'
 import { handleSubscriptionUpdated } from './subscriptionUpdated'
 import { handleConnectAccount } from './connectAccount'
+import { handleInvoicePaymentFailed, handleInvoicePaymentSucceeded } from './invoiceEvents'
 import { getEscrowByPaymentIntent, updateEscrowStatus, writeAuditLog } from '@/lib/escrow'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -66,6 +67,8 @@ export const stripeWebhookHandlers: Record<string, StripeWebhookHandler> = {
   'customer.subscription.updated': handleSubscriptionUpdated,
   'customer.subscription.created': handleSubscriptionUpdated,
   'customer.subscription.deleted': handleSubscriptionUpdated,
+  'invoice.payment_succeeded': handleInvoicePaymentSucceeded,
+  'invoice.payment_failed': handleInvoicePaymentFailed,
   'transfer.created': handleTransferCreated,
   'charge.refunded': handleChargeRefunded,
   'v2.core.account[requirements].updated': handleConnectAccount,

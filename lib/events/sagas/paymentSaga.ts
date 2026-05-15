@@ -19,6 +19,7 @@ export interface PaymentContext {
   partnerId: string
   offerId: string
   agreedPrice: number
+  customerEmail?: string
   clientSecret?: string
   chargeId?: string
   escrowId?: string
@@ -33,17 +34,30 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
       name: 'create_payment_intent',
       execute: async (ctx) => {
         // Create Stripe payment intent
-        console.log(`[PaymentSaga] Creating payment intent for task ${ctx.taskId}`)
+        console.log('[PaymentSaga] Creating payment intent', {
+          saga: 'payment_saga',
+          step: 'create_payment_intent',
+          taskId: ctx.taskId,
+          offerId: ctx.offerId,
+          agreedPrice: ctx.agreedPrice,
+        })
 
-        // TODO: Implement when paymentService has createPaymentIntent
-        // const result = await paymentService.createPaymentIntent(
-        //   ctx.customerId,
-        //   ctx.offerId,
-        //   ctx.agreedPrice
-        // )
-        // return { ...ctx, clientSecret: result.clientSecret }
+        if (!ctx.customerEmail) {
+          throw new Error(
+            '[PaymentSaga] Missing customerEmail for create_payment_intent. ' +
+            'Fail-closed: payment intent creation requires explicit payer email.'
+          )
+        }
 
-        return ctx
+        const result = await paymentService.createPaymentIntent(
+          ctx.customerId,
+          ctx.offerId,
+          ctx.customerEmail
+        )
+        if (!result.clientSecret) {
+          throw new Error('[PaymentSaga] Stripe did not return clientSecret for payment intent')
+        }
+        return { ...ctx, clientSecret: result.clientSecret }
       },
       compensate: async (ctx) => {
         // Payment intent can expire naturally, no action needed
@@ -61,17 +75,21 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
         // Confirm the payment charge via Stripe
         console.log(`[PaymentSaga] Confirming payment charge for task ${ctx.taskId}`)
 
-        // TODO: Implement when paymentService has confirmCharge
-        // const charge = await paymentService.confirmCharge(ctx.clientSecret)
-        // return { ...ctx, chargeId: charge.id }
-
-        return ctx
+        throw new Error(
+          '[PaymentSaga] BLOCKER: confirm_charge step is not implemented in paymentService. ' +
+          'Fail-closed to prevent silent payment state divergence.'
+        )
       },
       compensate: async (ctx) => {
         if (ctx.chargeId) {
           // Refund the charge
           console.log(`[PaymentSaga] Refunding charge ${ctx.chargeId}`)
-          // TODO: await paymentService.refundCharge(ctx.chargeId)
+          console.warn('[PaymentSaga] TODO BLOCKER: refundCharge missing in paymentService', {
+            saga: 'payment_saga',
+            step: 'confirm_charge.compensate',
+            taskId: ctx.taskId,
+            chargeId: ctx.chargeId,
+          })
         }
       },
     },
@@ -86,21 +104,21 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
         // Move funds from charge to escrow (temporary hold, not transferred yet)
         console.log(`[PaymentSaga] Holding €${ctx.agreedPrice} in escrow for task ${ctx.taskId}`)
 
-        // TODO: Implement when paymentService has holdEscrow
-        // const escrow = await paymentService.holdEscrow({
-        //   taskId: ctx.taskId,
-        //   amount: ctx.agreedPrice,
-        //   chargeId: ctx.chargeId,
-        // })
-        // return { ...ctx, escrowId: escrow.id }
-
-        return ctx
+        throw new Error(
+          '[PaymentSaga] BLOCKER: hold_escrow step is not implemented in paymentService. ' +
+          'Fail-closed to avoid accepting charge without escrow hold.'
+        )
       },
       compensate: async (ctx) => {
         if (ctx.escrowId) {
           // Release escrow hold (money back to customer)
           console.log(`[PaymentSaga] Releasing escrow ${ctx.escrowId}`)
-          // TODO: await paymentService.releaseEscrow(ctx.escrowId)
+          console.warn('[PaymentSaga] TODO BLOCKER: releaseEscrow missing in paymentService', {
+            saga: 'payment_saga',
+            step: 'hold_escrow.compensate',
+            taskId: ctx.taskId,
+            escrowId: ctx.escrowId,
+          })
         }
       },
     },
@@ -117,22 +135,21 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
           `[PaymentSaga] Scheduling transfer of €${ctx.agreedPrice} to partner ${ctx.partnerId}`
         )
 
-        // TODO: Implement when paymentService has scheduleTransfer
-        // const scheduled = await paymentService.scheduleTransfer({
-        //   escrowId: ctx.escrowId,
-        //   partnerId: ctx.partnerId,
-        //   amount: ctx.agreedPrice,
-        //   delayMs: 24 * 60 * 60 * 1000, // 24 hours
-        // })
-        // return { ...ctx, transferId: scheduled.id }
-
-        return ctx
+        throw new Error(
+          '[PaymentSaga] BLOCKER: schedule_transfer step is not implemented in paymentService. ' +
+          'Fail-closed to avoid unscheduled payout release risk.'
+        )
       },
       compensate: async (ctx) => {
         if (ctx.transferId) {
           // Cancel the scheduled transfer
           console.log(`[PaymentSaga] Cancelling scheduled transfer ${ctx.transferId}`)
-          // TODO: await paymentService.cancelScheduledTransfer(ctx.transferId)
+          console.warn('[PaymentSaga] TODO BLOCKER: cancelScheduledTransfer missing in paymentService', {
+            saga: 'payment_saga',
+            step: 'schedule_transfer.compensate',
+            taskId: ctx.taskId,
+            transferId: ctx.transferId,
+          })
         }
       },
     },

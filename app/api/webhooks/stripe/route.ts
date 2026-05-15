@@ -3,8 +3,8 @@ import Stripe from 'stripe'
 import { constructStripeEvent } from '@/lib/stripe'
 import { assertEnv } from '@/lib/env'
 import { fail, ok } from '@/lib/http/response'
-import { isStripeEventProcessed } from '@/lib/escrow'
 import { stripeWebhookHandlers } from '@/lib/stripe/handlers'
+import { claimStripeEventProcessing, releaseStripeEventClaim } from '@/lib/stripe/eventProcessing'
 
 export const maxDuration = 30
 
@@ -26,24 +26,40 @@ export async function POST(request: NextRequest) {
     return fail('Neveljaven podpis')
   }
 
-  if (await isStripeEventProcessed(event.id)) {
+  const acceptedTypes = new Set(Object.keys(stripeWebhookHandlers))
+  if (!acceptedTypes.has(event.type)) {
+    console.warn('[WEBHOOK] Unsupported Stripe event type', { stripeEventId: event.id, eventType: event.type })
+    return fail(`Unsupported event type: ${event.type}`, 400)
+  }
+
+  const claimed = await claimStripeEventProcessing(event.id, event.type)
+  if (!claimed) {
     console.info('[WEBHOOK] Duplicate Stripe event skipped', { stripeEventId: event.id, eventType: event.type })
     return ok({ received: true, skipped: true })
   }
 
   try {
     const handler = stripeWebhookHandlers[event.type]
+    await handler(event)
 
-    if (handler) {
-      await handler(event)
-    } else {
-      console.log('[WEBHOOK] Unhandled event:', event.type)
-    }
+    console.info('[WEBHOOK] Stripe event processed', {
+      stripeEventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+    })
 
 
     return ok({ received: true })
   } catch (err) {
     console.error('[WEBHOOK PROCESS]', err)
+    try {
+      await releaseStripeEventClaim(event.id)
+    } catch (releaseErr) {
+      console.error('[WEBHOOK] Failed to release idempotency claim after processing error', {
+        stripeEventId: event.id,
+        releaseErr,
+      })
+    }
     return fail('Processing error')
   }
 }
