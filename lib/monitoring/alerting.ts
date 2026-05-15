@@ -19,6 +19,7 @@ type AlertType =
   | 'payment_frozen'
   | 'funnel_drop'
   | 'cron_dead'
+  | 'notification_failure'
 
 type Severity = 'warn' | 'critical'
 

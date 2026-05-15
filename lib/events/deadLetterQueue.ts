@@ -1,6 +1,6 @@
 /**
  * Dead Letter Queue — Failed Event Recovery
- * 
+ *
  * Events that fail 3+ times go here for manual admin review + replay.
  * Provides visibility into system failures and recovery mechanism.
  */
@@ -24,12 +24,29 @@ export const deadLetterQueue = {
         attempt_count: outboxRow.attempt_count,
       })
 
-      console.error(`[DLQ] Event failed permanently: ${outboxRow.event_name}`, {
-        id: outboxRow.id,
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[DLQ] Event failed permanently',
+        eventName: outboxRow.event_name,
+        outboxId: outboxRow.id,
         reason,
-      })
+        attemptCount: outboxRow.attempt_count,
+      }))
 
-      // TODO: alert admin via notificationService.alertAdmin()
+      // Alert admin — fire and forget (must not block or throw)
+      import('@/lib/monitoring/alerting').then(({ alerting }) => {
+        alerting.send({
+          type: 'dlq_spike',
+          severity: 'warn',
+          message: `[DLQ] Permanent failure: ${outboxRow.event_name}`,
+          metadata: {
+            outboxId: outboxRow.id,
+            eventName: outboxRow.event_name,
+            reason,
+            attemptCount: outboxRow.attempt_count,
+          },
+        }).catch((err: any) => console.error('[DLQ] Alert send failed:', err))
+      }).catch(() => {/* import failure is non-fatal */})
     } catch (err) {
       console.error('[DLQ] Failed to insert into DLQ:', err)
     }
@@ -66,7 +83,13 @@ export const deadLetterQueue = {
         })
         .eq('id', dlqId)
 
-      console.log('[DLQ] Event replayed:', { dlqId, adminUserId })
+      console.info(JSON.stringify({
+        level: 'info',
+        message: '[DLQ] Event replayed',
+        dlqId,
+        adminUserId,
+        eventName: dlqItem.event_name,
+      }))
     } catch (err) {
       console.error('[DLQ] Failed to replay event:', err)
       throw err
