@@ -10,13 +10,15 @@ export async function DELETE(
 
   const { id } = await params
 
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('obrtnik_profiles')
     .delete()
     .eq('id', id)
-    .eq('profile_status', 'lead')
+    .select('id')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!data || data.length === 0)
+    return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
   return NextResponse.json({ ok: true })
 }

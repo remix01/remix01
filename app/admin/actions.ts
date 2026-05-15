@@ -132,7 +132,9 @@ export async function getPartnerji(
   if (statusFilter === 'PENDING') {
     query = query.eq('is_verified', false).eq('verification_status', 'pending')
   } else if (statusFilter === 'AKTIVEN') {
-    query = query.eq('is_verified', true)
+    query = query.eq('is_verified', true).eq('is_available', true)
+  } else if (statusFilter === 'SUSPENDIRAN') {
+    query = query.eq('is_available', false)
   }
 
   const { data: obrtniki, count: total } = await query
@@ -178,7 +180,11 @@ export async function getPartnerji(
     email: profileMap[profile.id]?.email || '-',
     telefon: profileMap[profile.id]?.phone || undefined,
     createdAt: new Date(profile.created_at),
-    status: profile.is_verified ? 'AKTIVEN' : 'PENDING',
+    status: profile.is_verified && !profile.is_available
+      ? 'SUSPENDIRAN'
+      : profile.is_verified
+        ? 'AKTIVEN'
+        : 'PENDING',
     ocena: profile.avg_rating || 0,
     steviloPrevozov: 0,
   }))
