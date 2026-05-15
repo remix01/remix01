@@ -3,12 +3,13 @@ import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
+import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
 const confirmCompletionSchema = z.object({
   jobId: z.string().cuid(),
 })
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     // 1. Authenticate user
     const supabase = await createClient()
@@ -146,3 +147,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withIdempotency(handler)

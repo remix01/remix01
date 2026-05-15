@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
+import { assertLeadTransition } from '@/lib/agent/state-machine'
+import { withIdempotency } from '@/lib/idempotency/withIdempotency'
+import { LeadStatus } from '@/lib/state-machine/statuses'
 
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req)
@@ -76,11 +79,23 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
     }
   }
 
-  if (approved.length > 0) {
+  // Validate transitions before bulk update
+  const transitionFailed: string[] = []
+  for (const id of approved) {
+    try {
+      await assertLeadTransition(id, LeadStatus.ACTIVE)
+    } catch {
+      transitionFailed.push(id)
+    }
+  }
+
+  const validApproved = approved.filter((id) => !transitionFailed.includes(id))
+
+  if (validApproved.length > 0) {
     const { error: approveError } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update({ profile_status: 'active', updated_at: new Date().toISOString() })
-      .in('id', approved)
+      .update({ profile_status: LeadStatus.ACTIVE, updated_at: new Date().toISOString() })
+      .in('id', validApproved)
 
     if (approveError) {
       console.error('[leads/auto-process] Error approving leads:', approveError)
@@ -91,7 +106,8 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
   return NextResponse.json({
     ok: true,
     processed: leads.length,
-    approved,
-    rejected,
+    approved: validApproved,
+    rejected: [...rejected, ...transitionFailed],
+    transitionFailed: transitionFailed.length > 0 ? transitionFailed : undefined,
   })
 }

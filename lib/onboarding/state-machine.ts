@@ -1,6 +1,35 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import {
+  OnboardingStatus,
+  ONBOARDING_TRANSITIONS,
+  ONBOARDING_TERMINAL,
+} from '@/lib/state-machine/statuses'
+import { assertTransitionValid, TransitionError } from '@/lib/state-machine/transition'
+import { eventBus } from '@/lib/events'
 
-type OnboardingState = 'profile_incomplete' | 'verification_pending' | 'payout_setup_required' | 'completed' | 'blocked'
+type OnboardingState = OnboardingStatus
+
+/**
+ * Maps legacy persisted onboarding_state values to the new canonical enum.
+ * Previous code wrote 'completed', 'blocked', etc. — these must be
+ * translated before validating against the new transition graph.
+ */
+const LEGACY_ONBOARDING_MAP: Record<string, OnboardingStatus> = {
+  completed: OnboardingStatus.ACTIVE,
+  blocked: OnboardingStatus.SUSPENDED,
+  profile_incomplete: OnboardingStatus.PROFILE_INCOMPLETE,
+  verification_pending: OnboardingStatus.VERIFICATION_PENDING,
+  payout_setup_required: OnboardingStatus.PAYOUT_SETUP_REQUIRED,
+  // New values map to themselves
+  draft: OnboardingStatus.DRAFT,
+  active: OnboardingStatus.ACTIVE,
+  rejected: OnboardingStatus.REJECTED,
+  suspended: OnboardingStatus.SUSPENDED,
+}
+
+function migrateOnboardingState(raw: string): OnboardingStatus {
+  return LEGACY_ONBOARDING_MAP[raw] ?? (raw as OnboardingStatus)
+}
 
 type ProviderSnapshot = {
   userId: string
@@ -30,16 +59,23 @@ export function deriveOnboardingState(snapshot: ProviderSnapshot): { state: Onbo
   if (snapshot.role === 'obrtnik' && !snapshot.stripeAccountId) blockedReasons.push('missing_stripe_account')
   if (snapshot.role === 'obrtnik' && !!snapshot.stripeAccountId && !snapshot.stripeOnboarded) blockedReasons.push('stripe_onboarding_incomplete')
 
-  let state: OnboardingState = 'profile_incomplete'
-  if (!snapshot.role) state = 'blocked'
-  else if (snapshot.role === 'narocnik') state = 'completed'
-  else if (!snapshot.obrtnikProfileExists) state = 'profile_incomplete'
-  else if (snapshot.verificationStatus === 'rejected') state = 'blocked'
-  else if (snapshot.isVerified && !!snapshot.stripeAccountId && snapshot.stripeOnboarded) state = 'completed'
-  else if (snapshot.isVerified && (!snapshot.stripeAccountId || !snapshot.stripeOnboarded)) state = 'payout_setup_required'
-  else if (!snapshot.isVerified && (snapshot.verificationStatus ?? 'pending') === 'pending') state = 'verification_pending'
+  let state: OnboardingState = OnboardingStatus.PROFILE_INCOMPLETE
+  if (!snapshot.role) state = OnboardingStatus.SUSPENDED
+  else if (snapshot.role === 'narocnik') state = OnboardingStatus.ACTIVE
+  else if (!snapshot.obrtnikProfileExists) state = OnboardingStatus.PROFILE_INCOMPLETE
+  else if (snapshot.verificationStatus === 'rejected') state = OnboardingStatus.REJECTED
+  else if (snapshot.isVerified && !!snapshot.stripeAccountId && snapshot.stripeOnboarded) state = OnboardingStatus.ACTIVE
+  else if (snapshot.isVerified && (!snapshot.stripeAccountId || !snapshot.stripeOnboarded)) state = OnboardingStatus.PAYOUT_SETUP_REQUIRED
+  else if (!snapshot.isVerified && (snapshot.verificationStatus ?? 'pending') === 'pending') state = OnboardingStatus.VERIFICATION_PENDING
 
   return { state, blockedReasons }
+}
+
+export function assertOnboardingTransitionValid(
+  currentState: OnboardingState,
+  targetState: OnboardingState,
+): void {
+  assertTransitionValid(currentState, targetState, ONBOARDING_TRANSITIONS, ONBOARDING_TERMINAL)
 }
 
 async function loadSnapshot(userId: string): Promise<ProviderSnapshot> {
@@ -68,12 +104,33 @@ async function loadSnapshot(userId: string): Promise<ProviderSnapshot> {
 
 export async function transitionOnboardingState(userId: string): Promise<{ state: OnboardingState; blockedReasons: string[] }> {
   const snapshot = await loadSnapshot(userId)
-  const { state, blockedReasons } = deriveOnboardingState(snapshot)
+  const { state: derivedState, blockedReasons } = deriveOnboardingState(snapshot)
+
+  // Load previous state to validate transition
+  const { data: existing } = await supabaseAdmin
+    .from('onboarding_state')
+    .select('state')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const migratedPrevious = existing?.state ? migrateOnboardingState(existing.state) : null
+
+  if (migratedPrevious && migratedPrevious !== derivedState) {
+    try {
+      assertOnboardingTransitionValid(migratedPrevious, derivedState)
+    } catch (err) {
+      if (err instanceof TransitionError) {
+        console.warn(`[ONBOARDING] Rejected transition for ${userId}: ${migratedPrevious} (was: ${existing!.state}) → ${derivedState} (${err.reason})`)
+        throw err
+      }
+      throw err
+    }
+  }
 
   const { error } = await supabaseAdmin.from('onboarding_state').upsert(
     {
       user_id: userId,
-      state,
+      state: derivedState,
       blocked_reasons: blockedReasons,
       updated_at: new Date().toISOString(),
     },
@@ -81,5 +138,16 @@ export async function transitionOnboardingState(userId: string): Promise<{ state
   )
 
   if (error) throw error
-  return { state, blockedReasons }
+
+  if (migratedPrevious && migratedPrevious !== derivedState) {
+    eventBus.emit('onboarding.transitioned', {
+      userId,
+      fromState: migratedPrevious,
+      toState: derivedState,
+      blockedReasons,
+      transitionedAt: new Date().toISOString(),
+    })
+  }
+
+  return { state: derivedState, blockedReasons }
 }

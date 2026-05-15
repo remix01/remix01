@@ -1,10 +1,12 @@
 import { assertEscrowTransition } from './escrowMachine'
 import { assertInquiryTransition } from './inquiryMachine'
 import { assertOfferTransition } from './offerMachine'
+import { assertLeadTransition } from './leadMachine'
+import { assertPaymentTransition } from './paymentMachine'
 import { agentLogger } from '@/lib/observability'
 import { anomalyDetector } from '@/lib/observability/alerting'
 
-export type ResourceType = 'escrow' | 'inquiry' | 'offer'
+export type ResourceType = 'escrow' | 'inquiry' | 'offer' | 'lead' | 'payment'
 
 /**
  * State Machine Guard - Main entry point
@@ -32,6 +34,12 @@ export async function assertTransition(
       case 'offer':
         await assertOfferTransition(id, targetStatus)
         break
+      case 'lead':
+        await assertLeadTransition(id, targetStatus)
+        break
+      case 'payment':
+        await assertPaymentTransition(id, targetStatus)
+        break
       default:
         throw {
           code: 400,
@@ -55,3 +63,5 @@ export async function assertTransition(
 export { assertEscrowTransition } from './escrowMachine'
 export { assertInquiryTransition } from './inquiryMachine'
 export { assertOfferTransition } from './offerMachine'
+export { assertLeadTransition } from './leadMachine'
+export { assertPaymentTransition } from './paymentMachine'

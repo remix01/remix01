@@ -12,4 +12,17 @@ export {
   assertEscrowTransition,
   assertInquiryTransition,
   assertOfferTransition,
+  assertLeadTransition,
+  assertPaymentTransition,
 } from '@/lib/agent/state-machine'
+
+export {
+  OnboardingStatus,
+  LeadStatus,
+  PaymentStatus,
+  ONBOARDING_TRANSITIONS,
+  LEAD_TRANSITIONS,
+  PAYMENT_TRANSITIONS,
+} from './statuses'
+
+export { assertTransitionValid, TransitionError } from './transition'

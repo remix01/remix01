@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { paymentService, handleServiceError } from '@/lib/services'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { paymentLimiter } from '@/lib/rate-limit/limiters'
+import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
 async function postHandler(request: NextRequest) {
   try {
@@ -44,6 +45,6 @@ async function postHandler(request: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(paymentLimiter, postHandler)
+export const POST = withIdempotency(withRateLimit(paymentLimiter, postHandler))
 
 
