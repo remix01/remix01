@@ -102,7 +102,7 @@ export async function acceptPonudbaAction(
           body: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
           message: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
           link: '/obrtnik/ponudbe',
-          is_read: false,
+          read: false,
         })
         .then(({ error }) => {
           if (error) console.error('[v0] Error sending notification:', error)

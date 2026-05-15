@@ -18,7 +18,7 @@ interface Notification {
   title: string
   body: string
   data: Record<string, any>
-  is_read: boolean
+  read: boolean
   created_at: string
 }
 
@@ -89,9 +89,9 @@ export function NotificationBell() {
               {notifications.map((notification: Notification) => (
                 <button
                   key={notification.id}
-                  onClick={() => !notification.is_read && markRead(notification.id)}
+                  onClick={() => !notification.read && markRead(notification.id)}
                   className={`w-full px-4 py-3 text-left transition-colors hover:bg-slate-50 ${
-                    !notification.is_read
+                    !notification.read
                       ? 'bg-blue-50 border-l-4 border-blue-500'
                       : ''
                   }`}

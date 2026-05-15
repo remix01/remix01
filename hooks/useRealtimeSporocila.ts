@@ -9,7 +9,7 @@ interface Message {
   sender_id: string
   receiver_id: string
   message: string
-  is_read: boolean
+  read: boolean
   read_at: string | null
   created_at: string
 }
@@ -38,7 +38,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           .order('created_at', { ascending: true })
 
         if (err) throw err
-        setSporocila(data || [])
+        setSporocila((data || []).map((m:any)=>({ ...m, read: !!m.is_read, created_at: m.created_at || new Date().toISOString() })))
 
         // Mark as read
         await supabaseRef.current

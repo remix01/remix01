@@ -26,8 +26,8 @@ interface PortfolioSortableGridProps {
 }
 
 export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGridProps) {
-  const [sortedItems, setSortedItems] = useState<PortfolioGridItem[]>(items)
-  const [editingItem, setEditingItem] = useState<PortfolioGridItem | null>(null)
+  const [sortedItems, setSortedItems] = useState<PortfolioItem[]>(items)
+  const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null)
   const supabase = createClient()
 
   const handleMoveUp = async (idx: number) => {
