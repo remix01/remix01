@@ -1,12 +1,14 @@
 import 'server-only'
 
 import { createClient } from '@supabase/supabase-js'
-import { env } from './env'
+import { env, isProduction, requireFeatureEnv } from './env'
 
 /**
  * Supabase admin client with service_role key.
  * Bypasses RLS - use only in server-side code.
  */
+if (isProduction()) requireFeatureEnv('supabase')
+
 export const supabaseAdmin = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
   env.SUPABASE_SERVICE_ROLE_KEY || 'development-service-role-key',

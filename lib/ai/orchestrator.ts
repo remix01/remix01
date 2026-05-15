@@ -18,7 +18,7 @@ import type {
   ToolUseBlock,
 } from '@anthropic-ai/sdk/resources/messages'
 import { createClient } from '@supabase/supabase-js'
-import { env } from '@/lib/env'
+import { env, isProduction, requireFeatureEnv } from '@/lib/env'
 
 import { selectModel, estimateCost } from '../model-router'
 import { buildRAGContext, formatRAGContextForPrompt, type RAGContext } from './rag'
@@ -33,6 +33,8 @@ import {
 } from '../agents/ai-router'
 
 const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+if (isProduction()) requireFeatureEnv('supabase')
+
 const supabaseAdmin = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
   env.SUPABASE_SERVICE_ROLE_KEY || 'development-service-role-key'
