@@ -12,9 +12,9 @@ interface Message {
   sender_id: string
   receiver_id: string
   message: string
-  is_read: boolean
+  is_read: boolean | null
   read_at: string | null
-  created_at: string
+  created_at: string | null
 }
 
 interface ChatPanelProps {
@@ -107,7 +107,7 @@ export function ChatPanel({
                     msg.sender_id === currentUserId ? 'text-blue-100' : 'text-slate-500'
                   }`}
                 >
-                  {formatDistanceToNow(new Date(msg.created_at), {
+                  {formatDistanceToNow(new Date(msg.created_at ?? Date.now()), {
                     addSuffix: false,
                     locale: sl,
                   })}
