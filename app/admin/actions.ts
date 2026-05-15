@@ -134,7 +134,7 @@ export async function getPartnerji(
   } else if (statusFilter === 'AKTIVEN') {
     query = query.eq('is_verified', true).eq('is_available', true)
   } else if (statusFilter === 'SUSPENDIRAN') {
-    query = query.eq('is_available', false)
+    query = query.eq('is_verified', true).eq('is_available', false)
   }
 
   const { data: obrtniki, count: total } = await query
@@ -220,32 +220,30 @@ export async function odobriPartnerja(id: string) {
 
   await supabaseAdmin.from('obrtnik_profiles').update(updates).eq('id', id)
 
-  await supabaseAdmin.from('provider_approval_transitions').insert({
-    provider_id: id,
-    from_state: current.verification_status,
-    to_state: 'verified',
-    actor: admin.userId,
-    reason: null,
-  })
-
-  await supabaseAdmin
-    .from('verifications')
-    .update({
-      status: 'approved',
-      reviewed_by: admin.userId,
-      reviewed_at: new Date().toISOString(),
-      notes: 'Odobril administrator',
-    })
-    .eq('obrtnik_id', id)
-    .eq('status', 'pending')
-
-  await logAction(admin.userId, 'PROVIDER_APPROVED', 'obrtnik_profiles', id, current, updates)
-
-  try {
-    await transitionOnboardingState(id)
-  } catch (error) {
-    console.error('[odobriPartnerja] onboarding transition failed:', error)
-  }
+  // Audit side-effects — non-critical, must not block the main approval
+  await Promise.allSettled([
+    supabaseAdmin.from('provider_approval_transitions').insert({
+      provider_id: id,
+      from_state: current.verification_status,
+      to_state: 'verified',
+      actor: admin.userId,
+      reason: null,
+    }),
+    supabaseAdmin
+      .from('verifications')
+      .update({
+        status: 'approved',
+        reviewed_by: admin.userId,
+        reviewed_at: new Date().toISOString(),
+        notes: 'Odobril administrator',
+      })
+      .eq('obrtnik_id', id)
+      .eq('status', 'pending'),
+    logAction(admin.userId, 'PROVIDER_APPROVED', 'obrtnik_profiles', id, current, updates),
+    transitionOnboardingState(id).catch((e) =>
+      console.error('[odobriPartnerja] onboarding transition failed:', e)
+    ),
+  ])
 
   revalidatePath('/admin/partnerji')
 }
@@ -269,32 +267,29 @@ export async function zavrniPartnerja(id: string, razlog: string) {
 
   await supabaseAdmin.from('obrtnik_profiles').update(updates).eq('id', id)
 
-  await supabaseAdmin.from('provider_approval_transitions').insert({
-    provider_id: id,
-    from_state: current.verification_status,
-    to_state: 'rejected',
-    actor: admin.userId,
-    reason: razlog,
-  })
-
-  await supabaseAdmin
-    .from('verifications')
-    .update({
-      status: 'rejected',
-      reviewed_by: admin.userId,
-      reviewed_at: new Date().toISOString(),
-      notes: razlog,
-    })
-    .eq('obrtnik_id', id)
-    .eq('status', 'pending')
-
-  await logAction(admin.userId, 'PROVIDER_REJECTED', 'obrtnik_profiles', id, current, updates)
-
-  try {
-    await transitionOnboardingState(id)
-  } catch (error) {
-    console.error('[zavrniPartnerja] onboarding transition failed:', error)
-  }
+  await Promise.allSettled([
+    supabaseAdmin.from('provider_approval_transitions').insert({
+      provider_id: id,
+      from_state: current.verification_status,
+      to_state: 'rejected',
+      actor: admin.userId,
+      reason: razlog,
+    }),
+    supabaseAdmin
+      .from('verifications')
+      .update({
+        status: 'rejected',
+        reviewed_by: admin.userId,
+        reviewed_at: new Date().toISOString(),
+        notes: razlog,
+      })
+      .eq('obrtnik_id', id)
+      .eq('status', 'pending'),
+    logAction(admin.userId, 'PROVIDER_REJECTED', 'obrtnik_profiles', id, current, updates),
+    transitionOnboardingState(id).catch((e) =>
+      console.error('[zavrniPartnerja] onboarding transition failed:', e)
+    ),
+  ])
 
   revalidatePath('/admin/partnerji')
 }
