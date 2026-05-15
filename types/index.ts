@@ -147,7 +147,7 @@ export interface Notification {
   title: string
   message: string
   link?: string
-  is_read: boolean
+  read: boolean
   metadata?: Record<string, unknown>
   created_at: string
 }

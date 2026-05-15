@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       title: 'Prejeli ste novo oceno!',
       message: `Obrnočnik vam je dal oceno ${rating} ⭐`,
       action_url: '/partner-dashboard/ocene',
-      is_read: false,
+      read: false,
     })
 
     return NextResponse.json({ success: true, ocena_id: review.id })
