@@ -22,6 +22,16 @@ async function postHandler(request: NextRequest) {
   try {
     const body = await request.json()
     const validated = registrationSchema.parse(body)
+    if (validated.role === 'obrtnik') {
+      return NextResponse.json(
+        {
+          error: 'Deprecated partner registration path.',
+          code: 'DEPRECATED_ROUTE',
+          canonical: '/api/registracija-mojster',
+        },
+        { status: 410, headers: { 'X-Deprecated-Route': '/api/registracija' } }
+      )
+    }
 
     const supabaseAdmin = createAdminClient()
 
@@ -56,21 +66,6 @@ async function postHandler(request: NextRequest) {
       return NextResponse.json({ error: 'Napaka pri ustvarjanju profila. Poskusite znova.' }, { status: 500 })
     }
 
-    if (validated.role === 'obrtnik') {
-      const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').insert({
-        id: userId,
-        business_name: validated.fullName,
-        is_verified: false,
-        status: 'pending',
-      })
-
-      if (obrtnikError) {
-        await supabaseAdmin.from('profiles').delete().eq('id', userId)
-        await supabaseAdmin.auth.admin.deleteUser(userId)
-        return NextResponse.json({ error: 'Napaka pri ustvarjanju obrtnikovega profila. Poskusite znova.' }, { status: 500 })
-      }
-    }
-
     const welcomeRateLimit = await checkEmailRateLimit({
       request,
       action: 'signup_welcome',
@@ -100,34 +95,10 @@ async function postHandler(request: NextRequest) {
           metadata: { endpoint: '/api/registracija', role: validated.role },
         })
 
-        const safeFullName = escapeHtml(sanitizeText(validated.fullName, 160))
         const firstName = validated.fullName.trim().split(/\s+/)[0] || 'uporabnik'
         const safeFirstName = escapeHtml(sanitizeText(firstName, 120))
-        const subject =
-          validated.role === 'obrtnik'
-            ? 'Dobrodošli na LiftGO - Potrdite vaš račun'
-            : 'Dobrodošli na LiftGO'
-        const html =
-          validated.role === 'obrtnik'
-            ? `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #2563eb;">Dobrodošli, ${safeFirstName}!</h2>
-                <p>Hvala, da ste se pridružili LiftGO platformi kot obrtnik.</p>
-                <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0;">Vaši podatki:</h3>
-                  <p style="margin: 5px 0;"><strong>Ime / podjetje:</strong> ${safeFullName}</p>
-                </div>
-                <p><strong>Naslednji koraki:</strong></p>
-                <ol>
-                  <li>Preverite email in potrdite svoj račun</li>
-                  <li>Prijavite se v partner dashboard</li>
-                  <li>Dopolnite svoj profil</li>
-                  <li>Začnite prejemati povpraševanja</li>
-                </ol>
-                <p>Lep pozdrav,<br/>Ekipa LiftGO</p>
-              </div>
-            `
-            : `
+        const subject = 'Dobrodošli na LiftGO'
+        const html = `
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #2563eb;">Dobrodošli, ${safeFirstName}!</h2>
                 <p>Hvala za registracijo na LiftGO.</p>

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ok, fail } from "@/lib/api/response";
 import { transitionOnboardingState } from "@/lib/onboarding/state-machine";
+import { isPartnerActiveStatus } from "@/lib/onboarding/status";
 
 const isSchemaCompatibilityError = (error: any) => {
   const code = String(error?.code || "");
@@ -42,11 +43,8 @@ export async function POST(req: Request) {
       .single();
 
     if (!canonicalError) {
-      try {
-        await transitionOnboardingState(user_id);
-      } catch (onboardingError) {
-        console.error('[v0] Onboarding transition failed after canonical partner create:', onboardingError);
-      }
+      const onboarding = await transitionOnboardingState(user_id);
+      const isActive = isPartnerActiveStatus(onboarding.state);
 
       return ok(
         {
@@ -55,8 +53,10 @@ export async function POST(req: Request) {
           business_name: canonicalData.business_name,
           podjetje: canonicalData.business_name,
           email: email ?? null,
-          aktiven: true,
+          aktiven: isActive,
           canonical_source: "obrtnik_profiles",
+          onboarding_state: onboarding.state,
+          onboarding_blocked_reasons: onboarding.blockedReasons,
         },
         undefined,
         201,
@@ -100,10 +100,15 @@ export async function POST(req: Request) {
       return fail("PARTNER_CREATE_FAILED", error.message, 500);
     }
 
-    try {
-      await transitionOnboardingState(user_id);
-    } catch (onboardingError) {
-      console.error('[v0] Onboarding transition failed after legacy partner create:', onboardingError);
+    if (data && typeof data === "object") {
+      // IMPORTANT: do not attempt canonical onboarding transition in
+      // schema-compat fallback mode. The same compatibility issue that
+      // forced the fallback can make transitionOnboardingState fail and
+      // incorrectly convert a successful legacy insert into a 500.
+      (data as any).onboarding_state = null;
+      (data as any).onboarding_blocked_reasons = [];
+      (data as any).onboarding_transition_skipped = true;
+      (data as any).onboarding_transition_reason = "schema_compatibility_fallback";
     }
 
     return ok(data, undefined, 201);

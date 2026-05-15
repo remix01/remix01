@@ -1,14 +1,7 @@
-import { Suspense } from 'react'
-
-import { PartnerLoginForm } from './login-form'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
-// TODO: odstraniti legacy partner-auth po preverbi referenc
 export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <PartnerLoginForm />
-    </Suspense>
-  )
+  redirect('/prijava?flow=partner-auth-login-deprecated')
 }
