@@ -134,7 +134,7 @@ export async function getPartnerji(
   } else if (statusFilter === 'AKTIVEN') {
     query = query.eq('is_verified', true).eq('is_available', true)
   } else if (statusFilter === 'SUSPENDIRAN') {
-    query = query.eq('is_available', false)
+    query = query.eq('is_verified', true).eq('is_available', false)
   }
 
   const { data: obrtniki, count: total } = await query
