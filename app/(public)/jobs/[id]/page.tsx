@@ -61,30 +61,30 @@ export default async function JobDetailPage(props: Props) {
     },
     {
       step: 'Ponudba sprejeta',
-      status: povprasevanje.status === 'v_teku' || povprasevanje.status === 'zakljuceno' ? ('completed' as const) : ('pending' as const),
+      status: povprasevanje.status === 'in_progress' || povprasevanje.status === 'completed' ? ('completed' as const) : ('pending' as const),
       icon: 'CheckCircle2',
     },
     {
       step: 'Delo v teku',
-      status: povprasevanje.status === 'v_teku' ? ('in_progress' as const) : povprasevanje.status === 'zakljuceno' ? ('completed' as const) : ('pending' as const),
+      status: povprasevanje.status === 'in_progress' ? ('in_progress' as const) : povprasevanje.status === 'completed' ? ('completed' as const) : ('pending' as const),
       icon: 'Clock',
     },
     {
       step: 'Delo zaključeno',
-      status: povprasevanje.status === 'zakljuceno' ? ('completed' as const) : ('pending' as const),
+      status: povprasevanje.status === 'completed' ? ('completed' as const) : ('pending' as const),
       icon: 'CheckCircle2',
     },
   ]
 
   // Map status to badge colors
   const statusBadgeMap: Record<string, { label: string; color: string }> = {
-    odprto: { label: 'Odprto', color: 'bg-blue-50 text-blue-700 border border-blue-200' },
-    v_teku: { label: 'V teku', color: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
-    zakljuceno: { label: 'Zaključeno', color: 'bg-green-50 text-green-700 border border-green-200' },
-    preklicano: { label: 'Preklicano', color: 'bg-red-50 text-red-700 border border-red-200' },
+    new: { label: 'Odprto', color: 'bg-blue-50 text-blue-700 border border-blue-200' },
+    in_progress: { label: 'V teku', color: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+    completed: { label: 'Zaključeno', color: 'bg-green-50 text-green-700 border border-green-200' },
+    cancelled: { label: 'Preklicano', color: 'bg-red-50 text-red-700 border border-red-200' },
   }
 
-  const statusBadge = statusBadgeMap[povprasevanje.status] || statusBadgeMap.odprto
+  const statusBadge = statusBadgeMap[povprasevanje.status] || statusBadgeMap.new
 
   return (
     <>

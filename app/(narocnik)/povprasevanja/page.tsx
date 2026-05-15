@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { PovprasevanjeTimeline } from '@/components/narocnik/PovprasevanjeTimeline'
-import type { Povprasevanje } from '@/types/marketplace'
 
 export const metadata = {
   title: 'Moja povpraševanja | LiftGO',
@@ -46,13 +45,16 @@ export default async function PovprasevanjaPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'odprto':
+      case 'new':
+      case 'matched':
         return 'bg-blue-50 text-blue-700 border border-blue-200'
-      case 'v_teku':
+      case 'contacted':
+      case 'in_progress':
         return 'bg-orange-50 text-orange-700 border border-orange-200'
-      case 'zakljuceno':
+      case 'completed':
         return 'bg-green-50 text-green-700 border border-green-200'
-      case 'preklicano':
+      case 'cancelled':
+      case 'expired':
         return 'bg-gray-50 text-gray-700 border border-gray-200'
       default:
         return 'bg-gray-50 text-gray-700 border border-gray-200'
@@ -61,14 +63,20 @@ export default async function PovprasevanjaPage() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'odprto':
+      case 'new':
         return 'Odprto'
-      case 'v_teku':
+      case 'matched':
+        return 'Ujemanje'
+      case 'contacted':
+        return 'Kontaktirano'
+      case 'in_progress':
         return 'V teku'
-      case 'zakljuceno':
+      case 'completed':
         return 'Zaključeno'
-      case 'preklicano':
+      case 'cancelled':
         return 'Preklicano'
+      case 'expired':
+        return 'Poteklo'
       default:
         return status
     }

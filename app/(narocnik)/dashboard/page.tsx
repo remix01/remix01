@@ -5,6 +5,7 @@ import { getNarocnikPovprasevanja } from '@/lib/dal/povprasevanja'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { getLeadStatusLabelSl } from '@/lib/lead-status'
 
 export const metadata = {
   title: 'Dashboard | LiftGO',
@@ -47,8 +48,8 @@ export default async function DashboardPage() {
   const povprasevanja = await getNarocnikPovprasevanja(user.id)
 
   // Calculate stats
-  const aktivna = povprasevanja.filter(p => p.status === 'odprto' || p.status === 'v_teku').length
-  const zaprta = povprasevanja.filter(p => p.status === 'zakljuceno').length
+  const aktivna = povprasevanja.filter(p => ['new', 'matched', 'contacted', 'in_progress'].includes(p.status)).length
+  const zaprta = povprasevanja.filter(p => p.status === 'completed').length
   const ponudbe_count = povprasevanja.reduce((sum, p) => sum + (p.ponudbe_count || 0), 0)
 
   // Get last 5 povprasevanja
@@ -64,33 +65,20 @@ export default async function DashboardPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'odprto':
+      case 'new':
         return 'bg-primary/10 text-primary border border-primary/20'
-      case 'v_teku':
+      case 'in_progress':
         return 'bg-amber-100 text-amber-700 border border-amber-200'
-      case 'zakljuceno':
+      case 'completed':
         return 'bg-green-50 text-green-700 border border-green-200'
-      case 'preklicano':
+      case 'cancelled':
         return 'bg-muted text-muted-foreground border border-border'
       default:
         return 'bg-muted text-muted-foreground border border-border'
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'odprto':
-        return 'Odprto'
-      case 'v_teku':
-        return 'V teku'
-      case 'zakljuceno':
-        return 'Zaključeno'
-      case 'preklicano':
-        return 'Preklicano'
-      default:
-        return status
-    }
-  }
+  const getStatusLabel = (status: string) => getLeadStatusLabelSl(status as any)
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {

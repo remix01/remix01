@@ -152,7 +152,7 @@ export default function PonudbeList({
             )}
 
             {/* Accept Button */}
-            {povprasevanjeStatus === 'odprto' && !isAccepted && !acceptedPonudba && (
+            {povprasevanjeStatus === 'new' && !isAccepted && !acceptedPonudba && (
               <Button
                 onClick={() => handleAcceptPonudba(ponudba.id)}
                 disabled={acceptingId === ponudba.id}

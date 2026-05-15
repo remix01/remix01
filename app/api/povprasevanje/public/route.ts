@@ -32,7 +32,7 @@ type PublicInquiryBody = {
   user_id?: unknown
 }
 
-type LeadStatus = 'new' | 'matched' | 'opened' | 'accepted' | 'quoted' | 'completed' | 'cancelled' | 'expired'
+import { type CanonicalLeadStatus, toCanonicalLeadStatus } from '@/lib/lead-status'
 
 function successResponse<T extends Record<string, unknown>>(legacy: T, status = 200) {
   return NextResponse.json(
@@ -287,7 +287,7 @@ function buildLeadFingerprint(input: {
 
 async function writeLeadAuditEvent(payload: {
   povprasevanjeId: string
-  status: LeadStatus
+  status: CanonicalLeadStatus
   actorType: 'customer' | 'contractor' | 'system'
   actorId?: string | null
   responseTimeMs?: number
@@ -300,11 +300,11 @@ async function writeLeadAuditEvent(payload: {
     actor_id: payload.actorId ?? null,
     response_time_ms: payload.responseTimeMs ?? null,
     metadata: payload.metadata ?? {},
-    conversion: payload.status === 'accepted' || payload.status === 'quoted' || payload.status === 'completed',
+    conversion: payload.status === 'contacted' || payload.status === 'completed',
   })
 }
 
-async function updateLeadStatusSafe(povprasevanjeId: string, leadStatus: LeadStatus) {
+async function updateLeadStatusSafe(povprasevanjeId: string, leadStatus: CanonicalLeadStatus) {
   const result = await supabaseAdmin
     .from('povprasevanja')
     .update({ lead_status: leadStatus } as any)

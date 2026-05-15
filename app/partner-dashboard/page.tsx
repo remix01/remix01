@@ -115,7 +115,7 @@ function PartnerDashboardInner() {
           sb
             .from('povprasevanja')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'odprto'),
+            .in('status', ['odprto', 'new']),
         ])
 
         if (status) setCompletionStatus(status)
