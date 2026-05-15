@@ -1,3 +1,5 @@
+import { isProduction } from '@/lib/env'
+
 /**
  * Stripe Product & Pricing Configuration
  * Centralized definitions for LiftGo subscription plans
@@ -5,8 +7,8 @@
 
 export const STRIPE_PRODUCTS = {
   START: {
-    productId: process.env.STRIPE_START_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_START || 'prod_U7z9Ymkbh2zRAW',
-    priceId: process.env.STRIPE_START_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_START || 'price_1T9jBPKWYyYULHZkR4J6NyK1',
+    productId: process.env.STRIPE_START_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_START || (isProduction() ? '' : 'prod_U7z9Ymkbh2zRAW'),
+    priceId: process.env.STRIPE_START_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_START || (isProduction() ? '' : 'price_1T9jBPKWYyYULHZkR4J6NyK1'),
     name: 'LiftGo START',
     price: 0,
     commission: 10, // 10% provizija
@@ -18,8 +20,8 @@ export const STRIPE_PRODUCTS = {
     ]
   },
   PRO: {
-    productId: process.env.STRIPE_PRO_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_PRO || 'prod_SpS7ixowByASns',
-    priceId: process.env.STRIPE_PRO_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO || 'price_1RuAtoKWYyYULHZkiI9eg1Eq',
+    productId: process.env.STRIPE_PRO_PRODUCT_ID || process.env.NEXT_PUBLIC_STRIPE_PRODUCT_ID_PRO || (isProduction() ? '' : 'prod_SpS7ixowByASns'),
+    priceId: process.env.STRIPE_PRO_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PRO || (isProduction() ? '' : 'price_1RuAtoKWYyYULHZkiI9eg1Eq'),
     name: 'LiftGo PRO',
     price: 29,
     commission: 5, // 5% provizija

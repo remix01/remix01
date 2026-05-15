@@ -1,41 +1,27 @@
-// ═══ NO ZOD VALIDATION ═══
-// Simply map process.env with safe defaults. No crashes, no spam.
-
 export const env = {
-  // ─── Supabase ───
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
 
-  // ─── Object Storage ───
-  // 'minio' = self-hosted MinIO (Docker), 'supabase' = Supabase Storage (default)
   STORAGE_PROVIDER: (process.env.STORAGE_PROVIDER ?? 'supabase') as 'minio' | 'supabase',
-  // MinIO – server-side only (never exposed to browser)
   MINIO_ENDPOINT: process.env.MINIO_ENDPOINT ?? 'http://minio:9000',
   MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY ?? '',
   MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY ?? '',
   MINIO_REGION: process.env.MINIO_REGION ?? 'us-east-1',
-  // Public base URL for constructing object URLs (e.g. https://storage.liftgo.net)
-  // Falls back to MINIO_ENDPOINT when not set (useful for local dev)
   MINIO_PUBLIC_URL: process.env.MINIO_PUBLIC_URL ?? process.env.MINIO_ENDPOINT ?? '',
 
-  // ─── Stripe ───
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
   STRIPE_CONNECT_WEBHOOK_SECRET: process.env.STRIPE_CONNECT_WEBHOOK_SECRET ?? '',
-  // Optional comma-separated list for rotated/multi-endpoint webhook secrets.
-  // Example: "whsec_old,whsec_new,whsec_connect"
   STRIPE_WEBHOOK_SECRETS: process.env.STRIPE_WEBHOOK_SECRETS ?? '',
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
 
-  // ─── Upstash / QStash ───
   QSTASH_TOKEN: process.env.QSTASH_TOKEN ?? '',
   QSTASH_CURRENT_SIGNING_KEY: process.env.QSTASH_CURRENT_SIGNING_KEY ?? '',
   QSTASH_NEXT_SIGNING_KEY: process.env.QSTASH_NEXT_SIGNING_KEY ?? '',
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL ?? '',
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN ?? '',
 
-  // ─── AI Providers ───
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? '',
   GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? '',
@@ -43,8 +29,8 @@ export const env = {
   BRAVE_API_KEY: process.env.BRAVE_API_KEY ?? '',
   VOYAGE_API_KEY: process.env.VOYAGE_API_KEY ?? '',
   E2B_API_KEY: process.env.E2B_API_KEY ?? '',
+  AI_FEATURE_ENABLED: process.env.AI_FEATURE_ENABLED ?? 'false',
 
-  // ─── Observability ───
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? '',
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY ?? '',
   LANGFUSE_HOST: process.env.LANGFUSE_HOST ?? '',
@@ -56,58 +42,46 @@ export const env = {
   SENTRY_RELEASE: process.env.SENTRY_RELEASE ?? '',
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
   NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? '',
+
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '',
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com',
   NEXT_PUBLIC_POSTHOG_DEFAULTS: process.env.NEXT_PUBLIC_POSTHOG_DEFAULTS ?? '2026-01-30',
+  OBSERVABILITY_REQUIRED: process.env.OBSERVABILITY_REQUIRED ?? 'false',
 
-  // ─── Email & Notifications ───
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
   EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? '',
   FROM_EMAIL: process.env.FROM_EMAIL ?? '',
   SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ?? '',
-  AWS_SES_REGION: process.env.AWS_SES_REGION ?? '',
-  AWS_SES_ACCESS_KEY_ID: process.env.AWS_SES_ACCESS_KEY_ID ?? '',
-  AWS_SES_SECRET_ACCESS_KEY: process.env.AWS_SES_SECRET_ACCESS_KEY ?? '',
   RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET ?? '',
   EMAIL_FROM: process.env.EMAIL_FROM ?? '',
   DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL ?? '',
   RESEND_FROM: process.env.RESEND_FROM ?? '',
+
   EMAIL_DEV_REDIRECT_TO: process.env.EMAIL_DEV_REDIRECT_TO ?? '',
   EMAIL_ALLOWED_RECIPIENTS: process.env.EMAIL_ALLOWED_RECIPIENTS ?? '',
   ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL ?? '',
   ADMIN_EMAIL: process.env.ADMIN_EMAIL ?? '',
 
-  // ─── Push Notifications (VAPID) ───
   VAPID_SUBJECT: process.env.VAPID_SUBJECT ?? '',
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
 
-  // ─── Slack ───
-  SLACK_WEBHOOK_URL: process.env.SLACK_WEBHOOK_URL ?? '',
-  SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN ?? '',
-  SLACK_CHANNEL_ALERTS: process.env.SLACK_CHANNEL_ALERTS ?? '#liftgo-alerts',
-  SLACK_CHANNEL_BUSINESS: process.env.SLACK_CHANNEL_BUSINESS ?? '#liftgo-narocila',
-
-  // ─── Twilio (Voice AI) ───
-  TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID ?? '',
-  TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ?? '',
-  TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER ?? '',
-
-
-  // ─── Google Cloud / Search / Maps ───
   GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY ?? '',
   GOOGLE_SEARCH_ENGINE_ID: process.env.GOOGLE_SEARCH_ENGINE_ID ?? '',
   GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID ?? '',
 
-  // ─── App Config ───
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net',
-  APP_BASE_URL: process.env.APP_BASE_URL ?? '',
   NEXT_PUBLIC_GA_ID: process.env.NEXT_PUBLIC_GA_ID ?? '',
   CRON_SECRET: process.env.CRON_SECRET ?? '',
   EMBEDDING_BACKFILL_MAX_PER_RUN: process.env.EMBEDDING_BACKFILL_MAX_PER_RUN ?? '10',
+
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'https://liftgo.net',
+  APP_BASE_URL: process.env.APP_BASE_URL ?? '',
   NODE_ENV: process.env.NODE_ENV ?? 'production',
 } as const
 
+export function isProduction(): boolean {
+  return env.NODE_ENV === 'production'
+}
 
 function isValidHttpUrl(value: string): boolean {
   try {
@@ -118,56 +92,115 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
-export function assertQStashProductionEnv(): void {
-  if (env.NODE_ENV !== 'production') return
+export function requireEnv(key: keyof typeof env, reason?: string): string {
+  const value = env[key]
+  if (value && value.trim().length > 0) return value
+  throw new Error(`[ENV] Missing required env: ${key}${reason ? ` (${reason})` : ''}`)
+}
 
-  const missing: string[] = []
-  if (!env.QSTASH_TOKEN) missing.push('QSTASH_TOKEN')
-  if (!env.QSTASH_CURRENT_SIGNING_KEY) missing.push('QSTASH_CURRENT_SIGNING_KEY')
-  if (!env.QSTASH_NEXT_SIGNING_KEY) missing.push('QSTASH_NEXT_SIGNING_KEY')
+const FEATURE_ENV_REQUIREMENTS = {
+  supabase: ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
+  stripe: ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_CONNECT_WEBHOOK_SECRET', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'],
+  notifications: ['EMAIL_PROVIDER', 'FROM_EMAIL'],
+  ai: ['AI_PROVIDER_KEY'],
+  observability: ['SENTRY_DSN'],
+  app: ['NEXT_PUBLIC_APP_URL'],
+} as const
 
-  const rawPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
-  const hasExplicitAppUrl = typeof rawPublicAppUrl === 'string' && rawPublicAppUrl.trim().length > 0
-  if (!hasExplicitAppUrl) {
-    missing.push('NEXT_PUBLIC_APP_URL')
-  }
+type FeatureName = keyof typeof FEATURE_ENV_REQUIREMENTS
 
+export function requireFeatureEnv(feature: FeatureName): void {
+  const missing = getFeatureMissing(feature)
   if (missing.length > 0) {
-    throw new Error(`[ENV] Missing required production QStash env vars: ${missing.join(', ')}`)
+    throw new Error(`[ENV] Missing required ${feature} env: ${missing.join(', ')}`)
+  }
+}
+
+function getFeatureMissing(feature: FeatureName): string[] {
+  if (feature === 'ai') {
+    return hasAnyAI() ? [] : [...FEATURE_ENV_REQUIREMENTS.ai]
+  }
+  if (feature === 'notifications') {
+    const provider = env.EMAIL_PROVIDER.trim().toLowerCase()
+    const baseMissing: string[] = []
+    if (!provider) baseMissing.push('EMAIL_PROVIDER')
+    if (!env.FROM_EMAIL && !env.EMAIL_FROM && !env.DEFAULT_FROM_EMAIL && !env.RESEND_FROM) {
+      baseMissing.push('FROM_EMAIL|EMAIL_FROM|DEFAULT_FROM_EMAIL|RESEND_FROM')
+    }
+    if (provider === 'resend' && !env.RESEND_API_KEY) baseMissing.push('RESEND_API_KEY')
+    if (provider === 'sendgrid' && !env.SENDGRID_API_KEY) baseMissing.push('SENDGRID_API_KEY')
+    return baseMissing
   }
 
-  if (!isValidHttpUrl(env.NEXT_PUBLIC_APP_URL)) {
+  const keys = FEATURE_ENV_REQUIREMENTS[feature] as readonly string[]
+  return keys.filter((k) => !(process.env[k] ?? '').trim())
+}
+
+export function getReadinessReport() {
+  const requiredFeatures: FeatureName[] = ['supabase', 'stripe', 'notifications', 'app']
+  const optionalFeatures: FeatureName[] = []
+  if (env.AI_FEATURE_ENABLED === 'true') requiredFeatures.push('ai')
+  else optionalFeatures.push('ai')
+  if (env.OBSERVABILITY_REQUIRED === 'true') requiredFeatures.push('observability')
+  else optionalFeatures.push('observability')
+
+  const required = requiredFeatures.map((feature) => ({ feature, missing: getFeatureMissing(feature) }))
+  const optional = optionalFeatures.map((feature) => ({ feature, missing: getFeatureMissing(feature) }))
+
+  const hasBlockingIssues = required.some((r) => r.missing.length > 0)
+
+  const appUrlInvalid = !isValidHttpUrl(env.NEXT_PUBLIC_APP_URL)
+  const invalidRules = appUrlInvalid ? ['NEXT_PUBLIC_APP_URL must be valid http(s) URL'] : []
+
+  return {
+    environment: env.NODE_ENV,
+    liveness: { ok: true },
+    readiness: {
+      ok: !hasBlockingIssues && invalidRules.length === 0,
+      required,
+      invalidRules,
+    },
+    degraded: {
+      optional,
+    },
+  }
+}
+
+export function assertProductionConfig(): void {
+  if (!isProduction()) return
+  const report = getReadinessReport()
+  if (!report.readiness.ok) {
+    throw new Error('[ENV] Production readiness failed due to missing critical configuration')
+  }
+}
+
+export function assertQStashProductionEnv(): void {
+  if (!isProduction()) return
+  for (const key of ['QSTASH_TOKEN', 'QSTASH_CURRENT_SIGNING_KEY', 'QSTASH_NEXT_SIGNING_KEY'] as const) {
+    requireEnv(key)
+  }
+  if (!isValidHttpUrl(requireEnv('NEXT_PUBLIC_APP_URL'))) {
     throw new Error('[ENV] NEXT_PUBLIC_APP_URL must be a valid http(s) URL in production')
   }
 }
+
 export function assertEnv() {
-  if (!env.STRIPE_SECRET_KEY) {
-    throw new Error('Missing STRIPE_SECRET_KEY')
-  }
+  if (!env.STRIPE_SECRET_KEY) throw new Error('Missing STRIPE_SECRET_KEY')
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Helper functions – check before using optional features
-// ═══════════════════════════════════════════════════════════════════════════
+export const hasAnyAI = () => !!(env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY || env.GEMINI_API_KEY || env.PERPLEXITY_API_KEY)
 
-// Core services
 export const hasStripe = () => !!env.STRIPE_SECRET_KEY
 export const hasQStash = () => !!env.QSTASH_TOKEN
 export const hasUpstash = () => !!env.UPSTASH_REDIS_REST_URL
 export const hasResend = () => !!env.RESEND_API_KEY
-export const hasSlack = () => !!env.SLACK_WEBHOOK_URL
-export const hasSlackBot = () => !!env.SLACK_BOT_TOKEN
-export const hasTwilio = () => !!env.TWILIO_ACCOUNT_SID
-
-
-// Google Cloud integrations
-export const hasGoogleMaps = () => !!env.GOOGLE_MAPS_API_KEY
-export const hasGoogleSearch = () => !!env.GOOGLE_SEARCH_ENGINE_ID
-export const hasGoogleProject = () => !!env.GOOGLE_PROJECT_ID
-export const hasAdvancedGoogle = () =>
-  hasGoogleMaps() && hasGoogleSearch() && hasGoogleProject()
-
-// AI Providers
+export const hasSlack = () => !!(process.env.SLACK_WEBHOOK_URL ?? '')
+export const hasSlackBot = () => !!(process.env.SLACK_BOT_TOKEN ?? '')
+export const hasTwilio = () => !!(process.env.TWILIO_ACCOUNT_SID ?? '')
+export const hasGoogleMaps = () => !!(process.env.GOOGLE_MAPS_API_KEY ?? '')
+export const hasGoogleSearch = () => !!(process.env.GOOGLE_SEARCH_ENGINE_ID ?? '')
+export const hasGoogleProject = () => !!(process.env.GOOGLE_PROJECT_ID ?? '')
+export const hasAdvancedGoogle = () => hasGoogleMaps() && hasGoogleSearch() && hasGoogleProject()
 export const hasAnthropicAI = () => !!env.ANTHROPIC_API_KEY
 export const hasOpenAI = () => !!env.OPENAI_API_KEY
 export const hasGemini = () => !!env.GEMINI_API_KEY
@@ -175,31 +208,14 @@ export const hasPerplexity = () => !!env.PERPLEXITY_API_KEY
 export const hasBraveSearch = () => !!env.BRAVE_API_KEY
 export const hasVoyageAPI = () => !!env.VOYAGE_API_KEY
 export const hasE2B = () => !!env.E2B_API_KEY
-
-// Check if ANY AI provider is available
-export const hasAnyAI = () =>
-  hasAnthropicAI() || hasOpenAI() || hasGemini() || hasPerplexity()
-
-// Check if embeddings are possible (OpenAI or Voyage)
 export const hasEmbeddings = () => hasOpenAI() || hasVoyageAPI() || hasGemini()
-
-// Observability
 export const hasLangfuse = () => !!env.LANGFUSE_SECRET_KEY
-export const hasLangSmith = () =>
-  env.LANGSMITH_TRACING === 'true' && !!env.LANGSMITH_ENDPOINT && !!env.LANGSMITH_API_KEY
+export const hasLangSmith = () => env.LANGSMITH_TRACING === 'true' && !!env.LANGSMITH_ENDPOINT && !!env.LANGSMITH_API_KEY
 export const hasSentry = () => !!(env.SENTRY_DSN || env.NEXT_PUBLIC_SENTRY_DSN)
-export const hasPostHog = () => !!env.NEXT_PUBLIC_POSTHOG_KEY
-export const hasAdminEmail = () => !!env.ADMIN_ALERT_EMAIL
-
-// ═══════════════════════════════════════════════════════════════════════════
-// AI Provider Priority Lists
-// ═══════════════════════════════════════════════════════════════════════════
+export const hasPostHog = () => !!(process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '')
+export const hasAdminEmail = () => !!(process.env.ADMIN_ALERT_EMAIL ?? '')
 
 export type AIProvider = 'anthropic' | 'openai' | 'voyage' | 'gemini' | 'perplexity'
-
-/**
- * Get list of available AI providers in priority order
- */
 export function getAvailableAIProviders(): AIProvider[] {
   const providers: AIProvider[] = []
   if (hasAnthropicAI()) providers.push('anthropic')
@@ -209,42 +225,9 @@ export function getAvailableAIProviders(): AIProvider[] {
   if (hasPerplexity()) providers.push('perplexity')
   return providers
 }
-
-/**
- * Get best available provider for a task type
- */
-export function getBestProviderFor(
-  task: 'chat' | 'embedding' | 'search' | 'vision'
-): AIProvider | null {
-  switch (task) {
-    case 'chat':
-      // Anthropic > OpenAI > Gemini for chat
-      if (hasAnthropicAI()) return 'anthropic'
-      if (hasOpenAI()) return 'openai'
-      if (hasGemini()) return 'gemini'
-      return null
-
-    case 'embedding':
-      // OpenAI > Voyage > Gemini for embeddings (Anthropic doesn't have embeddings)
-      if (hasOpenAI()) return 'openai'
-      if (hasVoyageAPI()) return 'voyage'
-      if (hasGemini()) return 'gemini'
-      return null
-
-    case 'search':
-      // Perplexity > OpenAI for search
-      if (hasPerplexity()) return 'perplexity'
-      if (hasOpenAI()) return 'openai'
-      return null
-
-    case 'vision':
-      // Anthropic > OpenAI > Gemini for vision
-      if (hasAnthropicAI()) return 'anthropic'
-      if (hasOpenAI()) return 'openai'
-      if (hasGemini()) return 'gemini'
-      return null
-
-    default:
-      return null
-  }
+export function getBestProviderFor(task: 'chat' | 'embedding' | 'search' | 'vision'): AIProvider | null {
+  if (task === 'chat') return hasAnthropicAI() ? 'anthropic' : hasOpenAI() ? 'openai' : hasGemini() ? 'gemini' : null
+  if (task === 'embedding') return hasOpenAI() ? 'openai' : hasVoyageAPI() ? 'voyage' : hasGemini() ? 'gemini' : null
+  if (task === 'search') return hasPerplexity() ? 'perplexity' : hasOpenAI() ? 'openai' : null
+  return hasAnthropicAI() ? 'anthropic' : hasOpenAI() ? 'openai' : hasGemini() ? 'gemini' : null
 }

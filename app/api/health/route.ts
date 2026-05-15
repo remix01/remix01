@@ -1,42 +1,19 @@
-import { NextResponse } from 'next/server';
-
-const requiredEnvVars = [
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
-] as const;
+import { NextResponse } from 'next/server'
+import { getReadinessReport } from '@/lib/env'
 
 export async function GET() {
-  const envStatus = requiredEnvVars.reduce<Record<string, boolean>>((acc, key) => {
-    acc[key] = Boolean(process.env[key]);
-    return acc;
-  }, {});
-
-  const missing = Object.entries(envStatus)
-    .filter(([, isSet]) => !isSet)
-    .map(([key]) => key);
+  const report = getReadinessReport()
+  const status = report.readiness.ok ? 200 : 503
 
   return NextResponse.json(
     {
-      ok: missing.length === 0,
+      ok: report.readiness.ok,
       service: 'liftgo-web',
       timestamp: new Date().toISOString(),
-      checks: {
-        env: envStatus,
-      },
-      ...(missing.length > 0
-        ? {
-            warning:
-              'Missing required environment variables. Backend endpoints may fail in production.',
-            missing,
-          }
-        : {}),
+      liveness: report.liveness,
+      readiness: report.readiness,
+      degraded: report.degraded,
     },
-    {
-      status: missing.length === 0 ? 200 : 503,
-      headers: {
-        'Cache-Control': 'no-store, max-age=0',
-      },
-    },
-  );
+    { status, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+  )
 }
