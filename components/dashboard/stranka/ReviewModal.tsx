@@ -31,6 +31,13 @@ export function ReviewModal({ povprasevanjId }: ReviewModalProps) {
         return
       }
 
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setError('Niste prijavljeni.')
+        setLoading(false)
+        return
+      }
+
       // Get the accepted offer for this inquiry
       const { data: offer } = await supabase
         .from('ponudbe')

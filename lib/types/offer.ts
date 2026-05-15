@@ -9,7 +9,7 @@ export interface Offer {
   description: string | null
   notes: string | null
   price_estimate: number | null
-  price_type: OfferPriceType | null
+  price_type: OfferPriceType | string | null
   status: 'poslana' | 'sprejeta' | 'zavrnjena' | string
   available_date: string | null
   created_at: string
