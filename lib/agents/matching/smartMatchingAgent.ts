@@ -21,6 +21,8 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
+import type { ScoringPipelineVersion, ScoringReason, ScoringResult } from '@/lib/services/matchingScoringContract'
+import { buildScoringAudit } from '@/lib/services/matchingScoringContract'
 
 export const MAX_HARD_RADIUS_KM = 75   // never send leads beyond 75km
 export const MAX_MATCHES = 5            // top N to notify
@@ -160,6 +162,11 @@ interface ScoredPartner {
   distanceKm: number
   estimatedResponseMinutes: number
   subscriptionTier: string
+  scoringResult: ScoringResult
+}
+
+interface MatchResultInternal extends MatchResult {
+  scoringResult: ScoringResult
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
@@ -264,6 +271,16 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         const finalScore = Math.round(baseScore * multiplier * 100) / 100
         const subscriptionBoost = Math.round((finalScore - baseScore) * 100) / 100
 
+        const reasons: ScoringReason[] = [
+          { code: 'category', message: 'Category match', impact: categoryScore },
+          { code: 'location', message: `Distance ${distanceKm}km`, impact: locationScore },
+          { code: 'response', message: `Response ${p.response_time_hours ?? 24}h`, impact: responseScore },
+          { code: 'rating', message: `Rating ${p.avg_rating.toFixed(1)}/5`, impact: ratingScore },
+          { code: 'activity', message: p.is_online ? 'Online' : 'Offline', impact: activityScore },
+        ]
+
+        const pipelineVersion: ScoringPipelineVersion = 'smart-v3-production'
+
         return {
           partnerId: p.id,
           score: finalScore,
@@ -281,16 +298,30 @@ export async function matchPartnersForRequest(input: MatchingInput) {
             ? Math.round(p.response_time_hours * 60)
             : 240,
           subscriptionTier: p.subscription_tier,
+          scoringResult: {
+            candidateId: p.id,
+            score: finalScore,
+            rank: 0,
+            selected: false,
+            reasons,
+            pipelineVersion,
+          },
         }
       })
       .sort((a: ScoredPartner, b: ScoredPartner) => b.score - a.score)
 
     // 6. Top MAX_MATCHES
-    const topMatches: MatchResult[] = scored
+    const topMatchesWithScoring: MatchResultInternal[] = scored
       .slice(0, MAX_MATCHES)
-      .map((m: ScoredPartner, i: number) => ({ ...m, rank: i + 1 }))
+      .map((m: ScoredPartner, i: number) => ({
+        ...m,
+        rank: i + 1,
+        scoringResult: { ...m.scoringResult, rank: i + 1, selected: i === 0 },
+      }))
 
-    if (topMatches.length === 0) return { matches: [], matchingId: null }
+    if (topMatchesWithScoring.length === 0) return { matches: [], matchingId: null }
+
+    const topMatches: MatchResult[] = topMatchesWithScoring.map(({ scoringResult: _scoringResult, ...match }) => match)
 
     // 7. Log
     const executionTime = Date.now() - startTime
@@ -298,9 +329,9 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       .from('matching_logs' as any)
       .insert({
         request_id: input.requestId,
-        top_partner_id: topMatches[0].partnerId,
-        top_score: topMatches[0].score,
-        top_partner_tier: topMatches[0].subscriptionTier,
+        top_partner_id: topMatchesWithScoring[0].partnerId,
+        top_score: topMatchesWithScoring[0].score,
+        top_partner_tier: topMatchesWithScoring[0].subscriptionTier,
         all_matches: topMatches,
         algorithm_version: '3.0-production',
         execution_time_ms: executionTime,
@@ -312,22 +343,26 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       console.error('[Matching] Log error (non-fatal):', logError.message)
     }
 
+    const scoringAudit = buildScoringAudit(topMatchesWithScoring.map((m) => m.scoringResult))
+
     console.log(JSON.stringify({
       level: 'info',
       event: 'matching_complete',
       requestId: input.requestId,
-      topPartnerId: topMatches[0].partnerId,
-      topScore: topMatches[0].score,
-      tier: topMatches[0].subscriptionTier,
+      topPartnerId: topMatchesWithScoring[0].partnerId,
+      topScore: topMatchesWithScoring[0].score,
+      tier: topMatchesWithScoring[0].subscriptionTier,
       candidatesTotal: partners.length,
       eligibleTotal: eligible.length,
       executionMs: executionTime,
+      scoringAudit,
     }))
 
     return {
       matches: topMatches,
       matchingId: (logData as any)?.id || null,
       executionTimeMs: executionTime,
+      scoringAudit,
     }
   } catch (error) {
     const executionTime = Date.now() - startTime

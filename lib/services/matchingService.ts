@@ -63,6 +63,7 @@ export const matchingService = {
       matchingId: result.matchingId,
       executionTimeMs: result.executionTimeMs,
       ...(result.error && { error: result.error }),
+      ...(result.scoringAudit && { scoringAudit: result.scoringAudit }),
     }
   },
 }
