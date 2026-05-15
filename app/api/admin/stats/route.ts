@@ -1,9 +1,11 @@
 import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
-import { NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
+import { dashboardSuccess, dashboardError } from '@/lib/api/dashboard-envelope'
 
 export async function GET(req: Request) {
   const admin = await verifyAdmin(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const correlationId = randomUUID()
+  if (!admin) return dashboardError('Unauthorized', correlationId, 401)
 
   const [
     { count: skupajPovprasevanj },
@@ -24,12 +26,12 @@ export async function GET(req: Request) {
       .order('created_at'),
   ])
 
-  return NextResponse.json({
+  return dashboardSuccess({
     skupajPovprasevanj,
     novaPovprasevanja,
     skupajObrtnikov,
     pendingObrtnikov,
     zakljucenaDela,
     zadnjih7Dni,
-  })
+  }, correlationId)
 }
