@@ -52,14 +52,6 @@ export function ReviewModal({ povprasevanjId }: ReviewModalProps) {
         return
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new Error('Not authenticated')
-      }
-
       // Create review
       const { error: reviewError } = await supabase.from('ocene').insert({
         ponudba_id: offer.id,
