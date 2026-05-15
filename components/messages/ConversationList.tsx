@@ -48,7 +48,7 @@ export function ConversationList({
             sender_id,
             receiver_id,
             message,
-            is_read,
+            read,
             created_at,
             sender:profiles!sender_id(full_name),
             receiver:profiles!receiver_id(full_name)
@@ -86,7 +86,7 @@ export function ConversationList({
           .from('sporocila')
           .select('povprasevanje_id, COUNT(*) as count')
           .eq('receiver_id', currentUserId)
-          .eq('is_read', false)
+          .eq('read', false)
 
         if (!unreadError && unreadData) {
           unreadData.forEach((item: any) => {

@@ -12,7 +12,7 @@ interface Message {
   sender_id: string
   receiver_id: string
   message: string
-  is_read: boolean
+  read: boolean
   read_at: string | null
   created_at: string
 }
@@ -112,7 +112,7 @@ export function ChatPanel({
                     locale: sl,
                   })}
                   {msg.sender_id === currentUserId && (
-                    msg.is_read ? (
+                    msg.read ? (
                       <CheckCheck className="w-3 h-3" />
                     ) : (
                       <Check className="w-3 h-3" />
