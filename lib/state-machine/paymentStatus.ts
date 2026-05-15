@@ -10,7 +10,16 @@ const EVENT_TO_STATUS: Record<PaymentEventKind, EscrowStatus> = {
   dispute_opened: 'disputed',
 }
 
-const TERMINAL_STATUSES = new Set<EscrowStatus>(['released', 'refunded', 'cancelled'])
+const ALLOWED_ESCROW_TRANSITIONS: Record<EscrowStatus, EscrowStatus[]> = {
+  pending: ['paid', 'cancelled'],
+  paid: ['released', 'refunded', 'disputed', 'releasing'],
+  released: [],
+  refunded: [],
+  disputed: ['released', 'refunded', 'resolving'],
+  cancelled: [],
+  releasing: ['paid', 'released'],
+  resolving: ['disputed', 'released', 'refunded'],
+}
 
 export function targetStatusForEvent(kind: PaymentEventKind): EscrowStatus {
   return EVENT_TO_STATUS[kind]
@@ -18,7 +27,10 @@ export function targetStatusForEvent(kind: PaymentEventKind): EscrowStatus {
 
 export function shouldSkipEventForCurrentStatus(currentStatus: EscrowStatus, nextStatus: EscrowStatus): boolean {
   if (currentStatus === nextStatus) return true
-  if (TERMINAL_STATUSES.has(currentStatus) && currentStatus !== 'paid') return true
+
+  const allowedNext = ALLOWED_ESCROW_TRANSITIONS[currentStatus] ?? []
+  if (!allowedNext.includes(nextStatus)) return true
+
   return false
 }
 

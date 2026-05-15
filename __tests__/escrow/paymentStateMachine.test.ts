@@ -20,4 +20,12 @@ describe('payment state machine guards', () => {
   test('reconciliation correcting stale local status', () => {
     expect(shouldSkipEventForCurrentStatus('pending', targetStatusForEvent('payment_succeeded'))).toBe(false)
   })
+
+  test('paid -> cancelled is skipped as impossible transition', () => {
+    expect(shouldSkipEventForCurrentStatus('paid', targetStatusForEvent('payment_failed'))).toBe(true)
+  })
+
+  test('disputed -> paid is skipped as impossible transition', () => {
+    expect(shouldSkipEventForCurrentStatus('disputed', targetStatusForEvent('payment_succeeded'))).toBe(true)
+  })
 })
