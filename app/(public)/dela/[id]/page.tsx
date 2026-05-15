@@ -9,6 +9,7 @@ import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { JobTimeline } from '@/components/jobs/JobTimeline'
 import { OfferCard } from '@/components/jobs/OfferCard'
 import { getPublicPovprasevanjeDetail, getJobTimeline, countJobOffers } from '@/lib/dal/jobs'
+import { toCanonicalLeadStatus, getLeadStatusLabelSl } from '@/lib/lead-status'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -36,13 +37,6 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   }
 }
 
-const statusLabel: Record<string, string> = {
-  'new': 'Odprto',
-  'in_progress': 'V teku',
-  'completed': 'Zaključeno',
-  'cancelled': 'Preklicano',
-}
-
 const urgencyLabel: Record<string, string> = {
   'normalno': 'Normalno',
   'kmalu': 'Kmalu',
@@ -65,6 +59,7 @@ export default async function JobDetailPage(props: Props) {
 
   const timeline = await getJobTimeline(params.id)
   const offersCount = await countJobOffers(params.id)
+  const canonicalStatus = toCanonicalLeadStatus(job.status)
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -126,9 +121,9 @@ export default async function JobDetailPage(props: Props) {
 
               <div className="md:w-48 flex flex-col gap-3">
                 <Badge variant="outline" className="text-center py-2">
-                  {statusLabel[job.status] || job.status}
+                  {getLeadStatusLabelSl(canonicalStatus)}
                 </Badge>
-                {job.status === 'new' && (
+                {canonicalStatus === 'new' && (
                   <Button asChild>
                     <Link href={`/narocnik/ponudba/${job.id}`}>
                       Pošlji ponudbo

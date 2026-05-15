@@ -45,11 +45,12 @@ export async function getPovprasevanje(id: string): Promise<Povprasevanje | null
   }
 
   // Add ponudbe count
-  const result = mapInquiryStatus({
+  const result = {
     ...data!,
     ponudbe_count: (data as any).ponudbe?.length || 0
-  })
+  }
 
+  // Keep legacy status shape here until narocnik detail view is fully migrated
   return result as unknown as Povprasevanje
 }
 

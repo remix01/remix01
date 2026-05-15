@@ -420,7 +420,7 @@ export async function POST(request: NextRequest) {
       title: storitev,
       description: opis,
       location_city: normalizedLocation,
-      status: 'new',
+      status: 'odprto',
       narocnik_id: null,
       category_id,
     }
