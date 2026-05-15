@@ -64,7 +64,7 @@ function PartnerDashboardInner() {
       .eq('obrtnik_id', partnerId)
       .order('created_at', { ascending: false })
     if (offersData) {
-      setOffers(offersData)
+      setOffers(offersData as unknown as Offer[])
       setCompletionStatus((prev: any) =>
         prev
           ? {
@@ -119,7 +119,7 @@ function PartnerDashboardInner() {
         ])
 
         if (status) setCompletionStatus(status)
-        if (offersRes.data) setOffers(offersRes.data)
+        if (offersRes.data) setOffers(offersRes.data as unknown as Offer[])
         if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
       }
 

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Edit, Trash2, Star } from 'lucide-react'
 import { PortfolioItemForm } from './portfolio-item-form'
 
-interface PortfolioItem {
+interface PortfolioGridItem {
   id: string
   title: string
   description: string | null
@@ -21,7 +21,7 @@ interface PortfolioItem {
 }
 
 interface PortfolioSortableGridProps {
-  items: PortfolioItem[]
+  items: PortfolioGridItem[]
   obrtnikId: string
 }
 
@@ -62,15 +62,15 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
     ])
   }
 
-  const handleToggleFeatured = async (item: PortfolioItem) => {
-    const featured = sortedItems.filter((i: PortfolioItem) => i.is_featured)
+  const handleToggleFeatured = async (item: PortfolioGridItem) => {
+    const featured = sortedItems.filter((i: PortfolioGridItem) => i.is_featured)
 
     if (!item.is_featured && featured.length >= 3) {
       alert('Največ 3 izpostavljeni projekti')
       return
     }
 
-    const newItems = sortedItems.map((i: PortfolioItem) =>
+    const newItems = sortedItems.map((i: PortfolioGridItem) =>
       i.id === item.id ? { ...i, is_featured: !i.is_featured } : i
     )
     setSortedItems(newItems)
@@ -84,7 +84,7 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {sortedItems.map((item: PortfolioItem, idx: number) => (
+        {sortedItems.map((item: PortfolioGridItem, idx: number) => (
           <PortfolioItemCard
             key={item.id}
             item={item}
@@ -100,14 +100,14 @@ export function PortfolioSortableGrid({ items, obrtnikId }: PortfolioSortableGri
 
       {editingItem && (
         <PortfolioItemForm
-          item={editingItem}
+          item={editingItem as any}
           obrtnikId={obrtnikId}
           onClose={() => setEditingItem(null)}
           onSaved={() => {
             setEditingItem(null)
             window.location.reload()
           }}
-          featuredCount={sortedItems.filter((i: PortfolioItem) => i.is_featured && i.id !== editingItem.id).length}
+          featuredCount={sortedItems.filter((i: PortfolioGridItem) => i.is_featured && i.id !== editingItem.id).length}
         />
       )}
     </>
@@ -124,10 +124,10 @@ function PortfolioItemCard({
   onToggleFeatured,
 }: {
   key?: React.Key
-  item: PortfolioItem
+  item: PortfolioGridItem
   idx: number
   total: number
-  onEdit: (item: PortfolioItem) => void
+  onEdit: (item: PortfolioGridItem) => void
   onMoveUp: () => void | Promise<void>
   onMoveDown: () => void | Promise<void>
   onToggleFeatured: () => void | Promise<void>
