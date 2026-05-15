@@ -9,6 +9,11 @@ jest.mock('@/lib/push/token-service', () => ({
 }))
 
 const sendMock = jest.fn(async () => undefined)
+
+jest.mock('@/lib/push/web-subscription-service', () => ({
+  sendWebPushToUser: jest.fn(async () => ({ sent: 0, failed: 0 })),
+}))
+
 jest.mock('@/lib/push/push-service', () => ({
   getPushService: () => ({ send: sendMock }),
 }))

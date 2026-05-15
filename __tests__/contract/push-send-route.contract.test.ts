@@ -20,6 +20,27 @@ describe('push send route contract', () => {
     expect(response.status).toBe(400)
   })
 
+
+  it('reports sent=0 when only fallback channel succeeds', async () => {
+    orchestratorMock.mockResolvedValue({
+      success: true,
+      correlationId: 'corr-2',
+      attempts: [
+        { channel: 'push', success: false, attempt: 1, error: 'no_push_targets' },
+        { channel: 'in_app', success: true, attempt: 1 },
+      ],
+    })
+
+    const response = await POST(new Request('http://localhost/api/push/send', {
+      method: 'POST',
+      body: JSON.stringify({ userId: 'u1', title: 'Hello', message: 'World' }),
+    }) as any)
+
+    const json = await response.json()
+    expect(response.status).toBe(200)
+    expect(json).toMatchObject({ sent: 0, failed: 1, correlationId: 'corr-2', orchestratedSuccess: true })
+  })
+
   it('returns correlation and attempts from orchestration result', async () => {
     orchestratorMock.mockResolvedValue({
       success: true,
@@ -34,7 +55,7 @@ describe('push send route contract', () => {
 
     const json = await response.json()
     expect(response.status).toBe(200)
-    expect(json).toMatchObject({ sent: 1, failed: 0, correlationId: 'corr-1' })
+    expect(json).toMatchObject({ sent: 1, failed: 0, correlationId: 'corr-1', orchestratedSuccess: true })
     expect(Array.isArray(json.attempts)).toBe(true)
   })
 })

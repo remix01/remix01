@@ -3,6 +3,7 @@ import { NotificationService, type NotificationType } from './notification-servi
 import { TokenService } from '@/lib/push/token-service'
 import { getPushService } from '@/lib/push/push-service'
 import { recordMetric } from '@/lib/observability/notification-metrics'
+import { sendWebPushToUser } from '@/lib/push/web-subscription-service'
 
 export type NotificationChannel = 'in_app' | 'push'
 
@@ -22,6 +23,7 @@ export interface DeliveryAttempt {
   success: boolean
   error?: string
   attempt: number
+  metadata?: Record<string, unknown>
 }
 
 export async function sendOrchestratedNotification(input: OrchestratedNotificationInput) {
@@ -37,8 +39,27 @@ export async function sendOrchestratedNotification(input: OrchestratedNotificati
         if (!created) throw new Error('in_app create returned null')
       } else {
         const tokens = await TokenService.getForUser(input.userId)
-        if (tokens.length === 0) throw new Error('no_tokens')
-        await getPushService().send(tokens.map((t: any) => t.token), { title: input.title, body: input.body, data: { ...input.data, correlationId } })
+        let devicePushDelivered = false
+
+        if (tokens.length > 0) {
+          await getPushService().send(tokens.map((t: any) => t.token), {
+            title: input.title,
+            body: input.body,
+            data: { ...input.data, correlationId },
+          })
+          devicePushDelivered = true
+        }
+
+        const webPushResult = await sendWebPushToUser({
+          userId: input.userId,
+          title: input.title,
+          body: input.body,
+          data: { ...input.data, correlationId },
+        })
+
+        if (!devicePushDelivered && webPushResult.sent === 0) {
+          throw new Error('no_push_targets')
+        }
       }
       attempts.push({ channel, success: true, attempt })
       recordMetric('notification_channel_delivery', 1, { channel, status: 'success' })

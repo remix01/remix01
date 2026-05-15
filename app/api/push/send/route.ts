@@ -19,11 +19,14 @@ export async function POST(request: NextRequest) {
       fallbackChannels: ['in_app'],
     })
 
+    const pushDelivered = result.attempts.some((attempt) => attempt.channel === 'push' && attempt.success)
+
     return NextResponse.json({
-      sent: result.success ? 1 : 0,
-      failed: result.success ? 0 : 1,
+      sent: pushDelivered ? 1 : 0,
+      failed: pushDelivered ? 0 : 1,
       correlationId: result.correlationId,
       attempts: result.attempts,
+      orchestratedSuccess: result.success,
     })
   } catch (error) {
     console.error('[v0] Error in push send:', error)
