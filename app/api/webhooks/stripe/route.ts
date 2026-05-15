@@ -28,8 +28,12 @@ export async function POST(request: NextRequest) {
 
   const acceptedTypes = new Set(Object.keys(stripeWebhookHandlers))
   if (!acceptedTypes.has(event.type)) {
-    console.warn('[WEBHOOK] Unsupported Stripe event type', { stripeEventId: event.id, eventType: event.type })
-    return fail(`Unsupported event type: ${event.type}`, 400)
+    console.info('[WEBHOOK] Ignoring unsupported Stripe event type', {
+      stripeEventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+    })
+    return ok({ received: true, ignored: true })
   }
 
   const claimed = await claimStripeEventProcessing(event.id, event.type)
@@ -59,6 +63,7 @@ export async function POST(request: NextRequest) {
         stripeEventId: event.id,
         releaseErr,
       })
+      throw releaseErr
     }
     return fail('Processing error')
   }
