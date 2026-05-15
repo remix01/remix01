@@ -103,13 +103,13 @@ export function WeeklyScheduleSection({
         const { error } = await supabase
           .from('obrtnik_availability')
           .upsert(
-            [{
+            {
               obrtnik_id: obrtnikId,
               day_of_week: entry.day_of_week,
               is_available: entry.is_available,
               time_from: entry.is_available ? entry.time_from : null,
               time_to: entry.is_available ? entry.time_to : null,
-            }],
+            },
             { onConflict: 'obrtnik_id,day_of_week' }
           )
 
