@@ -107,8 +107,9 @@ export function WeeklyScheduleSection({
               obrtnik_id: obrtnikId,
               day_of_week: entry.day_of_week,
               is_available: entry.is_available,
-              time_from: entry.is_available ? entry.time_from : null,
-              time_to: entry.is_available ? entry.time_to : null,
+              ...(entry.is_available
+                ? { time_from: entry.time_from, time_to: entry.time_to }
+                : {}),
             },
             { onConflict: 'obrtnik_id,day_of_week' }
           )
