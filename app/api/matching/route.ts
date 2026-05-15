@@ -90,6 +90,7 @@ async function postHandler(request: NextRequest, _context: { params: Promise<unk
       matchingId: result.matchingId,
       executionTimeMs: result.executionTimeMs,
       ...(result.error && { error: result.error }),
+      ...(result.scoringAudit && { scoringAudit: result.scoringAudit }),
     })
   } catch (error) {
     console.error('[v0] Matching API error:', error)
