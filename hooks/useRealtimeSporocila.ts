@@ -9,7 +9,7 @@ interface Message {
   sender_id: string
   receiver_id: string
   message: string
-  read: boolean
+  is_read: boolean
   read_at: string | null
   created_at: string
 }
@@ -38,15 +38,15 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           .order('created_at', { ascending: true })
 
         if (err) throw err
-        setSporocila((data || []).map((m: any) => ({ ...m, read: !!m.read, created_at: m.created_at || new Date().toISOString() })))
+        setSporocila(data || [])
 
         // Mark as read
         await supabaseRef.current
           .from('sporocila')
-          .update({ read: true, read_at: new Date().toISOString() })
+          .update({ is_read: true, read_at: new Date().toISOString() })
           .eq('povprasevanje_id', povprasevanjeId)
           .eq('receiver_id', currentUserId)
-          .eq('read', false)
+          .eq('is_read', false)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Napaka pri nalaganju sporočil')
       } finally {
@@ -84,7 +84,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
           if (currentUserId && newMessage.receiver_id === currentUserId) {
             supabaseRef.current
               .from('sporocila')
-              .update({ read: true, read_at: new Date().toISOString() })
+              .update({ is_read: true, read_at: new Date().toISOString() })
               .eq('id', newMessage.id)
               .eq('receiver_id', currentUserId)
               .then()
@@ -112,7 +112,7 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
             sender_id: currentUserId,
             receiver_id: receiverId,
             message: text.trim(),
-            read: false,
+            is_read: false,
           })
 
         if (err) throw err
