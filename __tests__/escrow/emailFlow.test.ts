@@ -33,8 +33,9 @@ describe('email job routing and queue fail-fast', () => {
     const originalNodeEnv = process.env.NODE_ENV
     const originalQstash = process.env.QSTASH_TOKEN
 
-    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'production'
-    process.env.QSTASH_TOKEN = ''
+    const env = process.env as Record<string, string | undefined>
+    env['NODE_ENV'] = 'production'
+    env['QSTASH_TOKEN'] = ''
 
     try {
       jest.resetModules()
@@ -43,8 +44,8 @@ describe('email job routing and queue fail-fast', () => {
         enqueue('sendEmail', { template: 'povprasevanje_confirmation', to: 'x@example.com' })
       ).rejects.toThrow(/QStash not configured in production/)
     } finally {
-      ;(process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv
-      process.env.QSTASH_TOKEN = originalQstash
+      env['NODE_ENV'] = originalNodeEnv
+      env['QSTASH_TOKEN'] = originalQstash
     }
   })
 })
