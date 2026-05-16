@@ -12,19 +12,19 @@ BEGIN;
 
 DROP POLICY IF EXISTS "profiles_select_own" ON profiles;
 CREATE POLICY "profiles_select_own" ON profiles
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
 CREATE POLICY "profiles_insert_own" ON profiles
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
 CREATE POLICY "profiles_update_own" ON profiles
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "profiles_delete_own" ON profiles;
 CREATE POLICY "profiles_delete_own" ON profiles
-FOR DELETE USING ((SELECT auth.uid()) = user_id);
+FOR DELETE USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- DATA_RECORDS TABLE - Fix 4 policies
@@ -32,19 +32,19 @@ FOR DELETE USING ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "data_records_select_own" ON data_records;
 CREATE POLICY "data_records_select_own" ON data_records
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "data_records_insert_own" ON data_records;
 CREATE POLICY "data_records_insert_own" ON data_records
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "data_records_update_own" ON data_records;
 CREATE POLICY "data_records_update_own" ON data_records
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "data_records_delete_own" ON data_records;
 CREATE POLICY "data_records_delete_own" ON data_records
-FOR DELETE USING ((SELECT auth.uid()) = user_id);
+FOR DELETE USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- PARTNERS TABLE - Fix 3 policies
@@ -52,15 +52,15 @@ FOR DELETE USING ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "partners_select_own" ON partners;
 CREATE POLICY "partners_select_own" ON partners
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "partners_insert_own" ON partners;
 CREATE POLICY "partners_insert_own" ON partners
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "partners_update_own" ON partners;
 CREATE POLICY "partners_update_own" ON partners
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- OFFERS TABLE - Fix 3 policies
@@ -68,15 +68,15 @@ FOR UPDATE USING ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "offers_select_own" ON offers;
 CREATE POLICY "offers_select_own" ON offers
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "offers_insert_own" ON offers;
 CREATE POLICY "offers_insert_own" ON offers
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "offers_update_own" ON offers;
 CREATE POLICY "offers_update_own" ON offers
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- PAYOUTS TABLE - Fix 1 policy
@@ -94,7 +94,7 @@ FOR SELECT USING ((SELECT auth.uid()) IN (
 
 DROP POLICY IF EXISTS "Users can read own inquiries" ON inquiries;
 CREATE POLICY "Users can read own inquiries" ON inquiries
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "Admins can read all inquiries" ON inquiries;
 CREATE POLICY "Admins can read all inquiries" ON inquiries
@@ -142,7 +142,7 @@ FOR DELETE USING (
 
 DROP POLICY IF EXISTS "Admins can view own record" ON admin_users;
 CREATE POLICY "Admins can view own record" ON admin_users
-FOR SELECT USING ((SELECT auth.uid()) = user_id);
+FOR SELECT USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- OBRTNIK_PROFILES TABLE - Fix 2 policies
@@ -150,11 +150,11 @@ FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "Obrtniki can insert own profile" ON obrtnik_profiles;
 CREATE POLICY "Obrtniki can insert own profile" ON obrtnik_profiles
-FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+FOR INSERT WITH CHECK ((SELECT auth.uid()) = id);
 
 DROP POLICY IF EXISTS "Obrtniki can update own profile" ON obrtnik_profiles;
 CREATE POLICY "Obrtniki can update own profile" ON obrtnik_profiles
-FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+FOR UPDATE USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- CATEGORIES TABLE - Fix 1 policy (will be merged in next migration)
@@ -226,7 +226,7 @@ FOR INSERT WITH CHECK ((SELECT auth.uid()) = narocnik_id);
 
 DROP POLICY IF EXISTS "Users can only access own memory" ON agent_user_memory;
 CREATE POLICY "Users can only access own memory" ON agent_user_memory
-FOR ALL USING ((SELECT auth.uid()) = user_id);
+FOR ALL USING ((SELECT auth.uid()) = id);
 
 -- ============================================================================
 -- AGENT_LOGS TABLE - Fix 1 policy

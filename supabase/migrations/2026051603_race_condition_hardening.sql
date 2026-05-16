@@ -61,19 +61,58 @@ BEGIN
   END IF;
 END $$;
 
--- one active offer per craftsman per inquiry
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_ponudbe_active_per_obrtnik
-ON public.ponudbe (povprasevanje_id, obrtnik_id)
-WHERE status IN ('draft','poslana','sprejeta');
+-- one active offer per craftsman per inquiry (guarded: skip if duplicates exist)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.ponudbe
+    WHERE status IN ('draft','poslana','sprejeta')
+    GROUP BY povprasevanje_id, obrtnik_id
+    HAVING COUNT(*) > 1
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS uniq_ponudbe_active_per_obrtnik
+    ON public.ponudbe (povprasevanje_id, obrtnik_id)
+    WHERE status IN ('draft','poslana','sprejeta');
+  ELSE
+    RAISE NOTICE 'Skipping uniq_ponudbe_active_per_obrtnik due to existing duplicates; run remediation SQL first.';
+  END IF;
+END $$;
 
--- one active queued job per dedupe_key
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_task_queue_jobs_active_dedupe
-ON public.task_queue_jobs (dedupe_key)
-WHERE dedupe_key IS NOT NULL AND status IN ('pending','queued','processing','retry');
+-- one active queued job per dedupe_key (guarded: skip if duplicates exist)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.task_queue_jobs
+    WHERE dedupe_key IS NOT NULL AND status IN ('pending','queued','processing','retry')
+    GROUP BY dedupe_key
+    HAVING COUNT(*) > 1
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS uniq_task_queue_jobs_active_dedupe
+    ON public.task_queue_jobs (dedupe_key)
+    WHERE dedupe_key IS NOT NULL AND status IN ('pending','queued','processing','retry');
+  ELSE
+    RAISE NOTICE 'Skipping uniq_task_queue_jobs_active_dedupe due to existing duplicates; run remediation SQL first.';
+  END IF;
+END $$;
 
--- canonical messaging key uniqueness (legacy conversations table)
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_conversations_thread
-ON public.conversations (obrtnik_id, narocnik_id, COALESCE(povprasevanje_id, '00000000-0000-0000-0000-000000000000'::uuid));
+-- canonical messaging key uniqueness (guarded + aligned with upsert conflict target)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.conversations
+    GROUP BY obrtnik_id, narocnik_id, povprasevanje_id
+    HAVING COUNT(*) > 1
+  ) THEN
+    ALTER TABLE public.conversations
+      ADD CONSTRAINT conversations_obrtnik_narocnik_povprasevanje_key
+      UNIQUE (obrtnik_id, narocnik_id, povprasevanje_id);
+  ELSE
+    RAISE NOTICE 'Skipping conversations unique constraint due to existing duplicates; run remediation SQL first.';
+  END IF;
+END $$;
 
 -- 3) OPTIMISTIC LOCK COLUMNS
 ALTER TABLE public.povprasevanja

@@ -55,7 +55,7 @@ export async function handleStripeRelease(job: Job): Promise<void> {
     }
 
     // Update escrow_transactions to mark as released
-    const { error } = await supabaseAdmin
+    const { data: updatedTx, error } = await supabaseAdmin
       .from('escrow_transactions')
       .update({
         stripe_release_status: releaseAction,
@@ -64,9 +64,15 @@ export async function handleStripeRelease(job: Job): Promise<void> {
       })
       .eq('id', escrowId)
       .eq('lock_version', existingTx?.lock_version ?? 0)
+      .select('id')
+      .maybeSingle()
 
     if (error) {
       throw error
+    }
+
+    if (!existingTx || !updatedTx) {
+      throw new Error(`[STRIPE RELEASE WORKER] Optimistic lock conflict for escrow ${escrowId}; retry required`)
     }
 
     console.log(`[STRIPE RELEASE WORKER] Updated escrow ${escrowId} status to ${releaseAction}`)
