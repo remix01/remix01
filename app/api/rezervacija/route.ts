@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Create booking
     const { data, error } = await supabase
-      .from('rezervacije')
+      .from((assertLegacyWriteAllowed('rezervacije', 'app/api/rezervacija/route.ts'), 'rezervacije'))
       .insert({
         povprasevanje_id,
         obrtnik_id,
