@@ -5,7 +5,7 @@
  * Emits payment.released events for subscribers to act on (analytics, notifications, etc.)
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { createPaymentIntent } from '@/lib/mcp/payments'
 import { ServiceError } from './serviceError'
 import { eventBus } from '@/lib/events'
@@ -13,6 +13,7 @@ import { getCommissionRate } from '@/lib/stripe/helpers'
 import { stripe } from '@/lib/stripe/client'
 import type { PlanType } from '@/lib/stripe/config'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
+import { enqueue } from '@/lib/jobs/queue'
 
 export const paymentService = {
   /**
@@ -154,5 +155,141 @@ export const paymentService = {
       netAmount,
       stripeTransferId,
     }
+  },
+
+  /**
+   * Capture (confirm) a Stripe payment intent after customer confirms payment.
+   * Returns the payment intent ID as chargeId for downstream steps.
+   */
+  async confirmCharge(paymentIntentId: string): Promise<{ chargeId: string }> {
+    const captured = await stripe.paymentIntents.capture(paymentIntentId)
+    if (captured.status !== 'succeeded') {
+      throw new ServiceError(
+        `Payment capture failed: intent ${paymentIntentId} status is ${captured.status}`,
+        'DB_ERROR',
+        500
+      )
+    }
+    return { chargeId: captured.id }
+  },
+
+  /**
+   * Refund a captured payment intent. Used as compensation for confirmCharge.
+   */
+  async refundCharge(chargeId: string): Promise<void> {
+    const refund = await stripe.refunds.create({
+      payment_intent: chargeId,
+      reason: 'requested_by_customer',
+    })
+    if (refund.status === 'failed') {
+      throw new ServiceError(
+        `Refund failed for charge ${chargeId}: ${refund.failure_reason ?? 'unknown'}`,
+        'DB_ERROR',
+        500
+      )
+    }
+  },
+
+  /**
+   * Create an escrow record in the DB to track the held payment.
+   * The funds are already captured in Stripe; escrow is an internal state marker.
+   */
+  async holdEscrow(
+    taskId: string,
+    chargeId: string,
+    amount: number
+  ): Promise<{ escrowId: string }> {
+    const supabase = createAdminClient()
+    const { data, error } = await (supabase as any)
+      .from('escrow_transactions')
+      .insert({
+        task_id: taskId,
+        payment_intent_id: chargeId,
+        amount_cents: Math.round(amount * 100),
+        status: 'held',
+      })
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      throw new ServiceError(
+        `Failed to create escrow record: ${error?.message ?? 'unknown'}`,
+        'DB_ERROR',
+        500
+      )
+    }
+    return { escrowId: data.id as string }
+  },
+
+  /**
+   * Release (cancel) an escrow by refunding the Stripe payment intent.
+   * Used as compensation for holdEscrow.
+   */
+  async releaseEscrow(escrowId: string): Promise<void> {
+    const supabase = createAdminClient()
+    const { data: escrow, error } = await (supabase as any)
+      .from('escrow_transactions')
+      .select('payment_intent_id, status')
+      .eq('id', escrowId)
+      .single()
+
+    if (error || !escrow) {
+      throw new ServiceError(
+        `Escrow ${escrowId} not found`,
+        'NOT_FOUND',
+        404
+      )
+    }
+
+    if (escrow.status === 'refunded' || escrow.status === 'cancelled') return
+
+    await stripe.refunds.create({ payment_intent: escrow.payment_intent_id })
+
+    await (supabase as any)
+      .from('escrow_transactions')
+      .update({ status: 'refunded', updated_at: new Date().toISOString() })
+      .eq('id', escrowId)
+  },
+
+  /**
+   * Schedule a delayed transfer to the partner after the 24h dispute window.
+   * Uses QStash to enqueue a release_escrow job with a delay.
+   * Returns the QStash message ID as transferId.
+   */
+  async scheduleTransfer(
+    escrowId: string,
+    partnerId: string,
+    amount: number,
+    taskId: string
+  ): Promise<{ transferId: string }> {
+    const DISPUTE_WINDOW_SECONDS = 24 * 60 * 60 // 24 hours
+
+    const messageId = await enqueue(
+      'release_escrow',
+      { escrowId, partnerId, amount, taskId },
+      { delay: DISPUTE_WINDOW_SECONDS, retries: 3 }
+    )
+
+    return { transferId: messageId }
+  },
+
+  /**
+   * Cancel a scheduled transfer by marking the escrow as cancelled.
+   * QStash does not expose a message-cancel API in this client version,
+   * so the worker checks escrow status before executing the transfer.
+   */
+  async cancelScheduledTransfer(transferId: string, escrowId?: string): Promise<void> {
+    if (!escrowId) return
+
+    const supabase = createAdminClient()
+    await (supabase as any)
+      .from('escrow_transactions')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', escrowId)
+
+    console.warn(
+      `[paymentService] Transfer ${transferId} flagged as cancelled in DB. ` +
+      `QStash message will no-op when worker checks escrow status.`
+    )
   },
 }

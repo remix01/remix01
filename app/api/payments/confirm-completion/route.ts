@@ -127,8 +127,35 @@ async function handler(request: NextRequest) {
     // 11. Create Stripe payout (happens automatically with destination charges, but we log it)
     // Note: With destination charges and application fees, the money is already in the connected account
     // We don't need to create a separate transfer - it was created when the PaymentIntent succeeded
-    
-    // TODO: Send email/SMS notification to craftworker
+
+    // 12. Notify craftworker of completion and incoming payout
+    const craftsmanEmail = job.craftworker?.email as string | undefined
+    if (craftsmanEmail) {
+      const { getResendClient, getDefaultFrom, resolveEmailRecipients } = await import('@/lib/resend')
+      const resend = getResendClient()
+      if (resend) {
+        const { to: resolvedTo } = resolveEmailRecipients(craftsmanEmail)
+        await resend.emails.send({
+          from: getDefaultFrom(),
+          to: resolvedTo,
+          subject: '✅ Naročilo zaključeno — plačilo je na poti',
+          html: `
+            <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+              <h2 style="color:#0d9488;">Čestitamo — naročilo je zaključeno!</h2>
+              <p>Pozdravljeni ${job.craftworker?.name ?? ''},</p>
+              <p>Kupec je potrdil zaključek naročila. Vaše plačilo je na poti.</p>
+              <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                <tr><td style="padding:8px;color:#64748b;width:40%;">Job ID:</td><td style="padding:8px;"><strong>${jobId}</strong></td></tr>
+                <tr><td style="padding:8px;color:#64748b;">Vaše plačilo:</td><td style="padding:8px;"><strong>${craftworkerPayoutAmount} EUR</strong></td></tr>
+                <tr><td style="padding:8px;color:#64748b;">Status:</td><td style="padding:8px;">Sproščeno na vaš Stripe račun</td></tr>
+              </table>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+              <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/dashboard" style="color:#0d9488;">Odpri dashboard</a></p>
+            </div>
+          `,
+        }).catch(err => console.error('[confirm-completion] Craftworker email failed:', err))
+      }
+    }
     console.log(`[confirm-completion] Job ${jobId} completed. Craftworker ${job.craftworker_id} will receive ${craftworkerPayoutAmount} EUR`)
 
     return NextResponse.json({

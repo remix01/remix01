@@ -1,4 +1,5 @@
 import { Job } from '../queue'
+import { getResendClient, getDefaultFrom, resolveEmailRecipients } from '@/lib/resend'
 
 /**
  * Send email notifications (async job)
@@ -15,23 +16,25 @@ export async function handleSendEmail(job: Job) {
   try {
     console.log(`[EMAIL] Sending ${template} email to ${to}`)
 
-    // TODO: Implement email sending via your email provider (e.g., SendGrid, Mailgun, Resend, etc.)
-    // For now, just log the email
-    
-    const emailContent = buildEmailContent(template, { escrowId, ...customData })
-    
-    // Example with Resend (uncomment and configure as needed):
-    // import { Resend } from 'resend'
-    // const resend = new Resend(process.env.RESEND_API_KEY)
-    // const result = await resend.emails.send({
-    //   from: 'noreply@liftgo.com',
-    //   to,
-    //   subject: emailContent.subject,
-    //   html: emailContent.html,
-    // })
-    // if (result.error) throw result.error
+    const resend = getResendClient()
+    if (!resend) {
+      console.warn('[EMAIL] RESEND_API_KEY not configured — email skipped', { template, to })
+      return
+    }
 
-    console.log(`[EMAIL] Successfully sent ${template} to ${to}`)
+    const emailContent = buildEmailContent(template, { escrowId, ...customData })
+    const { to: resolvedTo } = resolveEmailRecipients(to)
+
+    const result = await resend.emails.send({
+      from: getDefaultFrom(),
+      to: resolvedTo,
+      subject: emailContent.subject,
+      html: emailContent.html,
+    })
+
+    if (result.error) throw result.error
+
+    console.log(`[EMAIL] Successfully sent ${template} to ${resolvedTo.join(', ')}`)
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     console.error(`[EMAIL] Failed to send ${template} to ${to}: ${errorMsg}`)

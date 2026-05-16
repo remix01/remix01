@@ -85,14 +85,33 @@ export async function POST(request: NextRequest) {
 
     // 8. Send alert email to admin
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@liftgo.net'
-    
-    // TODO: Implement actual email sending
-    console.log(`[dispute] ADMIN ALERT - Dispute opened for job ${jobId}`)
-    console.log(`Customer: ${job.customer.name} (${job.customer.email})`)
-    console.log(`Craftworker: ${job.craftworker?.name} (${job.craftworker?.email})`)
-    console.log(`Reason: ${reason}`)
-    console.log(`Amount: ${job.payment.amount} EUR`)
-    console.log(`Send notification to: ${adminEmail}`)
+
+    const { getResendClient, getDefaultFrom, resolveEmailRecipients } = await import('@/lib/resend')
+    const resend = getResendClient()
+    if (resend) {
+      const { to: resolvedTo } = resolveEmailRecipients(adminEmail)
+      await resend.emails.send({
+        from: getDefaultFrom('LiftGO Admin'),
+        to: resolvedTo,
+        subject: `[DISPUTE] Job ${jobId} — ${job.customer?.name ?? 'neznani kupec'}`,
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#dc2626;">⚠️ Odprt spor — zahteva takojšnjo pozornost</h2>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+              <tr><td style="padding:8px;color:#64748b;width:35%;">Job ID:</td><td style="padding:8px;"><strong>${jobId}</strong></td></tr>
+              <tr><td style="padding:8px;color:#64748b;">Kupec:</td><td style="padding:8px;">${job.customer?.name ?? '–'} (${job.customer?.email ?? '–'})</td></tr>
+              <tr><td style="padding:8px;color:#64748b;">Obrtnik:</td><td style="padding:8px;">${job.craftworker?.name ?? '–'} (${job.craftworker?.email ?? '–'})</td></tr>
+              <tr><td style="padding:8px;color:#64748b;">Znesek:</td><td style="padding:8px;"><strong>${job.payment.amount} EUR</strong></td></tr>
+              <tr><td style="padding:8px;color:#64748b;">Razlog:</td><td style="padding:8px;">${reason}</td></tr>
+            </table>
+            <p style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px;border-radius:4px;">
+              Plačilo je zamrznjeno. Admin mora ročno razrešiti spor in ali sprostiti plačilo ali vrniti denar kupcu.
+            </p>
+            <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin">Odpri admin panel</a></p>
+          </div>
+        `,
+      }).catch(err => console.error('[dispute] Admin email failed:', err))
+    }
 
     // Note: Transfer is frozen - no payout will be made until dispute is resolved
     // Admin must manually review and either:
