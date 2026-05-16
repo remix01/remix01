@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { acceptPonudba, updatePonudba } from '@/lib/dal/ponudbe'
 import { updatePovprasevanje } from '@/lib/dal/povprasevanja'
 import { PONUDBA_STATUS } from '@/lib/types/offer'
+import { toLegacyInquiryStatus } from '@/lib/lead-status'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 
@@ -80,7 +81,7 @@ export async function acceptPonudbaAction(
     const { error: updatePovError } = await supabase
       .from('povprasevanja')
       .update({
-        status: 'in_progress',
+        status: toLegacyInquiryStatus('in_progress'),
         obrtnik_id: ponudbaData.obrtnik_id
       })
       .eq('id', povprasevanjeId)

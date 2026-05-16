@@ -4,6 +4,7 @@ import { adminAlertEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
+import { toLegacyInquiryStatus } from '@/lib/lead-status'
 
 export const maxDuration = 60
 
@@ -87,7 +88,7 @@ async function handleCriticalRisk(jobId: string, score: number, flags: string[])
   // Mark povpraševanje as cancelled (suspended) for admin review
   await supabaseAdmin
     .from('povprasevanja')
-    .update({ status: 'cancelled' })
+    .update({ status: toLegacyInquiryStatus('cancelled') })
     .eq('id', jobId)
 
   console.log(`[risk-check] Povpraševanje ${jobId} suspended (critical risk score: ${score})`)

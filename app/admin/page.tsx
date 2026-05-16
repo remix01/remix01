@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { toLegacyInquiryStatus } from '@/lib/lead-status'
 import { StatsCards } from '@/components/admin/StatsCards'
 import { ViolationsChart } from '@/components/admin/ViolationsChart'
 import { ViolationsByTypeChart } from '@/components/admin/ViolationsByTypeChart'
@@ -48,7 +49,7 @@ async function getStats() {
     const { count } = await supabaseAdmin
       .from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'new')
+      .eq('status', toLegacyInquiryStatus('new'))
     openPovprasevanja = count ?? 0
   } catch (e) {
     console.error('[admin] openPovprasevanja query failed:', e instanceof Error ? e.message : String(e))
