@@ -70,7 +70,9 @@ INSERT INTO public.legacy_role_map (legacy_value, canonical_value, notes)
 VALUES
   ('CUSTOMER', 'customer', 'legacy uppercase role'),
   ('CRAFTWORKER', 'provider', 'legacy uppercase role'),
-  ('ADMIN', 'admin', 'legacy uppercase role')
+  ('ADMIN', 'admin', 'legacy uppercase role'),
+  ('narocnik', 'customer', 'live profiles.role value'),
+  ('obrtnik', 'provider', 'live profiles.role value')
 ON CONFLICT (legacy_value) DO UPDATE
 SET canonical_value = EXCLUDED.canonical_value,
     notes = EXCLUDED.notes;
