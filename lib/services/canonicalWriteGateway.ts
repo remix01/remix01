@@ -63,6 +63,18 @@ export const canonicalWriteGateway = {
     logCanonical('notification', data?.id ?? null, writeSource, 'insert')
     return data
   },
+
+  async deleteProfile(id: string, writeSource: WriteSource) {
+    const { error } = await supabaseAdmin.from('profiles').delete().eq('id', id)
+    if (error) throw error
+    logCanonical('profile', id, writeSource, 'delete')
+  },
+
+  async deleteProviderProfile(id: string, writeSource: WriteSource) {
+    const { error } = await supabaseAdmin.from('obrtnik_profiles').delete().eq('id', id)
+    if (error) throw error
+    logCanonical('provider_profile', id, writeSource, 'delete')
+  },
 }
 
 export const LEGACY_UNSAFE_WRITES_DEPRECATED = Object.freeze({

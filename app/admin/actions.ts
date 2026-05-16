@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
 import { requireAdmin } from '@/lib/admin-auth'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 
 async function ensureAdminAccess() {
   await requireAdmin()
@@ -218,7 +219,7 @@ export async function odobriPartnerja(id: string) {
     blocked_reason: null,
   }
 
-  await supabaseAdmin.from('obrtnik_profiles').update(updates).eq('id', id)
+  await canonicalWriteGateway.createOrUpdateProviderProfile({ id, ...updates }, 'admin.odobriPartnerja')
 
   // Audit side-effects — non-critical, must not block the main approval
   await Promise.allSettled([
@@ -265,7 +266,7 @@ export async function zavrniPartnerja(id: string, razlog: string) {
     blocked_reason: razlog || null,
   }
 
-  await supabaseAdmin.from('obrtnik_profiles').update(updates).eq('id', id)
+  await canonicalWriteGateway.createOrUpdateProviderProfile({ id, ...updates }, 'admin.zavrniPartnerja')
 
   await Promise.allSettled([
     supabaseAdmin.from('provider_approval_transitions').insert({
@@ -505,17 +506,14 @@ export async function getAdminOffers(
 
 export async function updateStrankaStatus(id: string, status: 'AKTIVEN' | 'SUSPENDIRAN') {
   await ensureAdminAccess()
-  await supabaseAdmin
-    .from('profiles')
-    .update({ is_suspended: status === 'SUSPENDIRAN' })
-    .eq('id', id)
+  await canonicalWriteGateway.createOrUpdateProfile({ id, is_suspended: status === 'SUSPENDIRAN' }, 'admin.updateStrankaStatus')
   revalidatePath(`/admin/stranke/${id}`)
   revalidatePath('/admin/stranke')
 }
 
 export async function deleteStranka(id: string) {
   await ensureAdminAccess()
-  await supabaseAdmin.from('profiles').delete().eq('id', id)
+  await canonicalWriteGateway.deleteProfile(id, 'admin.deleteStranka')
   revalidatePath('/admin/stranke')
 }
 
@@ -535,15 +533,18 @@ export async function updateStranka(
   if (data.telefon !== undefined) updates.phone = data.telefon || null
   if (data.lokacija !== undefined) updates.location_city = data.lokacija || null
 
-  const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', id)
-  if (error) return { success: false, error: error.message }
+  try {
+    await canonicalWriteGateway.createOrUpdateProfile({ id, ...updates }, 'admin.updateStranka')
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
   revalidatePath(`/admin/stranke/${id}`)
   return { success: true }
 }
 
 export async function deletePartner(id: string) {
   await ensureAdminAccess()
-  await supabaseAdmin.from('obrtnik_profiles').delete().eq('id', id)
+  await canonicalWriteGateway.deleteProviderProfile(id, 'admin.deletePartner')
   revalidatePath('/admin/partnerji')
 }
 
@@ -560,13 +561,15 @@ export async function updatePartner(
   if (data.telefon !== undefined) profileUpdates.phone = data.telefon || null
   if (data.lokacija !== undefined) profileUpdates.location_city = data.lokacija || null
 
-  if (Object.keys(obrtnikUpdates).length) {
-    const { error } = await supabaseAdmin.from('obrtnik_profiles').update(obrtnikUpdates).eq('id', id)
-    if (error) return { success: false, error: error.message }
-  }
-  if (Object.keys(profileUpdates).length) {
-    const { error } = await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', id)
-    if (error) return { success: false, error: error.message }
+  try {
+    if (Object.keys(obrtnikUpdates).length) {
+      await canonicalWriteGateway.createOrUpdateProviderProfile({ id, ...obrtnikUpdates }, 'admin.updatePartner')
+    }
+    if (Object.keys(profileUpdates).length) {
+      await canonicalWriteGateway.createOrUpdateProfile({ id, ...profileUpdates }, 'admin.updatePartner')
+    }
+  } catch (e: any) {
+    return { success: false, error: e.message }
   }
   revalidatePath(`/admin/partnerji/${id}`)
   return { success: true }
@@ -638,8 +641,11 @@ export async function updatePovprasevanjeAdmin(
   if (data.preferred_date_to !== undefined) updates.preferred_date_to = data.preferred_date_to || null
   if (data.admin_opomba !== undefined) updates.admin_opomba = data.admin_opomba
 
-  const { error } = await supabaseAdmin.from('povprasevanja').update(updates).eq('id', id)
-  if (error) return { success: false, error: error.message }
+  try {
+    await canonicalWriteGateway.createOrUpdatePovprasevanje(id, updates, 'admin.updatePovprasevanje')
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
   revalidatePath(`/admin/povprasevanja/${id}`)
   revalidatePath('/admin/povprasevanja')
   return { success: true }
@@ -647,24 +653,18 @@ export async function updatePovprasevanjeAdmin(
 
 export async function reaktivirajPartnerja(id: string) {
   await ensureAdminAccess()
-  await supabaseAdmin
-    .from('obrtnik_profiles')
-    .update({ is_available: true })
-    .eq('id', id)
+  await canonicalWriteGateway.createOrUpdateProviderProfile({ id, is_available: true }, 'admin.reaktivirajPartnerja')
   revalidatePath(`/admin/partnerji/${id}`)
   revalidatePath('/admin/partnerji')
 }
 
 export async function bulkSuspendStranke(ids: string[]): Promise<void> {
-  await supabaseAdmin
-    .from('profiles')
-    .update({ is_suspended: true })
-    .in('id', ids)
+  await Promise.all(ids.map(id => canonicalWriteGateway.createOrUpdateProfile({ id, is_suspended: true }, 'admin.bulkSuspendStranke')))
   revalidatePath('/admin/stranke')
 }
 
 export async function bulkDeleteStranke(ids: string[]): Promise<void> {
-  await supabaseAdmin.from('profiles').delete().in('id', ids)
+  await Promise.all(ids.map(id => canonicalWriteGateway.deleteProfile(id, 'admin.bulkDeleteStranke')))
   revalidatePath('/admin/stranke')
 }
 
@@ -709,15 +709,14 @@ export async function dodajStranko(data: {
     })
     if (authError) return { success: false, error: authError.message }
 
-    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
+    await canonicalWriteGateway.createOrUpdateProfile({
       id: authData.user.id,
       email,
       full_name: fullName,
       phone: data.telefon || null,
       location_city: data.lokacija?.trim() || null,
       role: 'narocnik',
-    })
-    if (profileError) return { success: false, error: profileError.message }
+    }, 'admin.dodajStranko')
 
     revalidatePath('/admin/stranke')
     return { success: true }
@@ -835,17 +834,16 @@ export async function dodajPartnerja(data: {
     })
     if (authError) return { success: false, error: authError.message }
 
-    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
+    await canonicalWriteGateway.createOrUpdateProfile({
       id: authData.user.id,
       email,
       full_name: fullName || businessName,
       phone: data.telefon || null,
       role: 'obrtnik',
       location_city: data.lokacija?.trim() || null,
-    })
-    if (profileError) return { success: false, error: profileError.message }
+    }, 'admin.dodajPartnerja')
 
-    const { error: obrtnikError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
+    await canonicalWriteGateway.createOrUpdateProviderProfile({
       id: authData.user.id,
       business_name: businessName,
       is_verified: shouldVerify,
@@ -854,8 +852,7 @@ export async function dodajPartnerja(data: {
       subscription_tier: subscriptionTier,
       avg_rating: 0,
       total_reviews: 0,
-    })
-    if (obrtnikError) return { success: false, error: obrtnikError.message }
+    }, 'admin.dodajPartnerja')
 
     if (data.category_id) {
       const { error: categoryError } = await supabaseAdmin
@@ -960,39 +957,40 @@ export async function setUserRole(
     .eq('id', id)
     .maybeSingle()
 
-  if (existing) {
-    const { error } = await supabaseAdmin.from('profiles').update({ role }).eq('id', id)
-    if (error) return { success: false, error: error.message }
-  } else {
-    // No profiles row — happens for Google/OAuth users who bypassed /api/registracija.
-    // Fetch identity data from auth.users and create the row now.
-    const { data: authData } = await supabaseAdmin.auth.admin.getUserById(id)
-    const u = authData?.user
-    const { error } = await supabaseAdmin.from('profiles').insert({
-      id,
-      role,
-      email: u?.email ?? null,
-      full_name: u?.user_metadata?.full_name ?? u?.user_metadata?.name ?? null,
-    })
-    if (error) return { success: false, error: error.message }
-  }
+  try {
+    if (existing) {
+      await canonicalWriteGateway.createOrUpdateProfile({ id, role }, 'admin.setUserRole')
+    } else {
+      // No profiles row — happens for Google/OAuth users who bypassed /api/registracija.
+      // Fetch identity data from auth.users and create the row now.
+      const { data: authData } = await supabaseAdmin.auth.admin.getUserById(id)
+      const u = authData?.user
+      await canonicalWriteGateway.createOrUpdateProfile({
+        id,
+        role,
+        email: u?.email ?? null,
+        full_name: u?.user_metadata?.full_name ?? u?.user_metadata?.name ?? null,
+      }, 'admin.setUserRole')
+    }
 
-  if (role === 'obrtnik') {
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', id)
-      .single()
-    const businessName =
-      profile?.full_name || (profile?.email?.split('@')[0] ?? 'Obrtnik')
-    const { error: opError } = await supabaseAdmin.from('obrtnik_profiles').upsert({
-      id,
-      business_name: businessName,
-      is_verified: false,
-      verification_status: 'pending',
-      is_available: false,
-    })
-    if (opError) return { success: false, error: opError.message }
+    if (role === 'obrtnik') {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', id)
+        .single()
+      const businessName =
+        profile?.full_name || (profile?.email?.split('@')[0] ?? 'Obrtnik')
+      await canonicalWriteGateway.createOrUpdateProviderProfile({
+        id,
+        business_name: businessName,
+        is_verified: false,
+        verification_status: 'pending',
+        is_available: false,
+      }, 'admin.setUserRole')
+    }
+  } catch (e: any) {
+    return { success: false, error: e.message }
   }
 
   revalidatePath('/admin/data-quality')
@@ -1015,14 +1013,17 @@ export async function createObrtnikProfile(
   if (!profile) return { success: false, error: 'Profil ne obstaja' }
 
   const businessName = profile.full_name || (profile.email?.split('@')[0] ?? 'Obrtnik')
-  const { error } = await supabaseAdmin.from('obrtnik_profiles').upsert({
-    id,
-    business_name: businessName,
-    is_verified: false,
-    verification_status: 'pending',
-    is_available: false,
-  })
-  if (error) return { success: false, error: error.message }
+  try {
+    await canonicalWriteGateway.createOrUpdateProviderProfile({
+      id,
+      business_name: businessName,
+      is_verified: false,
+      verification_status: 'pending',
+      is_available: false,
+    }, 'admin.createObrtnikProfile')
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
 
   revalidatePath('/admin/data-quality')
   revalidatePath('/admin/partnerji')

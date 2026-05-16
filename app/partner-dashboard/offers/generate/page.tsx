@@ -203,16 +203,21 @@ export default function OfferGeneratorPage() {
     setSendSuccess(null)
     try {
       const totalPrice = (generatedOffer.estimatedHours * generatedOffer.hourlyRate) + generatedOffer.materialsEstimate
-      const { error } = await supabase.from('ponudbe').insert({
-        povprasevanje_id: formData.selectedInquiry,
-        obrtnik_id: partner.id,
-        message: generatedOffer.offerText,
-        price_estimate: totalPrice,
-        price_type: 'ocena',
-        status: 'poslana',
+      const response = await fetch('/api/ponudbe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          povprasevanje_id: formData.selectedInquiry,
+          obrtnik_id: partner.id,
+          message: generatedOffer.offerText,
+          price_estimate: totalPrice,
+          price_type: 'ocena',
+        }),
       })
-
-      if (error) throw error
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        throw new Error(body?.error || 'Napaka pri pošiljanju ponudbe')
+      }
 
       setSendSuccess('Ponudba je bila uspešno poslana stranki.')
       setFormData((prev) => ({ ...prev, selectedInquiry: '' }))
