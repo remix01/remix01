@@ -163,11 +163,14 @@ export async function GET(request: NextRequest) {
         // Best-effort: if the reset itself fails, the item is stuck but
         // an admin can manually clear notified_at.
         if (didClaim) {
-          await supabase
-            .from('povprasevanja')
-            .update({ notified_at: null })
-            .eq('id', p.id)
-            .catch(() => {/* logged below */})
+          try {
+            await supabase
+              .from('povprasevanja')
+              .update({ notified_at: null })
+              .eq('id', p.id)
+          } catch {
+            // best-effort; if this fails the item needs a manual notified_at reset
+          }
         }
         console.error(JSON.stringify({
           level: 'error',
