@@ -1,0 +1,9 @@
+comment on table public.obrtniki is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public.rezervacije is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public."user" is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public.craftworker_profile is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public.job is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public.payment is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public.conversation is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public.message is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';
+comment on table public.violation is 'DEPRECATED - do not write directly. Use canonical DAL/service layer.';

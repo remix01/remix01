@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { getEffectiveCommission } from '@/lib/loyalty/commissionCalculator'
 import { sendEmail } from '@/lib/email/sender'
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       if (currentCommission.rate < currentRate && currentCommission.rate !== currentRate) {
         // Update the stored commission rate
         const { error: updateError } = await supabaseAdmin
-          .from('craftworker_profile')
+          .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/cron/check-tier-upgrades/route.ts'), 'craftworker_profile'))
           .update({ commission_rate: currentCommission.rate })
           .eq('id', craftworker.id)
 

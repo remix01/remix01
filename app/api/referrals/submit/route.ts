@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/sender'
 import { apiSuccess, badRequest, unauthorized, internalError } from '@/lib/api-response'
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Update new craftworker with referral code
     const { error: updateError } = await supabaseAdmin
-      .from('craftworker_profile')
+      .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/referrals/submit/route.ts'), 'craftworker_profile'))
       .update({ referred_by: referrerData.referral_code })
       .eq('id', newCraftworkerProfile.id)
 
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     // Add 100 loyalty points to referrer (100 points = 0.5% discount)
     const { data: updatedReferrer, error: referrerUpdateError } = await supabaseAdmin
-      .from('craftworker_profile')
+      .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/referrals/submit/route.ts'), 'craftworker_profile'))
       .update({
         loyalty_points: (referrerData.loyalty_points || 0) + 100
       })

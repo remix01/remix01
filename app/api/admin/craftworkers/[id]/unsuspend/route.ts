@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { createClient } from '@/lib/supabase/server'
 import { craftworkerUnsuspensionEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
@@ -51,7 +52,7 @@ export async function POST(
 
     // Unsuspend the craftworker
     const { error: updateError } = await supabaseAdmin
-      .from('craftworker_profile')
+      .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/admin/craftworkers/[id]/unsuspend/route.ts'), 'craftworker_profile'))
       .update({
         is_suspended: false,
         suspended_at: null,

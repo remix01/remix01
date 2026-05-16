@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { stripe } from '@/lib/stripe'
 import { z } from 'zod'
 import { sendEmail } from '@/lib/email/sender'
@@ -101,14 +102,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
 
         await supabaseAdmin
-          .from('payment')
+          .from((assertLegacyWriteAllowed('payment', 'app/api/admin/disputes/[jobId]/resolve/route.ts'), 'payment'))
           .update({ stripe_transfer_id: transfer.id })
           .eq('id', payment.id)
       }
 
       // Update payment and job status
       const { error: paymentError } = await supabaseAdmin
-        .from('payment')
+        .from((assertLegacyWriteAllowed('payment', 'app/api/admin/disputes/[jobId]/resolve/route.ts'), 'payment'))
         .update({
           status: resolution === 'refund_to_customer' ? 'REFUNDED' : 'RELEASED',
           released_at: new Date().toISOString(),
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .eq('id', payment.id)
 
       const { error: jobUpdateError } = await supabaseAdmin
-        .from('job')
+        .from((assertLegacyWriteAllowed('job', 'app/api/admin/disputes/[jobId]/resolve/route.ts'), 'job'))
         .update({
           status: resolution === 'refund_to_customer' ? 'CANCELLED' : 'COMPLETED',
           completed_at: new Date().toISOString(),
