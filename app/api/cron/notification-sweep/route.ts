@@ -122,7 +122,10 @@ export async function GET(request: NextRequest) {
           },
         }))
 
-        const { error: notifError } = await supabase.from('notifications').insert(notifications)
+        let notifError: any = null
+        for (const n of notifications) {
+          try { await canonicalWriteGateway.appendNotification(n, 'api.cron.notification-sweep') } catch (e) { notifError = e; break }
+        }
 
         if (notifError) {
           console.error(JSON.stringify({

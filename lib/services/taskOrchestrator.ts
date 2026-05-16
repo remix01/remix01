@@ -11,6 +11,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { enqueue, type JobType } from '@/lib/jobs'
 import { ServiceError } from './serviceError'
 import { eventBus } from '@/lib/events'
@@ -94,18 +95,18 @@ export const taskOrchestrator = {
     }
 
     // Create task record with initial status
-    const { data: task, error: insertError } = await supabaseAdmin
-      .from('service_requests')
-      .insert({
+    let task: any = null
+    let insertError: any = null
+    try {
+      task = await canonicalWriteGateway.enqueueOrUpdateTask({
         povprasevanje_id: data.requestId,
         status: 'pending',
         lat: data.lat,
         lng: data.lng,
         category_id: data.categoryId,
         user_id: data.userId,
-      })
-      .select()
-      .single()
+      }, 'service.taskOrchestrator.createTask')
+    } catch (e) { insertError = e }
 
     if (insertError || !task) {
       throw new ServiceError(
@@ -190,14 +191,13 @@ export const taskOrchestrator = {
     }
 
     // Update status in database
-    const { error: updateError } = await supabaseAdmin
-      .from('service_requests')
-      .update({
+    let updateError: any = null
+    try { await canonicalWriteGateway.enqueueOrUpdateTask({
+      id: taskId,
         status: newStatus,
         updated_at: new Date().toISOString(),
         ...(metadata && { metadata }),
-      })
-      .eq('id', taskId)
+      }, 'service.taskOrchestrator.updateTaskStatus') } catch (e) { updateError = e }
 
     if (updateError) {
       throw new ServiceError(

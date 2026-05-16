@@ -52,14 +52,15 @@ async function postHandler(request: NextRequest) {
       return NextResponse.json({ error: 'Napaka pri registraciji.' }, { status: 500 })
     }
 
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+    let profileError: any = null
+    try { await canonicalWriteGateway.createOrUpdateProfile({
       id: userId,
       role: validated.role,
       full_name: validated.fullName,
       phone: validated.phone || null,
       location_city: validated.location_city,
       email: validated.email,
-    })
+    }, 'api.registracija.create') } catch (e) { profileError = e }
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(userId)

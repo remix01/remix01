@@ -11,6 +11,7 @@
 
 import { Job } from '../queue'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { resolveEmailRecipients } from '@/lib/resend'
 import { getEmailProvider } from '@/lib/email/provider'
 
@@ -78,7 +79,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
         subject: `✅ Povpraševanje oddano: ${escapeHtml(title || 'Novo povpraševanje')}`,
         html: htmlBody,
         idempotencyKey: `povprasevanje:${povprasevanjeId}:confirmation`,
-      })
+      }, 'worker.email')
 
       console.log('[EMAIL] Sent', {
         type: jobType,
@@ -260,7 +261,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
   // Insert notification record if we have a user ID
   if (recipientUserId && notificationType) {
     try {
-      await supabaseAdmin.from('notifications').insert({
+      await canonicalWriteGateway.appendNotification({
         user_id: recipientUserId,
         type: notificationType,
         title: notificationTitle,
@@ -269,7 +270,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
         resource_id: transactionId,
         resource_type: 'escrow',
         metadata: metadata || {},
-      })
+      }, 'worker.email.notification')
     } catch (error) {
       console.error('[EMAIL] Failed to insert notification:', error)
       // Don't fail the email sending if notification insertion fails

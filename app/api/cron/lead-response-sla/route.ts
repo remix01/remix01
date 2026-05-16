@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
             fromObrtnikId: assignment.obrtnik_id,
             toObrtnikId: next.next_obrtnik_id,
             toRank: next.next_rank,
-          }))
+          }, 'api.cron.lead-response-sla'))
         } else {
           // All ranks exhausted — log for admin
           exhausted.push(assignment.id)
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
           }))
 
           // Create admin alert notification
-          await (supabase as any).from('notifications').insert({
+          await canonicalWriteGateway.appendNotification({
             user_id: null, // admin channel (type-specific)
             type: 'lead_unassigned',
             title: 'Lead brez odgovora — ni več obrtnikov',
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
               povprasevanje_id: assignment.povprasevanje_id,
               last_assignment_id: assignment.id,
             },
-          })
+          }, 'api.cron.lead-response-sla')
         }
       } catch (err) {
         console.error('[LeadSLA] Escalation error for', assignment.id, ':', String(err))
