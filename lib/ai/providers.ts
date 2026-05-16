@@ -17,6 +17,7 @@ import {
   hasPerplexity,
   type AIProvider,
 } from '@/lib/env'
+import { AI_TIMEOUT_MS, isAIAvailable } from '@/lib/ai/ai-guard'
 
 // Initialize clients lazily
 let anthropicClient: Anthropic | null = null
@@ -80,6 +81,9 @@ export async function chat(
   messages: ChatMessage[],
   options: ChatOptions = {}
 ): Promise<ChatResult> {
+  if (!isAIAvailable()) {
+    throw new Error('AI provider unavailable. Try again later.')
+  }
   const provider = options.provider || selectChatProvider()
 
   switch (provider) {
@@ -162,6 +166,7 @@ async function chatWithOpenAI(
       max_tokens: options.maxTokens || 2048,
       temperature: options.temperature,
     }),
+    signal: AbortSignal.timeout(AI_TIMEOUT_MS.optional),
   })
 
   if (!response.ok) {
@@ -214,6 +219,7 @@ async function chatWithGemini(
           temperature: options.temperature,
         },
       }),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS.optional),
     }
   )
 
@@ -245,6 +251,13 @@ async function chatWithGemini(
  * Search and answer using Perplexity's real-time search
  */
 export async function search(query: string, options: SearchOptions = {}): Promise<SearchResult> {
+  if (!isAIAvailable()) {
+    return {
+      content: 'AI search trenutno ni na voljo. Poskusite ponovno kasneje.',
+      provider: 'none',
+      model: 'fallback',
+    }
+  }
   if (!hasPerplexity()) {
     // Fallback to OpenAI if Perplexity not available
     if (hasOpenAI()) {

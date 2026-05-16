@@ -14,7 +14,11 @@ interface E2BExecution {
 
 export async function runInE2B(code: string, _language: 'python' | 'javascript' = 'python'): Promise<E2BExecutionResult> {
   if (!env.E2B_API_KEY) {
-    throw new Error('E2B_API_KEY is missing. Set it in Vercel Environment Variables.')
+    return {
+      stdout: '',
+      stderr: 'E2B disabled: missing E2B_API_KEY',
+      exitCode: 1,
+    }
   }
 
   const { Sandbox } = await import('@e2b/code-interpreter')
