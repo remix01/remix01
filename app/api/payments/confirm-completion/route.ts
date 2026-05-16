@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { createClient } from '@/lib/supabase/server'
 import { withIdempotency } from '@/lib/idempotency/withIdempotency'
 
@@ -88,7 +89,7 @@ async function handler(request: NextRequest) {
 
     // 8. Update job status to COMPLETED
     const { error: jobUpdateError } = await supabaseAdmin
-      .from('job')
+      .from((assertLegacyWriteAllowed('job', 'app/api/payments/confirm-completion/route.ts'), 'job'))
       .update({
         status: 'COMPLETED',
         completed_at: new Date().toISOString(),
@@ -99,7 +100,7 @@ async function handler(request: NextRequest) {
 
     // 9. Update payment status to RELEASED
     const { error: paymentUpdateError } = await supabaseAdmin
-      .from('payment')
+      .from((assertLegacyWriteAllowed('payment', 'app/api/payments/confirm-completion/route.ts'), 'payment'))
       .update({
         status: 'RELEASED',
         released_at: new Date().toISOString(),
@@ -117,7 +118,7 @@ async function handler(request: NextRequest) {
 
     if (!profileError && profile) {
       await supabaseAdmin
-        .from('craftworker_profile')
+        .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/payments/confirm-completion/route.ts'), 'craftworker_profile'))
         .update({
           total_jobs_completed: (profile.total_jobs_completed || 0) + 1,
         })
