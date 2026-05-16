@@ -11,6 +11,16 @@ import type {
   OcenaInsert
 } from '@/types/marketplace'
 
+class OptimisticLockError extends Error {
+  code = 'CONFLICT_RETRYABLE'
+  constructor(message: string) {
+    super(message)
+    this.name = 'OptimisticLockError'
+  }
+}
+
+
+
 /**
  * Get ponudba by ID with relations
  */
@@ -173,13 +183,27 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
 /**
  * Update ponudba
  */
-export async function updatePonudba(id: string, updates: PonudbaUpdate): Promise<Ponudba | null> {
+export async function updatePonudba(id: string, updates: PonudbaUpdate & { lock_version?: number }): Promise<Ponudba | null> {
   const supabase = await createClient()
   
-  const { data, error } = await supabase
+  const expectedLockVersion = (updates as any).lock_version
+  const payload = { ...(updates as any) }
+  delete payload.lock_version
+
+  if (typeof expectedLockVersion === 'number') {
+    payload.lock_version = expectedLockVersion + 1
+  }
+
+  let query = supabase
     .from('ponudbe')
-    .update(updates as any)
+    .update(payload)
     .eq('id', id)
+
+  if (typeof expectedLockVersion === 'number') {
+    query = query.eq('lock_version', expectedLockVersion)
+  }
+
+  const { data, error } = await query
     .select(`
       *,
       povprasevanje:povprasevanja(*),
@@ -193,6 +217,10 @@ export async function updatePonudba(id: string, updates: PonudbaUpdate): Promise
   if (error) {
     console.error('[v0] Error updating ponudba:', error)
     return null
+  }
+
+  if (!data && typeof expectedLockVersion === 'number') {
+    throw new OptimisticLockError('[v0] Ponudba update conflict, retry required')
   }
 
   return data as unknown as Ponudba

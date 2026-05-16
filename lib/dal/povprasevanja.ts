@@ -19,6 +19,16 @@ function mapInquiryStatus<T extends { status?: string | null }>(item: T): T {
   }
 }
 
+class OptimisticLockError extends Error {
+  code = 'CONFLICT_RETRYABLE'
+  constructor(message: string) {
+    super(message)
+    this.name = 'OptimisticLockError'
+  }
+}
+
+
+
 /**
  * Get povprasevanje by ID with relations
  */
@@ -318,16 +328,29 @@ export async function createPovprasevanje(
 /**
  * Update povprasevanje
  */
-export async function updatePovprasevanje(id: string, updates: PovprasevanjeUpdate): Promise<Povprasevanje | null> {
+export async function updatePovprasevanje(id: string, updates: PovprasevanjeUpdate & { lock_version?: number }): Promise<Povprasevanje | null> {
   const supabase = await createClient()
   
   const payload = { ...updates } as any
   if (payload.status) payload.status = toLegacyInquiryStatus(payload.status)
 
-  const { data, error } = await supabase
+  const expectedLockVersion = payload.lock_version
+  delete payload.lock_version
+
+  if (typeof expectedLockVersion === 'number') {
+    payload.lock_version = expectedLockVersion + 1
+  }
+
+  let query = supabase
     .from('povprasevanja')
     .update(payload)
     .eq('id', id)
+
+  if (typeof expectedLockVersion === 'number') {
+    query = query.eq('lock_version', expectedLockVersion)
+  }
+
+  const { data, error } = await query
     .select(`
       *,
       narocnik:profiles!povprasevanja_narocnik_id_fkey(*),
@@ -338,6 +361,10 @@ export async function updatePovprasevanje(id: string, updates: PovprasevanjeUpda
   if (error) {
     console.error('[v0] Error updating povprasevanje:', error)
     return null
+  }
+
+  if (!data && typeof expectedLockVersion === 'number') {
+    throw new OptimisticLockError('[v0] Povprasevanje update conflict, retry required')
   }
 
   return mapInquiryStatus(data as any) as unknown as Povprasevanje

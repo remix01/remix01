@@ -30,41 +30,22 @@ export async function getOrCreateConversation(
 ): Promise<Conversation | null> {
   const supabase = await createClient()
   
-  // Try to find existing conversation
-  let query = supabase
+  // Upsert to avoid read-then-insert race condition
+  const { data: created, error: upsertError } = await supabase
     .from('conversations' as any)
-    .select('*')
-    .eq('obrtnik_id', obrtnikId)
-    .eq('narocnik_id', narocnikId)
-
-  if (povprasevanjeId) {
-    query = query.eq('povprasevanje_id', povprasevanjeId)
-  }
-
-  const { data: existing, error: fetchError } = await query.maybeSingle()
-
-  if (fetchError) {
-    console.error('[v0] Error fetching conversation:', fetchError)
-    return null
-  }
-
-  if (existing) {
-    return existing as unknown as Conversation
-  }
-
-  // Create new conversation if it doesn't exist
-  const { data: created, error: createError } = await supabase
-    .from('conversations' as any)
-    .insert({
+    .upsert({
       obrtnik_id: obrtnikId,
       narocnik_id: narocnikId,
-      povprasevanje_id: povprasevanjeId,
+      povprasevanje_id: povprasevanjeId ?? null,
+    }, {
+      onConflict: 'obrtnik_id,narocnik_id,povprasevanje_id',
+      ignoreDuplicates: false,
     })
     .select()
     .maybeSingle()
 
-  if (createError) {
-    console.error('[v0] Error creating conversation:', createError)
+  if (upsertError) {
+    console.error('[v0] Error upserting conversation:', upsertError)
     return null
   }
 

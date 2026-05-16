@@ -22,7 +22,7 @@ export async function handleStripeRelease(job: Job): Promise<void> {
   // Check if already released (idempotency check)
   const { data: existingTx } = await supabaseAdmin
     .from('escrow_transactions')
-    .select('stripe_release_status')
+    .select('stripe_release_status, lock_version')
     .eq('id', escrowId)
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle()
@@ -60,8 +60,10 @@ export async function handleStripeRelease(job: Job): Promise<void> {
       .update({
         stripe_release_status: releaseAction,
         stripe_release_completed_at: new Date().toISOString(),
+        lock_version: (existingTx?.lock_version ?? 0) + 1,
       })
       .eq('id', escrowId)
+      .eq('lock_version', existingTx?.lock_version ?? 0)
 
     if (error) {
       throw error

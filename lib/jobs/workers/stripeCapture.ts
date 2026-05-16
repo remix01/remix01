@@ -20,7 +20,7 @@ export async function handleStripeCapture(job: Job): Promise<void> {
   // Check if already captured (idempotency check)
   const { data: existingTx } = await supabaseAdmin
     .from('escrow_transactions')
-    .select('stripe_capture_status')
+    .select('stripe_capture_status, lock_version')
     .eq('id', escrowId)
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle()
@@ -44,11 +44,17 @@ export async function handleStripeCapture(job: Job): Promise<void> {
       .update({
         stripe_capture_status: 'captured',
         stripe_capture_completed_at: new Date().toISOString(),
+        lock_version: (existingTx?.lock_version ?? 0) + 1,
       })
       .eq('id', escrowId)
+      .eq('lock_version', existingTx?.lock_version ?? 0)
 
     if (error) {
       throw error
+    }
+
+    if (!existingTx) {
+      throw new Error(`[STRIPE CAPTURE WORKER] Escrow ${escrowId} missing during update`)
     }
 
     console.log(`[STRIPE CAPTURE WORKER] Updated escrow ${escrowId} status to captured`)
