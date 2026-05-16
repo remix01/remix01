@@ -233,6 +233,7 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
 
     // 10 s per-iteration timeout — AI must not block indefinitely
     const ITER_TIMEOUT_MS = 10_000
+    let iterTimerId: ReturnType<typeof setTimeout> | undefined
     const response = await Promise.race([
       getAnthropicClient().messages.create({
         model: modelSelection.modelId,
@@ -241,10 +242,13 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
         messages,
         tools: tools.length > 0 ? tools : undefined,
       }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`[Orchestrator] AI response timeout after ${ITER_TIMEOUT_MS}ms`)), ITER_TIMEOUT_MS)
-      ),
-    ])
+      new Promise<never>((_, reject) => {
+        iterTimerId = setTimeout(
+          () => reject(new Error(`[Orchestrator] AI response timeout after ${ITER_TIMEOUT_MS}ms`)),
+          ITER_TIMEOUT_MS
+        )
+      }),
+    ]).finally(() => clearTimeout(iterTimerId))
 
     totalInputTokens += response.usage.input_tokens
     totalOutputTokens += response.usage.output_tokens
@@ -337,13 +341,17 @@ export async function executeAgentSafe(
   options: AgentExecutionOptions,
   timeoutMs = 15_000
 ): Promise<AgentExecutionResult | null> {
+  let timerId: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
       executeAgent(options),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`[executeAgentSafe] Timeout after ${timeoutMs}ms`)), timeoutMs)
-      ),
-    ])
+      new Promise<never>((_, reject) => {
+        timerId = setTimeout(
+          () => reject(new Error(`[executeAgentSafe] Timeout after ${timeoutMs}ms`)),
+          timeoutMs
+        )
+      }),
+    ]).finally(() => clearTimeout(timerId))
   } catch (err) {
     console.error('[executeAgentSafe] AI call failed — returning null. Reason:', err instanceof Error ? err.message : err)
     return null

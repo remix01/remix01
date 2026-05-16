@@ -104,16 +104,17 @@ export async function withAIFallback<T>(
 
   const timeoutMs = AI_TIMEOUT_MS[category]
 
+  let timerId: ReturnType<typeof setTimeout> | undefined
   try {
     const result = await Promise.race([
       aiCall(),
-      new Promise<never>((_, reject) =>
-        setTimeout(
+      new Promise<never>((_, reject) => {
+        timerId = setTimeout(
           () => reject(new Error(`[AI Guard] Timeout: "${label}" exceeded ${timeoutMs}ms`)),
           timeoutMs
         )
-      ),
-    ])
+      }),
+    ]).finally(() => clearTimeout(timerId))
     _recordSuccess()
     return result
   } catch (err) {

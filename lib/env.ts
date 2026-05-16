@@ -151,13 +151,6 @@ export function getReadinessReport() {
   const appUrlInvalid = !isValidHttpUrl(env.NEXT_PUBLIC_APP_URL)
   const invalidRules = appUrlInvalid ? ['NEXT_PUBLIC_APP_URL must be valid http(s) URL'] : []
 
-  const aiProviders = {
-    anthropic: !!env.ANTHROPIC_API_KEY,
-    openai: !!env.OPENAI_API_KEY,
-    gemini: !!env.GEMINI_API_KEY,
-  }
-  const aiConfigured = hasAnyAI()
-
   return {
     environment: env.NODE_ENV,
     liveness: { ok: true },
@@ -169,14 +162,11 @@ export function getReadinessReport() {
     degraded: {
       optional,
     },
+    // AI is always degraded-only — never a blocking dependency for core flows.
+    // Detailed provider status + circuit breaker state is in getAIGuardStatus() (ai-guard.ts).
     aiReadiness: {
-      configured: aiConfigured,
-      providers: aiProviders,
-      // AI is always degraded-only — never blocking
+      configured: hasAnyAI(),
       blocking: false,
-      note: aiConfigured
-        ? 'AI enrichment active'
-        : 'AI not configured — enrichment features disabled, core flows unaffected',
     },
   }
 }

@@ -19,24 +19,22 @@ type ParsedInquiry = {
   aiEnriched: boolean
 }
 
-function parseAIResponse(raw: string, userInput: string): ParsedInquiry {
+function parseAIResponse(raw: string, fallback: ParsedInquiry): ParsedInquiry {
   const match = raw.match(/\{[\s\S]*\}/)
-  const base = buildFallback(userInput)
-
-  if (!match) return base
+  if (!match) return fallback
 
   try {
     const json = JSON.parse(match[0])
     return {
-      title: json.title || base.title,
-      description: json.description || base.description,
-      suggestedCategory: json.suggestedCategory || base.suggestedCategory,
+      title: json.title || fallback.title,
+      description: json.description || fallback.description,
+      suggestedCategory: json.suggestedCategory || fallback.suggestedCategory,
       urgency: ['normalno', 'kmalu', 'nujno'].includes(json.urgency) ? json.urgency : 'normalno',
       followUpQuestions: Array.isArray(json.followUpQuestions) ? json.followUpQuestions.slice(0, 3) : [],
       aiEnriched: true,
     }
   } catch {
-    return base
+    return fallback
   }
 }
 
@@ -111,7 +109,7 @@ ${input}
       7_000
     )
 
-    const data: ParsedInquiry = ai ? parseAIResponse(ai.response, input) : fallback
+    const data: ParsedInquiry = ai ? parseAIResponse(ai.response, fallback) : fallback
 
     return NextResponse.json({ success: true, data })
   } catch (error) {
