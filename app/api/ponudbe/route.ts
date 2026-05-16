@@ -7,6 +7,7 @@ import { offerService, handleServiceError } from '@/lib/services'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 import { sendNotification } from '@/lib/notifications'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 
 export async function POST(request: NextRequest) {
@@ -74,10 +75,7 @@ export async function POST(request: NextRequest) {
       const responseTimeMs = povprasevanjeMeta?.created_at
         ? Date.now() - new Date(povprasevanjeMeta.created_at).getTime()
         : null
-      await supabaseAdmin
-        .from('povprasevanja')
-        .update({ lead_status: 'quoted' } as any)
-        .eq('id', povprasevanje_id)
+      await canonicalWriteGateway.createOrUpdatePovprasevanje(povprasevanje_id, { lead_status: 'quoted' } as any, 'api.ponudbe.quoted-tracking')
       await supabaseAdmin.from('lead_audit_log').insert({
         povprasevanje_id,
         status: 'quoted',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { authLimiter } from '@/lib/rate-limit/limiters'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
@@ -52,14 +53,15 @@ async function postHandler(request: NextRequest) {
       return NextResponse.json({ error: 'Napaka pri registraciji.' }, { status: 500 })
     }
 
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+    let profileError: any = null
+    try { await canonicalWriteGateway.createOrUpdateProfile({
       id: userId,
       role: validated.role,
       full_name: validated.fullName,
       phone: validated.phone || null,
       location_city: validated.location_city,
       email: validated.email,
-    })
+    }, 'api.registracija.create') } catch (e) { profileError = e }
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(userId)

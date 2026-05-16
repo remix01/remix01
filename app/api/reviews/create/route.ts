@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 
 export async function POST(req: Request) {
   try {
@@ -82,14 +83,14 @@ export async function POST(req: Request) {
     }
 
     // Create notification for craftsman
-    await supabaseAdmin.from('notifications').insert({
+    await canonicalWriteGateway.appendNotification({
       user_id: obrtnik_id,
       type: 'nova_ocena',
       title: 'Prejeli ste novo oceno!',
       message: `Obrnočnik vam je dal oceno ${rating} ⭐`,
       action_url: '/partner-dashboard/ocene',
       read: false,
-    })
+    }, 'api.reviews.create')
 
     return NextResponse.json({ success: true, ocena_id: review.id })
   } catch (err) {

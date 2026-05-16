@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { liquidityEngine } from '@/lib/marketplace/liquidityEngine'
 import { createAdminClient } from '@/lib/supabase/server'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
@@ -105,7 +106,7 @@ export async function GET(req: NextRequest) {
           }))
 
           // Create admin alert notification
-          await (supabase as any).from('notifications').insert({
+          await canonicalWriteGateway.appendNotification({
             user_id: null, // admin channel (type-specific)
             type: 'lead_unassigned',
             title: 'Lead brez odgovora — ni več obrtnikov',
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
               povprasevanje_id: assignment.povprasevanje_id,
               last_assignment_id: assignment.id,
             },
-          })
+          }, 'api.cron.lead-response-sla')
         }
       } catch (err) {
         console.error('[LeadSLA] Escalation error for', assignment.id, ':', String(err))

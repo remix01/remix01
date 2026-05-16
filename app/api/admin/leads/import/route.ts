@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { randomUUID } from 'node:crypto'
 
 export async function POST(req: NextRequest) {
@@ -39,9 +40,15 @@ export async function POST(req: NextRequest) {
     }
   })
 
-  const { error: pErr } = await supabaseAdmin.from('profiles').insert(inserts.map((x) => x.profile))
+  let pErr: any = null
+  for (const row of inserts) {
+    try { await canonicalWriteGateway.createOrUpdateProfile(row.profile, 'api.admin.leads.import') } catch (e) { pErr = e; break }
+  }
   if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 })
-  const { error: oErr } = await supabaseAdmin.from('obrtnik_profiles').insert(inserts.map((x) => x.obrtnik))
+  let oErr: any = null
+  for (const row of inserts) {
+    try { await canonicalWriteGateway.createOrUpdateProviderProfile(row.obrtnik, 'api.admin.leads.import') } catch (e) { oErr = e; break }
+  }
   if (oErr) return NextResponse.json({ error: oErr.message }, { status: 500 })
 
   return NextResponse.json({ ok: true, imported: inserts.length, status: 'lead' })

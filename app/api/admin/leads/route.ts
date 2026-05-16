@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, verifyAdmin } from '@/lib/supabase-admin'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { randomUUID } from 'node:crypto'
 
 export async function GET(req: NextRequest) {
@@ -60,13 +61,12 @@ export async function POST(req: NextRequest) {
     created_at: new Date().toISOString(),
   }
 
-  const { error: pErr } = await supabaseAdmin.from('profiles').insert(profileData)
-  if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 })
-
-  const { error: oErr } = await supabaseAdmin.from('obrtnik_profiles').insert(obrtnikData)
-  if (oErr) {
+  try {
+    await canonicalWriteGateway.createOrUpdateProfile(profileData, 'api.admin.leads.create')
+    await canonicalWriteGateway.createOrUpdateProviderProfile(obrtnikData, 'api.admin.leads.create')
+  } catch (error) {
     await supabaseAdmin.from('profiles').delete().eq('id', id)
-    return NextResponse.json({ error: oErr.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Lead create failed' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, id, status: 'lead' }, { status: 201 })

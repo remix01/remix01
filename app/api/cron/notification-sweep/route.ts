@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -122,7 +123,10 @@ export async function GET(request: NextRequest) {
           },
         }))
 
-        const { error: notifError } = await supabase.from('notifications').insert(notifications)
+        let notifError: any = null
+        for (const n of notifications) {
+          try { await canonicalWriteGateway.appendNotification(n, 'api.cron.notification-sweep') } catch (e) { notifError = e; break }
+        }
 
         if (notifError) {
           console.error(JSON.stringify({
