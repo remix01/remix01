@@ -387,25 +387,5 @@ export async function updateOcenaVisibility(ocenaId: string, isPublic: boolean):
   return true
 }
 
-/**
- * Get average rating for obrtnik
- */
-export async function getObrtnikAverageRating(obrtnikId: string): Promise<{ avg_rating: number; total_reviews: number }> {
-  const supabase = await createClient()
-  
-  const { data, error } = await supabase
-    .from('obrtnik_profiles')
-    .select('avg_rating, total_reviews')
-    .eq('id', obrtnikId)
-    .maybeSingle()
-
-  if (error) {
-    console.error('[v0] Error fetching obrtnik rating:', error)
-    return { avg_rating: 0, total_reviews: 0 }
-  }
-
-  return {
-    avg_rating: data?.avg_rating || 0,
-    total_reviews: data?.total_reviews || 0
-  }
-}
+// getObrtnikAverageRating removed — use lib/dal/reviews.ts:getObrtnikReviewStats() instead.
+// reviews.ts is the canonical source for all rating/review logic.
