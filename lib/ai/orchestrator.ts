@@ -32,7 +32,18 @@ import {
   type CoreRoleAgentType,
 } from '../agents/ai-router'
 
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+// Lazy client — never crash at module load if API key is absent
+let _anthropicClient: Anthropic | null = null
+function getAnthropicClient(): Anthropic {
+  if (!_anthropicClient) {
+    if (!env.ANTHROPIC_API_KEY) {
+      throw new Error('[Orchestrator] ANTHROPIC_API_KEY not configured')
+    }
+    _anthropicClient = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+  }
+  return _anthropicClient
+}
+
 if (isProduction()) requireFeatureEnv('supabase')
 
 const supabaseAdmin = createClient(
@@ -220,13 +231,20 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
   while (iterations < maxToolIterations) {
     iterations++
 
-    const response = await anthropic.messages.create({
-      model: modelSelection.modelId,
-      max_tokens: 2048,
-      system: fullSystemPrompt,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
-    })
+    // 10 s per-iteration timeout — AI must not block indefinitely
+    const ITER_TIMEOUT_MS = 10_000
+    const response = await Promise.race([
+      getAnthropicClient().messages.create({
+        model: modelSelection.modelId,
+        max_tokens: 2048,
+        system: fullSystemPrompt,
+        messages,
+        tools: tools.length > 0 ? tools : undefined,
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`[Orchestrator] AI response timeout after ${ITER_TIMEOUT_MS}ms`)), ITER_TIMEOUT_MS)
+      ),
+    ])
 
     totalInputTokens += response.usage.input_tokens
     totalOutputTokens += response.usage.output_tokens
@@ -308,6 +326,27 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     },
     costUsd,
     durationMs: Date.now() - startTime,
+  }
+}
+
+// =============================================================================
+// Safe Wrapper — never throws, logs failures, returns null on any error
+// =============================================================================
+
+export async function executeAgentSafe(
+  options: AgentExecutionOptions,
+  timeoutMs = 15_000
+): Promise<AgentExecutionResult | null> {
+  try {
+    return await Promise.race([
+      executeAgent(options),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`[executeAgentSafe] Timeout after ${timeoutMs}ms`)), timeoutMs)
+      ),
+    ])
+  } catch (err) {
+    console.error('[executeAgentSafe] AI call failed — returning null. Reason:', err instanceof Error ? err.message : err)
+    return null
   }
 }
 
@@ -413,7 +452,7 @@ Navedi probleme in potrebne storitve.
 Odgovori v slovenščini.`,
   }
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropicClient().messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,
     system: systemPrompts[analysisType],

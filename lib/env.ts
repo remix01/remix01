@@ -138,9 +138,8 @@ function getFeatureMissing(feature: FeatureName): string[] {
 
 export function getReadinessReport() {
   const requiredFeatures: FeatureName[] = ['supabase', 'stripe', 'app']
-  const optionalFeatures: FeatureName[] = ['notifications']
-  if (env.AI_FEATURE_ENABLED === 'true') requiredFeatures.push('ai')
-  else optionalFeatures.push('ai')
+  // AI is always optional — never a blocking dependency for core flows
+  const optionalFeatures: FeatureName[] = ['notifications', 'ai']
   if (env.OBSERVABILITY_REQUIRED === 'true') requiredFeatures.push('observability')
   else optionalFeatures.push('observability')
 
@@ -152,6 +151,13 @@ export function getReadinessReport() {
   const appUrlInvalid = !isValidHttpUrl(env.NEXT_PUBLIC_APP_URL)
   const invalidRules = appUrlInvalid ? ['NEXT_PUBLIC_APP_URL must be valid http(s) URL'] : []
 
+  const aiProviders = {
+    anthropic: !!env.ANTHROPIC_API_KEY,
+    openai: !!env.OPENAI_API_KEY,
+    gemini: !!env.GEMINI_API_KEY,
+  }
+  const aiConfigured = hasAnyAI()
+
   return {
     environment: env.NODE_ENV,
     liveness: { ok: true },
@@ -162,6 +168,15 @@ export function getReadinessReport() {
     },
     degraded: {
       optional,
+    },
+    aiReadiness: {
+      configured: aiConfigured,
+      providers: aiProviders,
+      // AI is always degraded-only — never blocking
+      blocking: false,
+      note: aiConfigured
+        ? 'AI enrichment active'
+        : 'AI not configured — enrichment features disabled, core flows unaffected',
     },
   }
 }
