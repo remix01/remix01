@@ -191,22 +191,45 @@ export const paymentService = {
   },
 
   /**
-   * Create an escrow record in the DB to track the held payment.
-   * The funds are already captured in Stripe; escrow is an internal state marker.
+   * Create an escrow record in the DB after payment is captured.
+   * Column names match supabase/migrations/20260215100000_create_escrow_tables.sql.
+   * Calculates commission from partner's subscription plan.
    */
   async holdEscrow(
-    taskId: string,
-    chargeId: string,
-    amount: number
+    inquiryId: string,
+    paymentIntentId: string,
+    amount: number,
+    partnerId: string,
+    customerEmail: string,
   ): Promise<{ escrowId: string }> {
     const supabase = createAdminClient()
+
+    const { data: partnerProfile } = await (supabase as any)
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', partnerId)
+      .single()
+
+    const plan: PlanType = partnerProfile?.subscription_tier === 'pro' ? 'PRO' : 'START'
+    const commissionPercent = getCommissionRate(plan)
+    const commissionRateDecimal = commissionPercent / 100
+    const totalCents = Math.round(amount * 100)
+    const commissionCents = Math.round(totalCents * commissionRateDecimal)
+    const payoutCents = totalCents - commissionCents
+
     const { data, error } = await (supabase as any)
       .from('escrow_transactions')
       .insert({
-        task_id: taskId,
-        payment_intent_id: chargeId,
-        amount_cents: Math.round(amount * 100),
-        status: 'held',
+        inquiry_id: inquiryId,
+        partner_id: partnerId,
+        customer_email: customerEmail,
+        stripe_payment_intent_id: paymentIntentId,
+        amount_total_cents: totalCents,
+        commission_rate: commissionRateDecimal,
+        commission_cents: commissionCents,
+        payout_cents: payoutCents,
+        status: 'paid',
+        paid_at: new Date().toISOString(),
       })
       .select('id')
       .single()
@@ -222,52 +245,49 @@ export const paymentService = {
   },
 
   /**
-   * Release (cancel) an escrow by refunding the Stripe payment intent.
-   * Used as compensation for holdEscrow.
+   * Refund a held escrow payment. Used as compensation for holdEscrow.
+   * Idempotent: skips if already refunded or cancelled.
    */
   async releaseEscrow(escrowId: string): Promise<void> {
     const supabase = createAdminClient()
     const { data: escrow, error } = await (supabase as any)
       .from('escrow_transactions')
-      .select('payment_intent_id, status')
+      .select('stripe_payment_intent_id, status')
       .eq('id', escrowId)
       .single()
 
     if (error || !escrow) {
-      throw new ServiceError(
-        `Escrow ${escrowId} not found`,
-        'NOT_FOUND',
-        404
-      )
+      throw new ServiceError(`Escrow ${escrowId} not found`, 'NOT_FOUND', 404)
     }
 
     if (escrow.status === 'refunded' || escrow.status === 'cancelled') return
 
-    await stripe.refunds.create({ payment_intent: escrow.payment_intent_id })
+    await stripe.refunds.create({ payment_intent: escrow.stripe_payment_intent_id })
 
     await (supabase as any)
       .from('escrow_transactions')
-      .update({ status: 'refunded', updated_at: new Date().toISOString() })
+      .update({ status: 'refunded', refunded_at: new Date().toISOString() })
       .eq('id', escrowId)
   },
 
   /**
-   * Schedule a delayed transfer to the partner after the 24h dispute window.
-   * Uses QStash to enqueue a release_escrow job with a delay.
-   * Returns the QStash message ID as transferId.
+   * Schedule the delayed payout to the partner after the 24h dispute window.
+   * Enqueues a release_escrow job via QStash.
+   * paymentIntentId is required so the worker can verify the Stripe state.
    */
   async scheduleTransfer(
     escrowId: string,
+    paymentIntentId: string,
     partnerId: string,
     amount: number,
-    taskId: string
+    taskId: string,
   ): Promise<{ transferId: string }> {
-    const DISPUTE_WINDOW_SECONDS = 24 * 60 * 60 // 24 hours
+    const DISPUTE_WINDOW_SECONDS = 24 * 60 * 60
 
     const messageId = await enqueue(
       'release_escrow',
-      { escrowId, partnerId, amount, taskId },
-      { delay: DISPUTE_WINDOW_SECONDS, retries: 3 }
+      { escrowId, paymentIntentId, partnerId, amount, taskId },
+      { delay: DISPUTE_WINDOW_SECONDS, retries: 3 },
     )
 
     return { transferId: messageId }

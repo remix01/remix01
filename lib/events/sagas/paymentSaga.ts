@@ -98,8 +98,10 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
 
         const { escrowId } = await paymentService.holdEscrow(
           ctx.taskId,
-          ctx.chargeId,
-          ctx.agreedPrice
+          ctx.chargeId!,
+          ctx.agreedPrice,
+          ctx.partnerId,
+          ctx.customerEmail ?? '',
         )
         return { ...ctx, escrowId }
       },
@@ -123,10 +125,11 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
         )
 
         const { transferId } = await paymentService.scheduleTransfer(
-          ctx.escrowId,
+          ctx.escrowId!,
+          ctx.chargeId!,
           ctx.partnerId,
           ctx.agreedPrice,
-          ctx.taskId
+          ctx.taskId,
         )
         return { ...ctx, transferId }
       },
