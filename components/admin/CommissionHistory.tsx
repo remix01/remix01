@@ -4,7 +4,7 @@ interface CommissionHistoryProps {
 }
 
 export function CommissionHistory({ jobs, commissionRate }: CommissionHistoryProps) {
-  const completedJobs = jobs.filter(j => j.status === 'COMPLETED' && j.payment)
+  const completedJobs = jobs.filter(j => j.status === 'completed' && j.payment)
   
   const totalEarned = completedJobs.reduce((sum, j) => {
     return sum + (Number(j.payment.craftworkerPayout) || 0)

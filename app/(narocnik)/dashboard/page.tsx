@@ -5,7 +5,7 @@ import { getNarocnikPovprasevanja } from '@/lib/dal/povprasevanja'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getLeadStatusLabelSl } from '@/lib/lead-status'
+import { getLeadStatusLabelSl, type CanonicalLeadStatus } from '@/lib/lead-status'
 
 export const metadata = {
   title: 'Dashboard | LiftGO',
@@ -48,8 +48,10 @@ export default async function DashboardPage() {
   const povprasevanja = await getNarocnikPovprasevanja(user.id)
 
   // Calculate stats
-  const aktivna = povprasevanja.filter(p => ['new', 'matched', 'contacted', 'in_progress'].includes(p.status)).length
-  const zaprta = povprasevanja.filter(p => p.status === 'completed').length
+  const ACTIVE_STATUSES: ReadonlyArray<CanonicalLeadStatus> = ['new', 'matched', 'contacted', 'in_progress']
+  const COMPLETED_STATUS: CanonicalLeadStatus = 'completed'
+  const aktivna = povprasevanja.filter(p => ACTIVE_STATUSES.includes(p.status as CanonicalLeadStatus)).length
+  const zaprta = povprasevanja.filter(p => p.status === COMPLETED_STATUS).length
   const ponudbe_count = povprasevanja.reduce((sum, p) => sum + (p.ponudbe_count || 0), 0)
 
   // Get last 5 povprasevanja
