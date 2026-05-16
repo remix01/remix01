@@ -1,13 +1,18 @@
 const { describe, it, expect } = require('@jest/globals')
 const fs = require('fs')
 const path = require('path')
-const { execSync } = require('child_process')
 
-const ROUTE_GLOB_CMD = "rg --files app/api -g 'route.ts'"
+// Dynamic require — ts-jest transforms the module at test runtime
+const {
+  PARITY_MATRIX,
+  MATRIX_FILE_SET,
+  computeParityStats,
+} = require('../../lib/migration/parity-matrix')
 
-// Transitional allowlist for known legacy mutating endpoints.
-// TODO(response-policy): remove entries incrementally as routes adopt canonical helper
-// or compatibility ok-shape without changing business logic.
+// Must match MUTATING_ALLOWLIST in api-response-policy-guard.contract.test.js
+const ALLOWLIST_BASELINE = 83
+
+// Inline copy of MUTATING_ALLOWLIST to detect drift without coupling test files
 const MUTATING_ALLOWLIST = new Set([
   'app/api/admin/alerts/[id]/dismiss/route.ts',
   'app/api/admin/categories/route.ts',
@@ -94,58 +99,93 @@ const MUTATING_ALLOWLIST = new Set([
   'app/api/jobs/process/route.ts',
 ])
 
-function listRouteFiles() {
-  const output = execSync(ROUTE_GLOB_CMD, { cwd: process.cwd(), encoding: 'utf8' }).trim()
-  return output ? output.split('\n') : []
+const root = process.cwd()
+
+function fileExists(file) {
+  return fs.existsSync(path.join(root, file))
 }
 
-function hasMutatingMethod(source) {
-  return /export\s+(?:async\s+)?function\s+(POST|PUT|PATCH|DELETE)\s*\(/.test(source) || /export\s+const\s+(POST|PUT|PATCH|DELETE)\s*=/.test(source)
+function readSource(file) {
+  return fs.readFileSync(path.join(root, file), 'utf8')
 }
 
 function hasCanonicalHelperUsage(source) {
-  const importsCanonicalHelper = /from ['"]@\/lib\/api\/response['"]/.test(source)
-  return importsCanonicalHelper && /\bok\(/.test(source) && /\bfail\(/.test(source)
+  return /from ['"]@\/lib\/api\/response['"]/.test(source) &&
+    /\bok\(/.test(source) &&
+    /\bfail\(/.test(source)
 }
 
-function hasCompatibilityOkShape(source) {
-  return /ok:\s*true/.test(source) && (
-    /data:\s*/.test(source) ||
-    /\.\.\.legacy/.test(source) ||
-    /legacy_error\s*:/.test(source)
-  )
-}
-
-// Ratchet guard: allowlist must only shrink.
-// To lower the baseline after a migration batch, update this constant.
-const ALLOWLIST_BASELINE = 83
-
-describe('API response policy guard (mutating endpoints)', () => {
-  const files = listRouteFiles()
-
-  it('allowlist has not grown beyond baseline — allowlist must only shrink', () => {
-    expect(MUTATING_ALLOWLIST.size).toBeLessThanOrEqual(ALLOWLIST_BASELINE)
+describe('parity-matrix contract', () => {
+  it('every matrix entry points to a real file on disk', () => {
+    const missing = PARITY_MATRIX.filter(e => !fileExists(e.file)).map(e => e.file)
+    expect(missing).toEqual([])
   })
 
-  it('all non-allowlisted mutating routes use canonical helper or compatibility ok-shape', () => {
-    const violations = []
-
-    for (const file of files) {
-      const source = fs.readFileSync(path.join(process.cwd(), file), 'utf8')
-      if (!hasMutatingMethod(source)) continue
-      if (MUTATING_ALLOWLIST.has(file)) continue
-
-      const compliant = hasCanonicalHelperUsage(source) || hasCompatibilityOkShape(source)
-
-      if (!compliant) violations.push(file)
+  it('no file appears in the matrix more than once', () => {
+    const seen = new Set()
+    const duplicates = []
+    for (const entry of PARITY_MATRIX) {
+      if (seen.has(entry.file)) duplicates.push(entry.file)
+      seen.add(entry.file)
     }
+    expect(duplicates).toEqual([])
+  })
 
+  it('entries marked compliant actually use canonical ok()/fail() helpers', () => {
+    const violations = PARITY_MATRIX
+      .filter(e => e.status === 'compliant')
+      .filter(e => !hasCanonicalHelperUsage(readSource(e.file)))
+      .map(e => e.file)
     expect(violations).toEqual([])
   })
 
-  it('allowlisted entries are real route files', () => {
+  it('MATRIX_FILE_SET covers every file in MUTATING_ALLOWLIST (no gaps)', () => {
+    const missing = []
     for (const file of MUTATING_ALLOWLIST) {
-      expect(files).toContain(file)
+      if (!MATRIX_FILE_SET.has(file)) missing.push(file)
     }
+    expect(missing).toEqual([])
+  })
+
+  it('every file in MATRIX_FILE_SET appears in MUTATING_ALLOWLIST (no phantom entries)', () => {
+    const phantom = []
+    for (const file of MATRIX_FILE_SET) {
+      if (!MUTATING_ALLOWLIST.has(file)) phantom.push(file)
+    }
+    expect(phantom).toEqual([])
+  })
+
+  it('total non-compliant entries do not exceed the allowlist baseline', () => {
+    const nonCompliant = PARITY_MATRIX.filter(e => e.status !== 'compliant').length
+    expect(nonCompliant).toBeLessThanOrEqual(ALLOWLIST_BASELINE)
+  })
+
+  it('all matrix domains are valid values', () => {
+    const VALID_DOMAINS = new Set(['admin', 'agent', 'ai', 'auth', 'customer', 'partner', 'payment', 'infra', 'webhook', 'cron'])
+    const invalid = PARITY_MATRIX
+      .filter(e => !VALID_DOMAINS.has(e.domain))
+      .map(e => `${e.file} (domain=${e.domain})`)
+    expect(invalid).toEqual([])
+  })
+
+  it('all matrix priorities are valid values', () => {
+    const VALID_PRIORITIES = new Set(['P0', 'P1', 'P2', 'P3'])
+    const invalid = PARITY_MATRIX.filter(e => !VALID_PRIORITIES.has(e.priority)).map(e => e.file)
+    expect(invalid).toEqual([])
+  })
+
+  it('blocked entries have at least one blocker listed', () => {
+    const missingBlockers = PARITY_MATRIX
+      .filter(e => e.status === 'blocked' && (!e.blockers || e.blockers.length === 0))
+      .map(e => e.file)
+    expect(missingBlockers).toEqual([])
+  })
+
+  it('exempt entries belong to webhook, cron, or payment domains', () => {
+    const EXEMPT_DOMAINS = new Set(['webhook', 'cron', 'payment'])
+    const wrongDomain = PARITY_MATRIX
+      .filter(e => e.status === 'exempt' && !EXEMPT_DOMAINS.has(e.domain))
+      .map(e => `${e.file} (domain=${e.domain})`)
+    expect(wrongDomain).toEqual([])
   })
 })
