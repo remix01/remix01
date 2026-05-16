@@ -19,6 +19,7 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages'
 import { createClient } from '@supabase/supabase-js'
 import { env, isProduction, requireFeatureEnv } from '@/lib/env'
+import { isAIAvailable } from '@/lib/ai/ai-guard'
 
 import { selectModel, estimateCost } from '../model-router'
 import { buildRAGContext, formatRAGContextForPrompt, type RAGContext } from './rag'
@@ -145,6 +146,9 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
   } = options
 
   const startTime = Date.now()
+  if (!isAIAvailable()) {
+    throw new Error('[Orchestrator] AI unavailable (disabled, unconfigured, or circuit open)')
+  }
   const agentType = mapLegacyAgentType(rawAgentType)
 
   // 1. Check access and quota

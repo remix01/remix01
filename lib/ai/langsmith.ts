@@ -46,3 +46,12 @@ export async function createLangChainChatModel(options: LangChainChatOptions = {
     maxTokens: options.maxTokens ?? 1200,
   })
 }
+
+export async function createLangChainChatModelSafe(options: LangChainChatOptions = {}) {
+  try {
+    return await createLangChainChatModel(options)
+  } catch (error) {
+    console.warn('[LangSmith] Chat model unavailable:', error instanceof Error ? error.message : error)
+    return null
+  }
+}

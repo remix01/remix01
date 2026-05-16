@@ -10,6 +10,7 @@
 import { eventBus } from '../eventBus'
 import { idempotency } from '../idempotency'
 import { createAdminClient } from '@/lib/supabase/server'
+import { fireAndForgetAI } from '@/lib/ai/ai-guard'
 
 export function registerAIInsightSubscriber() {
   eventBus.on('task.created', async (payload) => {
@@ -17,8 +18,10 @@ export function registerAIInsightSubscriber() {
       const skip = await idempotency.checkAndMark('task.created', 'ai_insight', payload.taskId)
       if (skip) return
 
-      console.log('[AIInsightSubscriber] Analyzing task:', payload.taskId)
-      // TODO: Implement AI categorization service
+      fireAndForgetAI(`aiInsight.task.created.${payload.taskId}`, async () => {
+        console.log('[AIInsightSubscriber] Analyzing task:', payload.taskId)
+        // TODO: Implement AI categorization service
+      })
     } catch (err) {
       console.error('[AIInsightSubscriber] Error on task.created:', err)
     }
@@ -29,8 +32,10 @@ export function registerAIInsightSubscriber() {
       const skip = await idempotency.checkAndMark('task.completed', 'ai_insight', payload.taskId)
       if (skip) return
 
-      console.log('[AIInsightSubscriber] Generating summary for task:', payload.taskId)
-      // TODO: Implement summary generation service
+      fireAndForgetAI(`aiInsight.task.completed.${payload.taskId}`, async () => {
+        console.log('[AIInsightSubscriber] Generating summary for task:', payload.taskId)
+        // TODO: Implement summary generation service
+      })
     } catch (err) {
       console.error('[AIInsightSubscriber] Error on task.completed:', err)
     }
