@@ -20,7 +20,7 @@ export async function handleStripeCapture(job: Job): Promise<void> {
   // Check if already captured (idempotency check)
   const { data: existingTx } = await supabaseAdmin
     .from('escrow_transactions')
-    .select('stripe_capture_status')
+    .select('stripe_capture_status, lock_version')
     .eq('id', escrowId)
     .eq('stripe_payment_intent_id', paymentIntentId)
     .maybeSingle()
@@ -39,16 +39,24 @@ export async function handleStripeCapture(job: Job): Promise<void> {
     console.log(`[STRIPE CAPTURE WORKER] Captured PI ${paymentIntentId}`)
 
     // Update escrow_transactions to mark as captured
-    const { error } = await supabaseAdmin
+    const { data: updatedTx, error } = await supabaseAdmin
       .from('escrow_transactions')
       .update({
         stripe_capture_status: 'captured',
         stripe_capture_completed_at: new Date().toISOString(),
+        lock_version: (existingTx?.lock_version ?? 0) + 1,
       })
       .eq('id', escrowId)
+      .eq('lock_version', existingTx?.lock_version ?? 0)
+      .select('id')
+      .maybeSingle()
 
     if (error) {
       throw error
+    }
+
+    if (!existingTx || !updatedTx) {
+      throw new Error(`[STRIPE CAPTURE WORKER] Optimistic lock conflict for escrow ${escrowId}; retry required`)
     }
 
     console.log(`[STRIPE CAPTURE WORKER] Updated escrow ${escrowId} status to captured`)
