@@ -142,32 +142,78 @@ export async function handleCreateEscrow(job: Job): Promise<void> {
 
 /**
  * Handle release_escrow job
- * Release escrow payment to craftworker
+ * Verify dispute window has passed, transfer payout to partner's Stripe account,
+ * and mark escrow as released.
+ * Job payload: { escrowId, paymentIntentId, partnerId, amount, taskId }
  */
 export async function handleReleaseEscrow(job: Job): Promise<void> {
   try {
-    const { taskId } = job.data
+    const { escrowId, paymentIntentId, partnerId, amount, taskId } = job.data
 
-    console.log('[TaskProcessor] Releasing escrow for task', { taskId })
-
-    // Fetch offer details
-    const { data: task } = await supabaseAdmin
-      .from('service_requests')
-      .select('*')
-      .eq('id', taskId)
-      .single()
-
-    if (!task) {
-      throw new Error(`Task ${taskId} not found`)
+    if (!escrowId || !paymentIntentId) {
+      throw new Error(
+        `[release_escrow] Missing required fields: escrowId=${escrowId}, paymentIntentId=${paymentIntentId}`
+      )
     }
 
-    // Enqueue Stripe release
-    await enqueue('stripeRelease', {
-      taskId,
-      amount: task.offer_amount,
+    console.log('[TaskProcessor] Releasing escrow', { escrowId, taskId })
+
+    // Guard: only release if still in 'paid' status (not disputed/cancelled/refunded)
+    const { data: escrow } = await (supabaseAdmin as any)
+      .from('escrow_transactions')
+      .select('status, payout_cents, partner_id')
+      .eq('id', escrowId)
+      .single()
+
+    if (!escrow) {
+      throw new Error(`[release_escrow] Escrow ${escrowId} not found`)
+    }
+
+    if (escrow.status !== 'paid') {
+      console.warn(
+        `[release_escrow] Escrow ${escrowId} is in status '${escrow.status}' — skipping release`
+      )
+      return
+    }
+
+    // Fetch partner's Stripe connected account
+    const { data: obrtnikProfile } = await (supabaseAdmin as any)
+      .from('obrtnik_profiles')
+      .select('stripe_account_id')
+      .eq('user_id', partnerId)
+      .single()
+
+    if (!obrtnikProfile?.stripe_account_id) {
+      // Partner not onboarded on Stripe yet — flag for manual processing
+      await (supabaseAdmin as any)
+        .from('escrow_transactions')
+        .update({ notes: 'release_pending_stripe_onboarding' })
+        .eq('id', escrowId)
+      console.warn(
+        `[release_escrow] Partner ${partnerId} has no Stripe account — flagged for manual release`
+      )
+      return
+    }
+
+    const { stripe } = await import('@/lib/stripe/client')
+    const transfer = await stripe.transfers.create({
+      amount: escrow.payout_cents,
+      currency: 'eur',
+      destination: obrtnikProfile.stripe_account_id,
+      metadata: { escrowId, taskId, paymentIntentId },
+      description: `LiftGO payout for task ${taskId}`,
     })
 
-    console.log(`[TaskProcessor] Escrow release job enqueued for task ${taskId}`)
+    await (supabaseAdmin as any)
+      .from('escrow_transactions')
+      .update({
+        status: 'released',
+        stripe_transfer_id: transfer.id,
+        released_at: new Date().toISOString(),
+      })
+      .eq('id', escrowId)
+
+    console.log(`[TaskProcessor] Escrow ${escrowId} released — transfer ${transfer.id}`)
   } catch (err) {
     console.error('[TaskProcessor] release_escrow error:', err)
     throw err

@@ -29,6 +29,9 @@ export async function createPaymentIntent(params: {
     const paymentIntent = await getStripe().paymentIntents.create({
       amount: params.amount,
       currency: 'eur',
+      // manual capture so the saga can capture after customer confirms,
+      // then hold in escrow before releasing to the partner
+      capture_method: 'manual',
       metadata: {
         povprasevanje_id: params.povprasevanjeId,
         ponudba_id: params.ponudbaId,

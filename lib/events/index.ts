@@ -59,11 +59,17 @@ export function initEventSubscribers() {
     console.error('[Events] ✗ Failed to register notification subscriber:', err)
   }
 
-  try {
-    registerAIInsightSubscriber()
-    if (shouldLogEventInitInfo()) console.log('[Events] ✓ AI Insight subscriber registered')
-  } catch (err) {
-    console.error('[Events] ✗ Failed to register AI insight subscriber:', err)
+  // AI Insight subscriber is PLANNED — all handlers are stubs.
+  // Gate behind FEATURE_AI_INSIGHTS=1 so stubs never run silently in production.
+  if (process.env.FEATURE_AI_INSIGHTS === '1') {
+    try {
+      registerAIInsightSubscriber()
+      if (shouldLogEventInitInfo()) console.log('[Events] ✓ AI Insight subscriber registered')
+    } catch (err) {
+      console.error('[Events] ✗ Failed to register AI insight subscriber:', err)
+    }
+  } else if (shouldLogEventInitInfo()) {
+    console.log('[Events] – AI Insight subscriber skipped (FEATURE_AI_INSIGHTS not set)')
   }
 
   try {

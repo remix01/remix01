@@ -93,8 +93,25 @@ export const POSTHOG_CONFIG = {
 
   // ─── FEATURE FLAGS ──────────────────────────────────────────────────
   featureFlags: {
-    // Define common feature flags here for easy reference
-    // Example: NEW_DASHBOARD: 'new_dashboard_v2'
+    // PRO-tier AI features (obrtnik)
+    AI_QUOTE_GENERATOR:    'ai_quote_generator',
+    AI_MATERIALS_AGENT:    'ai_materials_agent',
+    VIDEO_DIAGNOSIS:       'video_diagnosis',
+    JOB_SUMMARY_AI:        'job_summary_ai',
+
+    // Customer AI features (naročnik)
+    OFFER_COMPARISON_AI:   'offer_comparison_ai',
+    SCHEDULING_ASSISTANT:  'scheduling_assistant',
+
+    // Platform features
+    INSTANT_OFFERS:        'instant_offers',
+    REALTIME_MESSAGING:    'realtime_messaging',
+    PORTFOLIO_UPLOAD:      'portfolio_upload',
+    OBRTNIK_ANALYTICS:     'obrtnik_analytics',
+
+    // UI / marketing
+    PROMO_BANNER:          'promo_banner',
+    NEW_ONBOARDING_FLOW:   'new_onboarding_flow',
   },
 
   // ─── SAMPLING RATES ─────────────────────────────────────────────────

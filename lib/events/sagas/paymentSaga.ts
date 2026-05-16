@@ -72,24 +72,17 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
           throw new Error('Missing clientSecret for payment confirmation')
         }
 
-        // Confirm the payment charge via Stripe
-        console.log(`[PaymentSaga] Confirming payment charge for task ${ctx.taskId}`)
+        // Extract payment intent ID from clientSecret (format: pi_xxx_secret_yyy)
+        const paymentIntentId = ctx.clientSecret.split('_secret_')[0]
+        console.log(`[PaymentSaga] Capturing payment intent ${paymentIntentId} for task ${ctx.taskId}`)
 
-        throw new Error(
-          '[PaymentSaga] BLOCKER: confirm_charge step is not implemented in paymentService. ' +
-          'Fail-closed to prevent silent payment state divergence.'
-        )
+        const { chargeId } = await paymentService.confirmCharge(paymentIntentId)
+        return { ...ctx, chargeId }
       },
       compensate: async (ctx) => {
         if (ctx.chargeId) {
-          // Refund the charge
           console.log(`[PaymentSaga] Refunding charge ${ctx.chargeId}`)
-          console.warn('[PaymentSaga] TODO BLOCKER: refundCharge missing in paymentService', {
-            saga: 'payment_saga',
-            step: 'confirm_charge.compensate',
-            taskId: ctx.taskId,
-            chargeId: ctx.chargeId,
-          })
+          await paymentService.refundCharge(ctx.chargeId)
         }
       },
     },
@@ -101,24 +94,21 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
           throw new Error('Missing chargeId to create escrow')
         }
 
-        // Move funds from charge to escrow (temporary hold, not transferred yet)
         console.log(`[PaymentSaga] Holding €${ctx.agreedPrice} in escrow for task ${ctx.taskId}`)
 
-        throw new Error(
-          '[PaymentSaga] BLOCKER: hold_escrow step is not implemented in paymentService. ' +
-          'Fail-closed to avoid accepting charge without escrow hold.'
+        const { escrowId } = await paymentService.holdEscrow(
+          ctx.taskId,
+          ctx.chargeId!,
+          ctx.agreedPrice,
+          ctx.partnerId,
+          ctx.customerEmail ?? '',
         )
+        return { ...ctx, escrowId }
       },
       compensate: async (ctx) => {
         if (ctx.escrowId) {
-          // Release escrow hold (money back to customer)
           console.log(`[PaymentSaga] Releasing escrow ${ctx.escrowId}`)
-          console.warn('[PaymentSaga] TODO BLOCKER: releaseEscrow missing in paymentService', {
-            saga: 'payment_saga',
-            step: 'hold_escrow.compensate',
-            taskId: ctx.taskId,
-            escrowId: ctx.escrowId,
-          })
+          await paymentService.releaseEscrow(ctx.escrowId)
         }
       },
     },
@@ -130,26 +120,23 @@ export class PaymentSaga extends SagaBase<PaymentContext> {
           throw new Error('Missing escrowId or partnerId for transfer')
         }
 
-        // Schedule escrow release to partner after dispute window (24h)
         console.log(
-          `[PaymentSaga] Scheduling transfer of €${ctx.agreedPrice} to partner ${ctx.partnerId}`
+          `[PaymentSaga] Scheduling transfer of €${ctx.agreedPrice} to partner ${ctx.partnerId} (24h dispute window)`
         )
 
-        throw new Error(
-          '[PaymentSaga] BLOCKER: schedule_transfer step is not implemented in paymentService. ' +
-          'Fail-closed to avoid unscheduled payout release risk.'
+        const { transferId } = await paymentService.scheduleTransfer(
+          ctx.escrowId!,
+          ctx.chargeId!,
+          ctx.partnerId,
+          ctx.agreedPrice,
+          ctx.taskId,
         )
+        return { ...ctx, transferId }
       },
       compensate: async (ctx) => {
         if (ctx.transferId) {
-          // Cancel the scheduled transfer
           console.log(`[PaymentSaga] Cancelling scheduled transfer ${ctx.transferId}`)
-          console.warn('[PaymentSaga] TODO BLOCKER: cancelScheduledTransfer missing in paymentService', {
-            saga: 'payment_saga',
-            step: 'schedule_transfer.compensate',
-            taskId: ctx.taskId,
-            transferId: ctx.transferId,
-          })
+          await paymentService.cancelScheduledTransfer(ctx.transferId, ctx.escrowId)
         }
       },
     },

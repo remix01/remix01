@@ -1,15 +1,17 @@
 /**
  * Centralized Redis & Cache Module Exports
- * 
- * Import all Redis features from a single location:
- * 
+ *
  * import {
  *   checkRateLimit,
- *   getFromCache,
+ *   setInCache,
+ *   getOrSetCache,
  *   createSession,
  *   recordAPIMetric,
  *   setUserOnline,
  * } from '@/lib'
+ *
+ * For direct cache reads use getOrSetCache() — prefer cache-aside pattern.
+ * Raw getFromCache() is not re-exported here; import from lib/cache/strategies directly if needed.
  */
 
 // ────────────────────────────────────────────────────────────────────────────
