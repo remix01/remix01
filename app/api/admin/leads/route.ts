@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     await canonicalWriteGateway.createOrUpdateProfile(profileData, 'api.admin.leads.create')
     await canonicalWriteGateway.createOrUpdateProviderProfile(obrtnikData, 'api.admin.leads.create')
   } catch (error) {
-    await supabaseAdmin.from('profiles').delete().eq('id', id)
+    await canonicalWriteGateway.deleteProfile(id, 'api.admin.leads.rollback').catch(() => {})
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Lead create failed' }, { status: 500 })
   }
 

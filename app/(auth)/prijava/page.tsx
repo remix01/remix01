@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { ensureOAuthProfile } from '@/app/(auth)/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -113,34 +114,7 @@ function PrijavaContent() {
         } catch {}
 
         // Create the profiles row if this is a first Google OAuth sign-in.
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', session.user.id)
-          .maybeSingle()
-
-        if (!existingProfile) {
-          await supabase.from('profiles').insert({
-            id: session.user.id,
-            role: intendedRole,
-            email: session.user.email ?? null,
-            full_name:
-              session.user.user_metadata?.full_name ??
-              session.user.user_metadata?.name ??
-              null,
-          })
-
-          if (intendedRole === 'obrtnik') {
-            await supabase.from('obrtnik_profiles').insert({
-              id: session.user.id,
-              business_name:
-                session.user.user_metadata?.full_name ??
-                session.user.user_metadata?.name ??
-                session.user.email ??
-                'Novi partner',
-            })
-          }
-        }
+        await ensureOAuthProfile(intendedRole)
 
         await routeAuthenticatedUser(session.user.id)
       } catch {

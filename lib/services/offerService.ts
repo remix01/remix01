@@ -150,7 +150,7 @@ export const offerService = {
       .from('obrtnik_profiles')
       .select('id')
       .eq('id', data.obrtnik_id)
-      .eq('user_id', userId)
+      .eq('id', userId)
       .maybeSingle()
 
     if (!obrtnikProfile) {
