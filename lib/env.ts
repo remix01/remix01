@@ -138,9 +138,8 @@ function getFeatureMissing(feature: FeatureName): string[] {
 
 export function getReadinessReport() {
   const requiredFeatures: FeatureName[] = ['supabase', 'stripe', 'app']
-  const optionalFeatures: FeatureName[] = ['notifications']
-  if (env.AI_FEATURE_ENABLED === 'true') requiredFeatures.push('ai')
-  else optionalFeatures.push('ai')
+  // AI is always optional — never a blocking dependency for core flows
+  const optionalFeatures: FeatureName[] = ['notifications', 'ai']
   if (env.OBSERVABILITY_REQUIRED === 'true') requiredFeatures.push('observability')
   else optionalFeatures.push('observability')
 
@@ -162,6 +161,12 @@ export function getReadinessReport() {
     },
     degraded: {
       optional,
+    },
+    // AI is always degraded-only — never a blocking dependency for core flows.
+    // Detailed provider status + circuit breaker state is in getAIGuardStatus() (ai-guard.ts).
+    aiReadiness: {
+      configured: hasAnyAI(),
+      blocking: false,
     },
   }
 }

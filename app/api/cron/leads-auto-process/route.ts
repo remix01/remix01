@@ -1,6 +1,20 @@
+/**
+ * Cron: AI-Assisted Lead Auto-Processing
+ *
+ * Category: BACKGROUND — AI enriches but never blocks.
+ *
+ * On AI failure (missing key, timeout, API error):
+ *   - Lead is SKIPPED (status stays 'lead' for manual review)
+ *   - Cron continues processing remaining leads
+ *   - Failures are logged for observability
+ *
+ * Only rules-based criteria (missing name/city) trigger an immediate reject.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { evaluateLeadWithAI } from '@/lib/ai/lead-evaluator'
 
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
@@ -9,18 +23,12 @@ function verifyCronSecret(req: NextRequest): boolean {
     console.error('[cron/leads-auto-process] CRON_SECRET is not configured')
     return false
   }
-
   return authHeader === `Bearer ${cronSecret}`
 }
 
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
   }
 
   const limitParam = req.nextUrl.searchParams.get('limit')
@@ -39,58 +47,39 @@ export async function GET(req: NextRequest) {
   }
 
   if (!leads || leads.length === 0) {
-    return NextResponse.json({ ok: true, processed: 0, approved: [], rejected: [] })
+    return NextResponse.json({ ok: true, processed: 0, approved: [], rejected: [], skipped: [] })
   }
 
-  const client = new Anthropic({ apiKey })
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  const aiAvailable = !!apiKey
+  if (!aiAvailable) {
+    console.warn('[cron/leads-auto-process] ANTHROPIC_API_KEY not configured — leads queued for manual review')
+  }
+
+  const client = aiAvailable ? new Anthropic({ apiKey: apiKey! }) : null
   const approved: string[] = []
   const rejected: string[] = []
+  const skipped: string[] = []
 
   for (const lead of leads) {
-    // Fast-reject leads missing required fields without calling AI
+    // Rules-based fast-reject: missing required fields
     if (!lead.business_name?.trim() || !lead.location_city?.trim()) {
       rejected.push(lead.id)
       continue
     }
 
-    try {
-      const prompt = `Evaluate this business lead for quality approval:
+    if (!client) {
+      skipped.push(lead.id)
+      continue
+    }
 
-Business Name: ${lead.business_name}
-Location: ${lead.location_city}
-Description: ${lead.description || 'No description'}
-Rating: ${lead.avg_rating}/5 (${lead.total_reviews} reviews)
-Source: ${lead.source}
-
-Quality criteria:
-1. Business name must be present and meaningful (not generic like "Test" or "Service")
-2. Description should provide business context (if missing, allow for imports)
-3. Location must be a real Slovenian city or region
-4. Import sources are generally pre-screened; manual entries need stricter review
-
-Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
-
-      const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 10,
-        messages: [{ role: 'user', content: prompt }],
-      })
-
-      const decision = response.content
-        .filter((b) => b.type === 'text')
-        .map((b) => (b as { type: 'text'; text: string }).text)
-        .join('')
-        .trim()
-        .toUpperCase()
-
-      if (decision.includes('APPROVE')) {
-        approved.push(lead.id)
-      } else {
-        rejected.push(lead.id)
-      }
-    } catch (err) {
-      console.error(`[cron/leads-auto-process] Error evaluating lead ${lead.id}:`, err)
+    const decision = await evaluateLeadWithAI(client, lead, 'cron/leads-auto-process')
+    if (decision === 'APPROVE') {
+      approved.push(lead.id)
+    } else if (decision === 'REJECT') {
       rejected.push(lead.id)
+    } else {
+      skipped.push(lead.id)
     }
   }
 
@@ -120,7 +109,7 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
   }
 
   console.log(
-    `[cron/leads-auto-process] processed=${leads.length} approved=${approved.length} rejected=${rejected.length}`
+    `[cron/leads-auto-process] processed=${leads.length} approved=${approved.length} rejected=${rejected.length} skipped=${skipped.length} aiAvailable=${aiAvailable}`
   )
 
   return NextResponse.json({
@@ -128,6 +117,8 @@ Respond with ONLY "APPROVE" or "REJECT" and nothing else.`
     processed: leads.length,
     approved,
     rejected,
+    skipped,
+    aiAvailable,
   })
 }
 

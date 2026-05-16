@@ -32,7 +32,18 @@ import {
   type CoreRoleAgentType,
 } from '../agents/ai-router'
 
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+// Lazy client — never crash at module load if API key is absent
+let _anthropicClient: Anthropic | null = null
+function getAnthropicClient(): Anthropic {
+  if (!_anthropicClient) {
+    if (!env.ANTHROPIC_API_KEY) {
+      throw new Error('[Orchestrator] ANTHROPIC_API_KEY not configured')
+    }
+    _anthropicClient = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+  }
+  return _anthropicClient
+}
+
 if (isProduction()) requireFeatureEnv('supabase')
 
 const supabaseAdmin = createClient(
@@ -56,6 +67,9 @@ export interface AgentExecutionOptions {
   additionalContext?: string
   imageUrl?: string
   maxToolIterations?: number
+  /** Propagated to every Anthropic messages.create() call so the HTTP request
+   *  is truly cancelled when executeAgentSafe times out — not just orphaned. */
+  abortSignal?: AbortSignal
 }
 
 export interface AgentExecutionResult {
@@ -127,6 +141,7 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
     additionalContext,
     imageUrl,
     maxToolIterations = 5,
+    abortSignal,
   } = options
 
   const startTime = Date.now()
@@ -220,13 +235,34 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
   while (iterations < maxToolIterations) {
     iterations++
 
-    const response = await anthropic.messages.create({
-      model: modelSelection.modelId,
-      max_tokens: 2048,
-      system: fullSystemPrompt,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
-    })
+    // Bail immediately if caller already aborted (e.g. executeAgentSafe timed out)
+    abortSignal?.throwIfAborted()
+
+    // 10 s per-iteration safety net for direct executeAgent() calls (no outer abort signal).
+    // When called via executeAgentSafe the AbortController fires first and cancels the HTTP
+    // request via the SDK signal, so this race is a last-resort guard only.
+    const ITER_TIMEOUT_MS = 10_000
+    let iterTimerId: ReturnType<typeof setTimeout> | undefined
+    const response = await Promise.race([
+      getAnthropicClient().messages.create(
+        {
+          model: modelSelection.modelId,
+          max_tokens: 2048,
+          system: fullSystemPrompt,
+          messages,
+          tools: tools.length > 0 ? tools : undefined,
+        },
+        // Propagate abort signal so the HTTP request is truly cancelled,
+        // not just orphaned when the outer timeout fires.
+        { signal: abortSignal }
+      ),
+      new Promise<never>((_, reject) => {
+        iterTimerId = setTimeout(
+          () => reject(new Error(`[Orchestrator] AI response timeout after ${ITER_TIMEOUT_MS}ms`)),
+          ITER_TIMEOUT_MS
+        )
+      }),
+    ]).finally(() => clearTimeout(iterTimerId))
 
     totalInputTokens += response.usage.input_tokens
     totalOutputTokens += response.usage.output_tokens
@@ -308,6 +344,42 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     },
     costUsd,
     durationMs: Date.now() - startTime,
+  }
+}
+
+// =============================================================================
+// Safe Wrapper — never throws, logs failures, returns null on any error
+// =============================================================================
+
+export async function executeAgentSafe(
+  options: AgentExecutionOptions,
+  timeoutMs = 15_000
+): Promise<AgentExecutionResult | null> {
+  // AbortController propagates cancellation into the Anthropic SDK so the
+  // in-flight HTTP request is terminated when the timeout fires — not orphaned.
+  // This prevents hidden token consumption and quota burn after caller gives up.
+  const controller = new AbortController()
+  let timerId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timerId = setTimeout(() => {
+        controller.abort(new Error(`[executeAgentSafe] Timeout after ${timeoutMs}ms`))
+        reject(new Error(`[executeAgentSafe] Timeout after ${timeoutMs}ms`))
+      }, timeoutMs)
+    })
+
+    return await Promise.race([
+      executeAgent({ ...options, abortSignal: controller.signal }),
+      timeoutPromise,
+    ]).finally(() => clearTimeout(timerId))
+  } catch (err) {
+    // Treat AbortError the same as any other AI failure — return null, don't rethrow.
+    console.error(
+      '[executeAgentSafe] AI call failed — returning null. Reason:',
+      err instanceof Error ? err.message : err
+    )
+    return null
   }
 }
 
@@ -413,7 +485,7 @@ Navedi probleme in potrebne storitve.
 Odgovori v slovenščini.`,
   }
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropicClient().messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,
     system: systemPrompts[analysisType],
