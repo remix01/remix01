@@ -58,21 +58,28 @@ CREATE POLICY "Users see own or admin see all inquiries"
         auth.jwt() ->> 'role' = 'admin'
     );
 
--- Offers: Partners see own, customers see own inquiry's offers, admins see all
-DROP POLICY IF EXISTS "Partners see own offers" ON public.offers;
+-- Offers: apply only when legacy table exists (some environments use localized `ponudbe` only)
+DO $$
+BEGIN
+    IF to_regclass('public.offers') IS NOT NULL THEN
+        EXECUTE 'DROP POLICY IF EXISTS "Partners see own offers" ON public.offers';
 
-CREATE POLICY "Users see own or admin see all offers"
-    ON public.offers FOR SELECT
-    USING (
-        auth.uid() = partner_id OR
-        auth.jwt() ->> 'role' = 'admin' OR
-        -- Customer sees offers for their own inquiries
-        EXISTS (
-            SELECT 1 FROM public.inquiries
-            WHERE id = offers.inquiry_id
-            AND email = auth.jwt() ->> 'email'
-        )
-    );
+        EXECUTE $policy$
+            CREATE POLICY "Users see own or admin see all offers"
+                ON public.offers FOR SELECT
+                USING (
+                    auth.uid() = partner_id OR
+                    auth.jwt() ->> 'role' = 'admin' OR
+                    EXISTS (
+                        SELECT 1 FROM public.inquiries
+                        WHERE id = offers.inquiry_id
+                        AND email = auth.jwt() ->> 'email'
+                    )
+                )
+        $policy$;
+    END IF;
+END
+$$;
 
 -- Escrow disputes: Parties and admin see own
 DROP POLICY IF EXISTS "Parties see own disputes" ON public.escrow_disputes;
