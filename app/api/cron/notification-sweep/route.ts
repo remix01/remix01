@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')

@@ -79,7 +79,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
         subject: `✅ Povpraševanje oddano: ${escapeHtml(title || 'Novo povpraševanje')}`,
         html: htmlBody,
         idempotencyKey: `povprasevanje:${povprasevanjeId}:confirmation`,
-      }, 'worker.email')
+      })
 
       console.log('[EMAIL] Sent', {
         type: jobType,

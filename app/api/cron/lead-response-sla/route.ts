@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { liquidityEngine } from '@/lib/marketplace/liquidityEngine'
 import { createAdminClient } from '@/lib/supabase/server'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
             fromObrtnikId: assignment.obrtnik_id,
             toObrtnikId: next.next_obrtnik_id,
             toRank: next.next_rank,
-          }, 'api.cron.lead-response-sla'))
+          }))
         } else {
           // All ranks exhausted — log for admin
           exhausted.push(assignment.id)

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Create booking
     const { data, error } = await supabase
-      .from((assertLegacyWriteAllowed('rezervacije', 'app/api/rezervacija/route.ts'), 'rezervacije'))
+      .from('rezervacije')
       .insert({
         povprasevanje_id,
         obrtnik_id,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
+import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { authLimiter } from '@/lib/rate-limit/limiters'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'

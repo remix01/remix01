@@ -61,15 +61,12 @@ export async function POST(req: NextRequest) {
     created_at: new Date().toISOString(),
   }
 
-  const pRes = await canonicalWriteGateway.createOrUpdateProfile(profileData, 'api.admin.leads.create')
-  const pErr = null
-  if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 })
-
-  const oRes = await canonicalWriteGateway.createOrUpdateProviderProfile(obrtnikData, 'api.admin.leads.create')
-  const oErr = null
-  if (oErr) {
+  try {
+    await canonicalWriteGateway.createOrUpdateProfile(profileData, 'api.admin.leads.create')
+    await canonicalWriteGateway.createOrUpdateProviderProfile(obrtnikData, 'api.admin.leads.create')
+  } catch (error) {
     await supabaseAdmin.from('profiles').delete().eq('id', id)
-    return NextResponse.json({ error: oErr.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Lead create failed' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, id, status: 'lead' }, { status: 201 })
