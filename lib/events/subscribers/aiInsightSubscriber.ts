@@ -70,12 +70,45 @@ export function registerAIInsightSubscriber() {
         payload.rating
       )
 
-      // TODO: Implement sentiment analysis if service exists
-      // if (payload.rating <= 2) {
-      //   await supabase.from('admin_alerts').insert({...})
-      // }
-      // Update partner trust score
-      // await supabase.from('obrtnik_profiles').update({...}).eq('id', payload.partnerId)
+      if (payload.rating <= 2) {
+        await supabase.from('admin_alerts').insert({
+          type: 'low_rating',
+          severity: 'warning',
+          title: 'Nizka ocena partnerja',
+          message: `Partner ${payload.partnerId} je prejel oceno ${payload.rating}/5 za nalogo ${payload.taskId}.`,
+          metadata: {
+            partnerId: payload.partnerId,
+            customerId: payload.customerId,
+            taskId: payload.taskId,
+            reviewId: payload.reviewId,
+            rating: payload.rating,
+            submittedAt: payload.submittedAt,
+          },
+          status: 'open',
+        })
+        console.log('[AIInsightSubscriber] Low-rating admin alert created for partner:', payload.partnerId)
+      }
+
+      const { data: stats } = await supabase
+        .from('obrtnik_reviews')
+        .select('rating')
+        .eq('obrtnik_id', payload.partnerId)
+
+      if (stats && stats.length > 0) {
+        const totalReviews = stats.length
+        const avgRating = stats.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / totalReviews
+
+        await supabase
+          .from('obrtnik_profiles')
+          .update({
+            avg_rating: Math.round(avgRating * 100) / 100,
+            total_reviews: totalReviews,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', payload.partnerId)
+
+        console.log('[AIInsightSubscriber] Updated partner trust score:', { partnerId: payload.partnerId, avgRating, totalReviews })
+      }
     } catch (err) {
       console.error('[AIInsightSubscriber] Error on review.submitted:', err)
     }
