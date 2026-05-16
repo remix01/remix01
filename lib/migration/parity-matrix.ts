@@ -213,7 +213,8 @@ export function computeParityStats(): ParityStats {
     byPriority,
     byDomain,
     pending:       byStatus.allowlisted + byStatus.blocked,
-    allowlistSize: byStatus.allowlisted + byStatus.blocked,
+    /** allowlistSize = all non-compliant entries: allowlisted + blocked + exempt */
+    allowlistSize: byStatus.allowlisted + byStatus.blocked + byStatus.exempt,
   }
 }
 

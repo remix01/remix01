@@ -233,7 +233,6 @@ function printReport(scans: FileScan[]) {
   console.log('  remove its entry from MUTATING_ALLOWLIST, update parity-matrix.ts status.')
   console.log(divider + '\n')
 
-  process.exit(!ratchetOk || matrixDrifts.length > 0 ? 1 : 0)
 }
 
 function printJson(scans: FileScan[]) {
@@ -256,6 +255,13 @@ function printJson(scans: FileScan[]) {
   }, null, 2))
 }
 
+// ─── Failure predicate (shared by both output modes) ──────────────────────────
+
+function shouldFail(scans: FileScan[]): boolean {
+  const stats = computeParityStats()
+  return stats.allowlistSize > BASELINE_ALLOWLIST_COUNT || scans.some(s => s.divergent)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const routeFiles = listRouteFiles()
@@ -266,3 +272,5 @@ if (jsonMode) {
 } else {
   printReport(scans)
 }
+
+process.exit(shouldFail(scans) ? 1 : 0)
