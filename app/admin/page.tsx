@@ -48,7 +48,7 @@ async function getStats() {
     const { count } = await supabaseAdmin
       .from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'odprto')
+      .eq('status', 'new')
     openPovprasevanja = count ?? 0
   } catch (e) {
     console.error('[admin] openPovprasevanja query failed:', e instanceof Error ? e.message : String(e))

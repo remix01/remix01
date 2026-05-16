@@ -1,5 +1,13 @@
 export type OfferPriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 
+export const PONUDBA_STATUS = {
+  POSLANA: 'poslana',
+  SPREJETA: 'sprejeta',
+  ZAVRNJENA: 'zavrnjena',
+} as const
+
+export type PonudbaStatus = (typeof PONUDBA_STATUS)[keyof typeof PONUDBA_STATUS]
+
 export interface Offer {
   id: string
   povprasevanje_id: string | null
@@ -10,7 +18,7 @@ export interface Offer {
   notes: string | null
   price_estimate: number | null
   price_type: OfferPriceType | string | null
-  status: 'poslana' | 'sprejeta' | 'zavrnjena' | string
+  status: PonudbaStatus | string
   available_date: string | null
   created_at: string
 }

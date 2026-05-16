@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { acceptPonudba, updatePonudba } from '@/lib/dal/ponudbe'
 import { updatePovprasevanje } from '@/lib/dal/povprasevanja'
+import { PONUDBA_STATUS } from '@/lib/types/offer'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 
@@ -47,8 +48,8 @@ export async function acceptPonudbaAction(
     // ════════════════════════════════════════════════════════════════════
     const { error: acceptError } = await supabase
       .from('ponudbe')
-      .update({ 
-        status: 'sprejeta',
+      .update({
+        status: PONUDBA_STATUS.SPREJETA,
         accepted_at: new Date().toISOString()
       })
       .eq('id', ponudbaId)
@@ -63,10 +64,10 @@ export async function acceptPonudbaAction(
     // ════════════════════════════════════════════════════════════════════
     const { error: rejectError } = await supabase
       .from('ponudbe')
-      .update({ status: 'zavrnjena' })
+      .update({ status: PONUDBA_STATUS.ZAVRNJENA })
       .eq('povprasevanje_id', povprasevanjeId)
       .neq('id', ponudbaId)
-      .eq('status', 'poslana')
+      .eq('status', PONUDBA_STATUS.POSLANA)
 
     if (rejectError) {
       console.error('[v0] Error rejecting other ponudbe:', rejectError)
@@ -78,8 +79,8 @@ export async function acceptPonudbaAction(
     // ════════════════════════════════════════════════════════════════════
     const { error: updatePovError } = await supabase
       .from('povprasevanja')
-      .update({ 
-        status: 'v_teku',
+      .update({
+        status: 'in_progress',
         obrtnik_id: ponudbaData.obrtnik_id
       })
       .eq('id', povprasevanjeId)

@@ -84,10 +84,10 @@ async function handleCriticalRisk(jobId: string, score: number, flags: string[])
   // Log critical alert
   await sendAdminAlert(jobId, score, flags, 'critical')
 
-  // Mark povpraševanje as preklicano (suspended) for admin review
+  // Mark povpraševanje as cancelled (suspended) for admin review
   await supabaseAdmin
     .from('povprasevanja')
-    .update({ status: 'preklicano' })
+    .update({ status: 'cancelled' })
     .eq('id', jobId)
 
   console.log(`[risk-check] Povpraševanje ${jobId} suspended (critical risk score: ${score})`)
