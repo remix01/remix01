@@ -2625,6 +2625,7 @@ export type Database = {
           active_lead_count: number
           ajpes_id: string | null
           avg_rating: number | null
+          blocked_reason: string | null
           business_name: string
           category_id: string | null
           certificate_urls: string[] | null
@@ -2660,6 +2661,7 @@ export type Database = {
           total_reviews: number | null
           updated_at: string | null
           verification_status: string
+          verified_at: string | null
           visibility: string
           website_url: string | null
           working_since: string | null
@@ -2669,6 +2671,7 @@ export type Database = {
           active_lead_count?: number
           ajpes_id?: string | null
           avg_rating?: number | null
+          blocked_reason?: string | null
           business_name: string
           category_id?: string | null
           certificate_urls?: string[] | null
@@ -2704,6 +2707,7 @@ export type Database = {
           total_reviews?: number | null
           updated_at?: string | null
           verification_status?: string
+          verified_at?: string | null
           visibility?: string
           website_url?: string | null
           working_since?: string | null
@@ -2713,6 +2717,7 @@ export type Database = {
           active_lead_count?: number
           ajpes_id?: string | null
           avg_rating?: number | null
+          blocked_reason?: string | null
           business_name?: string
           category_id?: string | null
           certificate_urls?: string[] | null
@@ -2748,6 +2753,7 @@ export type Database = {
           total_reviews?: number | null
           updated_at?: string | null
           verification_status?: string
+          verified_at?: string | null
           visibility?: string
           website_url?: string | null
           working_since?: string | null
