@@ -108,14 +108,22 @@ const nextConfig: NextConfig = {
   },
 
   // Native binaries that must never be bundled by Turbopack/webpack.
-  // @vscode/ripgrep-* packages ship a platform-specific `rg` binary; any
-  // transitive dependency that imports them must stay outside the bundle.
+  // All @vscode/ripgrep-* optional platform packages ship a native `rg`
+  // binary; list every variant so builds on any architecture stay clean.
   serverExternalPackages: [
     '@vscode/ripgrep',
-    '@vscode/ripgrep-linux-x64',
     '@vscode/ripgrep-darwin-x64',
     '@vscode/ripgrep-darwin-arm64',
     '@vscode/ripgrep-win32-x64',
+    '@vscode/ripgrep-win32-arm64',
+    '@vscode/ripgrep-win32-ia32',
+    '@vscode/ripgrep-linux-x64',
+    '@vscode/ripgrep-linux-arm64',
+    '@vscode/ripgrep-linux-arm',
+    '@vscode/ripgrep-linux-ppc64',
+    '@vscode/ripgrep-linux-riscv64',
+    '@vscode/ripgrep-linux-s390x',
+    '@vscode/ripgrep-linux-ia32',
   ],
 
   // ═══════════════════════════════════════════════════════════════════════════
