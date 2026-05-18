@@ -14,6 +14,7 @@
 import { executeAgent, type AgentExecutionResult } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 import Anthropic from '@anthropic-ai/sdk'
+import { getWarpGrepSubagentRunner } from '@/lib/ai/morph'
 
 // =============================================================================
 // Anthropic Client
@@ -198,6 +199,15 @@ export async function spawnAgentPool(
 export async function analyseTaskComplexity(
   taskDescription: string
 ): Promise<ComplexityAnalysis> {
+  let warpGrepSummary = ''
+  const warpGrep = await getWarpGrepSubagentRunner()
+  if (warpGrep) {
+    try {
+      warpGrepSummary = await warpGrep(`Find relevant LiftGO agent capabilities for: ${taskDescription}`)
+    } catch {
+      warpGrepSummary = ''
+    }
+  }
   const systemPrompt = `Si AI koordinator na platformi LiftGO za domače storitve v Sloveniji.
 Analiziraš opise del in določiš katere AI agente je treba sprožiti.
 
@@ -225,7 +235,7 @@ Odgovori IZKLJUČNO v JSON formatu:
     messages: [
       {
         role: 'user',
-        content: `Analiziraj naslednje delo:\n\n${taskDescription}`,
+        content: `Analiziraj naslednje delo:\n\n${taskDescription}${warpGrepSummary ? `\n\nWarpGrep povzetek:\n${warpGrepSummary}` : ''}`,
       },
     ],
   })
