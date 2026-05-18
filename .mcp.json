@@ -128,12 +128,22 @@
       }
     },
     "filesystem": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "npx -y @modelcontextprotocol/server-filesystem \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\""
+      ]
+    },
+    "filesystem-with-morph": {
       "command": "npx",
       "args": [
+        "--prefer-offline",
         "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/vercel/share/v0-project"
-      ]
+        "@morphllm/morphmcp"
+      ],
+      "env": {
+        "MORPH_API_KEY": "${MORPH_API_KEY}"
+      }
     },
     "puppeteer": {
       "command": "npx",
