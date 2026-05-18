@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { PartnerStats } from '@/components/partner/partner-stats'
 import { RouteOptimizerCard } from '@/components/partner/RouteOptimizerCard'
 import { Card } from '@/components/ui/card'
@@ -55,78 +54,30 @@ function PartnerDashboardInner() {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
-  const supabase = createClient()
-
-  const handleOfferCreated = async (partnerId: string) => {
-    const { data: offersData } = await supabase
-      .from('ponudbe')
-      .select('*')
-      .eq('obrtnik_id', partnerId)
-      .order('created_at', { ascending: false })
-    if (offersData) {
-      setOffers(offersData as unknown as Offer[])
-      setCompletionStatus((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              hasOffers: offersData.length > 0,
-              completionPercentage: prev.hasOffers === (offersData.length > 0)
-                ? prev.completionPercentage
-                : (([
-                    prev.hasDescription,
-                    prev.hasHourlyRate,
-                    prev.hasPhone,
-                    offersData.length > 0,
-                  ].filter(Boolean).length / 4) * 100),
-            }
-          : prev
-      )
-    }
-  }
-
-  useEffect(() => {
-    const getPartner = async () => {
-      const sb = createClient()
-      const {
-        data: { user },
-      } = await sb.auth.getUser()
-
-      if (!user) {
+  const loadDashboard = async () => {
+    try {
+      const res = await fetch('/api/partner/dashboard')
+      if (res.status === 401) {
         router.push('/partner-auth/login')
         return
       }
-
-      const { data: partnerData } = await sb
-        .from('obrtnik_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (partnerData) {
-        setPartner(partnerData)
-
-        const [status, offersRes, openCountRes] = await Promise.all([
-          getCompletionStatus(partnerData.id),
-          sb
-            .from('ponudbe')
-            .select('*')
-            .eq('obrtnik_id', partnerData.id)
-            .order('created_at', { ascending: false }),
-          sb
-            .from('povprasevanja')
-            .select('id', { count: 'exact', head: true })
-            .in('status', ['odprto', 'new']),
-        ])
-
-        if (status) setCompletionStatus(status)
-        if (offersRes.data) setOffers(offersRes.data as unknown as Offer[])
-        if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
-      }
-
+      if (!res.ok) return
+      const { data } = await res.json()
+      setPartner(data.partner)
+      setOffers(data.offers as Offer[])
+      setOpenRequestsCount(data.openRequestsCount)
+      setCompletionStatus(data.completionStatus)
+    } finally {
       setLoading(false)
     }
+  }
 
-    getPartner()
+  const handleOfferCreated = async () => {
+    await loadDashboard()
+  }
+
+  useEffect(() => {
+    loadDashboard()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -137,67 +88,6 @@ function PartnerDashboardInner() {
       setActiveTab(tab)
     }
   }, [searchParams])
-
-  const getCompletionStatus = async (partnerId: string) => {
-    try {
-      const [profileRes, userByIdRes, userByAuthIdRes, offersRes] = await Promise.all([
-        supabase
-          .from('obrtnik_profiles')
-          .select('description, hourly_rate, subscription_tier')
-          .eq('id', partnerId)
-          .maybeSingle(),
-        supabase
-          .from('profiles')
-          .select('phone')
-          .eq('id', partnerId)
-          .maybeSingle(),
-        supabase
-          .from('profiles')
-          .select('phone')
-          .eq('auth_user_id', partnerId)
-          .maybeSingle(),
-        supabase
-          .from('ponudbe')
-          .select('id', { count: 'exact', head: true })
-          .eq('obrtnik_id', partnerId),
-      ])
-
-      const profile = profileRes.data
-      const profileError = profileRes.error
-
-      const userProfileById = userByIdRes.data
-      const userByIdError = userByIdRes.error
-
-      const userProfileByAuthUserId = userByAuthIdRes.data
-      const userByAuthUserIdError = userByAuthIdRes.error
-      const offersCount = offersRes.count
-      const offersError = offersRes.error
-
-      const userProfile = userProfileById ?? userProfileByAuthUserId
-      const userError = userByIdError ?? userByAuthUserIdError
-
-      if (!profileError && !userError && !offersError) {
-        const hasDescription = typeof profile?.description === 'string' && profile.description.trim().length > 0
-        const hasHourlyRate = profile?.hourly_rate != null
-        const hasPhone = typeof userProfile?.phone === 'string' && userProfile.phone.trim().length > 0
-        const hasOffers = (offersCount || 0) > 0
-
-        const completedItems = [hasDescription, hasHourlyRate, hasPhone, hasOffers].filter(Boolean).length
-        const completionPercentage = (completedItems / 4) * 100
-
-        return {
-          completionPercentage,
-          hasDescription,
-          hasHourlyRate,
-          hasPhone,
-          hasOffers,
-        }
-      }
-    } catch (err) {
-      console.error('Error checking completion:', err)
-    }
-    return null
-  }
 
   if (loading) {
     return (
@@ -340,7 +230,7 @@ function PartnerDashboardInner() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Vaše ponudbe</h2>
                 <ListSyncToolbar className="mb-4" />
-                <OffersList offers={offers} onUpdate={() => handleOfferCreated(partner.id)} />
+                <OffersList offers={offers} onUpdate={() => handleOfferCreated()} />
               </Card>
             </TabsContent>
 
@@ -359,7 +249,7 @@ function PartnerDashboardInner() {
             <TabsContent value="new-offer" className="space-y-6">
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Oddajte novo ponudbo</h2>
-                <OfferForm partnerId={partner.id} onSuccess={() => handleOfferCreated(partner.id)} />
+                <OfferForm partnerId={partner.id} onSuccess={() => handleOfferCreated()} />
               </Card>
             </TabsContent>
           </Tabs>

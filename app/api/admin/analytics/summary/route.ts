@@ -95,10 +95,17 @@ async function countFallback(eventName: EventName, fromIso: string, toIso?: stri
   return count ?? 0
 }
 
-async function getCountWithFallback(eventName: EventName, fromIso: string, toIso?: string) {
-  const analytics = await countAnalyticsEvent(eventName, fromIso, toIso)
-  if (!analytics.error && analytics.count !== null) {
-    return { count: analytics.count, source: 'analytics_events' as const }
+async function getCountWithFallback(
+  eventName: EventName,
+  fromIso: string,
+  toIso: string | undefined,
+  useAnalyticsEvents: boolean,
+) {
+  if (useAnalyticsEvents) {
+    const analytics = await countAnalyticsEvent(eventName, fromIso, toIso)
+    if (!analytics.error && analytics.count !== null) {
+      return { count: analytics.count, source: 'analytics_events' as const }
+    }
   }
 
   const fallbackCount = await countFallback(eventName, fromIso, toIso)
@@ -111,34 +118,43 @@ export async function GET(_request: NextRequest) {
 
     const { todayStart, tomorrowStart, sevenDaysAgo } = getDateWindow()
 
+    // Decide once: use analytics_events only if it has data in the 7-day window.
+    // All metrics in this response use the same source so numbers are comparable.
+    const { count: analyticsCount, error: analyticsCheckError } = await supabaseAdmin
+      .from('analytics_events')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', sevenDaysAgo.toISOString())
+    const useAnalyticsEvents = !analyticsCheckError && (analyticsCount ?? 0) > 0
+
     const todayInquiries = await getCountWithFallback(
       'inquiry_submitted',
       todayStart.toISOString(),
-      tomorrowStart.toISOString()
+      tomorrowStart.toISOString(),
+      useAnalyticsEvents,
     )
 
     const todayConversions = await getCountWithFallback(
       'payment_completed',
       todayStart.toISOString(),
-      tomorrowStart.toISOString()
+      tomorrowStart.toISOString(),
+      useAnalyticsEvents,
     )
 
-    const funnelInquiries = await getCountWithFallback('inquiry_submitted', sevenDaysAgo.toISOString())
-    const funnelOffers = await getCountWithFallback('offer_sent', sevenDaysAgo.toISOString())
-    const funnelAccepted = await getCountWithFallback('offer_accepted', sevenDaysAgo.toISOString())
-    const funnelPaid = await getCountWithFallback('payment_completed', sevenDaysAgo.toISOString())
+    const funnelInquiries = await getCountWithFallback('inquiry_submitted', sevenDaysAgo.toISOString(), undefined, useAnalyticsEvents)
+    const funnelOffers = await getCountWithFallback('offer_sent', sevenDaysAgo.toISOString(), undefined, useAnalyticsEvents)
+    const funnelAccepted = await getCountWithFallback('offer_accepted', sevenDaysAgo.toISOString(), undefined, useAnalyticsEvents)
+    const funnelPaid = await getCountWithFallback('payment_completed', sevenDaysAgo.toISOString(), undefined, useAnalyticsEvents)
 
-    let todayEventsCount = 0
-    const { count: rawTodayEvents, error: todayEventsError } = await supabaseAdmin
-      .from('analytics_events')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', todayStart.toISOString())
-      .lt('created_at', tomorrowStart.toISOString())
-
-    if (todayEventsError) {
-      todayEventsCount = todayInquiries.count + todayConversions.count
+    let todayEventsCount: number
+    if (useAnalyticsEvents) {
+      const { count: rawTodayEvents, error: todayEventsError } = await supabaseAdmin
+        .from('analytics_events')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', todayStart.toISOString())
+        .lt('created_at', tomorrowStart.toISOString())
+      todayEventsCount = todayEventsError ? todayInquiries.count + todayConversions.count : (rawTodayEvents ?? 0)
     } else {
-      todayEventsCount = rawTodayEvents ?? 0
+      todayEventsCount = todayInquiries.count + todayConversions.count
     }
 
     const activeUsersPromise = supabaseAdmin
@@ -177,7 +193,7 @@ export async function GET(_request: NextRequest) {
       dailyStats[key] = { events: 0, inquiries: 0, conversions: 0 }
     }
 
-    if (!trendRes.error && trendRes.data) {
+    if (useAnalyticsEvents && !trendRes.error && trendRes.data) {
       trendRes.data.forEach((event) => {
         const key = event.created_at.split('T')[0]
         if (!dailyStats[key]) return
@@ -187,7 +203,7 @@ export async function GET(_request: NextRequest) {
         if (event.event_name === 'payment_completed') dailyStats[key].conversions += 1
       })
     } else {
-      // Build synthetic trend from core tables if analytics_events is empty/unavailable
+      // Build synthetic trend from core tables (fallback source)
       const { data: inquiries } = await supabaseAdmin
         .from('povprasevanja')
         .select('created_at')
@@ -218,7 +234,7 @@ export async function GET(_request: NextRequest) {
 
     const categoryCount: Record<string, number> = {}
 
-    if (!categoriesRes.error && categoriesRes.data && categoriesRes.data.length > 0) {
+    if (useAnalyticsEvents && !categoriesRes.error && categoriesRes.data && categoriesRes.data.length > 0) {
       categoriesRes.data.forEach((event) => {
         const category = event.properties?.category
         if (category) categoryCount[category] = (categoryCount[category] || 0) + 1
@@ -257,14 +273,7 @@ export async function GET(_request: NextRequest) {
         paid: funnelPaid.count,
       },
       dataSources: {
-        inquiries: todayInquiries.source,
-        conversions: todayConversions.source,
-        funnelInquiries: funnelInquiries.source,
-        funnelOffers: funnelOffers.source,
-        funnelAccepted: funnelAccepted.source,
-        funnelPaid: funnelPaid.source,
-        trend: trendRes.error ? 'fallback_tables' : 'analytics_events',
-        categories: categoriesRes.error || !categoriesRes.data?.length ? 'fallback_tables' : 'analytics_events',
+        primary: useAnalyticsEvents ? 'analytics_events' : 'fallback_tables',
       },
     })
   } catch (error) {
