@@ -32,7 +32,7 @@
     "@jest/globals": "^30.2.0",
     "@langchain/langgraph": "^0.2.62",
     "@langchain/openai": "^0.6.8",
-    "@morphllm/morphsdk": "^0.1.0",
+    "@morphllm/morphsdk": "^0.2.171",
     "@next/third-parties": "^16.2.3",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
