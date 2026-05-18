@@ -1,0 +1,19 @@
+name: Pull Request Title Check
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  pull-requests: read
+jobs:
+  pull-request-title-check:
+    runs-on: depot-ubuntu-24.04
+    container:
+      image: node:24-slim
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Check pull request title
+        run: node ./scripts/pull-request-title-check.ts
