@@ -54,6 +54,34 @@ services:
     profiles:
       - production-only
 
+  # Grafana Alloy — collects Docker logs, host metrics, scrapes /api/metrics,
+  # and forwards everything to Grafana Cloud (remix01.grafana.net).
+  # Only runs when GRAFANA_INSTANCE_ID and GRAFANA_API_TOKEN are set.
+  grafana-alloy:
+    image: grafana/alloy:latest
+    profiles:
+      - observability
+    volumes:
+      - ./grafana-alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "12345:12345" # Alloy UI (http://localhost:12345)
+    environment:
+      - GRAFANA_INSTANCE_ID=${GRAFANA_INSTANCE_ID}
+      - GRAFANA_API_TOKEN=${GRAFANA_API_TOKEN}
+      - GRAFANA_OTLP_ENDPOINT=${GRAFANA_OTLP_ENDPOINT}
+      - GRAFANA_LOKI_URL=${GRAFANA_LOKI_URL}
+      - GRAFANA_PROMETHEUS_URL=${GRAFANA_PROMETHEUS_URL}
+      - METRICS_SCRAPE_TOKEN=${METRICS_SCRAPE_TOKEN}
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    depends_on:
+      - app
+    restart: unless-stopped
+
 volumes:
   minio-data:
     driver: local

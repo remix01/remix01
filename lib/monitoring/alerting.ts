@@ -8,6 +8,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 import { sendAlert as slackSendAlert } from '@/lib/slack'
+import { lokiLogger } from '@/lib/grafana/loki'
 
 type AlertType =
   | 'sla_warning'
@@ -46,6 +47,13 @@ export const alerting = {
     } catch (err) {
       console.error('[Alerting] alert_log insert failed:', err)
     }
+
+    // Ship alert to Grafana Loki for dashboard visibility
+    lokiLogger[alert.severity === 'critical' ? 'error' : 'warn'](
+      'api',
+      `[alert:${alert.type}] ${alert.message}`,
+      { alert_type: alert.type, ...(typeof alert.metadata === 'object' ? alert.metadata as Record<string, string | number | boolean> : {}) },
+    )
 
     try {
       await slackSendAlert({
