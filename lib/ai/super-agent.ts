@@ -24,11 +24,25 @@ async function selectModelViaMorph(taskDescription: string): Promise<string> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const morph = new (MorphClient as any)({ apiKey: process.env.MORPH_API_KEY })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const selected: any = await morph.routers.anthropic.selectModel({ task: taskDescription })
-    return typeof selected?.modelId === 'string' ? selected.modelId : selectModel(taskDescription).modelId
+    const selected: any = await morph.routers.anthropic.selectModel({ prompt: taskDescription })
+    // Check all known field names the router may return
+    const modelId: unknown = selected?.model ?? selected?.modelId ?? selected?.model_id ?? selected?.selected_model
+    return typeof modelId === 'string' ? modelId : selectModel(taskDescription).modelId
   } catch {
     return selectModel(taskDescription).modelId
   }
+}
+
+// Extract edited code from various result shapes FastApply may return.
+function extractAppliedCode(applied: unknown): string | null {
+  if (typeof applied === 'string') return applied
+  if (applied && typeof applied === 'object') {
+    const obj = applied as Record<string, unknown>
+    for (const key of ['content', 'result', 'code', 'edited_file', 'output', 'text']) {
+      if (typeof obj[key] === 'string') return obj[key] as string
+    }
+  }
+  return null
 }
 
 function extractFileReferences(summary: string): string[] {
@@ -66,11 +80,13 @@ export async function morphAndExecuteWithContext(
       const contextSuffix = relatedFiles.length
         ? `\n\nRelated files for context:\n${relatedFiles.join('\n')}`
         : ''
+      // Fields match the edit_file_fastapply tool schema: target_filepath, instructions, code_edit
       const applied = await fastApply.run({
-        original_code: originalCode,
-        new_code_instruction: `${taskDescription}${contextSuffix}`,
+        target_filepath: filePath,
+        instructions: `${taskDescription}${contextSuffix}`,
+        code_edit: originalCode,
       })
-      diff = typeof applied === 'string' ? applied : JSON.stringify(applied)
+      diff = extractAppliedCode(applied) ?? originalCode
     } catch {
       // Fast Apply unavailable — diff remains as originalCode
     }
