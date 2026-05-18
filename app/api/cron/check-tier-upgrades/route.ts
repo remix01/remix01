@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Get all active craftworkers from canonical obrtnik_profiles
     const { data: craftworkers, error } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .select('id, commission_rate, total_jobs_completed, loyalty_points, subscription_tier')
+      .select('id, commission_rate, total_jobs_completed, loyalty_points, subscription_tier, commission_override, package_type')
       .eq('is_available', true)
 
     if (error) throw new Error(error.message)
