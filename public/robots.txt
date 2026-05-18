@@ -18,6 +18,15 @@ Disallow: /novo-povprasevanje/
 Disallow: /profil/
 Disallow: /obvestila/
 Disallow: /ocena/
+Disallow: /sandbox
+Disallow: /protected
+Disallow: /test
+Disallow: /sentry-example-page
+Disallow: /obrtnik/dashboard
+Disallow: /obrtnik/narocnine
+Disallow: /obrtnik/ponudbe
+Disallow: /obrtnik/profil
+Disallow: /obrtnik/sporocila
 Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*page=
