@@ -107,6 +107,17 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
+  // Native binaries that must never be bundled by Turbopack/webpack.
+  // @vscode/ripgrep-* packages ship a platform-specific `rg` binary; any
+  // transitive dependency that imports them must stay outside the bundle.
+  serverExternalPackages: [
+    '@vscode/ripgrep',
+    '@vscode/ripgrep-linux-x64',
+    '@vscode/ripgrep-darwin-x64',
+    '@vscode/ripgrep-darwin-arm64',
+    '@vscode/ripgrep-win32-x64',
+  ],
+
   // ═══════════════════════════════════════════════════════════════════════════
   // EXPERIMENTAL
   // ═══════════════════════════════════════════════════════════════════════════
