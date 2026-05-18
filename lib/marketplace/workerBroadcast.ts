@@ -56,14 +56,14 @@ export const workerBroadcast = {
 
       // 1. Insert in-app notifications (batch)
       const notifications = obrtniki.map((o) => ({
-        user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
+        user_id: o.id,
         type: 'novo_povprasevanje',
         title: 'Novo povpraševanje v vaši kategoriji',
         body: `${title}${city}`,
         message: `${title}${city}`,
-        link,
+        action_url: link,
         read: false,
-        metadata: { povprasevanje_id: requestId },
+        data: { povprasevanje_id: requestId },
       }))
 
       const { error: notifError } = await supabase.from('notifications').insert(notifications)
@@ -129,14 +129,14 @@ export const workerBroadcast = {
       if (!obrtniki?.length) return
 
       const notifications = obrtniki.map((o) => ({
-        user_id: o.id,  // obrtnik_profiles.id IS the user_id (FK to profiles.id)
+        user_id: o.id,
         type: 'rok_izteka',
         title: `Rok se izteka — še ${minutesLeft} minut!`,
         body: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
         message: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
-        link: '/obrtnik/povprasevanja',
+        action_url: '/obrtnik/povprasevanja',
         read: false,
-        metadata: { povprasevanje_id: requestId, minutes_left: minutesLeft },
+        data: { povprasevanje_id: requestId, minutes_left: minutesLeft },
       }))
 
       await supabase.from('notifications').insert(notifications)

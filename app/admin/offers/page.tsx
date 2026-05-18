@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getAdminOffers } from '@/app/admin/actions'
+import { OfferStatusAction } from '@/components/admin/offer-status-action'
 
 const statusColors: Record<string, string> = {
   osnutek: 'bg-gray-100 text-gray-800',
@@ -91,12 +92,13 @@ export default async function AdminOffersPage({ searchParams }: PageProps) {
                 <th className="px-6 py-3 text-left font-semibold text-foreground">Cena</th>
                 <th className="px-6 py-3 text-left font-semibold text-foreground">Status</th>
                 <th className="px-6 py-3 text-left font-semibold text-foreground">Datum</th>
+                <th className="px-6 py-3 text-left font-semibold text-foreground">Akcije</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-6 py-4 text-center text-muted-foreground">
                     Ni ponudb za izbrane filtre.
                   </td>
                 </tr>
@@ -123,6 +125,9 @@ export default async function AdminOffersPage({ searchParams }: PageProps) {
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {offer.created_at ? new Date(offer.created_at).toLocaleDateString('sl-SI') : '—'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <OfferStatusAction ponudbaId={offer.id} currentStatus={offer.status} />
                     </td>
                   </tr>
                 ))

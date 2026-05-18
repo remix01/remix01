@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { OfferComparisonAgent } from '@/components/agent/OfferComparisonAgent'
 import { SchedulingAssistant } from '@/components/agent/SchedulingAssistant'
+import { PovprasevanjeActions } from '@/components/narocnik/povprasevanje-actions'
 
 export function PovprasevanjeDetailClient({
   povprasevanje,
@@ -117,6 +118,17 @@ export function PovprasevanjeDetailClient({
               <strong>Željeni termin:</strong> od {new Date(povprasevanje.preferred_date_from).toLocaleDateString('sl-SI')} do {new Date(povprasevanje.preferred_date_to).toLocaleDateString('sl-SI')}
             </div>
           )}
+
+          <div className="mt-6 border-t pt-4">
+            <PovprasevanjeActions
+              povprasevanjeId={id}
+              title={povprasevanje.title}
+              description={povprasevanje.description || ''}
+              status={povprasevanje.status}
+              hasPonudbe={ponudbe.length > 0}
+              hasAcceptedPonudba={!!ponudbe.find((p: any) => p.status === 'sprejeta')}
+            />
+          </div>
         </Card>
 
         {/* Section 2: Agent Matches (only if status is odprto) */}
