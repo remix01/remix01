@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { createClient } from '@/lib/supabase/server'
 
 const disputeSchema = z.object({
@@ -68,12 +67,12 @@ export async function POST(request: NextRequest) {
 
     // 7. Update job and payment status to DISPUTED
     const { error: jobUpdateError } = await supabaseAdmin
-      .from((assertLegacyWriteAllowed('job', 'app/api/payments/dispute/route.ts'), 'job'))
+      .from('job')
       .update({ status: 'DISPUTED' })
       .eq('id', jobId)
 
     const { error: paymentUpdateError } = await supabaseAdmin
-      .from((assertLegacyWriteAllowed('payment', 'app/api/payments/dispute/route.ts'), 'payment'))
+      .from('payment')
       .update({
         status: 'DISPUTED',
         dispute_reason: reason,

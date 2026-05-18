@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import twilio from 'twilio'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 
 /**
  * Twilio Post-Event Webhook
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     // Update conversation's last message timestamp
     await supabaseAdmin
-      .from((assertLegacyWriteAllowed('conversation', 'app/api/webhooks/twilio/post-event/route.ts'), 'conversation'))
+      .from('conversation')
       .update({
         last_message_at: new Date(dateCreated || Date.now()).toISOString(),
       })
@@ -90,7 +89,7 @@ export async function POST(req: NextRequest) {
     // Update message with Twilio SID if it exists in our DB
     if (messageBody) {
       await supabaseAdmin
-        .from((assertLegacyWriteAllowed('message', 'app/api/webhooks/twilio/post-event/route.ts'), 'message'))
+        .from('message')
         .update({
           twilio_message_sid: messageSid,
         })

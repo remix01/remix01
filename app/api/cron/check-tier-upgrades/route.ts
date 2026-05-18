@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { getEffectiveCommission } from '@/lib/loyalty/commissionCalculator'
 import { sendEmail } from '@/lib/email/sender'
 
@@ -14,11 +13,11 @@ export async function GET(request: NextRequest) {
 
     console.log('[tier-upgrades] Starting tier upgrade check...')
 
-    // Get all craftworkers
+    // Get all active craftworkers from canonical obrtnik_profiles
     const { data: craftworkers, error } = await supabaseAdmin
-      .from('craftworker_profile')
-      .select('*, user:user_id(*)')
-      .eq('is_suspended', false)
+      .from('obrtnik_profiles')
+      .select('id, commission_rate, total_jobs_completed, loyalty_points, subscription_tier')
+      .eq('is_available', true)
 
     if (error) throw new Error(error.message)
 
@@ -26,61 +25,55 @@ export async function GET(request: NextRequest) {
     const upgrades: Array<{ name: string; oldRate: number; newRate: number; tierName: string }> = []
 
     for (const craftworker of (craftworkers || [])) {
-      // Calculate current effective commission
       const currentCommission = getEffectiveCommission(craftworker)
       const currentRate = Number(craftworker.commission_rate) || 10
 
-      // Check if there's a change in tier (lower rate = upgrade)
       if (currentCommission.rate < currentRate && currentCommission.rate !== currentRate) {
-        // Update the stored commission rate
+        // Update commission_rate in canonical obrtnik_profiles
         const { error: updateError } = await supabaseAdmin
-          .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/cron/check-tier-upgrades/route.ts'), 'craftworker_profile'))
+          .from('obrtnik_profiles')
           .update({ commission_rate: currentCommission.rate })
           .eq('id', craftworker.id)
 
         if (updateError) throw new Error(updateError.message)
 
+        // Fetch profile for email
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', craftworker.id)
+          .maybeSingle()
+
         upgradeCount++
         upgrades.push({
-          name: craftworker.user.name,
+          name: profile?.full_name || craftworker.id,
           oldRate: currentRate,
           newRate: currentCommission.rate,
           tierName: currentCommission.tierName
         })
 
-        // Send congratulations email
         try {
-          await sendEmail(craftworker.user.email, {
-            subject: '🎉 Prešli ste na nižjo provizijsko stopnjo!',
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #10b981;">🎉 Čestitamo!</h2>
-                <p>Pozdravljeni ${craftworker.user.name},</p>
-                <p>Vesele novice! Zaradi vaših uspešno opravljenih del ste dosegli nov tier in <strong>znižali svojo provizijo</strong>.</p>
-
-                <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; margin: 24px 0;">
-                  <p style="margin: 0;"><strong>Stara provizija:</strong> ${currentRate}%</p>
-                  <p style="margin: 8px 0 0 0;"><strong>Nova provizija:</strong> ${currentCommission.rate}% ✨</p>
-                  <p style="margin: 8px 0 0 0;"><strong>Tier:</strong> ${currentCommission.tierName}</p>
+          if (profile?.email) {
+            await sendEmail(profile.email, {
+              subject: 'Prešli ste na nižjo provizijsko stopnjo!',
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #10b981;">Čestitamo!</h2>
+                  <p>Pozdravljeni ${profile.full_name || ''},</p>
+                  <p>Vesele novice! Zaradi vaših uspešno opravljenih del ste dosegli nov tier in <strong>znižali svojo provizijo</strong>.</p>
+                  <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; margin: 24px 0;">
+                    <p style="margin: 0;"><strong>Stara provizija:</strong> ${currentRate}%</p>
+                    <p style="margin: 8px 0 0 0;"><strong>Nova provizija:</strong> ${currentCommission.rate}%</p>
+                    <p style="margin: 8px 0 0 0;"><strong>Tier:</strong> ${currentCommission.tierName}</p>
+                  </div>
+                  <p>Hvala, da ste del LiftGO skupnosti!</p>
+                  <p>Ekipa LiftGO</p>
                 </div>
-
-                <p><strong>Opravljenih del:</strong> ${craftworker.total_jobs_completed}</p>
-
-                ${currentCommission.nextTierAt
-                  ? `<p>Do naslednjega tiera še <strong>${currentCommission.nextTierAt} del</strong>!</p>`
-                  : '<p>Dosegli ste najvišji tier! 🏆</p>'
-                }
-
-                <p>Prihranek na vsakem delu se avtomatično upošteva pri naslednjem plačilu.</p>
-
-                <p>Hvala, da ste del LiftGO skupnosti!</p>
-                <p>Ekipa LiftGO</p>
-              </div>
-            `
-          })
+              `
+            })
+          }
         } catch (emailError) {
-          console.error(`[tier-upgrades] Email error for ${craftworker.user.email}:`, emailError)
-          // Continue processing other craftworkers even if email fails
+          console.error(`[tier-upgrades] Email error for ${craftworker.id}:`, emailError)
         }
       }
     }

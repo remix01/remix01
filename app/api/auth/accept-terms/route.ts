@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 
 const CURRENT_TOS_VERSION = '2026-02-v1'
 
@@ -45,8 +44,9 @@ export async function POST(request: NextRequest) {
       updateData.craftworker_agreement_accepted_at = new Date().toISOString()
     }
 
-    const { data: updatedUser, error: updateError } = await supabaseAdmin
-      .from((assertLegacyWriteAllowed('user', 'app/api/auth/accept-terms/route.ts'), 'user'))
+    // Canonical write: profiles table (replaces legacy 'user' table write)
+    const { data: updatedProfile, error: updateError } = await supabaseAdmin
+      .from('profiles')
       .update(updateData)
       .eq('id', user.id)
       .select('id, tos_accepted_at, tos_version, craftworker_agreement_accepted_at')
@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user: {
-        id: updatedUser?.id,
-        tosAcceptedAt: updatedUser?.tos_accepted_at,
-        tosVersion: updatedUser?.tos_version,
-        craftworkerAgreementAcceptedAt: updatedUser?.craftworker_agreement_accepted_at,
+        id: updatedProfile?.id,
+        tosAcceptedAt: updatedProfile?.tos_accepted_at,
+        tosVersion: updatedProfile?.tos_version,
+        craftworkerAgreementAcceptedAt: updatedProfile?.craftworker_agreement_accepted_at,
       },
     })
   } catch (error) {

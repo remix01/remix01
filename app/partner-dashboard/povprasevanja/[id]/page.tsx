@@ -150,23 +150,27 @@ export default function PovprasevanjeDetailPage() {
       return
     }
 
-    const { error: insertError } = await supabase
-      .from('ponudbe')
-      .insert({
+    // Route through canonical API — validates ownership and povprasevanje status
+    const res = await fetch('/api/ponudbe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         povprasevanje_id: id,
         obrtnik_id: user.id,
         message: message.trim(),
-        price_estimate: parsedPrice,
+        price_estimate: parsedPrice ?? 0,
         price_type: 'fiksna',
         available_date: availableDate || null,
-        status: 'poslana',
-      })
+      }),
+    })
 
-    if (insertError) {
-      console.error('[ponudba] insert error:', insertError.message)
-      setError('Napaka pri pošiljanju ponudbe. Prosimo, poskusite znova.')
-    } else {
+    if (res.ok) {
       setSubmitted(true)
+    } else {
+      const body = await res.json().catch(() => ({}))
+      const msg = body?.error || body?.message || 'Napaka pri pošiljanju ponudbe. Prosimo, poskusite znova.'
+      console.error('[ponudba] API error:', msg)
+      setError(msg)
     }
 
     setSubmitting(false)

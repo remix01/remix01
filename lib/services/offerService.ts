@@ -56,6 +56,9 @@ export const offerService = {
   /**
    * Create a new offer
    * Business logic extracted from POST /api/offers
+   *
+   * Caller (userId) must be the obrtnik submitting the offer.
+   * partner_id must equal userId (obrtnik_profiles.id === auth.uid()).
    */
   async createOffer(
     userId: string,
@@ -80,34 +83,50 @@ export const offerService = {
       )
     }
 
-    // Verify user owns the povprasevanja
-    const { data: inquiry } = await supabaseAdmin
-      .from('povprasevanja')
-      .select('narocnik_id')
-      .eq('id', data.request_id)
-      .maybeSingle()
-
-    if (!inquiry || inquiry.narocnik_id !== userId) {
+    // Verify caller owns the partner profile (obrtnik_profiles.id === auth.uid())
+    if (data.partner_id !== userId) {
       throw new ServiceError(
-        'Unauthorized - you do not own this request',
+        'Unauthorized - partner_id must match your user id',
         'FORBIDDEN',
         403
       )
     }
 
-    // Verify partner owns the provided partner_id
+    // Verify obrtnik profile exists
     const { data: partnerProfile } = await supabaseAdmin
       .from('obrtnik_profiles')
       .select('id')
-      .eq('id', data.partner_id)
       .eq('id', userId)
       .maybeSingle()
 
     if (!partnerProfile) {
       throw new ServiceError(
-        'Unauthorized - invalid partner',
+        'Obrtnik profile not found',
         'FORBIDDEN',
         403
+      )
+    }
+
+    // Verify the request exists and is open for offers
+    const { data: inquiry } = await supabaseAdmin
+      .from('povprasevanja')
+      .select('id, status')
+      .eq('id', data.request_id)
+      .maybeSingle()
+
+    if (!inquiry) {
+      throw new ServiceError(
+        'Povpraševanje ni najdeno',
+        'NOT_FOUND',
+        404
+      )
+    }
+
+    if (!['odprto', 'new', 'matched'].includes(inquiry.status)) {
+      throw new ServiceError(
+        'Povpraševanje ne sprejema več ponudb',
+        'VALIDATION',
+        400
       )
     }
 
@@ -139,25 +158,58 @@ export const offerService = {
   /**
    * Create ponudba (Slovenian offer)
    * Business logic extracted from POST /api/ponudbe
+   *
+   * Caller (userId) must own the obrtnik profile (obrtnik_profiles.id === auth.uid()).
    */
   async createPonudba(
     userId: string,
     data: PonudbaInsert
   ) {
-    // Verify obrtnik owns this profile
+    // Verify caller owns the obrtnik profile (obrtnik_profiles.id === auth.uid())
+    if (data.obrtnik_id !== userId) {
+      throw new ServiceError(
+        'You do not own this obrtnik profile',
+        'FORBIDDEN',
+        403
+      )
+    }
+
+    // Verify obrtnik profile exists
     const supabase = await createClient()
     const { data: obrtnikProfile } = await supabase
       .from('obrtnik_profiles')
       .select('id')
-      .eq('id', data.obrtnik_id)
       .eq('id', userId)
       .maybeSingle()
 
     if (!obrtnikProfile) {
       throw new ServiceError(
-        'You do not own this obrtnik profile',
+        'Obrtnik profile not found',
         'FORBIDDEN',
         403
+      )
+    }
+
+    // Verify povprasevanje exists and allows new offers
+    const { data: pov } = await supabaseAdmin
+      .from('povprasevanja')
+      .select('id, status')
+      .eq('id', data.povprasevanje_id)
+      .maybeSingle()
+
+    if (!pov) {
+      throw new ServiceError(
+        'Povpraševanje ni najdeno',
+        'NOT_FOUND',
+        404
+      )
+    }
+
+    if (!['odprto', 'new', 'matched'].includes(pov.status)) {
+      throw new ServiceError(
+        'Povpraševanje ne sprejema več ponudb',
+        'VALIDATION',
+        400
       )
     }
 
