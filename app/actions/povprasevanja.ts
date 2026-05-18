@@ -53,6 +53,8 @@ export async function updatePovprasevanjeAction(
     revalidatePath(`/povprasevanja/${id}`)
     revalidatePath('/povprasevanja')
     revalidatePath('/dashboard')
+    revalidatePath('/partner-dashboard')
+    revalidatePath('/admin/povprasevanja')
 
     return { success: true }
   } catch (error) {
@@ -90,6 +92,8 @@ export async function deletePovprasevanjeAction(
 
     revalidatePath('/povprasevanja')
     revalidatePath('/dashboard')
+    revalidatePath('/partner-dashboard')
+    revalidatePath('/admin/povprasevanja')
 
     return { success: true }
   } catch (error) {
@@ -129,6 +133,8 @@ export async function cancelPovprasevanjeAction(
     revalidatePath(`/povprasevanja/${id}`)
     revalidatePath('/povprasevanja')
     revalidatePath('/dashboard')
+    revalidatePath('/partner-dashboard')
+    revalidatePath('/admin/povprasevanja')
 
     return { success: true }
   } catch (error) {

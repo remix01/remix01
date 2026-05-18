@@ -91,6 +91,9 @@ export async function withdrawPonudbaAction(
     revalidatePath('/partner-dashboard')
     revalidatePath('/partner-dashboard/ponudbe')
     revalidatePath(`/povprasevanja/${ponudba.povprasevanje_id}`)
+    revalidatePath('/dashboard')
+    revalidatePath('/admin/ponudbe')
+    revalidatePath('/admin/povprasevanja')
 
     return { success: true }
   } catch (error) {
@@ -132,6 +135,9 @@ export async function updatePonudbaAction(
     revalidatePath('/partner-dashboard')
     revalidatePath('/partner-dashboard/ponudbe')
     revalidatePath(`/povprasevanja/${existing.povprasevanje_id}`)
+    revalidatePath('/dashboard')
+    revalidatePath('/admin/ponudbe')
+    revalidatePath('/admin/povprasevanja')
 
     return { success: true }
   } catch (error) {

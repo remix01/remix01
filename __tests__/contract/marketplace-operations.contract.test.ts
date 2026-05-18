@@ -137,7 +137,7 @@ describe('offerService.createPonudba', () => {
         price_estimate: 100,
         price_type: 'fiksna',
       })
-    ).rejects.toThrow('FORBIDDEN')
+    ).rejects.toThrow('You do not own')
   })
 
   it('rejects if povprasevanje is already in progress', async () => {
@@ -171,7 +171,9 @@ describe('acceptPonudbaFull', () => {
   })
 
   it('narocnik can accept a ponudba for their own povprasevanje', async () => {
-    const mockAcceptedPonudba = {
+    // Initial select returns 'poslana' so the guard passes; subsequent reads return 'sprejeta'.
+    let ponudbeCallCount = 0
+    const mockPonudbaAfterAccept = {
       id: PONUDBA_ID,
       obrtnik_id: OBRTNIK_ID,
       povprasevanje_id: POVP_ID,
@@ -183,7 +185,10 @@ describe('acceptPonudbaFull', () => {
         return makeBuilder({ data: { id: POVP_ID, narocnik_id: NAROCNIK_ID, status: 'odprto', obrtnik_id: null }, error: null })
       }
       if (table === 'ponudbe') {
-        return makeBuilder({ data: mockAcceptedPonudba, error: null })
+        ponudbeCallCount++
+        // First call is the status-check select (must be 'poslana'); subsequent calls return post-accept state.
+        const status = ponudbeCallCount === 1 ? 'poslana' : 'sprejeta'
+        return makeBuilder({ data: { ...mockPonudbaAfterAccept, status }, error: null })
       }
       return makeBuilder({ data: null, error: null })
     })
