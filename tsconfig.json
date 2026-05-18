@@ -30,5 +30,19 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
+<<<<<<< Updated upstream
   "exclude": ["node_modules", "scripts"]
+=======
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist",
+    "build",
+    "coverage",
+    "generated",
+    "playwright-report",
+    "test-results",
+    "resend-mcp"
+  ]
+>>>>>>> Stashed changes
 }

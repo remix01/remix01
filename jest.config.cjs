@@ -9,6 +9,23 @@ module.exports = {
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
-  testPathIgnorePatterns: ['/node_modules/', '/.next/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/.next/',
+    '<rootDir>/.claude/worktrees/',
+    '<rootDir>/resend-mcp/',
+  ],
+  testMatch: [
+    '**/__tests__/**/*.test.[jt]s?(x)',
+    '**/__tests__/**/*.contract.test.[jt]s?(x)',
+    '**/*.test.[jt]s?(x)',
+  ],
+  transformIgnorePatterns: [
+    '/node_modules/.pnpm/(?!(uuid|@supabase))',
+    '/node_modules/(?!(\\.pnpm|uuid|@supabase))',
+  ],
+  globals: {
+    crypto: require('crypto'),
+  },
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup-jest.ts'],
 }
