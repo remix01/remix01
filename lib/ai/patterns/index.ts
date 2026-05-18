@@ -70,8 +70,11 @@ export {
   spawnAgentPool,
   analyseTaskComplexity,
   autoSpawn,
+  autoSpawnWithCode,
   type SpawnConfig,
   type SpawnResult,
   type SpawnPoolResult,
   type ComplexityAnalysis,
+  type CodeAwareSpawnResult,
+  type SuperAgentResult,
 } from './dynamic-spawn'

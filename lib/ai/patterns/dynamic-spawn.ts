@@ -15,6 +15,7 @@ import { executeAgent, type AgentExecutionResult } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 import Anthropic from '@anthropic-ai/sdk'
 import { getWarpGrepSubagentRunner } from '@/lib/ai/morph'
+import { morphAndExecuteWithContext, type SuperAgentResult } from '@/lib/ai/super-agent'
 
 // =============================================================================
 // Anthropic Client
@@ -331,4 +332,56 @@ Ohrani vse pomembne informacije. Izogni se ponavljanju. Piši v slovenščini.`,
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('')
+}
+
+// =============================================================================
+// Code-Aware Auto-Spawn (Super-Agent Integration)
+// =============================================================================
+
+export interface CodeAwareSpawnResult {
+  analysis: ComplexityAnalysis
+  pool: SpawnPoolResult
+  /** Present when `code` + `filePath` are supplied and the task involves code. */
+  superAgent?: SuperAgentResult
+}
+
+export { type SuperAgentResult }
+
+/**
+ * Extends autoSpawn with an optional MorphLM super-agent step.
+ * When `code` and `filePath` are provided the super-agent pipeline runs:
+ * WarpGrep → Fast Apply → E2B sandbox → Model Router → Anthropic summary.
+ *
+ * @example
+ * const result = await autoSpawnWithCode(userId, {
+ *   taskDescription: 'Optimise the plumbing cost estimator',
+ *   code: existingCode,
+ *   filePath: 'lib/estimators/plumbing.ts',
+ * })
+ * console.log(result.superAgent?.summary)
+ */
+export async function autoSpawnWithCode(
+  userId: string,
+  params: {
+    taskDescription: string
+    taskId?: string
+    code?: string
+    filePath?: string
+  }
+): Promise<CodeAwareSpawnResult> {
+  const { analysis, pool } = await autoSpawn(userId, {
+    taskDescription: params.taskDescription,
+    taskId: params.taskId,
+  })
+
+  let superAgent: SuperAgentResult | undefined
+  if (params.code && params.filePath) {
+    superAgent = await morphAndExecuteWithContext(
+      params.taskDescription,
+      params.code,
+      params.filePath
+    )
+  }
+
+  return { analysis, pool, superAgent }
 }
