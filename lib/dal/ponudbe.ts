@@ -269,8 +269,9 @@ export async function acceptPonudbaFull(
 ): Promise<Ponudba> {
   const supabase = await createClient()
 
-  // Try atomic RPC first (requires migration 20260518_accept_ponudba_rpc.sql)
-  const { data: rpcData, error: rpcError } = await supabase.rpc('accept_ponudba', {
+  // Try atomic RPC first (requires migration 20260518_accept_ponudba_rpc.sql).
+  // Cast to any because the generated types don't include this new function yet.
+  const { data: rpcData, error: rpcError } = await (supabase as any).rpc('accept_ponudba', {
     p_ponudba_id: ponudbaId,
     p_povprasevanje_id: povprasevanjeId,
     p_narocnik_id: narocnikId,
