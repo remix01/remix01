@@ -3298,6 +3298,7 @@ export type Database = {
           embedding_updated_at: string | null
           estimated_duration: string | null
           id: string
+          lock_version: number
           message: string
           notes: string | null
           obrtnik_id: string
@@ -3320,6 +3321,7 @@ export type Database = {
           embedding_updated_at?: string | null
           estimated_duration?: string | null
           id?: string
+          lock_version?: number
           message: string
           notes?: string | null
           obrtnik_id: string
@@ -3342,6 +3344,7 @@ export type Database = {
           embedding_updated_at?: string | null
           estimated_duration?: string | null
           id?: string
+          lock_version?: number
           message?: string
           notes?: string | null
           obrtnik_id?: string
@@ -3535,6 +3538,7 @@ export type Database = {
           location_city: string
           location_notes: string | null
           location_region: string | null
+          lock_version: number
           narocnik_id: string | null
           notified_at: string | null
           obrtnik_id: string | null
@@ -3561,6 +3565,7 @@ export type Database = {
           location_city: string
           location_notes?: string | null
           location_region?: string | null
+          lock_version?: number
           narocnik_id?: string | null
           notified_at?: string | null
           obrtnik_id?: string | null
@@ -3587,6 +3592,7 @@ export type Database = {
           location_city?: string
           location_notes?: string | null
           location_region?: string | null
+          lock_version?: number
           narocnik_id?: string | null
           notified_at?: string | null
           obrtnik_id?: string | null
