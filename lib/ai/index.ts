@@ -67,3 +67,9 @@ export {
 
 // LangGraph integration helpers
 export { runLangGraphChat, type LangGraphRunInput, type LangGraphRunResult } from './langgraph'
+
+// MorphLM Super-Agent
+export { morphAndExecuteWithContext, type SuperAgentResult } from './super-agent'
+
+// WarpGrep codebase search
+export { searchCodebase, searchKnowledgeBase, type WarpGrepResult } from './warp-grep'

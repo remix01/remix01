@@ -29,6 +29,7 @@ export const env = {
   BRAVE_API_KEY: process.env.BRAVE_API_KEY ?? '',
   VOYAGE_API_KEY: process.env.VOYAGE_API_KEY ?? '',
   E2B_API_KEY: process.env.E2B_API_KEY ?? '',
+  MORPH_API_KEY: process.env.MORPH_API_KEY ?? '',
   AI_FEATURE_ENABLED: process.env.AI_FEATURE_ENABLED ?? 'false',
 
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY ?? '',
