@@ -83,6 +83,39 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_log: {
+        Row: {
+          admin_id: string
+          akcija: string
+          created_at: string | null
+          id: string
+          novo_stanje: Json | null
+          staro_stanje: Json | null
+          tabela: string
+          zapis_id: string
+        }
+        Insert: {
+          admin_id: string
+          akcija: string
+          created_at?: string | null
+          id?: string
+          novo_stanje?: Json | null
+          staro_stanje?: Json | null
+          tabela: string
+          zapis_id: string
+        }
+        Update: {
+          admin_id?: string
+          akcija?: string
+          created_at?: string | null
+          id?: string
+          novo_stanje?: Json | null
+          staro_stanje?: Json | null
+          tabela?: string
+          zapis_id?: string
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           aktiven: boolean
@@ -2654,7 +2687,9 @@ export type Database = {
           response_time_hours: number | null
           service_radius_km: number | null
           source: string
+          stripe_account_id: string | null
           stripe_customer_id: string | null
+          stripe_onboarding_complete: boolean | null
           stripe_subscription_id: string | null
           subscription_tier: string
           tagline: string | null
@@ -2700,7 +2735,9 @@ export type Database = {
           response_time_hours?: number | null
           service_radius_km?: number | null
           source?: string
+          stripe_account_id?: string | null
           stripe_customer_id?: string | null
+          stripe_onboarding_complete?: boolean | null
           stripe_subscription_id?: string | null
           subscription_tier?: string
           tagline?: string | null
@@ -2746,7 +2783,9 @@ export type Database = {
           response_time_hours?: number | null
           service_radius_km?: number | null
           source?: string
+          stripe_account_id?: string | null
           stripe_customer_id?: string | null
+          stripe_onboarding_complete?: boolean | null
           stripe_subscription_id?: string | null
           subscription_tier?: string
           tagline?: string | null
@@ -3255,6 +3294,7 @@ export type Database = {
           created_at: string | null
           id: string
           offer_id: string | null
+          status: string
           stripe_transfer_id: string
           updated_at: string | null
         }
@@ -3264,6 +3304,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           offer_id?: string | null
+          status?: string
           stripe_transfer_id: string
           updated_at?: string | null
         }
@@ -3273,6 +3314,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           offer_id?: string | null
+          status?: string
           stripe_transfer_id?: string
           updated_at?: string | null
         }
@@ -3624,6 +3666,7 @@ export type Database = {
           ai_total_tokens_used: number | null
           avatar_url: string | null
           created_at: string | null
+          credit_balance: number | null
           email: string | null
           first_name: string | null
           flagged: boolean
@@ -3634,6 +3677,7 @@ export type Database = {
           location_city: string | null
           location_region: string | null
           phone: string | null
+          referral_code: string | null
           role: string | null
           stripe_customer_id: string | null
           subscription_tier: string
@@ -3646,6 +3690,7 @@ export type Database = {
           ai_total_tokens_used?: number | null
           avatar_url?: string | null
           created_at?: string | null
+          credit_balance?: number | null
           email?: string | null
           first_name?: string | null
           flagged?: boolean
@@ -3656,6 +3701,7 @@ export type Database = {
           location_city?: string | null
           location_region?: string | null
           phone?: string | null
+          referral_code?: string | null
           role?: string | null
           stripe_customer_id?: string | null
           subscription_tier?: string
@@ -3668,6 +3714,7 @@ export type Database = {
           ai_total_tokens_used?: number | null
           avatar_url?: string | null
           created_at?: string | null
+          credit_balance?: number | null
           email?: string | null
           first_name?: string | null
           flagged?: boolean
@@ -3678,12 +3725,93 @@ export type Database = {
           location_city?: string | null
           location_region?: string | null
           phone?: string | null
+          referral_code?: string | null
           role?: string | null
           stripe_customer_id?: string | null
           subscription_tier?: string
           updated_at?: string | null
         }
         Relationships: []
+      }
+      provider_approval_transitions: {
+        Row: {
+          actor: string
+          created_at: string | null
+          from_state: string | null
+          id: string
+          provider_id: string
+          reason: string | null
+          to_state: string
+        }
+        Insert: {
+          actor: string
+          created_at?: string | null
+          from_state?: string | null
+          id?: string
+          provider_id: string
+          reason?: string | null
+          to_state: string
+        }
+        Update: {
+          actor?: string
+          created_at?: string | null
+          from_state?: string | null
+          id?: string
+          provider_id?: string
+          reason?: string | null
+          to_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_approval_transitions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_approval_transitions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "obrtnik_public_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_approval_transitions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "partner_accounts"
+            referencedColumns: ["obrtnik_id"]
+          },
+          {
+            foreignKeyName: "provider_approval_transitions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "partner_accounts"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "provider_approval_transitions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "partners_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_approval_transitions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "partners_view"
+            referencedColumns: ["new_profile_id"]
+          },
+          {
+            foreignKeyName: "provider_approval_transitions_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "partners_view"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
@@ -3711,6 +3839,48 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      referrals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          referred_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_id: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_id?: string
+          referrer_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_id_fkey"
+            columns: ["referred_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       risk_scores: {
         Row: {
@@ -4760,6 +4930,10 @@ export type Database = {
         Returns: boolean
       }
       archive_ai_usage_logs: { Args: never; Returns: undefined }
+      assign_task: {
+        Args: { p_assigned_by?: string; p_task_id: string; p_worker_id: string }
+        Returns: undefined
+      }
       can_access_povprasevanje: {
         Args: { check_user_id?: string; pov_id: string }
         Returns: boolean
@@ -4783,6 +4957,7 @@ export type Database = {
           next_rank: number
         }[]
       }
+      expire_task: { Args: { p_task_id: string }; Returns: undefined }
       expire_tasks: { Args: never; Returns: number }
       f_ai_daily_usage_admin: {
         Args: never
@@ -4796,6 +4971,26 @@ export type Database = {
           total_tool_calls: number
           usage_date: string
           user_id: string
+        }[]
+      }
+      filter_tasks: {
+        Args: {
+          p_assigned_to?: string
+          p_category_id?: string
+          p_limit?: number
+          p_status?: string
+        }
+        Returns: {
+          assigned_to: string
+          category_id: string
+          created_at: string
+          created_by: string
+          description: string
+          expires_at: string
+          id: string
+          published_at: string
+          status: string
+          title: string
         }[]
       }
       get_ai_daily_limit: { Args: { tier?: string }; Returns: number }

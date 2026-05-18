@@ -53,9 +53,9 @@ export function useMatchedTasks(taskId: string, options?: UseMatchedTasksOptions
       setTask(taskData as unknown as Task)
 
       // Load all worker stats (in production, filter by category/location first)
-      const { data: workerStats, error: statsError } = await supabase
-        .from('worker_stats')
-        .select('*')
+      const { data: workerStats, error: statsError } = await (supabase
+        .from('obrtnik_profiles' as any)
+        .select('*') as any)
 
       if (statsError) throw statsError
 

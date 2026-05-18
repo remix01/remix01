@@ -67,9 +67,19 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   // ═══════════════════════════════════════════════════════════════════════════
+<<<<<<< Updated upstream
   // OUTPUT - STANDALONE FOR DOCKER MULTI-STAGE BUILD
   // ═══════════════════════════════════════════════════════════════════════════
   output: 'standalone',
+=======
+  // TYPESCRIPT - OOM PREVENTION
+  // ═══════════════════════════════════════════════════════════════════════════
+  typescript: {
+    // Skip TypeScript checking during build (Vercel will handle it)
+    // This prevents OOM issues in Docker builds
+    tsconfigPath: process.env.SKIP_ENV_VALIDATION ? undefined : './tsconfig.json',
+  },
+>>>>>>> Stashed changes
 
   // ═══════════════════════════════════════════════════════════════════════════
   // IMAGES - OPTIMIZED
