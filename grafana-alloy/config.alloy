@@ -1,0 +1,99 @@
+// Grafana Alloy config — LiftGO local dev & production forwarding
+//
+// Collects: Docker logs, host metrics, scrapes /api/metrics
+// Forwards: Grafana Cloud (remix01.grafana.net) via OTLP
+
+// ── Logging ──────────────────────────────────────────────────────────────────
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_LOKI_URL") + "/loki/api/v1/push"
+    basic_auth {
+      username = env("GRAFANA_INSTANCE_ID")
+      password = env("GRAFANA_API_TOKEN")
+    }
+  }
+}
+
+// Collect Docker container logs
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "docker_logs" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  forward_to    = [loki.write.grafana_cloud.receiver]
+  relabel_rules = loki.relabel.docker.rules
+}
+
+loki.relabel "docker" {
+  forward_to = []
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+  rule {
+    target_label = "app"
+    replacement  = "liftgo"
+  }
+  rule {
+    target_label = "env"
+    replacement  = "development"
+  }
+}
+
+// ── Metrics ───────────────────────────────────────────────────────────────────
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_PROMETHEUS_URL") + "/api/prom/push"
+    basic_auth {
+      username = env("GRAFANA_INSTANCE_ID")
+      password = env("GRAFANA_API_TOKEN")
+    }
+  }
+}
+
+// Scrape /api/metrics (LiftGO business metrics)
+prometheus.scrape "liftgo_app" {
+  targets = [{
+    __address__ = "nextjs:3000",
+    __scheme__  = "http",
+  }]
+  metrics_path    = "/api/metrics"
+  scrape_interval = "60s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  bearer_token    = env("METRICS_SCRAPE_TOKEN")
+}
+
+// Scrape host node metrics
+prometheus.exporter.unix "host" {}
+
+prometheus.scrape "host_metrics" {
+  targets         = prometheus.exporter.unix.host.targets
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = "60s"
+}
+
+// ── Traces ────────────────────────────────────────────────────────────────────
+
+otelcol.receiver.otlp "default" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+  output {
+    traces = [otelcol.exporter.otlphttp.grafana_cloud.input]
+  }
+}
+
+otelcol.exporter.otlphttp "grafana_cloud" {
+  client {
+    endpoint = env("GRAFANA_OTLP_ENDPOINT")
+    auth     = otelcol.auth.basic.grafana.handler
+  }
+}
+
+otelcol.auth.basic "grafana" {
+  username = env("GRAFANA_INSTANCE_ID")
+  password = env("GRAFANA_API_TOKEN")
+}

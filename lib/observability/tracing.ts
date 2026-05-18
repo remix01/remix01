@@ -156,7 +156,7 @@ class Tracer {
   // ── Export ─────────────────────────────────────────────────────────────────
 
   /**
-   * Send span to Langfuse or fall back to console.debug.
+   * Send span to Langfuse and/or Grafana Tempo (parallel), fall back to console.debug.
    * NEVER throws.
    */
   async export(span: Span): Promise<void> {
@@ -165,11 +165,21 @@ class Tracer {
       const publicKey = process.env.LANGFUSE_PUBLIC_KEY
       const host      = process.env.LANGFUSE_HOST ?? 'https://cloud.langfuse.com'
 
+      const exports: Promise<void>[] = []
+
       if (secretKey && publicKey) {
-        await this._exportToLangfuse(span, secretKey, publicKey, host)
+        exports.push(this._exportToLangfuse(span, secretKey, publicKey, host))
       } else {
         this._exportToConsole(span)
       }
+
+      // Forward spans to Grafana Tempo when configured
+      if (process.env.GRAFANA_INSTANCE_ID && process.env.GRAFANA_API_TOKEN) {
+        const { exportSpanToTempo } = await import('@/lib/grafana/tempo')
+        exports.push(exportSpanToTempo(span))
+      }
+
+      await Promise.allSettled(exports)
     } catch {
       // Absolute safety net — tracing must NEVER affect main flow
     }
