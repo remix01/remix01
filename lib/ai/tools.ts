@@ -67,10 +67,11 @@ export const AI_TOOLS: Tool[] = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        instruction: { type: 'string', description: 'Navodilo za spremembo kode' },
-        filePath: { type: 'string', description: 'Pot do datoteke v repozitoriju' },
+        target_filepath: { type: 'string', description: 'Pot do ciljne datoteke v repozitoriju' },
+        instructions: { type: 'string', description: 'Navodila za spremembo' },
+        code_edit: { type: 'string', description: 'Predlagana vsebina ali patch spremembe' },
       },
-      required: ['instruction', 'filePath'],
+      required: ['target_filepath', 'instructions', 'code_edit'],
     },
   },
   {
@@ -139,7 +140,26 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
     if (!morph) {
       throw new Error('Morph FastApply ni na voljo. Nastavi MORPH_API_KEY in namesti @morphllm/morphsdk.')
     }
-    return morph.run(input)
+
+    const payload = input as {
+      target_filepath?: string
+      instructions?: string
+      code_edit?: string
+      filePath?: string
+      instruction?: string
+    }
+
+    const normalized = {
+      target_filepath: payload.target_filepath ?? payload.filePath,
+      instructions: payload.instructions ?? payload.instruction,
+      code_edit: payload.code_edit,
+    }
+
+    if (!normalized.target_filepath || !normalized.instructions || !normalized.code_edit) {
+      throw new Error('FastApply zahteva: target_filepath, instructions, code_edit')
+    }
+
+    return morph.run(normalized)
   },
 
   async find_matching_obrtniki(input) {
