@@ -123,7 +123,7 @@
     "postcss": "^8.5.10",
     "supabase": "^2.84.8",
     "tailwindcss": "^3.4.17",
-    "ts-jest": "^29.2.5",
+    "ts-jest": "^29.4.9",
     "tsx": "^4.19.2",
     "typescript": "5.7.3"
   },
