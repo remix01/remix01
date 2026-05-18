@@ -231,7 +231,7 @@ export async function updatePonudba(id: string, updates: PonudbaUpdate & { lock_
  */
 export async function acceptPonudba(id: string): Promise<boolean> {
   const result = await updatePonudba(id, { status: 'sprejeta' })
-  
+
   // Send notification to obrtnik that their ponudba was accepted
   if (result) {
     const ponudba = await getPonudba(id)
@@ -248,8 +248,132 @@ export async function acceptPonudba(id: string): Promise<boolean> {
       })
     }
   }
-  
+
   return result !== null
+}
+
+/**
+ * Full atomic accept flow via Supabase RPC (accept_ponudba).
+ * Falls back to sequential writes if the RPC is not yet deployed.
+ *
+ * 1. Mark ponudba as sprejeta
+ * 2. Reject all other pending ponudbe for same povprasevanje
+ * 3. Update povprasevanje status to v_teku and set obrtnik_id
+ *
+ * Returns the accepted ponudba or throws on failure.
+ */
+export async function acceptPonudbaFull(
+  ponudbaId: string,
+  povprasevanjeId: string,
+  narocnikId: string
+): Promise<Ponudba> {
+  const supabase = await createClient()
+
+  // Try atomic RPC first (requires migration 20260518_accept_ponudba_rpc.sql).
+  // Cast to any because the generated types don't include this new function yet.
+  const { data: rpcData, error: rpcError } = await (supabase as any).rpc('accept_ponudba', {
+    p_ponudba_id: ponudbaId,
+    p_povprasevanje_id: povprasevanjeId,
+    p_narocnik_id: narocnikId,
+  })
+
+  if (!rpcError) {
+    // RPC succeeded — fetch and return the accepted ponudba
+    const accepted = await getPonudba(ponudbaId)
+    if (!accepted) throw new Error('Napaka pri pridobivanju sprejete ponudbe')
+
+    if (rpcData) {
+      sendNotification({
+        userId: rpcData as string,
+        type: 'ponudba_sprejeta',
+        title: 'Vaša ponudba je bila sprejeta! 🎉',
+        message: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
+        link: '/obrtnik/ponudbe',
+        metadata: { ponudbaId, povprasevanjeId },
+      }).catch((err: any) => console.error('[v0] Notification error:', err))
+    }
+
+    return accepted
+  }
+
+  // RPC not available yet — fall back to sequential writes
+  console.warn('[v0] accept_ponudba RPC not available, using sequential writes:', rpcError.message)
+
+  // Authorization: ensure the narocnik owns the povprasevanje
+  const { data: pov } = await supabase
+    .from('povprasevanja')
+    .select('id, narocnik_id, status, obrtnik_id')
+    .eq('id', povprasevanjeId)
+    .maybeSingle()
+
+  if (!pov || pov.narocnik_id !== narocnikId) {
+    throw new Error('Nimate dostopa do tega povpraševanja')
+  }
+
+  if (['zakljuceno', 'preklicano', 'v_teku'].includes(pov.status)) {
+    throw new Error('Povpraševanje ne dovoljuje sprejema ponudbe v trenutnem stanju')
+  }
+
+  // Fetch the ponudba and ensure it belongs to this povprasevanje
+  const { data: ponudbaData } = await supabase
+    .from('ponudbe')
+    .select('id, obrtnik_id, status, povprasevanje_id')
+    .eq('id', ponudbaId)
+    .eq('povprasevanje_id', povprasevanjeId)
+    .maybeSingle()
+
+  if (!ponudbaData) {
+    throw new Error('Ponudba ni najdena ali ne pripada temu povpraševanju')
+  }
+
+  if (ponudbaData.status === 'sprejeta') {
+    throw new Error('Ponudba je že sprejeta')
+  }
+
+  // Step 1: Accept the selected ponudba
+  const { error: acceptError } = await supabase
+    .from('ponudbe')
+    .update({ status: 'sprejeta', accepted_at: new Date().toISOString() })
+    .eq('id', ponudbaId)
+
+  if (acceptError) throw new Error(`Napaka pri sprejemu ponudbe: ${acceptError.message}`)
+
+  // Step 2: Reject all other pending ponudbe
+  await supabase
+    .from('ponudbe')
+    .update({ status: 'zavrnjena' })
+    .eq('povprasevanje_id', povprasevanjeId)
+    .neq('id', ponudbaId)
+    .eq('status', 'poslana')
+
+  // Step 3: Update povprasevanje — set to v_teku and link obrtnik
+  const { error: povError } = await supabase
+    .from('povprasevanja')
+    .update({
+      status: 'v_teku',
+      obrtnik_id: ponudbaData.obrtnik_id,
+    })
+    .eq('id', povprasevanjeId)
+
+  if (povError) throw new Error(`Napaka pri posodobitvi povpraševanja: ${povError.message}`)
+
+  // Return the accepted ponudba with relations
+  const accepted = await getPonudba(ponudbaId)
+  if (!accepted) throw new Error('Napaka pri pridobivanju sprejete ponudbe')
+
+  // Fire notification (non-blocking)
+  if (ponudbaData.obrtnik_id) {
+    sendNotification({
+      userId: ponudbaData.obrtnik_id,
+      type: 'ponudba_sprejeta',
+      title: 'Vaša ponudba je bila sprejeta! 🎉',
+      message: 'Stranka je sprejela vašo ponudbo. Dogovorite se za termin z naročnikom.',
+      link: '/obrtnik/ponudbe',
+      metadata: { ponudbaId, povprasevanjeId },
+    }).catch((err: any) => console.error('[v0] Notification error:', err))
+  }
+
+  return accepted
 }
 
 /**

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { createClient } from '@/lib/supabase/server'
 import { craftworkerSuspensionEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
@@ -62,7 +61,7 @@ export async function POST(
 
     // Suspend the craftworker
     const { error: updateError } = await supabaseAdmin
-      .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/admin/craftworkers/[id]/suspend/route.ts'), 'craftworker_profile'))
+      .from('craftworker_profile')
       .update({
         is_suspended: true,
         suspended_at: new Date().toISOString(),
@@ -98,7 +97,7 @@ export async function POST(
             .update({ state: 'closed' })
 
           await supabaseAdmin
-            .from((assertLegacyWriteAllowed('conversation', 'app/api/admin/craftworkers/[id]/suspend/route.ts'), 'conversation'))
+            .from('conversation')
             .update({
               status: 'SUSPENDED',
               closed_at: new Date().toISOString()

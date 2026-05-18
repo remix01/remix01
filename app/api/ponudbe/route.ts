@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       validateRequiredString(povprasevanje_id, 'povprasevanje_id'),
       validateRequiredString(obrtnik_id, 'obrtnik_id'),
       validateRequiredString(message, 'message'),
-      validateAmount(price_estimate, 'price_estimate', 0),
+      price_estimate != null ? validateAmount(price_estimate, 'price_estimate', 0) : null,
       price_type ? validateEnum(price_type, 'price_type', ['fiksna', 'ocena', 'po_ogledu']) : null
     )
 

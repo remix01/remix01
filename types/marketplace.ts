@@ -214,7 +214,7 @@ export interface PonudbaUpdate {
   message?: string
   price_estimate?: number
   price_type?: PriceType
-  available_date?: string
+  available_date?: string | null
   status?: PonudbaStatus
 }
 

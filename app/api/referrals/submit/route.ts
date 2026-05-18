@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/sender'
 import { apiSuccess, badRequest, unauthorized, internalError } from '@/lib/api-response'
@@ -23,33 +22,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { referrerId, newCraftworkerId } = referralSchema.parse(body)
 
-    // Fetch referrer profile
+    // Fetch referrer profile from canonical obrtnik_profiles
     const { data: referrerData, error: referrerError } = await supabaseAdmin
-      .from('craftworker_profile')
-      .select('*, user:user_id(*)')
-      .eq('user_id', referrerId)
+      .from('obrtnik_profiles')
+      .select('id, referral_code, loyalty_points')
+      .eq('id', referrerId)
       .single()
 
     if (referrerError || !referrerData) {
       throw new Error('Referrer not found')
     }
 
-    // Fetch new craftworker
-    const { data: newCraftworkerData, error: craftworkerError } = await supabaseAdmin
-      .from('user')
-      .select('*, craftworker_profile(*)')
+    // Fetch new craftworker profile from canonical tables
+    const { data: newProfile, error: newProfileError } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id, referred_by, created_at')
       .eq('id', newCraftworkerId)
       .single()
 
-    if (craftworkerError || !newCraftworkerData) {
-      throw new Error('New craftworker not found')
-    }
-
-    const newCraftworkerProfile = Array.isArray(newCraftworkerData.craftworker_profile)
-      ? newCraftworkerData.craftworker_profile[0]
-      : newCraftworkerData.craftworker_profile
-
-    if (!newCraftworkerProfile) {
+    if (newProfileError || !newProfile) {
       throw new Error('New craftworker profile not found')
     }
 
@@ -57,49 +48,58 @@ export async function POST(request: NextRequest) {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    if (new Date(newCraftworkerData.created_at) < thirtyDaysAgo) {
+    if (new Date(newProfile.created_at) < thirtyDaysAgo) {
       throw new Error('Craftworker must be registered within the last 30 days')
     }
 
     // Check if already referred
-    if (newCraftworkerProfile.referred_by) {
+    if (newProfile.referred_by) {
       throw new Error('This craftworker has already been referred')
     }
 
-    // Update new craftworker with referral code
+    // Update new craftworker with referral code (canonical obrtnik_profiles)
     const { error: updateError } = await supabaseAdmin
-      .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/referrals/submit/route.ts'), 'craftworker_profile'))
+      .from('obrtnik_profiles')
       .update({ referred_by: referrerData.referral_code })
-      .eq('id', newCraftworkerProfile.id)
+      .eq('id', newProfile.id)
 
     if (updateError) throw new Error(updateError.message)
 
-    // Add 100 loyalty points to referrer (100 points = 0.5% discount)
+    // Add 100 loyalty points to referrer
     const { data: updatedReferrer, error: referrerUpdateError } = await supabaseAdmin
-      .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/referrals/submit/route.ts'), 'craftworker_profile'))
+      .from('obrtnik_profiles')
       .update({
         loyalty_points: (referrerData.loyalty_points || 0) + 100
       })
       .eq('id', referrerData.id)
-      .select()
+      .select('loyalty_points')
       .single()
 
     if (referrerUpdateError) throw new Error(referrerUpdateError.message)
 
+    // Fetch referrer contact info from profiles
+    const { data: referrerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', referrerId)
+      .maybeSingle()
+
     // Send email notification to referrer
     try {
-      await sendEmail(referrerData.user.email, {
-        subject: '🎉 Hvala za priporočilo!',
-        html: `
-          <h2>Hvala za priporočilo!</h2>
-          <p>Pozdravljeni ${referrerData.user.name},</p>
-          <p>Prejeli ste <strong>100 zvestobnih točk</strong> za uspešno priporočilo novega mojstra na LiftGO platformo.</p>
-          <p>Vaše zvestobne točke: <strong>${(updatedReferrer?.loyalty_points || 0)}</strong></p>
-          <p>To pomeni dodatni popust na vašo provizijo! 100 točk = 0.5% popust.</p>
-          <p>Hvala, da ste del LiftGO skupnosti!</p>
-          <p>Ekipa LiftGO</p>
-        `
-      })
+      if (referrerProfile?.email) {
+        await sendEmail(referrerProfile.email, {
+          subject: 'Hvala za priporočilo!',
+          html: `
+            <h2>Hvala za priporočilo!</h2>
+            <p>Pozdravljeni ${referrerProfile.full_name || ''},</p>
+            <p>Prejeli ste <strong>100 zvestobnih točk</strong> za uspešno priporočilo novega mojstra na LiftGO platformo.</p>
+            <p>Vaše zvestobne točke: <strong>${(updatedReferrer?.loyalty_points || 0)}</strong></p>
+            <p>To pomeni dodatni popust na vašo provizijo! 100 točk = 0.5% popust.</p>
+            <p>Hvala, da ste del LiftGO skupnosti!</p>
+            <p>Ekipa LiftGO</p>
+          `
+        })
+      }
     } catch (emailError) {
       console.error('[referral-submit] Email error:', emailError)
       // Don't fail the request if email fails

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import twilio from 'twilio'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { assertLegacyWriteAllowed } from '@/lib/db/legacy-write-guard'
 import { analyzeMessage, getBlockedReasonMessage } from '@/lib/twilio/contentFilter'
 import { sendBlockedMessageWarning } from '@/lib/twilio/systemMessages'
 
@@ -111,7 +110,7 @@ export async function POST(req: NextRequest) {
     if (isPaymentConfirmed && conversation.contact_revealed_at) {
       // Save message without blocking
       await supabaseAdmin
-        .from((assertLegacyWriteAllowed('message', 'app/api/webhooks/twilio/pre-event/route.ts'), 'message'))
+        .from('message')
         .insert({
           conversation_id: conversation.id,
           sender_user_id: senderUserId,
@@ -133,7 +132,7 @@ export async function POST(req: NextRequest) {
 
       // Save blocked message
       const { data: message, error: msgError } = await supabaseAdmin
-        .from((assertLegacyWriteAllowed('message', 'app/api/webhooks/twilio/pre-event/route.ts'), 'message'))
+        .from('message')
         .insert({
           conversation_id: conversation.id,
           sender_user_id: senderUserId,
@@ -148,7 +147,7 @@ export async function POST(req: NextRequest) {
       if (!msgError && message) {
         // Create violation record
         await supabaseAdmin
-          .from((assertLegacyWriteAllowed('violation', 'app/api/webhooks/twilio/pre-event/route.ts'), 'violation'))
+          .from('violation')
           .insert({
             job_id: conversation.job_id,
             user_id: senderUserId,
@@ -165,7 +164,7 @@ export async function POST(req: NextRequest) {
         const newWarnings = (craftworkerProfile.bypass_warnings || 0) + 1
         
         await supabaseAdmin
-          .from((assertLegacyWriteAllowed('craftworker_profile', 'app/api/webhooks/twilio/pre-event/route.ts'), 'craftworker_profile'))
+          .from('craftworker_profile')
           .update({
             bypass_warnings: newWarnings,
             // Suspend if 3+ warnings
@@ -192,7 +191,7 @@ export async function POST(req: NextRequest) {
 
     // Allow message
     await supabaseAdmin
-      .from((assertLegacyWriteAllowed('message', 'app/api/webhooks/twilio/pre-event/route.ts'), 'message'))
+      .from('message')
       .insert({
         conversation_id: conversation.id,
         sender_user_id: senderUserId,

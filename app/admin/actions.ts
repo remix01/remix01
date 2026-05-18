@@ -1030,6 +1030,34 @@ export async function createObrtnikProfile(
   return { success: true }
 }
 
+// ─── Offer / Ponudba admin actions ──────────────────────────────────────────
+
+/**
+ * Admin moderates a ponudba status (e.g. suspend fraudulent offer).
+ * Goes through canonicalWriteGateway so writes are logged.
+ */
+export async function adminUpdatePonudbaStatus(
+  ponudbaId: string,
+  status: 'poslana' | 'sprejeta' | 'zavrnjena',
+  reason?: string
+): Promise<{ success: boolean; error?: string }> {
+  const admin = await requireAdmin()
+  try {
+    const payload: Record<string, any> = { id: ponudbaId, status }
+    if (reason) payload.admin_opomba = reason
+
+    await canonicalWriteGateway.createOrUpdatePonudba(payload, 'admin.adminUpdatePonudbaStatus')
+
+    await logAction(admin.userId, 'OFFER_STATUS_CHANGED', 'ponudbe', ponudbaId, { status }, payload)
+
+    revalidatePath('/admin/offers')
+    revalidatePath('/admin/povprasevanja')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 
 export async function getAktivneKategorije() {
@@ -1087,7 +1115,7 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
 export async function getStrankaActivity(userId: string) {
   await ensureAdminAccess()
 
-  const [inquiriesRes, offersRes, paymentsRes] = await Promise.all([
+  const [inquiriesRes, offersRes, escrowRes] = await Promise.all([
     supabaseAdmin
       .from('povprasevanja')
       .select('id, title, status, created_at')
@@ -1096,14 +1124,15 @@ export async function getStrankaActivity(userId: string) {
       .limit(20),
     supabaseAdmin
       .from('ponudbe')
-      .select('id, povprasevanje_id, status, cena, created_at')
+      .select('id, povprasevanje_id, status, price_estimate, created_at')
       .eq('narocnik_id', userId)
       .order('created_at', { ascending: false })
       .limit(20),
+    // Use canonical escrow_transactions instead of legacy payment table
     supabaseAdmin
-      .from('payment')
+      .from('escrow_transactions')
       .select('id, amount, status, created_at')
-      .eq('customer_id', userId)
+      .eq('narocnik_id', userId)
       .order('created_at', { ascending: false })
       .limit(20),
   ])
@@ -1111,6 +1140,6 @@ export async function getStrankaActivity(userId: string) {
   return {
     inquiries: inquiriesRes.data || [],
     offers: offersRes.data || [],
-    payments: paymentsRes.data || [],
+    payments: escrowRes.data || [],
   }
 }
