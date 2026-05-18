@@ -145,17 +145,16 @@ export async function GET(_request: NextRequest) {
     const funnelAccepted = await getCountWithFallback('offer_accepted', sevenDaysAgo.toISOString(), undefined, useAnalyticsEvents)
     const funnelPaid = await getCountWithFallback('payment_completed', sevenDaysAgo.toISOString(), undefined, useAnalyticsEvents)
 
-    let todayEventsCount = 0
-    const { count: rawTodayEvents, error: todayEventsError } = await supabaseAdmin
-      .from('analytics_events')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', todayStart.toISOString())
-      .lt('created_at', tomorrowStart.toISOString())
-
-    if (todayEventsError) {
-      todayEventsCount = todayInquiries.count + todayConversions.count
+    let todayEventsCount: number
+    if (useAnalyticsEvents) {
+      const { count: rawTodayEvents, error: todayEventsError } = await supabaseAdmin
+        .from('analytics_events')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', todayStart.toISOString())
+        .lt('created_at', tomorrowStart.toISOString())
+      todayEventsCount = todayEventsError ? todayInquiries.count + todayConversions.count : (rawTodayEvents ?? 0)
     } else {
-      todayEventsCount = rawTodayEvents ?? 0
+      todayEventsCount = todayInquiries.count + todayConversions.count
     }
 
     const activeUsersPromise = supabaseAdmin

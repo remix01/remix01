@@ -55,18 +55,21 @@ function PartnerDashboardInner() {
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
   const loadDashboard = async () => {
-    const res = await fetch('/api/partner/dashboard')
-    if (res.status === 401) {
-      router.push('/partner-auth/login')
-      return
+    try {
+      const res = await fetch('/api/partner/dashboard')
+      if (res.status === 401) {
+        router.push('/partner-auth/login')
+        return
+      }
+      if (!res.ok) return
+      const { data } = await res.json()
+      setPartner(data.partner)
+      setOffers(data.offers as Offer[])
+      setOpenRequestsCount(data.openRequestsCount)
+      setCompletionStatus(data.completionStatus)
+    } finally {
+      setLoading(false)
     }
-    if (!res.ok) return
-    const { data } = await res.json()
-    setPartner(data.partner)
-    setOffers(data.offers as Offer[])
-    setOpenRequestsCount(data.openRequestsCount)
-    setCompletionStatus(data.completionStatus)
-    setLoading(false)
   }
 
   const handleOfferCreated = async () => {
