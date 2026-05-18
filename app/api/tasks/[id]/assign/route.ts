@@ -41,18 +41,24 @@ export async function POST(
       .select()
       .single()
 
+<<<<<<< Updated upstream
     const result = task
       ? { success: true, task, assignment_id: taskId }
       : null
 
     if (rpcError) {
       console.error('[v0] RPC error in assign_task:', rpcError)
+=======
+    if (rpcError || !task) {
+      console.error('[v0] Error in assign_task:', rpcError)
+>>>>>>> Stashed changes
       return NextResponse.json(
         { error: 'Failed to assign task', details: rpcError },
         { status: 400 }
       )
     }
 
+<<<<<<< Updated upstream
     if (!result || !result.success) {
       return NextResponse.json(
         { error: 'Assignment failed' },
@@ -60,16 +66,16 @@ export async function POST(
       )
     }
 
+=======
+>>>>>>> Stashed changes
     console.log('[v0] Task assigned successfully:', {
       taskId,
       worker_id,
-      assignmentId: result.assignment_id,
     })
 
     return NextResponse.json({
       success: true,
-      task: result.task,
-      assignment_id: result.assignment_id,
+      task,
       message: 'Task assigned successfully',
     })
   } catch (error) {

@@ -1,8 +1,8 @@
 # CLAUDE.md — LiftGO Codebase Guide
 
 ## Quick IDs
-```
-Supabase:    whabaeatixtymbccwigu
+```whabaeatixtymbccwigu
+Supabase:    
 Vercel:      Team: info-36187542s-projects | Project: v0-liftgo-platform-concept
 GitHub:      remix01/remix01
 Stripe:      START=prod_U7z9Ymkbh2zRAW (0€,10%) | PRO=prod_SpS7ixowByASns (29€,5%)

@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
 
-const ROUTE_GLOB_CMD = "rg --files app/api -g 'route.ts'"
+const ROUTE_GLOB_CMD = "find app/api -name 'route.ts' -type f"
 
 // Transitional allowlist for known legacy mutating endpoints.
 // TODO(response-policy): remove entries incrementally as routes adopt canonical helper

@@ -39,10 +39,14 @@ export default async function PartnerNotificationsPage() {
             <div className="space-y-3">
               {notifications.map(n => {
                 const type = typeLabels[n.type] || { label: n.type, icon: '📬', color: 'gray' }
+<<<<<<< Updated upstream
                 const isRead = Boolean((n as any).is_read ?? (n as any).read)
                 const createdAtLabel = n.created_at
                   ? new Date(n.created_at).toLocaleString('sl-SI')
                   : 'Neznan čas'
+=======
+                const isRead = Boolean(n.read)
+>>>>>>> Stashed changes
                 return (
                   <div key={n.id} className={`bg-white rounded-xl border p-4 flex gap-3 ${!isRead ? 'border-teal-200 bg-teal-50' : ''}`}>
                     <span className="text-2xl">{type.icon}</span>
@@ -50,7 +54,11 @@ export default async function PartnerNotificationsPage() {
                       <p className="font-medium text-sm">{type.label}</p>
                       <p className="text-sm text-muted-foreground">{n.message || n.body}</p>
                       <p className="text-xs text-muted-foreground mt-1">
+<<<<<<< Updated upstream
                         {createdAtLabel}
+=======
+                        {n.created_at ? new Date(n.created_at).toLocaleString('sl-SI') : 'Neznan čas'}
+>>>>>>> Stashed changes
                       </p>
                     </div>
                     {!isRead && <div className="w-2 h-2 rounded-full bg-teal-500 mt-1 flex-shrink-0" />}

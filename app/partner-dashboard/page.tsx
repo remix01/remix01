@@ -54,6 +54,7 @@ function PartnerDashboardInner() {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
+<<<<<<< Updated upstream
   const loadDashboard = async () => {
     try {
       const res = await fetch('/api/partner/dashboard')
@@ -68,6 +69,76 @@ function PartnerDashboardInner() {
       setOpenRequestsCount(data.openRequestsCount)
       setCompletionStatus(data.completionStatus)
     } finally {
+=======
+  const supabase = createClient()
+
+  const handleOfferCreated = async (partnerId: string) => {
+    const { data: offersData } = await supabase
+      .from('ponudbe')
+      .select('*')
+      .eq('obrtnik_id', partnerId)
+      .order('created_at', { ascending: false })
+    if (offersData) {
+      setOffers(offersData as unknown as Offer[])
+      setCompletionStatus((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              hasOffers: offersData.length > 0,
+              completionPercentage: prev.hasOffers === (offersData.length > 0)
+                ? prev.completionPercentage
+                : (([
+                    prev.hasDescription,
+                    prev.hasHourlyRate,
+                    prev.hasPhone,
+                    offersData.length > 0,
+                  ].filter(Boolean).length / 4) * 100),
+            }
+          : prev
+      )
+    }
+  }
+
+  useEffect(() => {
+    const getPartner = async () => {
+      const sb = createClient()
+      const {
+        data: { user },
+      } = await sb.auth.getUser()
+
+      if (!user) {
+        router.push('/partner-auth/login')
+        return
+      }
+
+      const { data: partnerData } = await sb
+        .from('obrtnik_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (partnerData) {
+        setPartner(partnerData)
+
+        const [status, offersRes, openCountRes] = await Promise.all([
+          getCompletionStatus(partnerData.id),
+          sb
+            .from('ponudbe')
+            .select('*')
+            .eq('obrtnik_id', partnerData.id)
+            .order('created_at', { ascending: false }),
+          sb
+            .from('povprasevanja')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'odprto'),
+        ])
+
+        if (status) setCompletionStatus(status)
+        if (offersRes.data) setOffers(offersRes.data as unknown as Offer[])
+        if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
+      }
+
+>>>>>>> Stashed changes
       setLoading(false)
     }
   }

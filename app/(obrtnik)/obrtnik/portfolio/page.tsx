@@ -44,7 +44,7 @@ export default async function PortfolioPage() {
       </div>
 
       {portfolioItems && portfolioItems.length > 0 ? (
-        <PortfolioSortableGrid items={portfolioItems} obrtnikId={profile.id} />
+        <PortfolioSortableGrid items={portfolioItems.map(item => ({ ...item, is_featured: item.is_featured ?? false, sort_order: item.sort_order ?? 0 }))} obrtnikId={profile.id} />
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="text-6xl mb-4">📸</div>
