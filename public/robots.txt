@@ -5,30 +5,52 @@ Allow: /_next/image/
 Allow: /images/
 Allow: /icons/
 
-Disallow: /api/
+# Auth pages
+Disallow: /prijava/
+Disallow: /registracija/
+Disallow: /pozabljeno-geslo/
+Disallow: /posodobi-geslo/
+Disallow: /auth/
+
+# Admin, partner, and internal areas
 Disallow: /admin/
 Disallow: /partner-auth/
 Disallow: /partner-dashboard/
-Disallow: /auth/
-Disallow: /prijava/
-Disallow: /registracija/
+Disallow: /sandbox/
+Disallow: /protected/
+Disallow: /test/
+Disallow: /sentry-example-page/
+
+# API endpoints
+Disallow: /api/
+
+# Customer (narocnik) private area
 Disallow: /dashboard/
 Disallow: /povprasevanja/
 Disallow: /novo-povprasevanje/
+Disallow: /povprasevanje/
 Disallow: /profil/
 Disallow: /obvestila/
 Disallow: /ocena/
+Disallow: /sporocila/
+Disallow: /narocnina/
+Disallow: /moj-dom/
+Disallow: /ponudbe/
+
+# Craftsman (obrtnik) private area
+Disallow: /obrtnik/dashboard/
+Disallow: /obrtnik/narocnina/
+Disallow: /obrtnik/ponudbe/
+Disallow: /obrtnik/profil/
+Disallow: /obrtnik/sporocila/
+Disallow: /obrtnik/statistike/
+Disallow: /obrtnik/razpolozljivost/
+Disallow: /obrtnik/portfolio/
+Disallow: /obrtnik/povprasevanja/
+
+# URL parameters that create duplicate content
 Disallow: /*?*sort=
 Disallow: /*?*filter=
 Disallow: /*?*page=
-
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: msnbot
-Allow: /
 
 Sitemap: https://www.liftgo.net/sitemap.xml
