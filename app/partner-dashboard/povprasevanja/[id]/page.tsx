@@ -158,7 +158,7 @@ export default function PovprasevanjeDetailPage() {
         povprasevanje_id: id,
         obrtnik_id: user.id,
         message: message.trim(),
-        price_estimate: parsedPrice ?? 0,
+        price_estimate: parsedPrice,
         price_type: 'fiksna',
         available_date: availableDate || null,
       }),

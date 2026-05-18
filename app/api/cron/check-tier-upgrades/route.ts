@@ -13,11 +13,12 @@ export async function GET(request: NextRequest) {
 
     console.log('[tier-upgrades] Starting tier upgrade check...')
 
-    // Get all active craftworkers from canonical obrtnik_profiles
+    // Commission/loyalty data lives in craftworker_profile (not obrtnik_profiles).
+    // Fetch email via the joined user row.
     const { data: craftworkers, error } = await supabaseAdmin
-      .from('obrtnik_profiles')
-      .select('id, commission_rate, total_jobs_completed, loyalty_points, subscription_tier, commission_override, package_type')
-      .eq('is_available', true)
+      .from('craftworker_profile')
+      .select('id, user_id, commission_rate, commission_override, total_jobs_completed, loyalty_points, package_type, user:user_id(email, full_name)')
+      .eq('is_suspended', false)
 
     if (error) throw new Error(error.message)
 
@@ -29,37 +30,33 @@ export async function GET(request: NextRequest) {
       const currentRate = Number(craftworker.commission_rate) || 10
 
       if (currentCommission.rate < currentRate && currentCommission.rate !== currentRate) {
-        // Update commission_rate in canonical obrtnik_profiles
         const { error: updateError } = await supabaseAdmin
-          .from('obrtnik_profiles')
+          .from('craftworker_profile')
           .update({ commission_rate: currentCommission.rate })
           .eq('id', craftworker.id)
 
         if (updateError) throw new Error(updateError.message)
 
-        // Fetch profile for email
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', craftworker.id)
-          .maybeSingle()
+        const userRow = Array.isArray(craftworker.user) ? craftworker.user[0] : craftworker.user
+        const fullName = (userRow as any)?.full_name ?? craftworker.user_id
+        const email = (userRow as any)?.email
 
         upgradeCount++
         upgrades.push({
-          name: profile?.full_name || craftworker.id,
+          name: fullName,
           oldRate: currentRate,
           newRate: currentCommission.rate,
           tierName: currentCommission.tierName
         })
 
         try {
-          if (profile?.email) {
-            await sendEmail(profile.email, {
+          if (email) {
+            await sendEmail(email, {
               subject: 'Prešli ste na nižjo provizijsko stopnjo!',
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #10b981;">Čestitamo!</h2>
-                  <p>Pozdravljeni ${profile.full_name || ''},</p>
+                  <p>Pozdravljeni ${fullName},</p>
                   <p>Vesele novice! Zaradi vaših uspešno opravljenih del ste dosegli nov tier in <strong>znižali svojo provizijo</strong>.</p>
                   <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; margin: 24px 0;">
                     <p style="margin: 0;"><strong>Stara provizija:</strong> ${currentRate}%</p>

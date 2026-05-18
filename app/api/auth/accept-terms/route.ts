@@ -44,9 +44,10 @@ export async function POST(request: NextRequest) {
       updateData.craftworker_agreement_accepted_at = new Date().toISOString()
     }
 
-    // Canonical write: profiles table (replaces legacy 'user' table write)
+    // Write to user table — tos_accepted_at/tos_version/craftworker_agreement_accepted_at
+    // only exist there; profiles has no equivalent columns.
     const { data: updatedProfile, error: updateError } = await supabaseAdmin
-      .from('profiles')
+      .from('user')
       .update(updateData)
       .eq('id', user.id)
       .select('id, tos_accepted_at, tos_version, craftworker_agreement_accepted_at')
