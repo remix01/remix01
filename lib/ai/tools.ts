@@ -7,6 +7,7 @@
 import type { Tool, ToolResultBlockParam } from '@anthropic-ai/sdk/resources/messages'
 import { createClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
+import { getMorphFastApplyTool } from './morph'
 
 const supabaseAdmin = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
@@ -58,6 +59,19 @@ export const AI_TOOLS: Tool[] = [
         language: { type: 'string', enum: ['python', 'javascript'], description: 'Jezik izvedbe' },
       },
       required: ['code'],
+    },
+  },
+  {
+    name: 'edit_file_fastapply',
+    description: 'Uporabi Morph FastApply za varno in hitro urejanje datoteke',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        target_filepath: { type: 'string', description: 'Pot do ciljne datoteke v repozitoriju' },
+        instructions: { type: 'string', description: 'Navodila za spremembo' },
+        code_edit: { type: 'string', description: 'Predlagana vsebina ali patch spremembe' },
+      },
+      required: ['target_filepath', 'instructions', 'code_edit'],
     },
   },
   {
@@ -121,6 +135,33 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
     return runInE2B(code, language)
   },
 
+  async edit_file_fastapply(input) {
+    const morph = await getMorphFastApplyTool()
+    if (!morph) {
+      throw new Error('Morph FastApply ni na voljo. Nastavi MORPH_API_KEY in namesti @morphllm/morphsdk.')
+    }
+
+    const payload = input as {
+      target_filepath?: string
+      instructions?: string
+      code_edit?: string
+      filePath?: string
+      instruction?: string
+    }
+
+    const normalized = {
+      target_filepath: payload.target_filepath ?? payload.filePath,
+      instructions: payload.instructions ?? payload.instruction,
+      code_edit: payload.code_edit,
+    }
+
+    if (!normalized.target_filepath || !normalized.instructions || !normalized.code_edit) {
+      throw new Error('FastApply zahteva: target_filepath, instructions, code_edit')
+    }
+
+    return morph.run(normalized)
+  },
+
   async find_matching_obrtniki(input) {
     const { category_id, location, limit = 10 } = input as {
       category_id: string
@@ -179,7 +220,7 @@ export function getToolsForAgent(agentType: string): Tool[] {
     onboarding_assistant: ['search_similar_tasks', 'get_market_price_range'],
     provider_coach: ['search_similar_tasks', 'get_market_price_range', 'find_matching_obrtniki'],
     payment_helper: ['get_task_details'],
-    support_agent: ['search_similar_tasks', 'get_task_details', 'execute_code_in_sandbox'],
+    support_agent: ['search_similar_tasks', 'get_task_details', 'execute_code_in_sandbox', 'edit_file_fastapply'],
 
     // Legacy aliases during migration
     work_description: ['search_similar_tasks', 'get_market_price_range'],
