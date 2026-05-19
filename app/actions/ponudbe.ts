@@ -162,6 +162,7 @@ export async function createPonudbaAction(
     await offerService.createPonudba(user.id, {
       povprasevanje_id: payload.povprasevanje_id,
       obrtnik_id: user.id,
+      title: payload.title?.trim() ?? null,
       message: payload.message,
       price_estimate: payload.price_estimate,
       price_type: payload.price_type ?? 'ocena',

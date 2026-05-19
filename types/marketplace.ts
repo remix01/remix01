@@ -158,6 +158,7 @@ export interface PovprasevanjeInsert {
 export interface PonudbaInsert {
   povprasevanje_id: string
   obrtnik_id: string
+  title?: string | null
   message: string
   price_estimate?: number
   price_type: PriceType
