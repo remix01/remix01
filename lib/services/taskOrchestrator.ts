@@ -190,20 +190,31 @@ export const taskOrchestrator = {
       )
     }
 
-    // Update status in database
-    let updateError: any = null
-    try { await canonicalWriteGateway.enqueueOrUpdateTask({
-      id: taskId,
+    // Atomic conditional update — only succeeds if status hasn't changed since read
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('service_requests')
+      .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
         ...(metadata && { metadata }),
-      }, 'service.taskOrchestrator.updateTaskStatus') } catch (e) { updateError = e }
+      })
+      .eq('id', taskId)
+      .eq('status', currentStatus)
+      .select('id')
 
     if (updateError) {
       throw new ServiceError(
         'Napaka pri posodobitvi naloge',
         'DB_ERROR',
         500
+      )
+    }
+
+    if (!updated || updated.length === 0) {
+      throw new ServiceError(
+        `Concurrent modification: task ${taskId} status changed from '${currentStatus}' before update`,
+        'CONFLICT',
+        409
       )
     }
 
