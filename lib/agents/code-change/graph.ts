@@ -8,7 +8,7 @@ const CodeChangeAnnotation = Annotation.Root({
     default: (): CodeChangeRequest[] => [],
   }),
   results: Annotation<CodeChangeResult[]>({
-    reducer: (existing: CodeChangeResult[], update: CodeChangeResult[]) => [...existing, ...update],
+    reducer: (_: CodeChangeResult[], update: CodeChangeResult[]) => update,
     default: (): CodeChangeResult[] => [],
   }),
   retryQueue: Annotation<CodeChangeRequest[]>({
