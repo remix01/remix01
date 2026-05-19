@@ -3,9 +3,18 @@ import { codeChangeNode } from "./codeChangeNode";
 import type { CodeChangeRequest, CodeChangeResult } from "./types";
 
 const CodeChangeAnnotation = Annotation.Root({
-  pendingChanges: Annotation<CodeChangeRequest[]>({ default: () => [] }),
-  results: Annotation<CodeChangeResult[]>({ default: () => [] }),
-  retryQueue: Annotation<CodeChangeRequest[]>({ default: () => [] }),
+  pendingChanges: Annotation<CodeChangeRequest[]>({
+    reducer: (_: CodeChangeRequest[], update: CodeChangeRequest[]) => update,
+    default: (): CodeChangeRequest[] => [],
+  }),
+  results: Annotation<CodeChangeResult[]>({
+    reducer: (existing: CodeChangeResult[], update: CodeChangeResult[]) => [...existing, ...update],
+    default: (): CodeChangeResult[] => [],
+  }),
+  retryQueue: Annotation<CodeChangeRequest[]>({
+    reducer: (_: CodeChangeRequest[], update: CodeChangeRequest[]) => update,
+    default: (): CodeChangeRequest[] => [],
+  }),
 });
 
 type CodeChangeState = typeof CodeChangeAnnotation.State;

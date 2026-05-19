@@ -38,7 +38,10 @@ export async function testInE2B(
     }
   }
 
-  const sandbox = await Sandbox.create({
+  // Cast to any: @e2b/code-interpreter@2.4.2 bundles e2b@2.x but declares types
+  // against the e2b@1.x API in the project root, causing version mismatch.
+  const SandboxAny = Sandbox as any;
+  const sandbox = await SandboxAny.create({
     timeoutMs: SANDBOX_TIMEOUT_MS,
     envs: safeEnv,
   });
