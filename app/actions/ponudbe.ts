@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { acceptPonudbaFull, updatePonudba } from '@/lib/dal/ponudbe'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
+import { offerService } from '@/lib/services/offerService'
+import type { CreateOfferPayload } from '@/lib/types/offer'
 
 export async function acceptPonudbaAction(
   ponudbaId: string,
@@ -143,5 +145,40 @@ export async function updatePonudbaAction(
   } catch (error) {
     console.error('[v0] updatePonudbaAction error:', error)
     return { success: false, error: 'Napaka pri urejanju ponudbe' }
+  }
+}
+
+/**
+ * Obrtnik creates a new ponudba for an open povpraševanje.
+ */
+export async function createPonudbaAction(
+  payload: CreateOfferPayload
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Niste prijavljeni' }
+
+    await offerService.createPonudba(user.id, {
+      povprasevanje_id: payload.povprasevanje_id,
+      obrtnik_id: user.id,
+      message: payload.message,
+      price_estimate: payload.price_estimate,
+      price_type: payload.price_type ?? 'ocena',
+      available_date: payload.available_date ?? undefined,
+    })
+
+    revalidatePath('/partner-dashboard')
+    revalidatePath('/partner-dashboard/ponudbe')
+    revalidatePath(`/povprasevanja/${payload.povprasevanje_id}`)
+    revalidatePath('/dashboard')
+    revalidatePath('/admin/ponudbe')
+    revalidatePath('/admin/povprasevanja')
+
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Napaka pri oddaji ponudbe'
+    console.error('[v0] createPonudbaAction error:', error)
+    return { success: false, error: msg }
   }
 }
