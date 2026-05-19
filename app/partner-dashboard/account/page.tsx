@@ -83,21 +83,16 @@ export default function AccountPage() {
         if (partnerError) throw partnerError
 
         // Fetch user profile
-        const [userByIdRes, userByAuthIdRes] = await Promise.all([
+        const [userByIdRes] = await Promise.all([
           supabase
             .from('profiles')
             .select('id, email, phone, location_city')
             .eq('id', user.id)
             .maybeSingle(),
-          supabase
-            .from('profiles')
-            .select('id, email, phone, location_city')
-            .eq('auth_user_id', user.id)
-            .maybeSingle(),
         ])
 
-        const userData = userByIdRes.data ?? userByAuthIdRes.data
-        const userError = userByIdRes.error ?? userByAuthIdRes.error
+        const userData = userByIdRes.data
+        const userError = userByIdRes.error
 
         if (userError) throw userError
 

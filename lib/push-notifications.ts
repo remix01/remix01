@@ -24,7 +24,7 @@ export async function savePushSubscription(params: SavePushSubscriptionParams): 
   try {
     const supabase = await createClient()
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('push_subscriptions')
       .upsert({
         user_id: params.userId,
@@ -33,8 +33,8 @@ export async function savePushSubscription(params: SavePushSubscriptionParams): 
         auth: params.subscription.keys.auth,
         device_info: params.deviceInfo || null,
         updated_at: new Date().toISOString()
-      }, { 
-        onConflict: 'endpoint' 
+      }, {
+        onConflict: 'endpoint'
       })
 
     if (error) {

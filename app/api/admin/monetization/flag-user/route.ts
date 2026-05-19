@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
       .insert({
         action: flagged ? 'flag_user' : 'unflag_user',
         admin_id: 'system',
-        user_id: userId,
-        old_value: { flagged: !flagged },
-        new_value: { flagged },
+        target_id: userId,
+        target_type: 'user',
+        details: { old: { flagged: !flagged }, new: { flagged } },
         created_at: new Date().toISOString(),
       })
     if (auditError) console.error('Audit log error:', auditError)
