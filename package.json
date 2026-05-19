@@ -142,7 +142,7 @@
     "supabase": "^2.98.2",
 >>>>>>> Stashed changes
     "tailwindcss": "^3.4.17",
-    "ts-jest": "^29.4.9",
+    "ts-jest": "^29.2.5",
     "tsx": "^4.19.2",
     "typescript": "5.7.3"
   },
