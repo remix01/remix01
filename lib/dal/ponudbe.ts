@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendNotification } from '@/lib/notifications'
 import { enqueue } from '@/lib/jobs/queue'
+import { assertPonudbaTransition } from '@/lib/state/ponudbe-status'
+import { assertPovprasevanjeTransition } from '@/lib/state/povprasevanja-status'
 import type { 
   Ponudba, 
   PonudbaInsert, 
@@ -185,6 +187,17 @@ export async function createPonudba(ponudba: PonudbaInsert): Promise<Ponudba | n
  */
 export async function updatePonudba(id: string, updates: PonudbaUpdate & { lock_version?: number }): Promise<Ponudba | null> {
   const supabase = await createClient()
+
+  if (typeof (updates as any).status === 'string') {
+    const { data: current } = await supabase
+      .from('ponudbe')
+      .select('status')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!current) return null
+    assertPonudbaTransition(current.status, (updates as any).status)
+  }
   
   const expectedLockVersion = (updates as any).lock_version
   const payload = { ...(updates as any) }
@@ -310,7 +323,7 @@ export async function acceptPonudbaFull(
     throw new Error('Nimate dostopa do tega povpraševanja')
   }
 
-  if (['zakljuceno', 'preklicano', 'v_teku'].includes(pov.status)) {
+  if (['zakljuceno', 'preklicano'].includes(pov.status)) {
     throw new Error('Povpraševanje ne dovoljuje sprejema ponudbe v trenutnem stanju')
   }
 
@@ -331,6 +344,7 @@ export async function acceptPonudbaFull(
   }
 
   // Step 1: Accept the selected ponudba
+  assertPonudbaTransition(ponudbaData.status, 'sprejeta')
   const { error: acceptError } = await supabase
     .from('ponudbe')
     .update({ status: 'sprejeta', accepted_at: new Date().toISOString() })
@@ -346,11 +360,12 @@ export async function acceptPonudbaFull(
     .neq('id', ponudbaId)
     .eq('status', 'poslana')
 
-  // Step 3: Update povprasevanje — set to v_teku and link obrtnik
+  // Step 3: Update povprasevanje — set to v_izvedbi and link obrtnik
+  assertPovprasevanjeTransition(pov.status, 'v_izvedbi')
   const { error: povError } = await supabase
     .from('povprasevanja')
     .update({
-      status: 'v_teku',
+      status: 'v_izvedbi',
       obrtnik_id: ponudbaData.obrtnik_id,
     })
     .eq('id', povprasevanjeId)

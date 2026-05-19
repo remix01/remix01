@@ -4,6 +4,7 @@ export const PONUDBA_STATUS = {
   POSLANA: 'poslana',
   SPREJETA: 'sprejeta',
   ZAVRNJENA: 'zavrnjena',
+  UMAKNJENA: 'umaknjena',
 } as const
 
 export type PonudbaStatus = (typeof PONUDBA_STATUS)[keyof typeof PONUDBA_STATUS]

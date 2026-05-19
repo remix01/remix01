@@ -8,7 +8,7 @@ import type { CanonicalLeadStatus } from '@/lib/lead-status'
 
 export type PovprasevanjeStatus = CanonicalLeadStatus
 
-export type PonudbaStatus = 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena'
+export type PonudbaStatus = 'draft' | 'poslana' | 'sprejeta' | 'zavrnjena' | 'umaknjena'
 
 export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 
