@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Trash2, Edit2 } from 'lucide-react'
 import type { Offer } from '@/lib/types/offer'
 import { updatePonudbaAction, withdrawPonudbaAction } from '@/app/actions/ponudbe'
+import { toast } from 'sonner'
 
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
   poslana: { label: 'Poslana', variant: 'default' },
@@ -22,12 +23,18 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={s.variant}>{s.label}</Badge>
 }
 
+export function canWithdrawPonudba(status: string, offerOwnerId?: string, currentUserId?: string) {
+  return status === 'poslana' && (!currentUserId || offerOwnerId === currentUserId)
+}
+
 export function OffersList({
   offers,
   onUpdate,
+  currentUserId,
 }: {
   offers: Offer[]
   onUpdate: () => void
+  currentUserId?: string
 }) {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -39,6 +46,7 @@ export function OffersList({
     price_estimate: '',
     available_date: '',
   })
+  const canWithdrawOffer = (offer: Offer) => canWithdrawPonudba(offer.status, offer.obrtnik_id, currentUserId)
 
   const startEditing = (offer: Offer) => {
     setError(null)
@@ -72,9 +80,12 @@ export function OffersList({
       if (!result.success) {
         throw new Error(result.error || 'Napaka pri umiku ponudbe.')
       }
+      toast.success('Ponudba uspešno umaknjena')
       onUpdate()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Napaka pri umiku ponudbe.')
+      const msg = err instanceof Error ? err.message : 'Napaka pri umiku ponudbe.'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setDeleting(null)
     }
@@ -240,14 +251,18 @@ export function OffersList({
                   <Edit2 className="h-4 w-4" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDelete(offer.id)}
-                disabled={deleting === offer.id || editing === offer.id}
-              >
-                <Trash2 className="h-4 w-4 text-red-500" />
-              </Button>
+              {canWithdrawOffer(offer) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(offer.id)}
+                  disabled={deleting === offer.id || editing === offer.id}
+                  title="Umakni ponudbo"
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                  <span className="sr-only">Umakni ponudbo</span>
+                </Button>
+              )}
             </div>
           </div>
         </Card>
