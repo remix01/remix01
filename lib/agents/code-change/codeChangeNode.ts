@@ -60,7 +60,10 @@ async function processOne(req: CodeChangeRequest): Promise<CodeChangeResult> {
     );
     testOutput = `exit=${testResult.exitCode}\nstdout: ${testResult.stdout}\nstderr: ${testResult.stderr}`;
 
-    if (testResult.exitCode !== 0 && testResult.exitCode !== -1) {
+    if (testResult.exitCode === -1) {
+      throw new Error("E2B_API_KEY not configured — cannot run requested tests");
+    }
+    if (testResult.exitCode !== 0) {
       throw new Error(`Tests failed (exit ${testResult.exitCode}): ${testResult.stderr.slice(0, 500)}`);
     }
   }

@@ -7,7 +7,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const MODEL = "claude-sonnet-4-5-20241022";
+const MODEL = "claude-sonnet-4-6";
 
 const SYSTEM_PROMPT = `You are an expert Next.js 15 / TypeScript / Tailwind 4 developer for the LiftGO marketplace.
 You receive a file and an instruction describing what to change.
