@@ -55,6 +55,7 @@ jest.mock('@/lib/supabase-admin', () => ({
     from: mockFrom,
     rpc: mockRpc,
   },
+  logAction: jest.fn().mockResolvedValue(undefined),
 }))
 
 jest.mock('@/lib/notifications', () => ({
@@ -177,9 +178,11 @@ describe('acceptPonudbaFull', () => {
       id: PONUDBA_ID,
       obrtnik_id: OBRTNIK_ID,
       povprasevanje_id: POVP_ID,
-      status: 'sprejeta',
+      status: 'poslana',
     }
+    const mockAcceptedPonudba = { ...mockPendingPonudba, status: 'sprejeta' }
 
+    let ponudbeCallCount = 0
     mockFrom.mockImplementation((table: string) => {
       if (table === 'povprasevanja') {
         return makeBuilder({ data: { id: POVP_ID, narocnik_id: NAROCNIK_ID, status: 'odprto', obrtnik_id: null }, error: null })
@@ -236,24 +239,45 @@ describe('acceptPonudbaFull', () => {
 // ─── Test: obrtnik cannot edit another obrtnik's ponudba ─────────────────────
 describe('updatePonudbaAction ownership guard', () => {
   it('rejects if caller does not own ponudba', async () => {
-    const { updatePonudbaAction } = await import('@/app/actions/ponudbe')
+    // Temporarily replace createClient default to return a client where
+    // the authenticated user (OTHER_USER) differs from the ponudba owner (OBRTNIK_ID).
+    const { createClient } = require('@/lib/supabase/server') as { createClient: jest.Mock }
+    const originalImpl = createClient.getMockImplementation()
 
-    const { createClient } = await import('@/lib/supabase/server')
-    ;(createClient as jest.Mock).mockResolvedValueOnce({
+    const localFrom = jest.fn().mockReturnValue(
+      makeBuilder({ data: { id: PONUDBA_ID, obrtnik_id: OBRTNIK_ID, status: 'poslana', povprasevanje_id: POVP_ID }, error: null })
+    )
+    createClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: OTHER_USER } } }) },
-      from: jest.fn().mockReturnValue(
-        makeBuilder({ data: { id: PONUDBA_ID, obrtnik_id: OBRTNIK_ID, status: 'poslana', povprasevanje_id: POVP_ID }, error: null })
-      ),
+      from: localFrom,
     })
 
-    const result = await updatePonudbaAction(PONUDBA_ID, { message: 'Changed' })
-    expect(result.success).toBe(false)
-    expect(result.error).toMatch(/dostopa/)
+    try {
+      const { updatePonudbaAction } = require('@/app/actions/ponudbe') as { updatePonudbaAction: Function }
+      const result = await updatePonudbaAction(PONUDBA_ID, { message: 'Changed' })
+      expect(result.success).toBe(false)
+      expect(result.error).toMatch(/dostopa/)
+    } finally {
+      // Restore the default so later tests aren't affected
+      if (originalImpl) {
+        createClient.mockImplementation(originalImpl)
+      } else {
+        createClient.mockResolvedValue({
+          auth: { getUser: jest.fn() },
+          from: mockFrom,
+          rpc: mockRpc,
+        })
+      }
+    }
   })
 })
 
 // ─── Test: povprasevanje with accepted ponudba cannot be hard-deleted ────────
 describe('deletePovprasevanje guard', () => {
+  beforeEach(() => {
+    mockFrom.mockReset()
+  })
+
   it('prevents deletion when ponudbe exist', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'ponudbe') {
@@ -283,29 +307,24 @@ describe('deletePovprasevanje guard', () => {
 })
 
 // ─── Test: admin can moderate via canonical service ──────────────────────────
+jest.mock('@/lib/admin-auth', () => ({
+  requireAdmin: jest.fn().mockResolvedValue({ userId: 'admin-id', role: 'SUPER_ADMIN' }),
+  ensureAdminAccess: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('@/lib/onboarding/state-machine', () => ({
+  transitionOnboardingState: jest.fn().mockResolvedValue(undefined),
+}))
+
 describe('adminUpdatePonudbaStatus', () => {
   it('calls canonicalWriteGateway for offer status change', async () => {
-    const { adminUpdatePonudbaStatus } = await import('@/app/admin/actions')
     const { canonicalWriteGateway } = await import('@/lib/services/canonicalWriteGateway')
     const gwSpy = jest.spyOn(canonicalWriteGateway, 'createOrUpdatePonudba').mockResolvedValueOnce({ id: PONUDBA_ID, status: 'zavrnjena' } as any)
 
-    // Mock requireAdmin
-    jest.mock('@/lib/admin-auth', () => ({
-      requireAdmin: jest.fn().mockResolvedValue({ userId: 'admin-id', role: 'SUPER_ADMIN' }),
-    }))
+    const { adminUpdatePonudbaStatus } = await import('@/app/admin/actions')
 
-    jest.mock('@/lib/supabase-admin', () => ({
-      supabaseAdmin: {
-        from: jest.fn().mockReturnValue(makeBuilder({ data: null, error: null })),
-        rpc: jest.fn(),
-      },
-      logAction: jest.fn().mockResolvedValue(undefined),
-    }))
-
-    // Should not throw
-    await expect(
-      adminUpdatePonudbaStatus(PONUDBA_ID, 'zavrnjena', 'Fraud detected')
-    ).resolves.not.toThrow()
+    const result = await adminUpdatePonudbaStatus(PONUDBA_ID, 'zavrnjena', 'Fraud detected')
+    expect(result.success).toBe(true)
 
     gwSpy.mockRestore()
   })

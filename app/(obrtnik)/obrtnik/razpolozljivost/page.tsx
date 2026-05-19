@@ -68,7 +68,7 @@ export default async function RazpolozljivostPage() {
       {/* Section 2: Weekly Schedule */}
       <WeeklyScheduleSection
         obrtnikId={obrtnikProfile.id}
-        initialSchedule={availabilitySchedule ?? []}
+        initialSchedule={(availabilitySchedule ?? []).map(s => ({ ...s, is_available: s.is_available ?? false }))}
       />
 
       {/* Section 3: Service Areas */}
