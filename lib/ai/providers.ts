@@ -19,6 +19,76 @@ import {
 } from '@/lib/env'
 import { AI_TIMEOUT_MS, isAIAvailable } from '@/lib/ai/ai-guard'
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Adaptive Provider Tracking
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface ProviderStats {
+  successes: number
+  failures: number
+  consecutiveFailures: number
+  lastFailureAt: number
+  avgLatencyMs: number
+  penaltyUntil: number
+}
+
+const providerStats: Record<string, ProviderStats> = {}
+
+const BASE_PENALTY_MS = 60_000    // 1 min base
+const MAX_PENALTY_MS = 3_600_000  // 1 hour cap
+
+function getProviderStats(provider: string): ProviderStats {
+  if (!providerStats[provider]) {
+    providerStats[provider] = {
+      successes: 0,
+      failures: 0,
+      consecutiveFailures: 0,
+      lastFailureAt: 0,
+      avgLatencyMs: 0,
+      penaltyUntil: 0,
+    }
+  }
+  return providerStats[provider]
+}
+
+function recordProviderSuccess(provider: string, latencyMs: number): void {
+  const stats = getProviderStats(provider)
+  stats.successes++
+  stats.consecutiveFailures = 0
+  stats.avgLatencyMs = stats.avgLatencyMs
+    ? stats.avgLatencyMs * 0.8 + latencyMs * 0.2
+    : latencyMs
+}
+
+function recordProviderFailure(provider: string): void {
+  const stats = getProviderStats(provider)
+  stats.failures++
+  stats.consecutiveFailures++
+  stats.lastFailureAt = Date.now()
+  const penalty = Math.min(
+    BASE_PENALTY_MS * Math.pow(2, stats.consecutiveFailures - 1),
+    MAX_PENALTY_MS
+  )
+  stats.penaltyUntil = Date.now() + penalty
+}
+
+function isProviderPenalized(provider: string): boolean {
+  const stats = getProviderStats(provider)
+  return Date.now() < stats.penaltyUntil
+}
+
+export function getProviderHealthStatus(): Record<string, ProviderStats> {
+  return { ...providerStats }
+}
+
+export const _testExports = {
+  getProviderStats,
+  recordProviderSuccess,
+  recordProviderFailure,
+  isProviderPenalized,
+  providerStats,
+}
+
 // Initialize clients lazily
 let anthropicClient: Anthropic | null = null
 function getAnthropicClient(): Anthropic {
@@ -75,7 +145,9 @@ export interface SearchResult {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Send a chat message using the best available provider
+ * Send a chat message using the best available provider.
+ * Automatically falls back through providers on failure, tracking success/failure
+ * rates to adaptively prefer reliable providers.
  */
 export async function chat(
   messages: ChatMessage[],
@@ -84,8 +156,35 @@ export async function chat(
   if (!isAIAvailable()) {
     throw new Error('AI provider unavailable. Try again later.')
   }
-  const provider = options.provider || selectChatProvider()
 
+  if (options.provider) {
+    return chatWithProvider(options.provider, messages, options)
+  }
+
+  const providers = selectChatProviderOrder()
+  let lastError: Error | null = null
+
+  for (const provider of providers) {
+    try {
+      const start = Date.now()
+      const result = await chatWithProvider(provider, messages, options)
+      recordProviderSuccess(provider, Date.now() - start)
+      return result
+    } catch (err) {
+      recordProviderFailure(provider)
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.warn(`[providers] ${provider} failed, trying next: ${lastError.message}`)
+    }
+  }
+
+  throw lastError || new Error('No chat provider available')
+}
+
+async function chatWithProvider(
+  provider: AIProvider,
+  messages: ChatMessage[],
+  options: ChatOptions
+): Promise<ChatResult> {
   switch (provider) {
     case 'anthropic':
       return chatWithAnthropic(messages, options)
@@ -94,7 +193,7 @@ export async function chat(
     case 'gemini':
       return chatWithGemini(messages, options)
     default:
-      throw new Error(`No chat provider available`)
+      throw new Error(`Unknown provider: ${provider}`)
   }
 }
 
@@ -326,15 +425,43 @@ export interface VisionResult {
 }
 
 /**
- * Analyze an image using the best available vision model
+ * Analyze an image using the best available vision model.
+ * Falls back through providers on failure with adaptive tracking.
  */
 export async function analyzeImageMultiProvider(
   imageUrl: string,
   prompt: string,
   options: VisionOptions = {}
 ): Promise<VisionResult> {
-  const provider = options.provider || selectVisionProvider()
+  if (options.provider) {
+    return analyzeWithVisionProvider(options.provider, imageUrl, prompt, options)
+  }
 
+  const providers = selectVisionProviderOrder()
+  let lastError: Error | null = null
+
+  for (const provider of providers) {
+    try {
+      const start = Date.now()
+      const result = await analyzeWithVisionProvider(provider, imageUrl, prompt, options)
+      recordProviderSuccess(provider, Date.now() - start)
+      return result
+    } catch (err) {
+      recordProviderFailure(provider)
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.warn(`[providers/vision] ${provider} failed, trying next: ${lastError.message}`)
+    }
+  }
+
+  throw lastError || new Error('No vision provider available')
+}
+
+async function analyzeWithVisionProvider(
+  provider: 'anthropic' | 'openai' | 'gemini',
+  imageUrl: string,
+  prompt: string,
+  options: VisionOptions
+): Promise<VisionResult> {
   switch (provider) {
     case 'anthropic':
       return analyzeWithAnthropic(imageUrl, prompt, options)
@@ -343,7 +470,7 @@ export async function analyzeImageMultiProvider(
     case 'gemini':
       return analyzeWithGemini(imageUrl, prompt, options)
     default:
-      throw new Error('No vision provider available')
+      throw new Error(`Unknown vision provider: ${provider}`)
   }
 }
 
@@ -473,17 +600,47 @@ async function analyzeWithGemini(
 // ═══════════════════════════════════════════════════════════════════════════
 
 function selectChatProvider(): AIProvider {
-  if (hasAnthropicAI()) return 'anthropic'
-  if (hasOpenAI()) return 'openai'
-  if (hasGemini()) return 'gemini'
-  throw new Error('No chat provider configured')
+  const order = selectChatProviderOrder()
+  if (order.length === 0) throw new Error('No chat provider configured')
+  return order[0]
+}
+
+function selectChatProviderOrder(): AIProvider[] {
+  const candidates: AIProvider[] = []
+
+  if (hasAnthropicAI() && !isProviderPenalized('anthropic')) candidates.push('anthropic')
+  if (hasOpenAI() && !isProviderPenalized('openai')) candidates.push('openai')
+  if (hasGemini() && !isProviderPenalized('gemini')) candidates.push('gemini')
+
+  if (candidates.length === 0) {
+    if (hasAnthropicAI()) candidates.push('anthropic')
+    if (hasOpenAI()) candidates.push('openai')
+    if (hasGemini()) candidates.push('gemini')
+  }
+
+  return candidates
 }
 
 function selectVisionProvider(): 'anthropic' | 'openai' | 'gemini' {
-  if (hasAnthropicAI()) return 'anthropic'
-  if (hasOpenAI()) return 'openai'
-  if (hasGemini()) return 'gemini'
-  throw new Error('No vision provider configured')
+  const order = selectVisionProviderOrder()
+  if (order.length === 0) throw new Error('No vision provider configured')
+  return order[0]
+}
+
+function selectVisionProviderOrder(): Array<'anthropic' | 'openai' | 'gemini'> {
+  const candidates: Array<'anthropic' | 'openai' | 'gemini'> = []
+
+  if (hasAnthropicAI() && !isProviderPenalized('anthropic')) candidates.push('anthropic')
+  if (hasOpenAI() && !isProviderPenalized('openai')) candidates.push('openai')
+  if (hasGemini() && !isProviderPenalized('gemini')) candidates.push('gemini')
+
+  if (candidates.length === 0) {
+    if (hasAnthropicAI()) candidates.push('anthropic')
+    if (hasOpenAI()) candidates.push('openai')
+    if (hasGemini()) candidates.push('gemini')
+  }
+
+  return candidates
 }
 
 // Cost per 1M tokens
