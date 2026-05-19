@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString()
   const { data: stuck } = await supabaseAdmin
     .from('escrow_transactions')
-    .select('id, stripe_payment_intent_id')
+    .select('id, stripe_payment_intent_id, stripe_transfer_id')
     .eq('status', 'releasing')
     .lt('updated_at', stuckCutoff)
     .limit(10)
@@ -25,13 +25,20 @@ export async function GET(request: NextRequest) {
   for (const tx of stuck ?? []) {
     try {
       const pi = await stripe.paymentIntents.retrieve(tx.stripe_payment_intent_id)
-      if (pi.status === 'succeeded') {
+      if (pi.status === 'succeeded' && tx.stripe_transfer_id) {
+        // Transfer to partner completed — safe to finalize
         await supabaseAdmin
           .from('escrow_transactions')
           .update({ status: 'released', released_at: new Date().toISOString() })
           .eq('id', tx.id)
           .eq('status', 'releasing')
-        console.info(`[CRON RECOVERY] Finalized stuck escrow ${tx.id} — PI already captured`)
+        console.info(`[CRON RECOVERY] Finalized stuck escrow ${tx.id} — transfer ${tx.stripe_transfer_id} confirmed`)
+      } else if (pi.status === 'succeeded') {
+        // PI captured but no transfer evidence — could be a payout worker crash;
+        // auto-finalizing would mark released without partner payment
+        console.error(`[CRON RECOVERY] Stuck escrow ${tx.id} — PI succeeded but no stripe_transfer_id — manual intervention required`, {
+          paymentIntent: tx.stripe_payment_intent_id,
+        })
       } else if (pi.status === 'requires_capture') {
         await supabaseAdmin
           .from('escrow_transactions')
