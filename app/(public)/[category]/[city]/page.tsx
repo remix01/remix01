@@ -53,44 +53,51 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const params = await props.params
-  const normalized = normalizeDirectoryParams(params.category, params.city)
-  const citySlug = normalized.city ?? ''
+  try {
+    const params = await props.params
+    const normalized = normalizeDirectoryParams(params.category, params.city)
+    const citySlug = normalized.city ?? ''
 
-  // Exclude static paths and file extensions
-  if (
-    EXCLUDED_PATHS.includes(normalized.category) ||
-    normalized.category.includes('.') ||
-    citySlug.includes('.')
-  ) {
-    return { title: 'LiftGO' }
-  }
-
-  const category = await resolveCategorySlugOrFallback(normalized.category)
-  const city = resolveCitySlugOrFallback(citySlug)
-
-  if (!category || !city) {
-    return { title: 'LiftGO' }
-  }
-
-  const meta = generateCategoryMeta({
-    categoryName: category.name,
-    categorySlug: category.slug,
-    cityName: city.name,
-    citySlug: city.slug
-  })
-
-  return {
-    title: meta.title,
-    description: meta.description,
-    keywords: meta.keywords,
-    openGraph: {
-      title: meta.openGraph.title,
-      description: meta.openGraph.description,
-      type: 'website',
-      locale: 'sl_SI',
-      siteName: 'LiftGO'
+    // Exclude static paths and file extensions
+    if (
+      EXCLUDED_PATHS.includes(normalized.category) ||
+      normalized.category.includes('.') ||
+      citySlug.includes('.')
+    ) {
+      return { title: 'LiftGO' }
     }
+
+    const category = await resolveCategorySlugOrFallback(normalized.category)
+    const city = resolveCitySlugOrFallback(citySlug)
+
+    if (!category || !city || !category.name || !city.name) {
+      return { title: 'LiftGO' }
+    }
+
+    const meta = generateCategoryMeta({
+      categoryName: category.name,
+      categorySlug: category.slug,
+      cityName: city.name,
+      citySlug: city.slug
+    })
+
+    return {
+      title: meta.title,
+      description: meta.description,
+      keywords: meta.keywords,
+      openGraph: {
+        title: meta.openGraph.title,
+        description: meta.openGraph.description,
+        type: 'website',
+        locale: 'sl_SI',
+        siteName: 'LiftGO'
+      }
+    }
+  } catch (error) {
+    console.error('[category-city-metadata] generateMetadata failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { title: 'LiftGO' }
   }
 }
 
@@ -128,27 +135,35 @@ async function fetchDirectoryData(category: string, city: string) {
   }>>> | null = null
 
   for (const baseUrl of baseCandidates) {
-    const apiUrl = `${baseUrl}${endpoint}`
-    const result = await fetchWithRetry<{
-      providers?: Array<Record<string, unknown>>
-      category?: string
-      city?: string
-    }>(apiUrl, {
-      retries: 2,
-      timeoutMs: 2500,
-      initialDelayMs: 250,
-      next: { revalidate },
-      requestLabel: `${pathname}@${baseUrl}`,
-    })
+    try {
+      const apiUrl = `${baseUrl}${endpoint}`
+      const result = await fetchWithRetry<{
+        providers?: Array<Record<string, unknown>>
+        category?: string
+        city?: string
+      }>(apiUrl, {
+        retries: 2,
+        timeoutMs: 2500,
+        initialDelayMs: 250,
+        next: { revalidate },
+        requestLabel: `${pathname}@${baseUrl}`,
+      })
 
-    if (result.ok) {
-      return result
-    }
+      if (result.ok) {
+        return result
+      }
 
-    lastResult = result
-    const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout'
-    if (!canTryNextBase) {
-      return result
+      lastResult = result
+      const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout'
+      if (!canTryNextBase) {
+        return result
+      }
+    } catch (error) {
+      console.warn('[fetchDirectoryData] unexpected error', {
+        baseUrl,
+        pathname,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -179,7 +194,15 @@ export default async function CategoryCityPage(props: Props) {
     notFound()
   }
 
-  const resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
+  let resolvedCategory: Awaited<ReturnType<typeof resolveCategorySlugOrFallback>> = null
+  try {
+    resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
+  } catch (error) {
+    console.error('[category-city-page] resolveCategorySlugOrFallback failed', {
+      pathname,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
   const resolvedCity = resolveCitySlugOrFallback(citySlug)
   const category = resolvedCategory || {
     id: `fallback:${normalized.category}`,
@@ -203,7 +226,25 @@ export default async function CategoryCityPage(props: Props) {
     })
   }
 
-  const externalResult = await fetchDirectoryData(normalized.category, citySlug)
+  const fallbackResult = {
+    ok: false as const,
+    status: null,
+    attempt: 0,
+    durationMs: 0,
+    isMissing: false,
+    isTransient: true,
+    reason: 'unknown_error',
+    cacheStatus: null,
+  }
+  let externalResult: Awaited<ReturnType<typeof fetchDirectoryData>> = fallbackResult
+  try {
+    externalResult = await fetchDirectoryData(normalized.category, citySlug)
+  } catch (error) {
+    console.error('[category-city-page] fetchDirectoryData failed', {
+      pathname,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
 
   if (!externalResult.ok && externalResult.isMissing) {
     console.info('[category-city-page] external_missing_continue', {
