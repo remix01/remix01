@@ -1,8 +1,16 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+
+function deterministicReminderNotificationId(userId: string, povprasevanjeId: string) {
+  const seed = `izbira_ponudbe_reminder:${userId}:${povprasevanjeId}`
+  const h = createHash('sha1').update(seed).digest('hex')
+  const variant = (parseInt(h[16], 16) & 0x3) | 0x8
+  return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-${variant.toString(16)}${h.slice(17,20)}-${h.slice(20,32)}`
+}
+
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -14,17 +22,9 @@ export async function GET(request: NextRequest) {
 
   const sweepId = randomUUID()
   const start = Date.now()
-  console.log(JSON.stringify({
-    level: 'info',
-    message: '[notification-sweep] start',
-    sweepId,
-    ranAt: new Date().toISOString(),
-  }))
 
   try {
     const supabase = createAdminClient()
-
-    // Only fetch povprasevanja not yet notified (idempotency: notified_at IS NULL)
     const { data: povprasevanja, error: fetchError } = await supabase
       .from('povprasevanja')
       .select('id, title, category_id, location_city, urgency')
@@ -32,184 +32,111 @@ export async function GET(request: NextRequest) {
       .is('notified_at', null)
       .limit(50)
 
-    if (fetchError) {
-      console.error(JSON.stringify({
-        level: 'error',
-        message: '[notification-sweep] fetch error',
-        sweepId,
-        error: fetchError.message,
-      }))
-      return NextResponse.json({ error: fetchError.message }, { status: 500 })
-    }
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
 
     const pending = povprasevanja || []
-    console.log(JSON.stringify({
-      level: 'info',
-      message: '[notification-sweep] pending',
-      sweepId,
-      count: pending.length,
-    }))
-
     let notified = 0
     let skipped = 0
+    let reminders = 0
 
     for (const p of pending) {
-      const itemCorrelationId = randomUUID()
-      // Tracks whether we successfully claimed notified_at for this item.
-      // The catch block resets the claim if an unexpected exception fires
-      // after claiming, so future sweeps can retry the item.
       let didClaim = false
       try {
-        if (!p.category_id) {
-          skipped++
-          continue
-        }
-
-        // Find obrtniki registered for this category
-        const { data: matchedCategories } = await supabase
-          .from('obrtnik_categories')
-          .select('obrtnik_id')
-          .eq('category_id', p.category_id)
-
-        if (!matchedCategories?.length) {
-          skipped++
-          continue
-        }
-
-        // Only verified + available obrtniki
+        if (!p.category_id) { skipped++; continue }
+        const { data: matchedCategories } = await supabase.from('obrtnik_categories').select('obrtnik_id').eq('category_id', p.category_id)
+        if (!matchedCategories?.length) { skipped++; continue }
         const obrtnikIds = matchedCategories.map((c) => c.obrtnik_id)
-        const { data: obrtniki } = await supabase
-          .from('obrtnik_profiles')
-          .select('id')
-          .in('id', obrtnikIds)
-          .eq('is_verified', true)
-          .eq('is_available', true)
-
-        if (!obrtniki?.length) {
-          skipped++
-          continue
-        }
-
-        // Atomic claim: set notified_at only if still NULL.
-        // If another concurrent sweep worker already claimed this item, skip it.
-        // Using SELECT after UPDATE to detect the race.
-        const { data: claimed } = await supabase
-          .from('povprasevanja')
-          .update({ notified_at: new Date().toISOString() })
-          .eq('id', p.id)
-          .is('notified_at', null)
-          .select('id')
-
-        if (!claimed?.length) {
-          skipped++
-          continue
-        }
+        const { data: obrtniki } = await supabase.from('obrtnik_profiles').select('id').in('id', obrtnikIds).eq('is_verified', true).eq('is_available', true)
+        if (!obrtniki?.length) { skipped++; continue }
+        const { data: claimed } = await supabase.from('povprasevanja').update({ notified_at: new Date().toISOString() }).eq('id', p.id).is('notified_at', null).select('id')
+        if (!claimed?.length) { skipped++; continue }
         didClaim = true
 
-        // Insert in-app notification for each matched obrtnik
-        const notifications = obrtniki.map((o) => ({
-          user_id: o.id,
-          type: 'novo_povprasevanje',
-          title: 'Novo povpraševanje v vaši kategoriji',
-          body: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
-          message: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
-          link: '/obrtnik/povprasevanja',
-          read: false,
-          metadata: {
-            povprasevanje_id: p.id,
-            urgency: p.urgency || 'normalno',
-            sweep_id: sweepId,
-            correlation_id: itemCorrelationId,
-          },
-        }))
-
-        let notifError: any = null
-        for (const n of notifications) {
-          try { await canonicalWriteGateway.appendNotification(n, 'api.cron.notification-sweep') } catch (e) { notifError = e; break }
-        }
-
-        if (notifError) {
-          console.error(JSON.stringify({
-            level: 'error',
-            message: '[notification-sweep] notification insert error',
-            sweepId,
-            correlationId: itemCorrelationId,
-            povprasevanjeId: p.id,
-            error: notifError.message,
-          }))
-          // Reset claim so next sweep run retries this item
-          await supabase
-            .from('povprasevanja')
-            .update({ notified_at: null })
-            .eq('id', p.id)
-          skipped++
-          continue
+        for (const o of obrtniki) {
+          await canonicalWriteGateway.appendNotification({
+            user_id: o.id,
+            type: 'novo_povprasevanje',
+            title: 'Novo povpraševanje v vaši kategoriji',
+            body: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
+            message: `${p.title || 'Novo povpraševanje'}${p.location_city ? ` — ${p.location_city}` : ''}`,
+            link: '/obrtnik/povprasevanja',
+            read: false,
+            metadata: { povprasevanje_id: p.id, urgency: p.urgency || 'normalno', sweep_id: sweepId },
+          }, 'api.cron.notification-sweep')
         }
 
         notified++
-        trackFunnelEvent(FUNNEL_EVENTS.INQUIRY_BROADCASTED, {
-          povprasevanje_id: p.id,
-          location: p.location_city ?? null,
-          user_type: 'system',
-          timestamp: new Date().toISOString(),
-        })
-
-        console.log(JSON.stringify({
-          level: 'info',
-          message: '[notification-sweep] notified',
-          sweepId,
-          correlationId: itemCorrelationId,
-          povprasevanjeId: p.id,
-          obrtnikiCount: obrtniki.length,
-        }))
-      } catch (itemErr) {
-        // Release the claim so the next sweep run retries this item.
-        // Best-effort: if the reset itself fails, the item is stuck but
-        // an admin can manually clear notified_at.
+        trackFunnelEvent(FUNNEL_EVENTS.INQUIRY_BROADCASTED, { povprasevanje_id: p.id, location: p.location_city ?? null, user_type: 'system', timestamp: new Date().toISOString() })
+      } catch {
         if (didClaim) {
-          try {
-            await supabase
-              .from('povprasevanja')
-              .update({ notified_at: null })
-              .eq('id', p.id)
-          } catch {
-            // best-effort; if this fails the item needs a manual notified_at reset
-          }
+          try { await supabase.from('povprasevanja').update({ notified_at: null }).eq('id', p.id) } catch {}
         }
-        console.error(JSON.stringify({
-          level: 'error',
-          message: '[notification-sweep] item error',
-          sweepId,
-          correlationId: itemCorrelationId,
-          povprasevanjeId: p.id,
-          claimReleased: didClaim,
-          error: String(itemErr),
-        }))
         skipped++
       }
     }
 
-    const durationMs = Date.now() - start
-    console.log(JSON.stringify({
-      level: 'info',
-      message: '[notification-sweep] completed',
-      sweepId,
-      total: pending.length,
-      notified,
-      skipped,
-      durationMs,
-    }))
+    // 7-day reminder: one notification per inquiry reminder window
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    let reminderOffset = 0
+    const reminderBatchSize = 100
 
-    return NextResponse.json({ success: true, sweepId, total: pending.length, notified, skipped, durationMs })
+    while (true) {
+      const { data: reminderCandidates } = await supabase
+        .from('povprasevanja')
+        .select('id, title, narocnik_id, status, created_at')
+        .eq('status', 'odprto')
+        .lte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: true })
+        .range(reminderOffset, reminderOffset + reminderBatchSize - 1)
+
+      if (!reminderCandidates?.length) break
+
+      for (const p of reminderCandidates) {
+      if (!p.narocnik_id) continue
+      const { data: offers } = await supabase.from('ponudbe').select('id, status').eq('povprasevanje_id', p.id)
+      const offerCount = (offers || []).length
+      if (!offerCount) continue
+      if ((offers || []).some((o: any) => o.status === 'sprejeta')) continue
+
+      const dedupeKey = `offer-reminder-7d:${p.id}`
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', p.narocnik_id)
+        .eq('type', 'izbira_ponudbe_reminder')
+        .contains('metadata', { dedupe_key: dedupeKey })
+        .limit(1)
+
+      if (existing?.length) continue
+
+      try {
+        await canonicalWriteGateway.appendNotification({
+        id: deterministicReminderNotificationId(p.narocnik_id, p.id),
+        user_id: p.narocnik_id,
+        type: 'izbira_ponudbe_reminder',
+        title: '⏰ Čas za izbiro ponudbe',
+        body: `Za povpraševanje "${p.title}" ste prejeli ${offerCount} ponudb. Izberite najprimernejšo.`,
+        message: `Za povpraševanje "${p.title}" ste prejeli ${offerCount} ponudb. Izberite najprimernejšo.`,
+        link: `/povprasevanja/${p.id}`,
+        read: false,
+        metadata: { povprasevanje_id: p.id, offer_count: offerCount, dedupe_key: dedupeKey, reminder_window_days: 7 },
+      }, 'api.cron.notification-sweep.reminder')
+        reminders++
+      } catch (error: any) {
+        const code = error?.code || error?.details?.code
+        if (code === '23505') {
+          continue
+        }
+        throw error
+      }
+      }
+
+      if (reminderCandidates.length < reminderBatchSize) break
+      reminderOffset += reminderBatchSize
+    }
+
+    return NextResponse.json({ success: true, sweepId, total: pending.length, notified, skipped, reminders, durationMs: Date.now() - start })
   } catch (error) {
-    const durationMs = Date.now() - start
-    console.error(JSON.stringify({
-      level: 'error',
-      message: '[notification-sweep] fatal',
-      sweepId,
-      error: error instanceof Error ? error.message : String(error),
-      durationMs,
-    }))
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }

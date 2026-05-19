@@ -5,6 +5,7 @@ import { getOrCreateCategory } from '@/lib/dal/categories'
 import { getOrCreateLocation } from '@/lib/dal/locations'
 import { geocodeLocation } from '@/lib/google/geocoding'
 import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
+import { sendNotification } from '@/lib/notifications'
 import { enqueue } from '@/lib/jobs/queue'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { inquiryLimiter } from '@/lib/rate-limit/limiters'
@@ -293,6 +294,17 @@ async function postHandler(req: NextRequest) {
           message: `${title} — ${finalLocationCity}`,
           link: '/obrtnik/povprasevanja'
         }).catch(err => console.error('[v0] Error sending push:', err))
+      }
+
+      if (data.narocnik_id) {
+        sendNotification({
+          userId: data.narocnik_id,
+          type: 'povprasevanje_oddano',
+          title: '✅ Povpraševanje uspešno oddano',
+          message: `Vaše povpraševanje "${data.title}" je bilo objavljeno. Obrtniki vam bodo lahko poslali ponudbe.`,
+          link: `/povprasevanja/${data.id}`,
+          metadata: { povprasevanje_id: data.id },
+        }).catch(err => console.error('[v0] Error sending inquiry-submitted notification:', err))
       }
 
       // Enqueue confirmation email
