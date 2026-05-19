@@ -1,8 +1,16 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+
+function deterministicReminderNotificationId(userId: string, povprasevanjeId: string) {
+  const seed = `izbira_ponudbe_reminder:${userId}:${povprasevanjeId}`
+  const h = createHash('sha1').update(seed).digest('hex')
+  const variant = (parseInt(h[16], 16) & 0x3) | 0x8
+  return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-${variant.toString(16)}${h.slice(17,20)}-${h.slice(20,32)}`
+}
+
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -69,14 +77,26 @@ export async function GET(request: NextRequest) {
 
     // 7-day reminder: one notification per inquiry reminder window
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    const { data: reminderCandidates } = await supabase
-      .from('povprasevanja')
-      .select('id, title, narocnik_id, status, created_at')
-      .eq('status', 'odprto')
-      .lte('created_at', sevenDaysAgo)
-      .limit(100)
+    let reminderOffset = 0
+    const reminderBatchSize = 100
 
-    for (const p of reminderCandidates || []) {
+    while (true) {
+      const { data: reminderCandidates, error: reminderFetchError } = await supabase
+        .from('povprasevanja')
+        .select('id, title, narocnik_id, status, created_at')
+        .eq('status', 'odprto')
+        .lte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(reminderOffset, reminderOffset + reminderBatchSize - 1)
+
+      if (reminderFetchError) {
+        return NextResponse.json({ error: reminderFetchError.message }, { status: 500 })
+      }
+
+      if (!reminderCandidates?.length) break
+
+      for (const p of reminderCandidates) {
       if (!p.narocnik_id) continue
       const { data: offers } = await supabase.from('ponudbe').select('id, status').eq('povprasevanje_id', p.id)
       const offerCount = (offers || []).length
@@ -94,7 +114,9 @@ export async function GET(request: NextRequest) {
 
       if (existing?.length) continue
 
-      await canonicalWriteGateway.appendNotification({
+      try {
+        await canonicalWriteGateway.appendNotification({
+        id: deterministicReminderNotificationId(p.narocnik_id, p.id),
         user_id: p.narocnik_id,
         type: 'izbira_ponudbe_reminder',
         title: '⏰ Čas za izbiro ponudbe',
@@ -104,7 +126,18 @@ export async function GET(request: NextRequest) {
         read: false,
         metadata: { povprasevanje_id: p.id, offer_count: offerCount, dedupe_key: dedupeKey, reminder_window_days: 7 },
       }, 'api.cron.notification-sweep.reminder')
-      reminders++
+        reminders++
+      } catch (error: any) {
+        const code = error?.code || error?.details?.code
+        if (code === '23505') {
+          continue
+        }
+        throw error
+      }
+      }
+
+      if (reminderCandidates.length < reminderBatchSize) break
+      reminderOffset += reminderBatchSize
     }
 
     return NextResponse.json({ success: true, sweepId, total: pending.length, notified, skipped, reminders, durationMs: Date.now() - start })

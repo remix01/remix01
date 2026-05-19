@@ -19,7 +19,11 @@ function makeSupabaseMock() {
               if (v === 'odprto') return {
                 is: () => ({ limit: async () => ({ data: [], error: null }) }),
                 lte: () => ({
-                  limit: async () => ({ data: [{ id: 'p1', title: 'Test', narocnik_id: 'n1', status: 'odprto', created_at: '2020-01-01' }] }),
+                  order: () => ({
+                    order: () => ({
+                      range: async () => ({ data: [{ id: 'p1', title: 'Test', narocnik_id: 'n1', status: 'odprto', created_at: '2020-01-01' }] }),
+                    }),
+                  }),
                 }),
               }
               return { maybeSingle: async () => ({ data: null }) }
