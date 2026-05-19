@@ -11,6 +11,9 @@ export type NotificationType =
   | 'termin_opomnik'      // both: appointment reminder
   | 'placilo_prejeto'     // obrtnik: payment received
   | 'placilo_zahtevano'   // narocnik: payment requested
+  | 'povprasevanje_oddano'
+  | 'ponudba_umaknjena'
+  | 'izbira_ponudbe_reminder'
 
 export interface Notification {
   id: string
