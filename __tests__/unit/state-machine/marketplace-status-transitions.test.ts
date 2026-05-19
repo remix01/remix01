@@ -10,9 +10,8 @@ describe('marketplace status transitions', () => {
 
   test('blocks invalid povprasevanje transitions', () => {
     expect(canTransitionPovprasevanje('odprto', 'zakljuceno')).toBe(false)
-    expect(() => assertPovprasevanjeTransition('odprto', 'zakljuceno')).toThrow(
-      'Neveljaven prehod stanja povpraševanja: odprto → zakljuceno'
-    )
+    expect(() => assertPovprasevanjeTransition('odprto', 'zakljuceno')).toThrow('Neveljaven prehod statusa.')
+    expect(canTransitionPovprasevanje('arhivirano', 'odprto')).toBe(false)
   })
 
   test('allows valid ponudba transitions', () => {
@@ -23,8 +22,7 @@ describe('marketplace status transitions', () => {
 
   test('blocks invalid ponudba transitions', () => {
     expect(canTransitionPonudba('sprejeta', 'zavrnjena')).toBe(false)
-    expect(() => assertPonudbaTransition('sprejeta', 'zavrnjena')).toThrow(
-      'Neveljaven prehod stanja ponudbe: sprejeta → zavrnjena'
-    )
+    expect(() => assertPonudbaTransition('sprejeta', 'zavrnjena')).toThrow('Neveljaven prehod statusa.')
+    expect(canTransitionPonudba('umaknjena', 'poslana')).toBe(false)
   })
 })

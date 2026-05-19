@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
         .update({ status: 'zavrnjena' })
         .eq('povprasevanje_id', task.povprasevanje_id)
         .neq('id', ponudbaId)
+        .eq('status', 'poslana')
 
       await taskOrchestrator.updateTaskStatus(taskId, 'accepted', {
         customerId: user.id,

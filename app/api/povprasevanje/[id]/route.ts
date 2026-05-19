@@ -74,7 +74,11 @@ export async function PATCH(
 
   const updates: Record<string, unknown> = {}
   if (status !== undefined) {
-    assertPovprasevanjeTransition(current.status, status)
+    try {
+      assertPovprasevanjeTransition(current.status, status)
+    } catch {
+      return errorResponse('Neveljaven prehod statusa.', 400, 'INVALID_STATUS_TRANSITION')
+    }
     updates.status = status
   }
   if (obrtnik_id !== undefined) updates.obrtnik_id = obrtnik_id || null
@@ -86,7 +90,11 @@ export async function PATCH(
 
   // Auto-set status when assigning obrtnik
   if (obrtnik_id && !status) {
-    assertPovprasevanjeTransition(current.status, 'dodeljeno')
+    try {
+      assertPovprasevanjeTransition(current.status, 'dodeljeno')
+    } catch {
+      return errorResponse('Neveljaven prehod statusa.', 400, 'INVALID_STATUS_TRANSITION')
+    }
     updates.status = 'dodeljeno'
   }
 
