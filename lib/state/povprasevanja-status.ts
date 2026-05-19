@@ -1,3 +1,5 @@
+const INVALID_TRANSITION_MESSAGE = 'Neveljaven prehod statusa.'
+
 export const POVPRASEVANJE_TRANSITIONS: Record<string, string[]> = {
   odprto: ['dodeljeno', 'preklicano', 'arhivirano'],
   dodeljeno: ['v_izvedbi', 'preklicano'],
@@ -17,6 +19,6 @@ export function canTransitionPovprasevanje(fromStatus: string, toStatus: string)
 
 export function assertPovprasevanjeTransition(fromStatus: string, toStatus: string): void {
   if (!canTransitionPovprasevanje(fromStatus, toStatus)) {
-    throw new Error(`Neveljaven prehod stanja povpraševanja: ${fromStatus} → ${toStatus}`)
+    throw new Error(INVALID_TRANSITION_MESSAGE)
   }
 }

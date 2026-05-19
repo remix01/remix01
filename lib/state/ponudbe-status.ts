@@ -1,3 +1,5 @@
+const INVALID_TRANSITION_MESSAGE = 'Neveljaven prehod statusa.'
+
 export const PONUDBA_TRANSITIONS: Record<string, string[]> = {
   poslana: ['sprejeta', 'zavrnjena', 'umaknjena'],
   sprejeta: [],
@@ -13,6 +15,6 @@ export function canTransitionPonudba(fromStatus: string, toStatus: string): bool
 
 export function assertPonudbaTransition(fromStatus: string, toStatus: string): void {
   if (!canTransitionPonudba(fromStatus, toStatus)) {
-    throw new Error(`Neveljaven prehod stanja ponudbe: ${fromStatus} → ${toStatus}`)
+    throw new Error(INVALID_TRANSITION_MESSAGE)
   }
 }

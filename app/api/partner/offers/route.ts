@@ -5,6 +5,8 @@ import {
   partnerOfferService,
   PartnerOfferServiceError,
 } from '@/lib/partner/offers/service'
+import { withCsrf } from '@/lib/csrf/with-csrf'
+import { SECURITY_MESSAGES } from '@/lib/security/access'
 
 async function withPartnerAuth() {
   const supabase = await createClient()
@@ -13,7 +15,7 @@ async function withPartnerAuth() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { error: fail('UNAUTHORIZED', 'Unauthorized', 401) }
+    return { error: fail('UNAUTHORIZED', SECURITY_MESSAGES.forbidden, 401) }
   }
 
   return { supabase, userId: user.id }
@@ -40,7 +42,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function postHandler(req: Request) {
   const auth = await withPartnerAuth()
   if ('error' in auth) return auth.error
 
@@ -53,3 +55,5 @@ export async function POST(req: Request) {
     return handleRouteError(error, 'POST /api/partner/offers')
   }
 }
+
+export const POST = withCsrf(postHandler as any)
