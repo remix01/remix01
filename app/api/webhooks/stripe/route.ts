@@ -4,7 +4,7 @@ import { constructStripeEvent } from '@/lib/stripe'
 import { assertEnv } from '@/lib/env'
 import { fail, ok } from '@/lib/http/response'
 import { stripeWebhookHandlers } from '@/lib/stripe/handlers'
-import { claimStripeEventProcessing } from '@/lib/stripe/eventProcessing'
+import { claimStripeEventProcessing, releaseStripeEventClaim } from '@/lib/stripe/eventProcessing'
 
 export const maxDuration = 30
 
@@ -59,6 +59,15 @@ export async function POST(request: NextRequest) {
       stripeEventId: event.id,
       eventType: event.type,
       error: err instanceof Error ? err.message : String(err),
+    })
+    // Release the claim so Stripe's retry can reprocess this event.
+    // Handlers guard their own side effects (e.g. escrow checks status === 'paid'),
+    // so re-running after a transient failure is safe.
+    await releaseStripeEventClaim(event.id).catch((releaseErr) => {
+      console.error('[WEBHOOK] Failed to release claim — event stuck, needs manual cleanup', {
+        stripeEventId: event.id,
+        releaseErr,
+      })
     })
     return fail('Processing error')
   }

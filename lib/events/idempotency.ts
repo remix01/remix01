@@ -5,18 +5,24 @@
  * processes each event exactly once, preventing double-charging, duplicate
  * notifications, or data inconsistencies.
  *
- * Two usage patterns:
+ * Three usage patterns:
  *
- * Pattern A — atomic check-and-mark (for subscribers: mark before processing)
- *   const skip = await idempotency.checkAndMark('task.matched', 'notify', taskId)
+ * Pattern A — atomic check-and-mark (for idempotent subscribers where a miss is worse than a duplicate)
+ *   const skip = await idempotency.checkAndMark('task.matched', 'analytics', taskId)
  *   if (skip) return
- *   // ... proceed
+ *   // ... proceed (operation is itself idempotent)
  *
  * Pattern B — check then mark after success (for delivery: never drop on failure)
  *   const skip = await idempotency.check('notification', 'orchestrate', key)
  *   if (skip) return { skipped: true }
  *   // ... attempt delivery ...
  *   if (delivered) idempotency.mark('notification', 'orchestrate', key).catch(() => {})
+ *
+ * Pattern C — atomic claim with release on failure (concurrent-safe AND retryable)
+ *   const skip = await idempotency.checkAndMark('task.matched', 'notify', taskId)
+ *   if (skip) return
+ *   try { await sendNotification(...) }
+ *   catch (err) { await idempotency.release('task.matched', 'notify', taskId); throw err }
  */
 
 import { createAdminClient } from '@/lib/supabase/server'
@@ -114,6 +120,28 @@ export const idempotency = {
     if (error && error.code !== '23505') {
       // 23505 = concurrent mark, harmless; other errors are worth logging
       console.error('[Idempotency] mark DB error:', error.message)
+    }
+  },
+
+  /**
+   * Release a previously claimed key so retries can reclaim it.
+   * Use in Pattern C: checkAndMark → try operation → release on failure.
+   */
+  async release(
+    eventName: string,
+    consumer: string,
+    entityId: string
+  ): Promise<void> {
+    const supabase = createAdminClient() as any
+    const key = makeKey(eventName, consumer, entityId)
+
+    const { error } = await supabase
+      .from('event_processing_log')
+      .delete()
+      .eq('idempotency_key', key)
+
+    if (error) {
+      console.error('[Idempotency] release DB error:', error.message)
     }
   },
 }

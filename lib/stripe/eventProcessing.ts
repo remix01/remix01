@@ -14,3 +14,20 @@ export async function claimStripeEventProcessing(eventId: string, eventType: str
   throw new Error(`[WEBHOOK] Failed to claim Stripe event processing: ${error.message}`)
 }
 
+/**
+ * Release a claim after a handler throws, so Stripe's retry can reprocess
+ * the event. Only call this on transient errors — handlers must guard their
+ * own side effects so re-running is safe.
+ */
+export async function releaseStripeEventClaim(eventId: string): Promise<void> {
+  const key = `stripe_event:${eventId}`
+  const { error } = await supabaseAdmin
+    .from('event_processing_log')
+    .delete()
+    .eq('idempotency_key', key)
+
+  if (error) {
+    throw new Error(`[WEBHOOK] Failed to release Stripe event claim: ${error.message}`)
+  }
+}
+
