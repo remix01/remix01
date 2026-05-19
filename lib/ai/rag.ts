@@ -522,6 +522,22 @@ export async function buildRAGContext(
   return context
 }
 
+const SENSITIVE_PATTERNS = [
+  /\b[A-Z]{2}\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b/g,    // IBAN
+  /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,             // credit card
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,   // email
+  /(?:geslo|password|lozinka|passwort)\s*[:=]\s*\S+/gi,        // password patterns
+  /\b0[1-9]\d[\s/-]?\d{3}[\s/-]?\d{3}\b/g,                    // SI phone numbers
+]
+
+function sanitizeForPrompt(text: string): string {
+  let sanitized = text
+  for (const pattern of SENSITIVE_PATTERNS) {
+    sanitized = sanitized.replace(pattern, '[ODSTRANJENO]')
+  }
+  return sanitized
+}
+
 /**
  * Format RAG context for inclusion in AI prompt
  */
@@ -553,7 +569,7 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
   if (context.messages?.length) {
     sections.push(
       `## Pretekli pogovori:\n${context.messages
-        .map((m) => `- [${m.created_at}]: ${m.message.slice(0, 150)}...`)
+        .map((m) => `- [${m.created_at}]: ${sanitizeForPrompt(m.message.slice(0, 150))}...`)
         .join('\n')}`
     )
   }
@@ -561,10 +577,19 @@ export function formatRAGContextForPrompt(context: RAGContext): string {
   if (context.offers?.length) {
     sections.push(
       `## Podobne ponudbe:\n${context.offers
-        .map((o) => `- €${o.price_estimate}: ${o.message?.slice(0, 150)}...`)
+        .map((o) => `- €${o.price_estimate}: ${sanitizeForPrompt(o.message?.slice(0, 150) || '')}...`)
         .join('\n')}`
     )
   }
 
-  return sections.length ? `\n<context>\n${sections.join('\n\n')}\n</context>\n` : ''
+  if (sections.length === 0) return ''
+
+  const MAX_RAG_CHARS = 3000
+  let combined = ''
+  for (const section of sections) {
+    if (combined.length + section.length > MAX_RAG_CHARS) break
+    combined += (combined ? '\n\n' : '') + section
+  }
+
+  return `\n<context>\n${combined}\n</context>\n`
 }

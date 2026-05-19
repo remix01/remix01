@@ -14,6 +14,7 @@ import {
   incrementDailyUsage,
 } from '@/lib/agents/route-access-policy'
 import { logAgentUsage } from '@/lib/agents/usage-logging'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 // ── Configuration Constants ────────────────────────────────────────────────
 /**
@@ -70,6 +71,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')

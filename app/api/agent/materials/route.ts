@@ -4,15 +4,21 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { estimateCost } from '@/lib/model-router'
 import { getAgentDefinition } from '@/lib/agents/ai-definitions'
+import { buildRAGContext, formatRAGContextForPrompt } from '@/lib/ai/rag'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 import { loadAiUsageProfile, normalizeDailyUsageWindow, evaluateAgentTierAccess, incrementDailyUsage } from '@/lib/agents/route-access-policy'
 import { logAgentUsage } from '@/lib/agents/usage-logging'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { validateAgentOutput, MaterialsListSchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const { povprasevanje_id, work_description } = await req.json()
     if (!work_description?.trim()) return NextResponse.json({ error: 'Opis dela je obvezen.' }, { status: 400 })
@@ -37,22 +43,41 @@ export async function POST(req: NextRequest) {
     }
 
     const agentDef = await getAgentDefinition('materials_agent')
+
+    let ragSection = ''
+    try {
+      const ragContext = await buildRAGContext(work_description, {
+        includeTasks: true,
+        includeOffers: true,
+        taskId: povprasevanje_id ?? undefined,
+        maxPerSource: 3,
+      })
+      ragSection = formatRAGContextForPrompt(ragContext)
+    } catch {
+      // RAG is optional enrichment
+    }
+
+    const structuredInstruction = buildStructuredOutputInstruction('materials_agent')
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 800,
-      system: agentDef.system_prompt,
+      system: agentDef.system_prompt + ragSection + structuredInstruction,
       messages: [{ role: 'user', content: `Opis dela: "${work_description}"` }],
     })
 
-    const raw = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
+    const rawText = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
     const inputTokens = response.usage.input_tokens
     const outputTokens = response.usage.output_tokens
     const costUsd = estimateCost('claude-sonnet-4-6', inputTokens, outputTokens)
 
-    let parsed: Record<string, any>
-    try { parsed = JSON.parse(raw) }
-    catch { const m = raw.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : { raw, material_list: [] } }
+    const validated = validateAgentOutput(MaterialsListSchema, rawText)
+    const parsed = validated.success
+      ? validated.data
+      : (() => {
+          try { const m = rawText.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : { material_list: [] } }
+          catch { return { material_list: [] } }
+        })()
 
     const { data: matList } = await supabaseAdmin
       .from('agent_material_lists')

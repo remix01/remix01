@@ -20,9 +20,12 @@ import type {
 import { createClient } from '@supabase/supabase-js'
 import { env, isProduction, requireFeatureEnv } from '@/lib/env'
 import { isAIAvailable } from '@/lib/ai/ai-guard'
+import { anomalyDetector } from '@/lib/observability/alerting'
 
 import { selectModel, estimateCost } from '../model-router'
 import { buildRAGContext, formatRAGContextForPrompt, type RAGContext } from './rag'
+import { getSemanticCachedResponse, setSemanticCachedResponse } from './semantic-cache'
+import { getABAssignment, recordABImpression, type ABAssignment } from './ab-testing'
 import { AI_TOOLS, executeTool, getToolsForAgent } from './tools'
 import {
   AGENT_DAILY_LIMITS,
@@ -68,6 +71,8 @@ export interface AgentExecutionOptions {
   additionalContext?: string
   imageUrl?: string
   maxToolIterations?: number
+  /** Skip semantic cache lookup/store (e.g. for image or tool-heavy calls) */
+  skipSemanticCache?: boolean
   /** Propagated to every Anthropic messages.create() call so the HTTP request
    *  is truly cancelled when executeAgentSafe times out — not just orphaned. */
   abortSignal?: AbortSignal
@@ -89,6 +94,7 @@ export interface AgentExecutionResult {
   }
   costUsd: number
   durationMs: number
+  abTest?: { testId: string; variantId: string }
 }
 
 // =============================================================================
@@ -142,6 +148,7 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
     additionalContext,
     imageUrl,
     maxToolIterations = 5,
+    skipSemanticCache,
     abortSignal,
   } = options
 
@@ -165,6 +172,26 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
     throw new QuotaExceededError(
       `Dnevna kvota za "${agentType}" dosežena (${dailyUsage}/${dailyLimit})`
     )
+  }
+
+  // 1b. Semantic cache — skip for image/tool-heavy calls
+  const useSemanticCache = !skipSemanticCache && !imageUrl && useTools === false
+  if (useSemanticCache) {
+    try {
+      const cached = await getSemanticCachedResponse(userMessage, agentType, userId)
+      if (cached.hit && cached.response) {
+        return {
+          response: cached.response,
+          agentType,
+          modelId: 'semantic-cache',
+          usage: { inputTokens: 0, outputTokens: 0 },
+          costUsd: 0,
+          durationMs: Date.now() - startTime,
+        }
+      }
+    } catch {
+      // Cache miss — proceed normally
+    }
   }
 
   // 2. Build RAG context if enabled
@@ -191,13 +218,19 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
   // 3. Select model based on complexity
   const modelSelection = selectModel(userMessage)
 
+  // 3b. A/B testing — override model or prompt if an active test applies
+  const abAssignment: ABAssignment | null = getABAssignment(agentType, userId)
+  if (abAssignment?.variant.model) {
+    modelSelection.modelId = abAssignment.variant.model
+  }
+
   // 4. Build system prompt
   const baseSystemPrompt = systemPromptOverride || SYSTEM_PROMPTS[agentType]
   const fullSystemPrompt = `${baseSystemPrompt}
 
 Današnji datum: ${new Date().toLocaleDateString('sl-SI')}
 ${ragPromptSection}
-${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
+${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}${abAssignment?.variant.systemPromptSuffix ?? ''}`
 
   // 5. Build messages
   const messages: MessageParam[] = []
@@ -335,7 +368,18 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
     ragSourcesCount,
   })
 
-  // 10. Return result
+  // 10. Store in semantic cache (fire-and-forget)
+  if (useSemanticCache && finalResponse) {
+    setSemanticCachedResponse(userMessage, agentType, finalResponse, userId).catch(() => {})
+  }
+
+  // 11. Record A/B impression
+  const durationMs = Date.now() - startTime
+  if (abAssignment) {
+    recordABImpression(abAssignment.testId, abAssignment.variantId, durationMs, !!finalResponse)
+  }
+
+  // 12. Return result
   return {
     response: finalResponse,
     agentType,
@@ -347,7 +391,8 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}`
       outputTokens: totalOutputTokens,
     },
     costUsd,
-    durationMs: Date.now() - startTime,
+    durationMs,
+    abTest: abAssignment ? { testId: abAssignment.testId, variantId: abAssignment.variantId } : undefined,
   }
 }
 
@@ -439,6 +484,7 @@ async function logAgentUsage(params: {
       rag_sources_count: params.ragSourcesCount ?? 0,
       created_at: new Date().toISOString(),
     })
+    anomalyDetector.checkDailyCostThreshold(params.costUsd)
   } catch (error: any) {
     console.error('Failed to log AI usage:', error)
   }

@@ -7,12 +7,17 @@ import { getAgentDefinition } from '@/lib/agents/ai-definitions'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 import { loadAiUsageProfile, normalizeDailyUsageWindow, evaluateAgentTierAccess, incrementDailyUsage } from '@/lib/agents/route-access-policy'
 import { logAgentUsage } from '@/lib/agents/usage-logging'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { validateAgentOutput, JobSummarySchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const { povprasevanje_id, ponudba_id, work_notes, materials_used } = await req.json()
     if (!povprasevanje_id) return NextResponse.json({ error: 'povprasevanje_id je obvezen.' }, { status: 400 })
@@ -53,7 +58,8 @@ export async function POST(req: NextRequest) {
       materials_used,
       date: new Date().toLocaleDateString('sl-SI'),
     }
-    const systemPrompt = agentDef.system_prompt + `\n\n---\nKONTEKST:\n${JSON.stringify(context, null, 2)}`
+    const structuredInstruction = buildStructuredOutputInstruction('job_summary')
+    const systemPrompt = agentDef.system_prompt + `\n\n---\nKONTEKST:\n${JSON.stringify(context, null, 2)}${structuredInstruction}`
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
     const response = await client.messages.create({
@@ -63,10 +69,14 @@ export async function POST(req: NextRequest) {
       messages: [{ role: 'user', content: 'Generiraj zaključno poročilo za to delo.' }],
     })
 
-    const reportText = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
+    const rawText = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
     const inputTokens = response.usage.input_tokens
     const outputTokens = response.usage.output_tokens
     const costUsd = estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens)
+
+    const validated = validateAgentOutput(JobSummarySchema, rawText)
+    const reportText = validated.success ? validated.data.summary : rawText
+    const reportData = validated.success ? validated.data : context
 
     const { data: report } = await supabaseAdmin
       .from('agent_job_reports')
@@ -75,7 +85,7 @@ export async function POST(req: NextRequest) {
         povprasevanje_id,
         ponudba_id: ponudba_id ?? null,
         report_text: reportText,
-        report_data: context,
+        report_data: reportData,
         sent_to_customer: false,
       })
       .select('id').single()
@@ -99,6 +109,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       report_text: reportText,
       report_id: report?.id,
+      structured: validated.success ? validated.data : null,
       usage: { used: effectiveUsed + 1, limit: dailyLimit },
     })
   } catch (error) {
