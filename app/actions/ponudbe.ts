@@ -6,6 +6,7 @@ import { acceptPonudbaFull, updatePonudba } from '@/lib/dal/ponudbe'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 import { offerService } from '@/lib/services/offerService'
+import { sendNotification } from '@/lib/notifications'
 import { assertPonudbaTransition } from '@/lib/state/ponudbe-status'
 import type { CreateOfferPayload } from '@/lib/types/offer'
 
@@ -91,6 +92,23 @@ export async function withdrawPonudbaAction(
     assertPonudbaTransition(ponudba.status, 'umaknjena')
     const result = await updatePonudba(ponudbaId, { status: 'umaknjena' })
     if (!result) return { success: false, error: 'Napaka pri umiku ponudbe' }
+
+    const { data: povprasevanje } = await supabase
+      .from('povprasevanja')
+      .select('id, narocnik_id, title')
+      .eq('id', ponudba.povprasevanje_id)
+      .maybeSingle()
+
+    if (povprasevanje?.narocnik_id) {
+      sendNotification({
+        userId: povprasevanje.narocnik_id,
+        type: 'ponudba_umaknjena',
+        title: '⚠️ Ponudba umaknjena',
+        message: `Obrtnik je umaknil ponudbo za "${povprasevanje.title}".`,
+        link: `/povprasevanja/${povprasevanje.id}`,
+        metadata: { povprasevanje_id: povprasevanje.id, ponudba_id: ponudbaId },
+      }).catch((err) => console.error('[v0] withdraw notification error:', err))
+    }
 
     revalidatePath('/partner-dashboard')
     revalidatePath('/partner-dashboard/ponudbe')
