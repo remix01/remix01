@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { validateAgentOutput, VideoDiagnosisSchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -33,6 +35,9 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
 
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
+
     if (!process.env.ANTHROPIC_API_KEY) {
       return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
     }
@@ -63,12 +68,12 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const base64Data = Buffer.from(arrayBuffer).toString('base64')
 
+    const structuredInstruction = buildStructuredOutputInstruction('video_diagnosis')
     const systemPrompt = `Si LiftGO video diagnozni asistent za Slovenijo.
 Analiziraš fotografije okvar, poškodb in gradbenih problemov.
 Na podlagi slike pripravi začetno oceno za mojstra in naročnika.
 Vedno odgovarjaš v slovenščini.
-Bodi konservativen — ne diagnoziraj brez zadostnih informacij.
-Odgovori SAMO v JSON formatu brez markdown blokov.`
+Bodi konservativen — ne diagnoziraj brez zadostnih informacij.${structuredInstruction}`
 
     const userPrompt = additionalContext
       ? `Dodatni kontekst od naročnika: ${additionalContext}\n\nAnaliziraj priloženo sliko.`
@@ -120,17 +125,23 @@ Vrni JSON z naslednjo strukturo:
       .map(b => (b as any).text)
       .join('')
 
-    let diagnosis
-    try {
-      diagnosis = JSON.parse(text)
-    } catch {
-      diagnosis = {
-        canDiagnose: false,
-        problemDescription: 'Ni bilo mogoče analizirati slike.',
-        suggestedCategories: [],
-        warnings: [text.slice(0, 200)],
-      }
-    }
+    const validated = validateAgentOutput(VideoDiagnosisSchema, text)
+    const diagnosis = validated.success
+      ? validated.data
+      : {
+          canDiagnose: false,
+          problemDescription: 'Ni bilo mogoče analizirati slike.',
+          severity: 'srednja' as const,
+          suggestedCategories: [],
+          recommendedExperts: [],
+          urgency: 'normalno' as const,
+          descriptionForMaster: '',
+          descriptionForCustomer: text.slice(0, 300),
+          suggestedTitle: '',
+          warnings: [validated.error],
+          additionalPhotosNeeded: [],
+          _validationError: validated.error,
+        }
 
     return success({ diagnosis })
   } catch (error) {

@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { confirmSchedulingRequest } from '@/lib/agent/scheduling/confirmAppointment'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const { ponudbaId, preferredDates, preferredTimeOfDay, notes } = await req.json()
     if (!ponudbaId) {

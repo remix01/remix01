@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgentSafe } from '@/lib/ai/orchestrator'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 type ParsedInquiry = {
   title: string
@@ -72,6 +73,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ success: false, error: 'Niste prijavljeni.' }, { status: 401 })
     }
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const body = await req.json()
     const input = body?.input as string

@@ -15,6 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 import { env } from '@/lib/env'
 import { executeAgent, AgentAccessError, QuotaExceededError } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 const supabaseAdmin = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
@@ -48,6 +49,9 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
+
+    const rateLimitResponse = await checkAIRateLimit(request, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     // 2. Parse request
     const body: ChatRequest = await request.json()
