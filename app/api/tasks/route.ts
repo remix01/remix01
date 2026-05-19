@@ -11,6 +11,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { taskOrchestrator } from '@/lib/services'
 import { paymentService } from '@/lib/services'
 import { liquidityEngine } from '@/lib/marketplace/liquidityEngine'
+import { assertPonudbaTransition } from '@/lib/state/ponudbe-status'
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       // Fetch ponudba
       const { data: ponudba, error: ponudbaError } = await supabaseAdmin
         .from('ponudbe')
-        .select('id, obrtnik_id, price_estimate, povprasevanje_id')
+.select('id, obrtnik_id, price_estimate, povprasevanje_id, status')
         .eq('id', ponudbaId)
         .eq('povprasevanje_id', task.povprasevanje_id)
         .single()
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Only mutate offer rows after the state machine gate has passed.
+      assertPonudbaTransition(ponudba.status, 'sprejeta')
       await supabaseAdmin
         .from('ponudbe')
         .update({ status: 'sprejeta' })

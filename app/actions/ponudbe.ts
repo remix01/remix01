@@ -6,6 +6,7 @@ import { acceptPonudbaFull, updatePonudba } from '@/lib/dal/ponudbe'
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 import { trackFunnelEvent, FUNNEL_EVENTS } from '@/lib/analytics/funnel'
 import { offerService } from '@/lib/services/offerService'
+import { assertPonudbaTransition } from '@/lib/state/ponudbe-status'
 import type { CreateOfferPayload } from '@/lib/types/offer'
 
 export async function acceptPonudbaAction(
@@ -87,7 +88,8 @@ export async function withdrawPonudbaAction(
       return { success: false, error: 'Sprejete ponudbe ni mogoče umakniti' }
     }
 
-    const result = await updatePonudba(ponudbaId, { status: 'zavrnjena' })
+    assertPonudbaTransition(ponudba.status, 'umaknjena')
+    const result = await updatePonudba(ponudbaId, { status: 'umaknjena' })
     if (!result) return { success: false, error: 'Napaka pri umiku ponudbe' }
 
     revalidatePath('/partner-dashboard')
