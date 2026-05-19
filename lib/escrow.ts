@@ -17,7 +17,7 @@ const ALLOWED_ESCROW_TRANSITIONS: Record<EscrowStatus, EscrowStatus[]> = {
   refunded: [],
   disputed: ['released', 'refunded', 'resolving'],
   cancelled: [],
-  releasing: ['paid', 'released'],
+  releasing: ['paid', 'released', 'cancelled', 'refunded'],
   resolving: ['disputed', 'released', 'refunded'],
 }
 

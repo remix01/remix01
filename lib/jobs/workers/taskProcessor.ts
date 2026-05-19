@@ -226,7 +226,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     }
 
     // Stripe succeeded — finalize in DB
-    await (supabaseAdmin as any)
+    const { data: released, error: releaseError } = await (supabaseAdmin as any)
       .from('escrow_transactions')
       .update({
         status: 'released',
@@ -235,6 +235,29 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       })
       .eq('id', escrowId)
       .eq('status', 'releasing')
+      .select('id')
+
+    if (releaseError || !released || released.length === 0) {
+      console.error(`[TaskProcessor] DB update failed after Stripe transfer ${transfer.id} — reversing transfer`, {
+        escrowId,
+        releaseError,
+      })
+      try {
+        const { stripe: stripeClient } = await import('@/lib/stripe/client')
+        await stripeClient.transfers.createReversal(transfer.id)
+        await (supabaseAdmin as any)
+          .from('escrow_transactions')
+          .update({ status: 'paid' })
+          .eq('id', escrowId)
+          .eq('status', 'releasing')
+      } catch (reversalErr) {
+        console.error(`[TaskProcessor] CRITICAL: Transfer ${transfer.id} reversal also failed — manual intervention required`, {
+          escrowId,
+          reversalErr,
+        })
+      }
+      throw new Error(`[release_escrow] DB finalize failed for escrow ${escrowId}, transfer reversed`)
+    }
 
     console.log(`[TaskProcessor] Escrow ${escrowId} released — transfer ${transfer.id}`)
   } catch (err) {

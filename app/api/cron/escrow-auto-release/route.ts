@@ -12,6 +12,41 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // ========== RECOVERY: Unstick 'releasing' records older than 10 minutes ==========
+  // These are leftover from prior runs where Stripe succeeded but DB update failed
+  const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+  const { data: stuck } = await supabaseAdmin
+    .from('escrow_transactions')
+    .select('id, stripe_payment_intent_id')
+    .eq('status', 'releasing')
+    .lt('updated_at', stuckCutoff)
+    .limit(10)
+
+  for (const tx of stuck ?? []) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(tx.stripe_payment_intent_id)
+      if (pi.status === 'succeeded') {
+        await supabaseAdmin
+          .from('escrow_transactions')
+          .update({ status: 'released', released_at: new Date().toISOString() })
+          .eq('id', tx.id)
+          .eq('status', 'releasing')
+        console.info(`[CRON RECOVERY] Finalized stuck escrow ${tx.id} — PI already captured`)
+      } else if (pi.status === 'requires_capture') {
+        await supabaseAdmin
+          .from('escrow_transactions')
+          .update({ status: 'paid' })
+          .eq('id', tx.id)
+          .eq('status', 'releasing')
+        console.info(`[CRON RECOVERY] Reverted stuck escrow ${tx.id} — PI still requires capture`)
+      } else {
+        console.error(`[CRON RECOVERY] Stuck escrow ${tx.id} has terminal PI status '${pi.status}' — manual intervention required`)
+      }
+    } catch (err) {
+      console.error(`[CRON RECOVERY] Failed to recover stuck escrow ${tx.id}:`, err)
+    }
+  }
+
   // ========== OPTIMISTIC LOCKING: Atomically claim transactions ==========
   // Update status to 'releasing' for only transactions still in 'paid' state
   // This prevents concurrent cron instances from processing the same transactions
@@ -53,11 +88,29 @@ export async function GET(request: NextRequest) {
         console.log(`[CRON AUTO-RELEASE] Captured PI ${tx.stripe_payment_intent_id}`)
       } catch (stripeErr: any) {
         console.error(`[CRON AUTO-RELEASE] Stripe capture failed for ${tx.id}: ${stripeErr.message}`)
-        // Revert status back to 'paid' so it can be retried on next cron run
+
+        const TERMINAL_PI_STATUSES = new Set(['canceled', 'requires_payment_method', 'requires_confirmation', 'processing'])
+        if (stripeErr.code === 'payment_intent_unexpected_state') {
+          const pi = await stripe.paymentIntents.retrieve(tx.stripe_payment_intent_id)
+          if (TERMINAL_PI_STATUSES.has(pi.status)) {
+            await supabaseAdmin
+              .from('escrow_transactions')
+              .update({ status: 'cancelled', notes: `PI terminal: ${pi.status}` })
+              .eq('id', tx.id)
+              .eq('status', 'releasing')
+            console.error(`[CRON AUTO-RELEASE] Escrow ${tx.id} cancelled — PI in terminal state '${pi.status}' — manual intervention required`, {
+              paymentIntent: tx.stripe_payment_intent_id,
+            })
+            throw stripeErr
+          }
+        }
+
+        // Transient failure or PI still requires_capture — revert for retry
         const { error: revertErr } = await supabaseAdmin
           .from('escrow_transactions')
           .update({ status: 'paid' })
           .eq('id', tx.id)
+          .eq('status', 'releasing')
         if (revertErr) {
           console.error(`[CRON AUTO-RELEASE] Failed to revert ${tx.id}: ${revertErr.message}`)
         }
@@ -69,17 +122,39 @@ export async function GET(request: NextRequest) {
         throw new Error('Stripe success not confirmed - DB update prevented')
       }
 
-      const { error: updateError } = await supabaseAdmin
+      const { data: released, error: updateError } = await supabaseAdmin
         .from('escrow_transactions')
         .update({
           status: 'released',
           released_at: new Date().toISOString(),
         })
         .eq('id', tx.id)
+        .eq('status', 'releasing')
+        .select('id')
 
-      if (updateError) {
-        console.error(`[CRON AUTO-RELEASE] DB update failed for ${tx.id} after Stripe success: ${updateError.message}`)
-        throw new Error(`DB update failed: ${updateError.message}`)
+      if (updateError || !released || released.length === 0) {
+        console.error(`[CRON AUTO-RELEASE] DB update failed for ${tx.id} after Stripe capture — attempting refund`, {
+          updateError,
+        })
+        try {
+          await stripe.refunds.create({
+            payment_intent: tx.stripe_payment_intent_id,
+          }, {
+            idempotencyKey: `escrow-release-refund:${tx.id}`,
+          })
+          await supabaseAdmin
+            .from('escrow_transactions')
+            .update({ status: 'refunded' })
+            .eq('id', tx.id)
+            .eq('status', 'releasing')
+          console.warn(`[CRON AUTO-RELEASE] Refunded PI ${tx.stripe_payment_intent_id} after DB failure — marked as refunded`)
+        } catch (refundErr) {
+          console.error(`[CRON AUTO-RELEASE] CRITICAL: Refund also failed for ${tx.id} — manual intervention required`, {
+            paymentIntent: tx.stripe_payment_intent_id,
+            refundErr,
+          })
+        }
+        throw new Error(`DB update failed after Stripe capture: ${updateError?.message ?? 'no rows updated'}`)
       }
 
       // Record in audit log
