@@ -125,13 +125,8 @@ export function ActivityFeed() {
                     <td className="py-2 px-3 text-slate-400 font-mono text-xs">{log.user_id?.slice(0, 8)}...</td>
                     <td className="py-2 px-3 text-slate-300">{log.event}</td>
                     <td className="py-2 px-3 text-slate-400">{log.tool || '-'}</td>
-<<<<<<< Updated upstream
                     <td className={`py-2 px-3 font-semibold ${getResultColor(log.result)}`}>
                       {typeof log.result === 'string' && log.result === 'success' ? '✅' : typeof log.result === 'string' && log.result === 'error' ? '❌' : typeof log.result === 'string' && log.result === 'warning' ? '⚠️' : '-'}
-=======
-                    <td className={`py-2 px-3 font-semibold ${getResultColor(String(log.result))}`}>
-                      {log.result === 'success' ? '✅' : log.result === 'error' ? '❌' : log.result === 'warning' ? '⚠️' : '-'}
->>>>>>> Stashed changes
                     </td>
                     <td className="py-2 px-3 text-slate-400">{log.duration_ms ? `${log.duration_ms}ms` : '-'}</td>
                   </tr>

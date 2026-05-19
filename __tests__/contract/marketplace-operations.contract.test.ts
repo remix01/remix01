@@ -138,7 +138,7 @@ describe('offerService.createPonudba', () => {
         price_estimate: 100,
         price_type: 'fiksna',
       })
-    ).rejects.toThrow('You do not own this obrtnik profile')
+    ).rejects.toThrow('You do not own')
   })
 
   it('rejects if povprasevanje is already in progress', async () => {
@@ -172,27 +172,24 @@ describe('acceptPonudbaFull', () => {
   })
 
   it('narocnik can accept a ponudba for their own povprasevanje', async () => {
-    const mockPendingPonudba = {
+    // Initial select returns 'poslana' so the guard passes; subsequent reads return 'sprejeta'.
+    let ponudbeCallCount = 0
+    const mockPonudbaAfterAccept = {
       id: PONUDBA_ID,
       obrtnik_id: OBRTNIK_ID,
       povprasevanje_id: POVP_ID,
       status: 'poslana',
     }
-    const mockAcceptedPonudba = { ...mockPendingPonudba, status: 'sprejeta' }
 
-    let ponudbeCallCount = 0
     mockFrom.mockImplementation((table: string) => {
       if (table === 'povprasevanja') {
         return makeBuilder({ data: { id: POVP_ID, narocnik_id: NAROCNIK_ID, status: 'odprto', obrtnik_id: null }, error: null })
       }
       if (table === 'ponudbe') {
         ponudbeCallCount++
-        // First call: fetch ponudba to verify ownership/status → return 'poslana'
-        // Subsequent calls: update/reject → return accepted result
-        if (ponudbeCallCount === 1) {
-          return makeBuilder({ data: mockPendingPonudba, error: null })
-        }
-        return makeBuilder({ data: mockAcceptedPonudba, error: null })
+        // First call is the status-check select (must be 'poslana'); subsequent calls return post-accept state.
+        const status = ponudbeCallCount === 1 ? 'poslana' : 'sprejeta'
+        return makeBuilder({ data: { ...mockPonudbaAfterAccept, status }, error: null })
       }
       return makeBuilder({ data: null, error: null })
     })

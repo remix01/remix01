@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
     // Get active providers
     const { data: providers, error: providerError } = await supabase
       .from('obrtnik_profiles')
-      .select('id, email, ime')
-      .eq('verified', true)
-      .eq('aktiven', true)
+      .select('id, phone, business_name')
+      .eq('is_verified', true)
+      .eq('is_available', true)
       .limit(500)
 
     if (providerError) {

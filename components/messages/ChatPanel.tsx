@@ -107,11 +107,7 @@ export function ChatPanel({
                     msg.sender_id === currentUserId ? 'text-blue-100' : 'text-slate-500'
                   }`}
                 >
-<<<<<<< Updated upstream
                   {formatDistanceToNow(new Date(msg.created_at ?? Date.now()), {
-=======
-                  {formatDistanceToNow(new Date(msg.created_at || Date.now()), {
->>>>>>> Stashed changes
                     addSuffix: false,
                     locale: sl,
                   })}

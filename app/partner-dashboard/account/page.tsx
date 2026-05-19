@@ -83,26 +83,20 @@ export default function AccountPage() {
         if (partnerError) throw partnerError
 
         // Fetch user profile
-        const [userByIdRes, userByAuthIdRes] = await Promise.all([
+        const [userByIdRes] = await Promise.all([
           supabase
             .from('profiles')
             .select('id, email, phone, location_city')
             .eq('id', user.id)
             .maybeSingle(),
-          supabase
-            .from('profiles')
-            .select('id, email, phone, location_city')
-            .eq('auth_user_id', user.id)
-            .maybeSingle(),
         ])
 
-        const userData = userByIdRes.data ?? userByAuthIdRes.data
-        const userError = userByIdRes.error ?? userByAuthIdRes.error
+        const userData = userByIdRes.data
+        const userError = userByIdRes.error
 
         if (userError) throw userError
 
         if (partnerData) {
-<<<<<<< Updated upstream
           const normalizedPartner: PartnerProfile = {
             id: partnerData.id,
             business_name: partnerData.business_name ?? '',
@@ -118,12 +112,6 @@ export default function AccountPage() {
           }
 
           setPartner(normalizedPartner)
-=======
-          setPartner({
-            ...partnerData,
-            subscription_tier: (partnerData.subscription_tier as 'start' | 'pro' | 'elite' | null) || null
-          })
->>>>>>> Stashed changes
           setFormData({
             business_name: normalizedPartner.business_name || '',
             description: normalizedPartner.description || '',

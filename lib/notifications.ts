@@ -189,17 +189,10 @@ export async function getRecentNotifications(
 
     return (data || []).map((n: any) => ({
       id: n.id,
-<<<<<<< Updated upstream
       user_id: n.user_id || "",
       type: n.type,
       title: n.title || "",
       message: n.message || n.body || "",
-=======
-      user_id: n.user_id || '',
-      type: n.type,
-      title: n.title || '',
-      message: n.message || n.body || '',
->>>>>>> Stashed changes
       link: n.action_url || undefined,
       read: !!n.read,
       metadata: (n.data as Record<string, unknown>) || {},
@@ -243,21 +236,9 @@ export async function getAllNotifications(
     }
 
     return { notifications: (data || []).map((n: any) => ({
-<<<<<<< Updated upstream
       id: n.id, user_id: n.user_id || "", type: n.type, title: n.title || "",
       message: n.message || n.body || "", link: n.action_url || undefined, read: !!n.read,
       metadata: (n.data as Record<string, unknown>) || {}, created_at: n.created_at || new Date().toISOString(),
-=======
-      id: n.id,
-      user_id: n.user_id || '',
-      type: n.type,
-      title: n.title || '',
-      message: n.message || n.body || '',
-      link: n.action_url || undefined,
-      read: !!n.read,
-      metadata: (n.data as Record<string, unknown>) || {},
-      created_at: n.created_at || new Date().toISOString(),
->>>>>>> Stashed changes
     })) as Notification[], total: count || 0 }
   } catch (error) {
     console.error('[v0] Error in getAllNotifications:', error)

@@ -21,19 +21,11 @@ export default async function ObrtknikDashboardPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  const { data: userProfileById } = await supabase
+  const { data: userProfile } = await supabase
     .from('profiles')
     .select('subscription_tier')
     .eq('id', user.id)
     .maybeSingle()
-
-  const { data: userProfileByAuthUserId } = await supabase
-    .from('profiles')
-    .select('subscription_tier')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
-
-  const userProfile = userProfileById ?? userProfileByAuthUserId
 
   if (!obrtnikProfile) {
     redirect('/partner-auth/login')

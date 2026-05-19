@@ -53,7 +53,7 @@ export function ObrtnikiOfferForm({ povprasevanje_id, onSuccess, povprasevanjeCo
       const { data: obrtnik } = await supabase
         .from('obrtnik_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single()
 
       if (!obrtnik) throw new Error('Profil ni najden')

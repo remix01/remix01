@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
       .insert({
         action: 'reset_ai_usage',
         admin_id: 'system',
-        user_id: userId,
-        old_value: { action: 'reset' },
-        new_value: { ai_messages_used_today: 0 },
+        target_id: userId,
+        target_type: 'user',
+        details: { ai_messages_used_today: 0 },
         created_at: new Date().toISOString(),
       })
     if (auditError) console.error('Audit log error:', auditError)
