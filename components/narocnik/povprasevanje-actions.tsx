@@ -33,6 +33,7 @@ interface PovprasevanjeActionsProps {
 }
 
 export function canCancelPovprasevanje(status: string) {
+  if (status === 'v_izvedbi') return false // canonical in-progress
   if (status === 'v_teku') return false // legacy alias for in-progress
   if (status === 'preklicano') return false
   return canTransitionPovprasevanje(status, 'preklicano')
@@ -54,7 +55,7 @@ export function PovprasevanjeActions({
   const [editTitle, setEditTitle] = useState(title)
   const [editDescription, setEditDescription] = useState(description)
 
-  const isFinal = ['v_teku', 'zakljuceno', 'preklicano'].includes(status)
+  const isFinal = ['v_izvedbi', 'v_teku', 'zakljuceno', 'preklicano'].includes(status)
   const canEdit = !isFinal && !hasAcceptedPonudba
   const canDelete = !hasPonudbe && !isFinal
   const canCancel = canCancelPovprasevanje(status)
