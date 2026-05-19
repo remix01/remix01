@@ -5,6 +5,8 @@
  * search for a cached response with similarity >= threshold. If found,
  * return instantly. Otherwise call LLM and store the result.
  *
+ * All lookups and stores are scoped by user_id to prevent cross-user leakage.
+ *
  * Storage: Redis (Upstash) for response text + TTL, pgvector for embeddings.
  * Falls back gracefully — cache miss just calls LLM normally.
  */
@@ -49,12 +51,13 @@ export interface SemanticCacheResult {
 }
 
 /**
- * Look up a semantically similar cached response.
+ * Look up a semantically similar cached response scoped to the given user.
  * Returns { hit: true, response } on cache hit, { hit: false } on miss.
  */
 export async function getSemanticCachedResponse(
   userMessage: string,
-  agentType: string
+  agentType: string,
+  userId: string
 ): Promise<SemanticCacheResult> {
   try {
     const embedding = await generateEmbedding(userMessage)
@@ -62,6 +65,7 @@ export async function getSemanticCachedResponse(
     const { data, error } = await supabaseAdmin.rpc('match_semantic_cache', {
       query_embedding: JSON.stringify(embedding),
       agent_type_filter: agentType,
+      user_id_filter: userId,
       match_threshold: SIMILARITY_THRESHOLD,
       match_count: 1,
     })
@@ -103,12 +107,13 @@ export async function getSemanticCachedResponse(
 }
 
 /**
- * Store a response in the semantic cache for future lookups.
+ * Store a response in the semantic cache scoped to the given user.
  */
 export async function setSemanticCachedResponse(
   userMessage: string,
   agentType: string,
-  response: string
+  response: string,
+  userId: string
 ): Promise<void> {
   if (response.length > MAX_CACHED_RESPONSE_LENGTH) return
 
@@ -118,6 +123,7 @@ export async function setSemanticCachedResponse(
     const { data: inserted, error } = await supabaseAdmin
       .from('semantic_cache')
       .insert({
+        user_id: userId,
         user_message: userMessage.slice(0, 500),
         agent_type: agentType,
         response_text: response,

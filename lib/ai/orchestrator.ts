@@ -178,7 +178,7 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
   const useSemanticCache = !skipSemanticCache && !imageUrl && useTools === false
   if (useSemanticCache) {
     try {
-      const cached = await getSemanticCachedResponse(userMessage, agentType)
+      const cached = await getSemanticCachedResponse(userMessage, agentType, userId)
       if (cached.hit && cached.response) {
         return {
           response: cached.response,
@@ -370,7 +370,7 @@ ${additionalContext ? `\nDodaten kontekst:\n${additionalContext}` : ''}${abAssig
 
   // 10. Store in semantic cache (fire-and-forget)
   if (useSemanticCache && finalResponse) {
-    setSemanticCachedResponse(userMessage, agentType, finalResponse).catch(() => {})
+    setSemanticCachedResponse(userMessage, agentType, finalResponse, userId).catch(() => {})
   }
 
   // 11. Record A/B impression
