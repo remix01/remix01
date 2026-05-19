@@ -41,6 +41,10 @@ export const intentMap: Record<string, AgentType> = {
   // Notify actions
   'sendNotification': 'notify',
   'updatePreferences': 'notify',
+
+  // Code change actions
+  'applyCodeChange': 'code_change',
+  'batchCodeChanges': 'code_change',
 }
 
 const anthropic = new Anthropic()

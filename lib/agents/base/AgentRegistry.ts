@@ -30,6 +30,7 @@ export async function initializeAgents(): Promise<void> {
     const { DisputeAgent } = await import('../dispute-agent/DisputeAgent')
     const { NotifyAgent } = await import('../notify-agent/NotifyAgent')
     const { SupervisorAgent } = await import('../supervisor-agent/SupervisorAgent')
+    const { CodeChangeAgent } = await import('../code-change/CodeChangeAgent')
 
     // Register each agent with the bus
     messageBus.register(new OrchestratorAgent())
@@ -38,6 +39,7 @@ export async function initializeAgents(): Promise<void> {
     messageBus.register(new DisputeAgent())
     messageBus.register(new NotifyAgent())
     messageBus.register(new SupervisorAgent())
+    messageBus.register(new CodeChangeAgent())
 
     console.log('[AgentRegistry] Multi-agent system initialized')
     console.log('[AgentRegistry] Registered agents:', messageBus.getRegistered().join(', '))
@@ -55,6 +57,6 @@ export async function initializeAgents(): Promise<void> {
  */
 export function agentsInitialized(): boolean {
   const registered = messageBus.getRegistered()
-  // All 6 agents should be registered
-  return registered.length === 6
+  // All 7 agents should be registered
+  return registered.length === 7
 }
