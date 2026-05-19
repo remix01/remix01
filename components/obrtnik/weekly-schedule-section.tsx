@@ -110,11 +110,7 @@ export function WeeklyScheduleSection({
               ...(entry.is_available
                 ? { time_from: entry.time_from, time_to: entry.time_to }
                 : {}),
-<<<<<<< Updated upstream
             },
-=======
-            } as any,
->>>>>>> Stashed changes
             { onConflict: 'obrtnik_id,day_of_week' }
           )
 

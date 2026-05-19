@@ -42,20 +42,13 @@ export async function GET(request: NextRequest) {
     } else if (filterType === 'completed') {
       query = query.eq('status', 'completed')
     }
-<<<<<<< Updated upstream
     // 'all' returns everything
-=======
->>>>>>> Stashed changes
 
     const { data, error } = await query.range(offset, offset + limit - 1).order('created_at', { ascending: false })
 
     if (error) {
       console.error('[v0] Query error:', error)
-<<<<<<< Updated upstream
       return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 })
-=======
-      return NextResponse.json({ error: error.message }, { status: 400 })
->>>>>>> Stashed changes
     }
 
     return NextResponse.json({ tasks: data || [] })

@@ -180,9 +180,7 @@ describe('acceptPonudbaFull', () => {
       povprasevanje_id: POVP_ID,
       status: 'poslana',
     }
-    const mockAcceptedPonudba = { ...mockPendingPonudba, status: 'sprejeta' }
 
-    let ponudbeCallCount = 0
     mockFrom.mockImplementation((table: string) => {
       if (table === 'povprasevanja') {
         return makeBuilder({ data: { id: POVP_ID, narocnik_id: NAROCNIK_ID, status: 'odprto', obrtnik_id: null }, error: null })

@@ -57,18 +57,11 @@ export function ReviewModal({ povprasevanjId }: ReviewModalProps) {
       // Create review
       const { error: reviewError } = await supabase.from('ocene').insert({
         ponudba_id: offer.id,
-<<<<<<< Updated upstream
         narocnik_id: user.id,
         obrtnik_id: offer.obrtnik_id,
         rating,
         comment: text || null,
         is_public: true,
-=======
-        narocnik_id: authUser?.id ?? '',
-        obrtnik_id: offer.obrtnik_id,
-        rating,
-        comment: text || null,
->>>>>>> Stashed changes
       })
 
       if (reviewError) throw reviewError

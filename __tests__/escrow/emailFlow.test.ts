@@ -41,11 +41,7 @@ describe('email job routing and queue fail-fast', () => {
       const { enqueue } = await import('@/lib/jobs/queue')
       await expect(
         enqueue('sendEmail', { template: 'povprasevanje_confirmation', to: 'x@example.com' })
-<<<<<<< Updated upstream
       ).rejects.toThrow(/QStash not configured in production/)
-=======
-      ).rejects.toThrow(/Missing required production QStash env vars/)
->>>>>>> Stashed changes
     } finally {
       ;(process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv
       process.env.QSTASH_TOKEN = originalQstash
