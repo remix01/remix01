@@ -15,7 +15,12 @@ export function getPublicSupabaseClient() {
   )
 }
 
+
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
+
 export async function getActiveCategoriesPublic(): Promise<Category[]> {
+  if (isBuildTime) return []
+
   const supabase = getPublicSupabaseClient()
 
   const { data, error } = await supabase
