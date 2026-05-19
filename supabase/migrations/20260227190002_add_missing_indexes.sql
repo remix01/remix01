@@ -24,31 +24,12 @@ ON ocene(obrtnik_id);
 CREATE INDEX IF NOT EXISTS idx_ocene_ponudba_id 
 ON ocene(ponudba_id);
 
--- Offers table
-CREATE INDEX IF NOT EXISTS idx_offers_partner_id 
-ON offers(partner_id);
-
-CREATE INDEX IF NOT EXISTS idx_offers_user_id 
-ON offers(user_id);
-
--- Partners table
-CREATE INDEX IF NOT EXISTS idx_partners_new_profile_id 
-ON partners(new_profile_id);
-
-CREATE INDEX IF NOT EXISTS idx_partners_user_id 
-ON partners(user_id);
-
 -- Payouts table
-CREATE INDEX IF NOT EXISTS idx_payouts_offer_id 
-ON payouts(offer_id);
+CREATE INDEX IF NOT EXISTS idx_payouts_ponudba_id
+ON payouts(ponudba_id);
 
--- Data records table (for better filtering)
-CREATE INDEX IF NOT EXISTS idx_data_records_user_id 
-ON data_records(user_id);
-
--- Inquiries table (for better filtering)
-CREATE INDEX IF NOT EXISTS idx_inquiries_user_id 
-ON inquiries(user_id);
+CREATE INDEX IF NOT EXISTS idx_payouts_obrtnik_id
+ON payouts(obrtnik_id);
 
 -- Povprasevanja table
 CREATE INDEX IF NOT EXISTS idx_povprasevanja_narocnik_id 

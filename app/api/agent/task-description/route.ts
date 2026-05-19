@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -28,6 +29,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')

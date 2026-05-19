@@ -7,6 +7,7 @@ import { determineRouting } from '@/lib/ai/concierge-routing'
 import { detectLanguage } from '@/lib/ai/concierge-language'
 import type { ConciergeLanguage } from '@/lib/ai/concierge-types'
 import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-cache'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 interface ConciergeRequest {
   message: string
@@ -171,6 +172,9 @@ export async function POST(req: NextRequest) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
+    const rateLimitResponse = await checkAIRateLimit(req, user?.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const language = detectLanguage(message, body.language || 'sl')
     const cacheUserScope = user?.id || 'anonymous'

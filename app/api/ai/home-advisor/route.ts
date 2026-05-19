@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const body = await req.json()
     const logs = body?.logs || []
