@@ -8,6 +8,7 @@ import { sendPushToObrtnikiByCategory } from '@/lib/push-notifications'
 import { enqueue } from '@/lib/jobs/queue'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
 import { inquiryLimiter } from '@/lib/rate-limit/limiters'
+import { withCsrf } from '@/lib/csrf/with-csrf'
 import { z } from 'zod'
 import {
   checkEmailRateLimit,
@@ -346,7 +347,7 @@ async function postHandler(req: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(inquiryLimiter, postHandler)
+export const POST = withCsrf(withRateLimit(inquiryLimiter, postHandler))
 
 export async function GET(req: Request) {
   try {

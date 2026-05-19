@@ -9,8 +9,10 @@ import { sendNotification } from '@/lib/notifications'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { withCsrf } from '@/lib/csrf/with-csrf'
+import { SECURITY_MESSAGES } from '@/lib/security/access'
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     const supabase = await createClient()
 
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
       60_000   // per minute
     )
     if (!allowed) {
-      return tooManyRequests(`Too many requests. Try again in ${retryAfter}s.`)
+      return tooManyRequests(SECURITY_MESSAGES.tooManyRequests)
     }
 
     // Parse request body
@@ -44,6 +46,10 @@ export async function POST(request: NextRequest) {
 
     if (validationErrors.length > 0) {
       return badRequest(validationErrors.map(e => `${e.field}: ${e.message}`).join('; '))
+    }
+
+    if (obrtnik_id !== user.id) {
+      return forbidden(SECURITY_MESSAGES.forbidden)
     }
 
     // Validate date if provided
@@ -163,3 +169,5 @@ export async function POST(request: NextRequest) {
     return handleServiceError(error)
   }
 }
+
+export const POST = withCsrf(postHandler as any)
