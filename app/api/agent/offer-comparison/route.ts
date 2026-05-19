@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { buildRAGContext, formatRAGContextForPrompt } from '@/lib/ai/rag'
+import { validateAgentOutput, OfferComparisonSchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -29,6 +32,9 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
@@ -89,10 +95,25 @@ export async function POST(req: NextRequest) {
 - Sporočilo: ${p.message?.slice(0, 300) || 'Ni sporočila'}`
     }).join('\n\n')
 
+    let ragSection = ''
+    try {
+      const ragContext = await buildRAGContext(povprasevanje.title || '', {
+        includeTasks: true,
+        includeObrtniki: true,
+        includeOffers: true,
+        taskId: povprasevanjeId,
+        maxPerSource: 3,
+      })
+      ragSection = formatRAGContextForPrompt(ragContext)
+    } catch {
+      // RAG is optional enrichment — continue without it
+    }
+
+    const structuredInstruction = buildStructuredOutputInstruction('offer_comparison')
     const systemPrompt = `Si LiftGO asistent za primerjavo ponudb v Sloveniji.
 Analiziraš ponudbe mojstrov in pomagaš stranki izbrati najboljšo.
 Vedno odgovarjaš v slovenščini.
-Odgovori SAMO v JSON formatu brez markdown blokov.`
+${ragSection}${structuredInstruction}`
 
     const userPrompt = `Analiziraj naslednje ponudbe za povpraševanje "${povprasevanje.title}":
 
@@ -129,12 +150,10 @@ Pripravi JSON z naslednjo strukturo:
       .map(b => (b as any).text)
       .join('')
 
-    let analysis
-    try {
-      analysis = JSON.parse(text)
-    } catch {
-      analysis = { summary: text, warnings: [], comparison: [], recommendation: '' }
-    }
+    const validated = validateAgentOutput(OfferComparisonSchema, text)
+    const analysis = validated.success
+      ? validated.data
+      : { summary: text, warnings: [], comparison: [], recommendation: '', _validationError: validated.error }
 
     return success({ analysis, ponudbe })
   } catch (error) {

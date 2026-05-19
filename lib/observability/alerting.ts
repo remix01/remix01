@@ -21,6 +21,7 @@ type AlertType =
   | 'repeated_state_violations'      // same resource has 3+ illegal transition attempts
   | 'llm_error_spike'               // 5+ LLM failures in 2 minutes
   | 'job_queue_failure_spike'        // 10+ job failures in 5 minutes
+  | 'daily_cost_threshold'           // daily AI spend exceeds configured EUR threshold
 
 type Alert = {
   id: string
@@ -44,7 +45,10 @@ const THRESHOLDS: Record<AlertType, { threshold: number; windowMs: number; sever
   repeated_state_violations: { threshold: 3, windowMs: 600000, severity: 'high' },        // 3 in 10min
   llm_error_spike: { threshold: 5, windowMs: 120000, severity: 'high' },                   // 5 in 2min
   job_queue_failure_spike: { threshold: 10, windowMs: 300000, severity: 'medium' },       // 10 in 5min
+  daily_cost_threshold: { threshold: 1, windowMs: 86400000, severity: 'high' },            // checked via DB query
 }
+
+const DAILY_COST_THRESHOLD_EUR = parseFloat(process.env.AI_DAILY_COST_THRESHOLD_EUR || '50')
 
 // ── ANOMALY DETECTOR ───────────────────────────────────────────────────────────
 
@@ -202,6 +206,46 @@ class AnomalyDetector {
       } catch (err) {
         console.error('[ANOMALY] Email send failed:', err)
       }
+    }
+  }
+
+  /**
+   * Check if daily AI cost has exceeded the threshold.
+   * Call this after each AI usage log insertion (fire-and-forget).
+   */
+  checkDailyCostThreshold(costUsd: number): void {
+    this.checkDailyCostAsync(costUsd).catch((err: any) =>
+      console.error('[ANOMALY] Error checking daily cost threshold:', err)
+    )
+  }
+
+  private lastCostAlertAt = 0
+  private static readonly COST_ALERT_COOLDOWN_MS = 12 * 60 * 60 * 1000 // 12 hours
+
+  private async checkDailyCostAsync(latestCostUsd: number): Promise<void> {
+    if (Date.now() - this.lastCostAlertAt < AnomalyDetector.COST_ALERT_COOLDOWN_MS) return
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const { data } = await supabaseAdmin
+      .from('ai_usage_logs')
+      .select('cost_usd')
+      .gte('created_at', today.toISOString())
+
+    if (!data) return
+
+    const totalUsd = data.reduce((sum: number, row: { cost_usd: number | null }) => sum + (row.cost_usd || 0), 0)
+    const totalEur = totalUsd * 0.92
+
+    if (totalEur >= DAILY_COST_THRESHOLD_EUR) {
+      this.lastCostAlertAt = Date.now()
+      await this.fireAlert({
+        severity: 'high',
+        type: 'daily_cost_threshold',
+        details: `Dnevni AI stroški: €${totalEur.toFixed(2)} (prag: €${DAILY_COST_THRESHOLD_EUR}). Skupaj ${data.length} klicev, $${totalUsd.toFixed(4)} USD.`,
+        count: data.length,
+      })
     }
   }
 
