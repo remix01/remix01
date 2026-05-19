@@ -3,6 +3,17 @@ import { Sandbox } from "@e2b/code-interpreter";
 const SANDBOX_TIMEOUT_MS = 60_000;
 const COMMAND_TIMEOUT_MS = 45_000;
 
+// @e2b/code-interpreter@2.4.x inherits Sandbox.create from e2b@2.x which
+// accepts SandboxOpts (timeoutMs, envs, etc.), but the .d.ts re-export
+// narrows the type to { apiKey? } due to a generics resolution gap.
+// Runtime behavior is correct — the cast is safe.
+type SandboxCreateOpts = {
+  timeoutMs?: number;
+  envs?: Record<string, string>;
+  template?: string;
+  apiKey?: string;
+};
+
 const FORBIDDEN_ENV_KEYS = new Set([
   "ANTHROPIC_API_KEY",
   "MORPH_API_KEY",
@@ -38,7 +49,7 @@ export async function testInE2B(
     }
   }
 
-  const sandbox = await Sandbox.create({
+  const sandbox = await (Sandbox.create as (opts: SandboxCreateOpts) => Promise<InstanceType<typeof Sandbox>>)({
     timeoutMs: SANDBOX_TIMEOUT_MS,
     envs: safeEnv,
   });
