@@ -1,5 +1,4 @@
 {
-  "nodeVersion": "24.x",
   "installCommand": "pnpm install --no-frozen-lockfile",
   "crons": [
     {
