@@ -22,7 +22,7 @@ export function registerNotificationSubscriber() {
   eventBus.on('task.matched', async (payload) => {
     const correlationId = randomUUID()
     try {
-      const skip = await idempotency.checkAndMark('task.matched', 'notify', payload.taskId)
+      const skip = await idempotency.check('task.matched', 'notify', payload.taskId)
       if (skip) {
         log('info', '[NotificationSubscriber] Skipped duplicate task.matched', { correlationId, taskId: payload.taskId })
         return
@@ -44,6 +44,8 @@ export function registerNotificationSubscriber() {
         partners,
         payload.deadlineAt
       )
+
+      await idempotency.mark('task.matched', 'notify', payload.taskId).catch(() => {})
 
       log('info', '[NotificationSubscriber] task.matched notified', {
         correlationId,
@@ -75,7 +77,7 @@ export function registerNotificationSubscriber() {
   eventBus.on('task.accepted', async (payload) => {
     const correlationId = randomUUID()
     try {
-      const skip = await idempotency.checkAndMark('task.accepted', 'notify', payload.taskId)
+      const skip = await idempotency.check('task.accepted', 'notify', payload.taskId)
       if (skip) {
         log('info', '[NotificationSubscriber] Skipped duplicate task.accepted', { correlationId, taskId: payload.taskId })
         return
@@ -99,6 +101,8 @@ export function registerNotificationSubscriber() {
       }
 
       await (notificationService as any).notifyAccepted(payload.taskId, customer, partner)
+
+      await idempotency.mark('task.accepted', 'notify', payload.taskId).catch(() => {})
 
       log('info', '[NotificationSubscriber] task.accepted notified', { correlationId, taskId: payload.taskId })
 
@@ -124,13 +128,15 @@ export function registerNotificationSubscriber() {
   eventBus.on('task.completed', async (payload) => {
     const correlationId = randomUUID()
     try {
-      const skip = await idempotency.checkAndMark('task.completed', 'notify', payload.taskId)
+      const skip = await idempotency.check('task.completed', 'notify', payload.taskId)
       if (skip) {
         log('info', '[NotificationSubscriber] Skipped duplicate task.completed', { correlationId, taskId: payload.taskId })
         return
       }
 
       await (notificationService as any).requestReview(payload.taskId, payload.customerId, payload.partnerId)
+
+      await idempotency.mark('task.completed', 'notify', payload.taskId).catch(() => {})
 
       log('info', '[NotificationSubscriber] task.completed review requested', { correlationId, taskId: payload.taskId })
 
@@ -152,13 +158,15 @@ export function registerNotificationSubscriber() {
   eventBus.on('payment.released', async (payload) => {
     const correlationId = randomUUID()
     try {
-      const skip = await idempotency.checkAndMark('payment.released', 'notify', payload.taskId)
+      const skip = await idempotency.check('payment.released', 'notify', payload.taskId)
       if (skip) {
         log('info', '[NotificationSubscriber] Skipped duplicate payment.released', { correlationId, taskId: payload.taskId })
         return
       }
 
       await (notificationService as any).notifyPaymentReleased(payload.partnerId, payload.netAmount, payload.taskId)
+
+      await idempotency.mark('payment.released', 'notify', payload.taskId).catch(() => {})
 
       log('info', '[NotificationSubscriber] payment.released notified', {
         correlationId,
@@ -188,13 +196,15 @@ export function registerNotificationSubscriber() {
   eventBus.on('offer.sent', async (payload) => {
     const correlationId = randomUUID()
     try {
-      const skip = await idempotency.checkAndMark('offer.sent', 'notify', payload.taskId)
+      const skip = await idempotency.check('offer.sent', 'notify', payload.taskId)
       if (skip) {
         log('info', '[NotificationSubscriber] Skipped duplicate offer.sent', { correlationId, taskId: payload.taskId })
         return
       }
 
       await (notificationService as any).notifyOfferReceived(payload.taskId, payload.partnerId)
+
+      await idempotency.mark('offer.sent', 'notify', payload.taskId).catch(() => {})
 
       log('info', '[NotificationSubscriber] offer.sent notified', { correlationId, taskId: payload.taskId })
 
@@ -216,7 +226,7 @@ export function registerNotificationSubscriber() {
   eventBus.on('review.submitted', async (payload) => {
     const correlationId = randomUUID()
     try {
-      const skip = await idempotency.checkAndMark('review.submitted', 'notify', payload.taskId)
+      const skip = await idempotency.check('review.submitted', 'notify', payload.taskId)
       if (skip) {
         log('info', '[NotificationSubscriber] Skipped duplicate review.submitted', { correlationId, taskId: payload.taskId })
         return
@@ -239,6 +249,8 @@ export function registerNotificationSubscriber() {
       }
 
       await (notificationService as any).notifyReviewSubmitted(payload.taskId, partner, payload.rating)
+
+      await idempotency.mark('review.submitted', 'notify', payload.taskId).catch(() => {})
 
       log('info', '[NotificationSubscriber] review.submitted notified', {
         correlationId,

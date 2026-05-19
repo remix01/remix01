@@ -4,7 +4,7 @@ import { constructStripeEvent } from '@/lib/stripe'
 import { assertEnv } from '@/lib/env'
 import { fail, ok } from '@/lib/http/response'
 import { stripeWebhookHandlers } from '@/lib/stripe/handlers'
-import { claimStripeEventProcessing, releaseStripeEventClaim } from '@/lib/stripe/eventProcessing'
+import { claimStripeEventProcessing } from '@/lib/stripe/eventProcessing'
 
 export const maxDuration = 30
 
@@ -55,16 +55,11 @@ export async function POST(request: NextRequest) {
 
     return ok({ received: true })
   } catch (err) {
-    console.error('[WEBHOOK PROCESS]', err)
-    try {
-      await releaseStripeEventClaim(event.id)
-    } catch (releaseErr) {
-      console.error('[WEBHOOK] Failed to release idempotency claim after processing error', {
-        stripeEventId: event.id,
-        releaseErr,
-      })
-      throw releaseErr
-    }
+    console.error('[WEBHOOK PROCESS]', {
+      stripeEventId: event.id,
+      eventType: event.type,
+      error: err instanceof Error ? err.message : String(err),
+    })
     return fail('Processing error')
   }
 }

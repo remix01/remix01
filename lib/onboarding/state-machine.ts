@@ -145,17 +145,39 @@ export async function transitionOnboardingState(userId: string): Promise<{ state
     }
   }
 
-  const { error } = await supabaseAdmin.from('onboarding_state').upsert(
-    {
-      user_id: userId,
-      state: derivedState,
-      blocked_reasons: blockedReasons,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id' },
-  )
+  // For existing rows, use conditional update to prevent concurrent overwrites.
+  // For new rows (no previous state), use insert with conflict handling.
+  if (migratedPrevious) {
+    const { data: updated, error } = await supabaseAdmin
+      .from('onboarding_state')
+      .update({
+        state: derivedState,
+        blocked_reasons: blockedReasons,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .eq('state', existing!.state)
+      .select('user_id')
 
-  if (error) throw error
+    if (error) throw error
+
+    if (!updated || updated.length === 0) {
+      throw new Error(
+        `[ONBOARDING] Concurrent modification for ${userId} — expected state '${existing!.state}'`
+      )
+    }
+  } else {
+    const { error } = await supabaseAdmin.from('onboarding_state').upsert(
+      {
+        user_id: userId,
+        state: derivedState,
+        blocked_reasons: blockedReasons,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    )
+    if (error) throw error
+  }
 
   if (migratedPrevious && migratedPrevious !== derivedState) {
     eventBus.emit('onboarding.transitioned', {
