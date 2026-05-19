@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { canTransitionPovprasevanje } from '@/lib/state/povprasevanja-status'
 import {
   updatePovprasevanjeAction,
   deletePovprasevanjeAction,
@@ -30,6 +32,12 @@ interface PovprasevanjeActionsProps {
   hasAcceptedPonudba: boolean
 }
 
+export function canCancelPovprasevanje(status: string) {
+  if (status === 'v_teku') return false // legacy alias for in-progress
+  if (status === 'preklicano') return false
+  return canTransitionPovprasevanje(status, 'preklicano')
+}
+
 export function PovprasevanjeActions({
   povprasevanjeId,
   title,
@@ -49,7 +57,7 @@ export function PovprasevanjeActions({
   const isFinal = ['v_teku', 'zakljuceno', 'preklicano'].includes(status)
   const canEdit = !isFinal && !hasAcceptedPonudba
   const canDelete = !hasPonudbe && !isFinal
-  const canCancel = !isFinal && status !== 'v_teku'
+  const canCancel = canCancelPovprasevanje(status)
 
   async function handleEdit() {
     setLoading(true)
@@ -90,9 +98,11 @@ export function PovprasevanjeActions({
     setLoading(false)
     if (result.success) {
       setSuccess('Povpraševanje preklicano')
+      toast.success('Povpraševanje preklicano')
       setTimeout(() => router.refresh(), 1000)
     } else {
       setError(result.error || 'Napaka')
+      toast.error(result.error || 'Napaka pri preklicu povpraševanja')
     }
   }
 
@@ -157,7 +167,7 @@ export function PovprasevanjeActions({
           disabled={loading}
         >
           <XCircle className="h-4 w-4" />
-          Prekliči
+          Prekliči povpraševanje
         </Button>
       )}
 
