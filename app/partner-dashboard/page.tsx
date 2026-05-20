@@ -54,22 +54,6 @@ function PartnerDashboardInner() {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
-<<<<<<< Updated upstream
-  const loadDashboard = async () => {
-    try {
-      const res = await fetch('/api/partner/dashboard')
-      if (res.status === 401) {
-        router.push('/partner-auth/login')
-        return
-      }
-      if (!res.ok) return
-      const { data } = await res.json()
-      setPartner(data.partner)
-      setOffers(data.offers as Offer[])
-      setOpenRequestsCount(data.openRequestsCount)
-      setCompletionStatus(data.completionStatus)
-    } finally {
-=======
   const supabase = createClient()
 
   const handleOfferCreated = async (partnerId: string) => {
@@ -138,7 +122,6 @@ function PartnerDashboardInner() {
         if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
       }
 
->>>>>>> Stashed changes
       setLoading(false)
     }
   }

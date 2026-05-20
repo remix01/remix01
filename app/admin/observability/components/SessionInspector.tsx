@@ -7,17 +7,10 @@ import type { Json } from '@/types/supabase'
 interface SessionLog {
   id: string
   created_at: string | null
-<<<<<<< Updated upstream
-  event: string | null
-  tool: string | null
-  params: Json | null
-  result: unknown
-=======
   event: string
   tool: string | null
   params: Json
   result: Json
->>>>>>> Stashed changes
   duration_ms: number | null
 }
 
@@ -153,11 +146,7 @@ export function SessionInspector() {
                     <td className="py-2 px-3 text-slate-400 font-mono max-w-xs truncate" title={JSON.stringify(sanitized)}>
                       {sanitized ? JSON.stringify(sanitized).slice(0, 50) : '-'}
                     </td>
-<<<<<<< Updated upstream
-                    <td className="py-2 px-3 text-slate-400">{typeof log.result === 'string' ? log.result : '-'}</td>
-=======
                     <td className="py-2 px-3 text-slate-400">{typeof log.result === 'string' ? log.result : log.result ? JSON.stringify(log.result).slice(0, 50) : '-'}</td>
->>>>>>> Stashed changes
                     <td className="py-2 px-3 text-slate-400">{log.duration_ms ? `${log.duration_ms}ms` : '-'}</td>
                   </tr>
                 )
