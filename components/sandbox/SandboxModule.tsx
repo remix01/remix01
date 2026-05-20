@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { TextStreamChatTransport } from 'ai'
 import { useChat } from '@ai-sdk/react'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-python'
@@ -21,6 +22,13 @@ function extractCode(content: string) {
   return match?.[1]?.trim() ?? ''
 }
 
+function getTextContent(message: { parts: Array<{ type: string; text?: string }> }): string {
+  return message.parts
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+    .map((p) => p.text)
+    .join('')
+}
+
 export function SandboxModule() {
   const [template, setTemplate] = useState<SandboxTemplate>('python')
   const [model, setModel] = useState<ModelOption>('gpt-4o')
@@ -29,14 +37,17 @@ export function SandboxModule() {
   const [stderr, setStderr] = useState('')
   const [running, setRunning] = useState(false)
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const [input, setInput] = useState('')
+  const transport = useMemo(() => new TextStreamChatTransport({
     api: '/api/sandbox/chat',
     body: { model },
-  })
+  }), [model])
+  const { messages, sendMessage, status } = useChat({ transport })
+  const isLoading = status === 'submitted' || status === 'streaming'
 
   const latestCode = useMemo(() => {
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
-    return lastAssistant ? extractCode(lastAssistant.content) : ''
+    return lastAssistant ? extractCode(getTextContent(lastAssistant)) : ''
   }, [messages])
 
   const highlightedCode = useMemo(() => {
@@ -101,13 +112,18 @@ export function SandboxModule() {
               {messages.map((m) => (
                 <div key={m.id} className="rounded-md border p-2 text-sm">
                   <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">{m.role}</p>
-                  <p className="whitespace-pre-wrap">{m.content}</p>
+                  <p className="whitespace-pre-wrap">{getTextContent(m)}</p>
                 </div>
               ))}
             </div>
           </ScrollArea>
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input value={input} onChange={handleInputChange} placeholder="Npr. Ustvari Python skripto za obdelavo CSV." />
+          <form onSubmit={(e) => {
+            e.preventDefault()
+            if (!input.trim()) return
+            sendMessage({ text: input })
+            setInput('')
+          }} className="flex gap-2">
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Npr. Ustvari Python skripto za obdelavo CSV." />
             <Button type="submit" disabled={isLoading}>Pošlji</Button>
           </form>
         </CardContent>
