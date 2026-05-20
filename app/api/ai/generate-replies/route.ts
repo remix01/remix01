@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { executeAgent, AgentAccessError } from '@/lib/ai/orchestrator'
-import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
 
 function parseReplies(text: string): string[] {
   try {
@@ -18,14 +17,11 @@ function parseReplies(text: string): string[] {
     .slice(0, 3)
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-
-    const rateLimitResponse = await checkAIRateLimit(req, user.id)
-    if (rateLimitResponse) return rateLimitResponse
+    const security = await validateAIRequest(req, { agentType: 'offer_writing' })
+    if ('error' in security) return security.error
+    const { context: secCtx } = security
 
     const body = await req.json()
     const prompt = `Na podlagi spodnjega konteksta pripravi 3 kratke profesionalne odgovore v slovenščini.
@@ -35,7 +31,7 @@ Opis povpraševanja: ${body?.description || ''}
 Zgodovina pogovora: ${body?.history || ''}`
 
     const ai = await executeAgent({
-      userId: user.id,
+      userId: secCtx.userId,
       agentType: 'offer_writing',
       userMessage: prompt,
       useRAG: false,

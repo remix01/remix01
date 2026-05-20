@@ -8,11 +8,20 @@ import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 import { logAgentUsage } from '@/lib/agents/usage-logging'
 import { handleAuthError } from '@/lib/api/auth-errors'
 
+const ALLOWED_MODELS = ['gpt-4o-mini', 'gpt-4o'] as const
+const DEFAULT_MODEL = 'gpt-4o-mini'
+
 const requestSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required').max(8000),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
 })
+
+function resolveModel(requested?: string): string {
+  if (!requested) return DEFAULT_MODEL
+  if ((ALLOWED_MODELS as readonly string[]).includes(requested)) return requested
+  return DEFAULT_MODEL
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,13 +52,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const resolvedModel = resolveModel(parsed.data.model)
+
     const startTime = Date.now()
-    const result = await runLangGraphChat(parsed.data)
+    const result = await runLangGraphChat({ ...parsed.data, model: resolvedModel })
     const responseTimeMs = Date.now() - startTime
 
+    // TODO: LangChain ChatOpenAI does not surface token usage in the current integration.
+    // Once token counts are available, replace tokensInput/tokensOutput/costUsd with real values.
     logAgentUsage({
       userId: user.id,
-      modelUsed: parsed.data.model || 'langgraph-default',
+      modelUsed: resolvedModel,
       tokensInput: 0,
       tokensOutput: 0,
       costUsd: 0,

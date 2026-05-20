@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { matchObrtnikiForPovprasevanje } from '@/lib/agent/liftgo-agent'
 import { runRouteGuardrails } from '@/lib/agents/guardrails-access'
+import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,22 +16,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 1. Verify auth
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const security = await validateAIRequest(request, { skipQuotaCheck: true })
+    if ('error' in security) return security.error
+    const { context: secCtx } = security
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Niste prijavljeni' },
-        { status: 401 }
-      )
-    }
-
-    // 2. Run guardrails via shared route policy helper
+    // Run guardrails via shared route policy helper
     try {
       await runRouteGuardrails('agent.match', { povprasevanjeId }, {
-        id: user.id,
-        email: user.email,
+        id: secCtx.userId,
+        email: undefined,
       })
     } catch (error: unknown) {
       return NextResponse.json(
@@ -39,14 +33,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 5. Verify ownership (redundant with guardrails but keeping for clarity)
+    // Verify ownership
+    const supabase = await createClient()
     const { data: povprasevanje } = await supabase
       .from('povprasevanja')
       .select('narocnik_id')
       .eq('id', povprasevanjeId)
       .single()
 
-    if (!povprasevanje || povprasevanje.narocnik_id !== user.id) {
+    if (!povprasevanje || povprasevanje.narocnik_id !== secCtx.userId) {
       return NextResponse.json(
         { error: 'Nimate dostopa do tega povpraševanja' },
         { status: 403 }
