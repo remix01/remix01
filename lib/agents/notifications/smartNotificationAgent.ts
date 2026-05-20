@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendEmail } from '@/lib/email/sender'
+import { sendNotification } from '@/lib/notifications'
 import {
   newRequestMatchedEmail,
   responseDeadline90minEmail,
@@ -78,9 +79,6 @@ async function logNotification(
   }
 }
 
-/**
- * Create in-app notification in notifications table
- */
 async function createInAppNotification(
   userId: string,
   type: NotificationType,
@@ -89,17 +87,16 @@ async function createInAppNotification(
   link?: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  try {
-    await supabaseAdmin.from('notifications').insert({
-      user_id: userId,
-      type,
-      title,
-      message,
-      link,
-      metadata: metadata || {},
-    })
-  } catch (error) {
-    console.error('[smartNotificationAgent] Error creating in-app notification:', error)
+  const result = await sendNotification({
+    userId,
+    type,
+    title,
+    message,
+    link,
+    metadata,
+  })
+  if (!result.success) {
+    console.error('[smartNotificationAgent] Error creating in-app notification:', result.error)
   }
 }
 

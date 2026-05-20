@@ -18,6 +18,7 @@ import { liquidityEngine } from '@/lib/marketplace/liquidityEngine'
 import { workerBroadcast } from '@/lib/marketplace/workerBroadcast'
 import { createAdminClient } from '@/lib/supabase/server'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+import { sendNotification } from '@/lib/notifications'
 
 const DEADLINE_WARNING_MINUTES = 30
 
@@ -127,16 +128,13 @@ export async function GET(req: NextRequest) {
         if (next?.next_obrtnik_id) {
           await liquidityEngine.escalateLead(assignment.id)
 
-          // Send escalation notification with opportunity message
-          await supabase.from('notifications').insert({
-            user_id: next.next_obrtnik_id,
+          await sendNotification({
+            userId: next.next_obrtnik_id,
             type: 'lead_escalation',
             title: 'Nov lead na voljo — večja možnost za posel!',
-            body: 'Ta lead je na voljo, ker prejšnji obrtnik ni odgovoril. Hitro oddajte ponudbo!',
             message: 'Ta lead je na voljo, ker prejšnji obrtnik ni odgovoril. Hitro oddajte ponudbo!',
-            action_url: '/obrtnik/povprasevanja',
-            read: false,
-            data: {
+            link: '/obrtnik/povprasevanja',
+            metadata: {
               povprasevanje_id: assignment.povprasevanje_id,
               escalated_from_rank: assignment.rank,
             },

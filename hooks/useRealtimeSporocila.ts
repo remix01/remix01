@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createMessageNotificationAction } from '@/app/actions/notifications'
 
 interface Message {
   id: string
@@ -117,21 +118,8 @@ export function useRealtimeSporocila(povprasevanjeId: string, currentUserId: str
 
         if (err) throw err
 
-        // Create notification for receiver
-        const { error: notificationError } = await supabaseRef.current
-          .from('notifications')
-          .insert({
-            user_id: receiverId,
-            type: 'novo_sporocilo',
-            title: 'Novo sporočilo',
-            body: text.trim().substring(0, 100),
-            data: { povprasevanje_id: povprasevanjeId },
-            read: false,
-          })
-
-        if (notificationError) {
-          console.warn('Message sent but notification insert failed:', notificationError)
-        }
+        createMessageNotificationAction(receiverId, text.trim(), povprasevanjeId)
+          .catch((e) => console.warn('Message sent but notification failed:', e))
 
         return true
       } catch (err) {

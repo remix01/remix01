@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { acceptPonudbaAction } from '@/app/actions/ponudbe'
 
 interface AcceptOfferButtonProps {
   offerId: string
@@ -17,65 +17,17 @@ export function AcceptOfferButton({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClient()
 
   async function handleAccept() {
     setLoading(true)
     setError(null)
 
     try {
-      // 1. Get the offer details to find the craftsman
-      const { data: offer } = await supabase
-        .from('ponudbe')
-        .select('obrtnik_id')
-        .eq('id', offerId)
-        .single()
-
-      if (!offer) {
-        setError('Ponudba ni najdena.')
+      const result = await acceptPonudbaAction(offerId, povprasevanjId)
+      if (!result.success) {
+        setError(result.error || 'Napaka pri sprejemu ponudbe.')
         return
       }
-
-      // 2. Accept this offer
-      const { error: updateOfferError } = await supabase
-        .from('ponudbe')
-        .update({
-          status: 'sprejeta',
-          accepted_at: new Date().toISOString(),
-        })
-        .eq('id', offerId)
-
-      if (updateOfferError) throw updateOfferError
-
-      // 3. Reject all other offers for this inquiry
-      const { error: rejectError } = await supabase
-        .from('ponudbe')
-        .update({ status: 'zavrnjena' })
-        .eq('povprasevanje_id', povprasevanjId)
-        .neq('id', offerId)
-
-      if (rejectError) throw rejectError
-
-      // 4. Update inquiry status to 'v_teku'
-      const { error: updateInquiryError } = await supabase
-        .from('povprasevanja')
-        .update({
-          status: 'v_teku',
-          obrtnik_id: offer.obrtnik_id,
-        })
-        .eq('id', povprasevanjId)
-
-      if (updateInquiryError) throw updateInquiryError
-
-      // 5. Create notification for the craftsman
-      await supabase.from('notifications').insert({
-        user_id: offer.obrtnik_id,
-        type: 'ponudba_sprejeta',
-        title: 'Vaša ponudba je bila sprejeta!',
-        action_url: '/obrtnik-dashboard',
-      })
-
-      // Refresh page
       router.refresh()
     } catch (err: any) {
       console.error('[v0] Error accepting offer:', err)
