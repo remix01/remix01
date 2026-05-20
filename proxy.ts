@@ -88,9 +88,20 @@ export async function proxy(request: NextRequest) {
       error?.message?.includes('Refresh Token Not Found') ||
       error?.message?.includes('Invalid Refresh Token')
     ) {
-      const response = NextResponse.redirect(new URL('/prijava', request.url))
-      response.cookies.delete('sb-access-token')
-      response.cookies.delete('sb-refresh-token')
+      // Don't redirect if already on an auth page — that would loop forever
+      // because /prijava and /registracija are in the middleware matcher.
+      const isAuthPage = pathname === '/prijava' || pathname === '/registracija'
+      const response = isAuthPage
+        ? NextResponse.next({ request })
+        : NextResponse.redirect(new URL('/prijava', request.url))
+
+      // Clear all supabase SSR auth cookies by name (format: sb-<ref>-auth-token[.N])
+      // The legacy names sb-access-token / sb-refresh-token are NOT what @supabase/ssr sets.
+      request.cookies.getAll().forEach(({ name }) => {
+        if (name.startsWith('sb-') && name.includes('-auth-token')) {
+          response.cookies.set(name, '', { maxAge: 0, path: '/' })
+        }
+      })
       return response
     }
 
