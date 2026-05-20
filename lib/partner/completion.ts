@@ -1,3 +1,7 @@
+/**
+ * Partner onboarding completion tracker.
+ * Used by the partner dashboard to show the setup checklist.
+ */
 import { createClient } from '@/lib/supabase/client'
 
 export interface CompletionStatus {
