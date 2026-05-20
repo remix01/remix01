@@ -11,11 +11,19 @@
  *   Repeats until someone responds or all ranks exhausted.
  */
 
-import { matchPartnersForRequest, LEAD_SLA_HOURS, MAX_MATCHES, type MatchResult } from '@/lib/agents/matching/smartMatchingAgent'
+import { matchPartnersForRequest, LEAD_SLA_HOURS, type MatchResult } from '@/lib/agents/matching/smartMatchingAgent'
 import { taskOrchestrator } from '@/lib/services/taskOrchestrator'
 import { workerBroadcast } from './workerBroadcast'
 import { instantOffer } from './instantOffer'
 import { createAdminClient } from '@/lib/supabase/server'
+
+function slaHoursForUrgency(urgency: string | null): number {
+  switch (urgency) {
+    case 'nujno': return 1
+    case 'kmalu': return 2
+    default: return LEAD_SLA_HOURS
+  }
+}
 
 export const liquidityEngine = {
   /**
@@ -54,8 +62,17 @@ export const liquidityEngine = {
         return
       }
 
+      // Fetch urgency to set correct SLA times
+      const supabaseForUrgency = createAdminClient()
+      const { data: povData } = await supabaseForUrgency
+        .from('povprasevanja')
+        .select('urgency')
+        .eq('id', requestId)
+        .single()
+      const urgency = (povData as any)?.urgency as string | null
+
       // 2. Persist lead_assignments for all matches (rank 1 = active, rest = skipped until escalated)
-      await this.createLeadAssignments(requestId, matchResult.matches)
+      await this.createLeadAssignments(requestId, matchResult.matches, urgency)
 
       // 3. Try instant offer for rank-1 (PRO+ only)
       const rank1 = matchResult.matches[0]
@@ -78,6 +95,7 @@ export const liquidityEngine = {
         rank1PartnerId: rank1.partnerId,
         rank1Score: rank1.score,
         totalMatches: matchResult.matches.length,
+        slaHours: slaHoursForUrgency(urgency),
       }))
     } catch (error) {
       console.error(JSON.stringify({
@@ -95,9 +113,10 @@ export const liquidityEngine = {
    * Ranks 2–N → status='skipped' (activated by cron if rank-1 doesn't respond).
    * Also increments active_lead_count for rank-1 only.
    */
-  async createLeadAssignments(requestId: string, matches: MatchResult[]): Promise<void> {
+  async createLeadAssignments(requestId: string, matches: MatchResult[], urgency?: string | null): Promise<void> {
     const supabase = createAdminClient()
-    const expiresAt = new Date(Date.now() + LEAD_SLA_HOURS * 60 * 60 * 1000).toISOString()
+    const slaHours = slaHoursForUrgency(urgency ?? null)
+    const expiresAt = new Date(Date.now() + slaHours * 60 * 60 * 1000).toISOString()
 
     const rows = (matches as any[]).map((m: any, i: number) => ({
       povprasevanje_id: requestId,
@@ -105,7 +124,7 @@ export const liquidityEngine = {
       rank: m.rank,
       score: m.score,
       status: i === 0 ? 'pending' : 'skipped',
-      expires_at: i === 0 ? expiresAt : new Date(Date.now() + (LEAD_SLA_HOURS * (i + 1)) * 60 * 60 * 1000).toISOString(),
+      expires_at: i === 0 ? expiresAt : new Date(Date.now() + (slaHours * (i + 1)) * 60 * 60 * 1000).toISOString(),
     }))
 
     const { error } = await supabase.from('lead_assignments' as any).insert(rows)

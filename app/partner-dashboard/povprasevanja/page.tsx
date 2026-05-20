@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowRight, MapPin, Banknote, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowRight, MapPin, Banknote, Clock, ChevronLeft, ChevronRight, TrendingUp } from 'lucide-react'
 import { PovprasevanjaFilters } from '@/components/partner/povprasevanja-filters'
 
 const PAGE_SIZE = 12
@@ -21,6 +21,14 @@ function getUrgencyBadge(urgency: string | null, createdAt: string) {
   if (hoursAgo < 2) return { label: 'Novo', color: 'bg-blue-100 text-blue-800' }
   if (hoursAgo < 24) return { label: 'Danes', color: 'bg-green-100 text-green-800' }
   return { label: 'Odprto', color: 'bg-gray-100 text-gray-800' }
+}
+
+function getFreshnessBadge(createdAt: string) {
+  const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
+  if (hoursAgo < 1) return { label: 'Pred < 1h', color: 'text-green-600' }
+  if (hoursAgo < 3) return { label: `Pred ${Math.floor(hoursAgo)}h`, color: 'text-blue-600' }
+  if (hoursAgo < 5) return { label: `Pred ${Math.floor(hoursAgo)}h`, color: 'text-orange-600' }
+  return { label: '5h+', color: 'text-muted-foreground' }
 }
 
 function formatBudget(min: number | null, max: number | null) {
@@ -58,7 +66,7 @@ export default async function PovprasevanjePage({
 
   const supabase = await createClient()
 
-  const [{ data: categories }, queryResult] = await Promise.all([
+  const [{ data: categories }, queryResult, { data: competitionData }] = await Promise.all([
     supabase
       .from('categories')
       .select('id, name')
@@ -78,18 +86,29 @@ export default async function PovprasevanjePage({
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
       if (params.category) q = q.eq('category_id', params.category)
-      if (params.urgency === 'normalno' || params.urgency === 'ta_teden' || params.urgency === 'nujno') {
+      if (params.urgency === 'samo_nujne') {
+        q = q.in('urgency', ['nujno', 'kmalu'])
+      } else if (params.urgency === 'normalno' || params.urgency === 'ta_teden' || params.urgency === 'nujno') {
         const urgencyValue = params.urgency === 'ta_teden' ? 'kmalu' : params.urgency
         q = q.eq('urgency', urgencyValue)
       }
 
       return q
     })(),
+    supabase
+      .from('obrtnik_categories' as any)
+      .select('category_id'),
   ])
 
   const requests = queryResult.data ?? []
   const totalCount = queryResult.count ?? 0
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+
+  // Count competitors per category
+  const competitorCountByCategory: Record<string, number> = {}
+  for (const row of (competitionData ?? []) as { category_id: string }[]) {
+    competitorCountByCategory[row.category_id] = (competitorCountByCategory[row.category_id] || 0) + 1
+  }
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -122,11 +141,17 @@ export default async function PovprasevanjePage({
               const desc = request.description ?? ''
               const descriptionPreview = desc.length > 120 ? desc.substring(0, 120) + '...' : desc
               const badge = getUrgencyBadge(request.urgency, request.created_at)
+              const freshness = getFreshnessBadge(request.created_at)
               const budget = formatBudget(request.budget_min, request.budget_max)
               const categoryName = (request.categories as { name: string } | null)?.name ?? 'Splošno'
+              const competitorCount = request.category_id ? (competitorCountByCategory[request.category_id] ?? 0) : 0
+              const isLowCompetition = competitorCount < 3
 
               return (
-                <Card key={request.id} className="p-5 hover:shadow-md transition-shadow">
+                <Card
+                  key={request.id}
+                  className={`p-5 hover:shadow-md transition-shadow ${isLowCompetition ? 'border-l-4 border-l-green-500' : ''}`}
+                >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -137,6 +162,17 @@ export default async function PovprasevanjePage({
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.color}`}>
                             {badge.label}
                           </span>
+                          {budget && (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                              {budget}
+                            </span>
+                          )}
+                          {isLowCompetition && (
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800 flex items-center gap-1">
+                              <TrendingUp className="w-3 h-3" />
+                              Manj konkurence
+                            </span>
+                          )}
                         </div>
                         <h3 className="font-semibold text-foreground leading-snug">{request.title}</h3>
                       </div>
@@ -149,21 +185,14 @@ export default async function PovprasevanjePage({
                           <span>{request.location_city}</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-1">
+                      <div className={`flex items-center gap-1 font-medium ${freshness.color}`}>
                         <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{timeAgo(request.created_at)}</span>
+                        <span>{freshness.label}</span>
                       </div>
                     </div>
 
                     {descriptionPreview && (
                       <p className="text-sm text-muted-foreground leading-relaxed">{descriptionPreview}</p>
-                    )}
-
-                    {budget && (
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                        <Banknote className="w-4 h-4 text-primary flex-shrink-0" />
-                        <span>Budget: {budget}</span>
-                      </div>
                     )}
 
                     <div className="pt-1">
