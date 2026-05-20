@@ -4,6 +4,12 @@ import { canWithdrawPonudba } from '@/components/partner/offers-list'
 
 describe('dashboard cancel/withdraw visibility guards', () => {
   it('cancel is hidden for terminal statuses', () => {
+    expect(canCancelPovprasevanje('new')).toBe(true)
+    expect(canCancelPovprasevanje('matched')).toBe(true)
+    expect(canCancelPovprasevanje('contacted')).toBe(false)
+    expect(canCancelPovprasevanje('in_progress')).toBe(false)
+    expect(canCancelPovprasevanje('completed')).toBe(false)
+    expect(canCancelPovprasevanje('cancelled')).toBe(false)
     expect(canCancelPovprasevanje('v_izvedbi')).toBe(false)
     expect(canCancelPovprasevanje('v_teku')).toBe(false)
     expect(canCancelPovprasevanje('zakljuceno')).toBe(false)

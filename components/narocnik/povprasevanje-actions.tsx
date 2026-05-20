@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { canTransitionPovprasevanje } from '@/lib/state/povprasevanja-status'
+import { toCanonicalLeadStatus, toLegacyInquiryStatus } from '@/lib/lead-status'
 import {
   updatePovprasevanjeAction,
   deletePovprasevanjeAction,
@@ -33,10 +34,14 @@ interface PovprasevanjeActionsProps {
 }
 
 export function canCancelPovprasevanje(status: string) {
-  if (status === 'v_izvedbi') return false // canonical in-progress
-  if (status === 'v_teku') return false // legacy alias for in-progress
-  if (status === 'preklicano') return false
-  return canTransitionPovprasevanje(status, 'preklicano')
+  const normalizedStatus = status.trim().toLowerCase()
+  if (normalizedStatus === 'preklicano') return false
+  if (canTransitionPovprasevanje(normalizedStatus, 'preklicano')) return true
+
+  const canonicalStatus = toCanonicalLeadStatus(status)
+  const legacyStatus = toLegacyInquiryStatus(canonicalStatus)
+  if (legacyStatus === 'v_teku' || legacyStatus === 'preklicano' || normalizedStatus === 'v_izvedbi') return false
+  return canTransitionPovprasevanje(legacyStatus, 'preklicano')
 }
 
 export function PovprasevanjeActions({

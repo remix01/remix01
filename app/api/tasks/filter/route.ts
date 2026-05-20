@@ -1,4 +1,3 @@
-import { getErrorMessage } from '@/lib/utils/error'
 /**
  * GET /api/tasks/filter
  *
@@ -14,7 +13,6 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // 1. Check authentication
     const {
       data: { user },
       error: authError,
@@ -24,13 +22,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Get query parameters
     const searchParams = request.nextUrl.searchParams
     const filterType = (searchParams.get('type') || 'all') as TaskFilterType
     const limit = parseInt(searchParams.get('limit') || '50', 10)
     const offset = parseInt(searchParams.get('offset') || '0', 10)
 
-    // 3. Query tasks based on filter type
     let query = supabase.from('tasks').select('*')
 
     if (filterType === 'my_tasks') {
