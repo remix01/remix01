@@ -1,16 +1,12 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
-import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-
-    const rateLimitResponse = await checkAIRateLimit(req, user.id)
-    if (rateLimitResponse) return rateLimitResponse
+    const security = await validateAIRequest(req, { agentType: 'support_agent' })
+    if ('error' in security) return security.error
+    const { context: secCtx } = security
 
     const body = await req.json()
     const logs = body?.logs || []
@@ -24,7 +20,7 @@ ${JSON.stringify(logs)}
 `
 
     const ai = await executeAgent({
-      userId: user.id,
+      userId: secCtx.userId,
       agentType: 'support_agent',
       userMessage: prompt,
       useRAG: false,

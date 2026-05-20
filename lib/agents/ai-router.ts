@@ -71,6 +71,15 @@ export const AGENT_DAILY_LIMITS: Record<string, Record<AIAgentType, number>> = {
   enterprise: {} as Record<AIAgentType, number>,
 }
 
+const PRO_ONLY_AGENTS: ReadonlySet<AIAgentType> = new Set([
+  'video_diagnosis',
+  'quote_generator',
+  'materials_agent',
+  'job_summary',
+  'offer_writing',
+  'profile_optimization',
+])
+
 for (const tier of Object.keys(AGENT_DAILY_LIMITS) as Array<keyof typeof AGENT_DAILY_LIMITS>) {
   const core = CORE_DAILY_LIMITS[tier]
   const record = AGENT_DAILY_LIMITS[tier]
@@ -79,7 +88,7 @@ for (const tier of Object.keys(AGENT_DAILY_LIMITS) as Array<keyof typeof AGENT_D
     general_chat: 'support_agent', work_description: 'onboarding_assistant', offer_comparison: 'support_agent', scheduling_assistant: 'onboarding_assistant', video_diagnosis: 'support_agent', quote_generator: 'provider_coach', materials_agent: 'provider_coach', job_summary: 'support_agent', offer_writing: 'provider_coach', profile_optimization: 'provider_coach',
   }
   for (const [agent, role] of Object.entries(aliases) as Array<[AIAgentType, CoreRoleAgentType]>) {
-    record[agent] = core[role]
+    record[agent] = (tier === 'start' && PRO_ONLY_AGENTS.has(agent)) ? 0 : core[role]
   }
 }
 

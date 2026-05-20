@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@/lib/supabase/server'
-import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
 import { validateAgentOutput, VideoDiagnosisSchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -31,12 +30,8 @@ function fail(message: string, status: number, code: string, details?: Record<st
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return fail('Nepooblaščen dostop.', 401, 'UNAUTHORIZED')
-
-    const rateLimitResponse = await checkAIRateLimit(req, user.id)
-    if (rateLimitResponse) return rateLimitResponse
+    const security = await validateAIRequest(req, { agentType: 'video_diagnosis' })
+    if ('error' in security) return security.error
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return fail('Agent ni konfiguriran.', 503, 'AGENT_NOT_CONFIGURED')
