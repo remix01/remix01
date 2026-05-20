@@ -253,8 +253,8 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       // Increment usage counter even for cached responses
       await incrementDailyUsage(user.id, usedToday + 1)
 
-      // Log cached usage
-      await logAgentUsage({
+      // Log cached usage (best-effort)
+      logAgentUsage({
         userId: user.id,
         modelUsed: 'cached',
         tokensInput: 0,
@@ -264,7 +264,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
         messageHash: cacheKey,
         userMessage: message,
         messagePreviewLimit: 500,
-      })
+      }).catch((err) => console.error('[agent/chat] usage log failed:', err))
 
       // Persist to conversation
       const { data: conv } = await supabaseAdmin
@@ -360,8 +360,8 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
     // Map full model ID to short name for DB CHECK constraint
     const modelShortName = modelSelection.modelId.includes('haiku') ? 'haiku-4' : 'sonnet-4'
 
-    // Log usage
-    await logAgentUsage({
+    // Log usage (best-effort)
+    logAgentUsage({
       userId: user.id,
       modelUsed: modelShortName,
       tokensInput: inputTokens,
@@ -371,7 +371,7 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       messageHash: cacheKey,
       userMessage: message,
       messagePreviewLimit: 500,
-    })
+    }).catch((err) => console.error('[agent/chat] usage log failed:', err))
 
     // Persist conversation
     await supabaseAdmin

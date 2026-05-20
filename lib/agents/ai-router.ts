@@ -83,8 +83,10 @@ for (const tier of Object.keys(AGENT_DAILY_LIMITS) as Array<keyof typeof AGENT_D
   }
 }
 
-export function isAgentAccessible(_agentType: AIAgentType, _userTier: string): boolean {
-  return true
+export function isAgentAccessible(agentType: AIAgentType, userTier: string): boolean {
+  const tierLimits = AGENT_DAILY_LIMITS[userTier] ?? AGENT_DAILY_LIMITS.start
+  const limit = (tierLimits as Record<string, number>)[agentType]
+  return typeof limit === 'number' && limit > 0
 }
 
 export function getAgentDailyLimit(agentType: AIAgentType, userTier: string): number {
