@@ -1,6 +1,6 @@
 import { anthropic } from '@ai-sdk/anthropic'
 import { openai } from '@ai-sdk/openai'
-import { streamText } from 'ai'
+import { streamText, type LanguageModel } from 'ai'
 
 const modelMap = {
   'gpt-4o': openai('gpt-4o'),
@@ -9,13 +9,14 @@ const modelMap = {
 
 export async function POST(req: Request) {
   const { messages, model = 'gpt-4o' } = await req.json()
+  const selectedModel = (modelMap[model as keyof typeof modelMap] ?? modelMap['gpt-4o']) as unknown as LanguageModel
 
   const result = streamText({
-    model: modelMap[model as keyof typeof modelMap] ?? modelMap['gpt-4o'],
+    model: selectedModel,
     messages,
     system:
       'You are LiftGO AI Sandbox assistant. When generating code, always return a fenced code block as the first block and keep explanations brief.',
   })
 
-  return result.toDataStreamResponse()
+  return result.toTextStreamResponse()
 }
