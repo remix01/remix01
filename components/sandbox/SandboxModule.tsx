@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useChat } from 'ai/react'
+import { useChat } from '@ai-sdk/react'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-python'
 import 'prismjs/components/prism-javascript'

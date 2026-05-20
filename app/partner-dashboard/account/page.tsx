@@ -97,28 +97,10 @@ export default function AccountPage() {
         if (userError) throw userError
 
         if (partnerData) {
-<<<<<<< Updated upstream
-          const normalizedPartner: PartnerProfile = {
-            id: partnerData.id,
-            business_name: partnerData.business_name ?? '',
-            description: partnerData.description ?? null,
-            tagline: partnerData.tagline ?? null,
-            hourly_rate: partnerData.hourly_rate ?? null,
-            years_experience: partnerData.years_experience ?? null,
-            service_radius_km: partnerData.service_radius_km ?? null,
-            website_url: partnerData.website_url ?? null,
-            facebook_url: partnerData.facebook_url ?? null,
-            instagram_url: partnerData.instagram_url ?? null,
-            subscription_tier: coerceSubscriptionTier(partnerData.subscription_tier),
-          }
-
-          setPartner(normalizedPartner)
-=======
           setPartner({
             ...partnerData,
             subscription_tier: (partnerData.subscription_tier as 'start' | 'pro' | 'elite' | null) || null
           })
->>>>>>> Stashed changes
           setFormData({
             business_name: normalizedPartner.business_name || '',
             description: normalizedPartner.description || '',

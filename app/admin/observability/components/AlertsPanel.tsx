@@ -36,11 +36,7 @@ export function AlertsPanel() {
       if (error) throw error
       setAlerts((data || []).map((alert) => ({
         ...alert,
-<<<<<<< Updated upstream
-        severity: parseSeverity(alert.severity),
-=======
         severity: (['low', 'medium', 'high', 'critical'].includes(alert.severity) ? alert.severity : 'low') as Alert['severity'],
->>>>>>> Stashed changes
       })))
     } catch (error) {
       console.error('Error fetching alerts:', error)

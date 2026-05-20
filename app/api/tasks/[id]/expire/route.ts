@@ -44,22 +44,13 @@ export async function POST(
       .single()
 
     if (rpcError || !task) {
-<<<<<<< Updated upstream
-      console.error('[v0] Error expiring task:', rpcError)
-=======
       console.error('[v0] Error in expire_task:', rpcError)
->>>>>>> Stashed changes
       return NextResponse.json(
         { error: 'Failed to expire task', details: rpcError },
         { status: 400 }
       )
     }
 
-<<<<<<< Updated upstream
-    const result = { success: true, task }
-
-=======
->>>>>>> Stashed changes
     console.log('[v0] Task expired successfully:', {
       taskId,
       reason: expireReason,
