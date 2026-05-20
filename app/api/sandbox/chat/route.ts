@@ -18,5 +18,5 @@ export async function POST(req: Request) {
       'You are LiftGO AI Sandbox assistant. When generating code, always return a fenced code block as the first block and keep explanations brief.',
   })
 
-  return result.toDataStreamResponse()
+  return result.toTextStreamResponse()
 }
