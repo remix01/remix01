@@ -313,7 +313,7 @@ async function logUsage(
 ) {
   await incrementDailyUsage(userId, usedToday + 1)
 
-  await logAgentUsage({
+  logAgentUsage({
     userId,
     modelUsed: modelShortName,
     tokensInput: inputTokens,
@@ -325,5 +325,5 @@ async function logUsage(
     responseTimeMs: responseMs,
     agentType,
     messagePreviewLimit: AI_CONFIG.MESSAGE_LOG_PREVIEW_LENGTH,
-  })
+  }).catch((err) => console.error(`[agent/${agentType}] usage log failed:`, err))
 }

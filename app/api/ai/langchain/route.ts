@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const result = await runLangGraphChat(parsed.data)
     const responseTimeMs = Date.now() - startTime
 
-    await logAgentUsage({
+    logAgentUsage({
       userId: user.id,
       modelUsed: parsed.data.model || 'langgraph-default',
       tokensInput: 0,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       userMessage: parsed.data.prompt,
       responseTimeMs,
       messagePreviewLimit: 500,
-    })
+    }).catch((err) => console.error('[ai/langchain] usage log failed:', err))
 
     return NextResponse.json({
       success: true,
