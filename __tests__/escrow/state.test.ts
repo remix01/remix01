@@ -5,10 +5,11 @@ import { POST as stripeWebhookPost } from '@/app/api/webhooks/stripe/route'
 
 const mockAssertEnv = jest.fn()
 const mockConstructStripeEvent = jest.fn()
-const mockIsStripeEventProcessed = jest.fn()
+const mockClaimStripeEventProcessing = jest.fn()
+const mockReleaseStripeEventClaim = jest.fn()
 
 let mockCurrentStatus: string = 'pending'
-const mockUpdateEq = jest.fn().mockResolvedValue({ error: null })
+const mockUpdateSelect = jest.fn()
 const mockAuditInsert = jest.fn().mockResolvedValue({ error: null })
 
 jest.mock('@/lib/env', () => {
@@ -23,13 +24,17 @@ jest.mock('@/lib/stripe', () => ({
   constructStripeEvent: (...args: unknown[]) => mockConstructStripeEvent(...args),
 }))
 
-jest.mock('@/lib/escrow', () => {
-  const actual = jest.requireActual('@/lib/escrow')
-  return {
-    ...actual,
-    isStripeEventProcessed: (...args: unknown[]) => mockIsStripeEventProcessed(...args),
-  }
-})
+jest.mock('@/lib/stripe/eventProcessing', () => ({
+  claimStripeEventProcessing: (...args: unknown[]) => mockClaimStripeEventProcessing(...args),
+  releaseStripeEventClaim: (...args: unknown[]) => mockReleaseStripeEventClaim(...args),
+}))
+
+jest.mock('@/lib/stripe/handlers', () => ({
+  stripeWebhookHandlers: {
+    'payment_intent.succeeded': jest.fn().mockResolvedValue(undefined),
+    'charge.refunded': jest.fn().mockResolvedValue(undefined),
+  },
+}))
 
 jest.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: {
@@ -49,7 +54,11 @@ jest.mock('@/lib/supabase-admin', () => ({
             }),
           }),
           update: () => ({
-            eq: mockUpdateEq,
+            eq: () => ({
+              eq: () => ({
+                select: () => mockUpdateSelect(),
+              }),
+            }),
           }),
         }
       }
@@ -74,11 +83,13 @@ jest.mock('@/lib/supabase-admin', () => ({
 describe('Escrow state + webhook idempotency', () => {
   beforeEach(() => {
     mockCurrentStatus = 'pending'
-    mockUpdateEq.mockClear()
+    mockUpdateSelect.mockReset()
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'tx_1' }], error: null })
     mockAuditInsert.mockClear()
     mockAssertEnv.mockClear()
     mockConstructStripeEvent.mockReset()
-    mockIsStripeEventProcessed.mockReset()
+    mockClaimStripeEventProcessing.mockReset()
+    mockReleaseStripeEventClaim.mockReset()
   })
 
   it('rejects invalid escrow transition', async () => {
@@ -92,7 +103,7 @@ describe('Escrow state + webhook idempotency', () => {
       })
     ).rejects.toThrow('Invalid transition')
 
-    expect(mockUpdateEq).not.toHaveBeenCalled()
+    expect(mockUpdateSelect).not.toHaveBeenCalled()
   })
 
   it('allows refund flow transition paid -> refunded', async () => {
@@ -105,13 +116,13 @@ describe('Escrow state + webhook idempotency', () => {
       actorId: 'admin_1',
     })
 
-    expect(mockUpdateEq).toHaveBeenCalledTimes(1)
+    expect(mockUpdateSelect).toHaveBeenCalledTimes(1)
     expect(mockAuditInsert).toHaveBeenCalledTimes(1)
   })
 
-  it('handles duplicate webhook event idempotently', async () => {
+  it('handles duplicate webhook event idempotently (claim rejected)', async () => {
     mockConstructStripeEvent.mockReturnValue({ id: 'evt_dup_1', type: 'payment_intent.succeeded' })
-    mockIsStripeEventProcessed.mockResolvedValue(true)
+    mockClaimStripeEventProcessing.mockResolvedValue(false)
 
     const req = new Request('http://localhost/api/webhooks/stripe', {
       method: 'POST',
@@ -128,5 +139,81 @@ describe('Escrow state + webhook idempotency', () => {
     expect(response.status).toBe(200)
     expect(body.success).toBe(true)
     expect(body.data.skipped).toBe(true)
+  })
+
+  it('processes first webhook event when claim succeeds', async () => {
+    mockConstructStripeEvent.mockReturnValue({ id: 'evt_new_1', type: 'payment_intent.succeeded' })
+    mockClaimStripeEventProcessing.mockResolvedValue(true)
+
+    const req = new Request('http://localhost/api/webhooks/stripe', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'stripe-signature': 'sig',
+      },
+      body: JSON.stringify({ test: true }),
+    })
+
+    const response = await stripeWebhookPost(req as any)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(body.data.received).toBe(true)
+    expect(body.data.skipped).toBeUndefined()
+  })
+
+  it('ignores unsupported event types without claiming', async () => {
+    mockConstructStripeEvent.mockReturnValue({ id: 'evt_unknown', type: 'some.unknown.event' })
+
+    const req = new Request('http://localhost/api/webhooks/stripe', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'stripe-signature': 'sig',
+      },
+      body: JSON.stringify({ test: true }),
+    })
+
+    const response = await stripeWebhookPost(req as any)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.ignored).toBe(true)
+    expect(mockClaimStripeEventProcessing).not.toHaveBeenCalled()
+  })
+
+  it('releases claim on handler failure for retry', async () => {
+    const { stripeWebhookHandlers } = require('@/lib/stripe/handlers')
+    stripeWebhookHandlers['payment_intent.succeeded'].mockRejectedValueOnce(new Error('transient DB error'))
+    mockConstructStripeEvent.mockReturnValue({ id: 'evt_fail_1', type: 'payment_intent.succeeded' })
+    mockClaimStripeEventProcessing.mockResolvedValue(true)
+    mockReleaseStripeEventClaim.mockResolvedValue(undefined)
+
+    const req = new Request('http://localhost/api/webhooks/stripe', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'stripe-signature': 'sig',
+      },
+      body: JSON.stringify({ test: true }),
+    })
+
+    const response = await stripeWebhookPost(req as any)
+
+    expect(response.status).toBe(400)
+    expect(mockReleaseStripeEventClaim).toHaveBeenCalledWith('evt_fail_1')
+  })
+
+  it('no-ops same-status transition (paid -> paid)', async () => {
+    mockCurrentStatus = 'paid'
+
+    await updateEscrowStatus({
+      transactionId: 'tx_1',
+      newStatus: 'paid',
+      actor: 'system',
+    })
+
+    expect(mockUpdateSelect).toHaveBeenCalledTimes(1)
   })
 })

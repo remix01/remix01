@@ -10,7 +10,7 @@ export type AuditEventType =
   | 'created' | 'paid' | 'released' | 'refunded'
   | 'dispute_opened' | 'dispute_resolved' | 'cancelled'
 
-const ALLOWED_ESCROW_TRANSITIONS: Record<EscrowStatus, EscrowStatus[]> = {
+export const ALLOWED_ESCROW_TRANSITIONS: Record<EscrowStatus, EscrowStatus[]> = {
   pending: ['paid', 'cancelled'],
   paid: ['released', 'refunded', 'disputed', 'releasing'],
   released: [],
