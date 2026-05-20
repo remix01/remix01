@@ -1,6 +1,8 @@
 /**
- * POST /api/cron/metrics-push — Collects and remote-writes LiftGO business
+ * GET /api/cron/metrics-push — Collects and remote-writes LiftGO business
  * metrics to Grafana Mimir every 60 seconds (configured in vercel.json).
+ *
+ * Vercel Crons invoke routes with GET requests.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,7 +11,7 @@ import { collectBusinessMetrics, pushMetrics } from '@/lib/grafana'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
