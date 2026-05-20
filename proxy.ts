@@ -98,7 +98,7 @@ export async function proxy(request: NextRequest) {
       // Clear all supabase SSR auth cookies by name (format: sb-<ref>-auth-token[.N])
       // The legacy names sb-access-token / sb-refresh-token are NOT what @supabase/ssr sets.
       request.cookies.getAll().forEach(({ name }) => {
-        if (name.startsWith('sb-') && name.includes('-auth-token')) {
+        if (name.startsWith('sb-') && name.includes('-auth-token') && !name.includes('-code-verifier')) {
           response.cookies.set(name, '', { maxAge: 0, path: '/' })
         }
       })
