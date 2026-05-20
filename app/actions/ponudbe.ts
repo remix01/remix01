@@ -31,17 +31,10 @@ export async function acceptPonudbaAction(
 
       createAppointmentEvent({
         narocnikId: user.id,
-<<<<<<< Updated upstream
         obrtknikId: accepted.obrtnik_id,
         title: accepted.povprasevanje?.title ?? '',
         description: accepted.povprasevanje?.description ?? '',
         locationCity: (accepted.povprasevanje as any)?.location_city ?? '',
-=======
-        obrtknikId: ponudbaData.obrtnik_id,
-        title: povprasevanje.title,
-        description: povprasevanje.description ?? '',
-        locationCity: povprasevanje.location_city ?? '',
->>>>>>> Stashed changes
         startDateTime: startDateTime.toISOString(),
         endDateTime: endDateTime.toISOString(),
         ponudbaId,
