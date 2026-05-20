@@ -9,12 +9,18 @@ import { applyStripePaymentEvent } from '@/lib/services/paymentStateService'
 
 export type StripeWebhookHandler = (event: Stripe.Event) => Promise<void>
 
+function isTransientSkip(reason?: string, currentStatus?: string): boolean {
+  if (reason === 'missing_local_payment') return true
+  if (reason === 'state_guard_skip' && currentStatus === 'pending') return true
+  return false
+}
+
 async function handleTransferCreated(event: Stripe.Event) {
   const transfer = event.data.object as Stripe.Transfer
   const piId = transfer.metadata?.payment_intent_id
   if (!piId) return
 
-  const { applied } = await applyStripePaymentEvent({
+  const { applied, reason, currentStatus } = await applyStripePaymentEvent({
     stripeEvent: event,
     paymentIntentId: piId,
     eventKind: 'transfer_created',
@@ -22,8 +28,10 @@ async function handleTransferCreated(event: Stripe.Event) {
     metadata: { transferId: transfer.id, transferAmount: transfer.amount },
   })
 
-  if (!applied) {
-    console.info('[WEBHOOK] transfer.created: skipped by state guard', { piId })
+  if (!applied && isTransientSkip(reason, currentStatus)) {
+    throw new Error(
+      `[WEBHOOK] transfer.created out-of-order for ${piId} (${reason}, status=${currentStatus ?? 'none'}), needs Stripe retry`
+    )
   }
 }
 
@@ -35,7 +43,7 @@ async function handleChargeRefunded(event: Stripe.Event) {
 
   if (!piId) return
 
-  const { applied, reason } = await applyStripePaymentEvent({
+  const { applied, reason, currentStatus } = await applyStripePaymentEvent({
     stripeEvent: event,
     paymentIntentId: piId,
     eventKind: 'charge_refunded',
@@ -43,8 +51,10 @@ async function handleChargeRefunded(event: Stripe.Event) {
     metadata: { refundAmount: charge.amount_refunded },
   })
 
-  if (!applied && reason === 'missing_local_payment') {
-    console.warn('[WEBHOOK] charge.refunded: ni v DB', piId)
+  if (!applied && isTransientSkip(reason, currentStatus)) {
+    throw new Error(
+      `[WEBHOOK] charge.refunded out-of-order for ${piId} (${reason}, status=${currentStatus ?? 'none'}), needs Stripe retry`
+    )
   }
 }
 

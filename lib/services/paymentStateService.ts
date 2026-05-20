@@ -1,13 +1,20 @@
 import { getEscrowByPaymentIntent, updateEscrowStatus, type EscrowStatus } from '@/lib/escrow'
 import { shouldSkipEventForCurrentStatus, stripeCorrelation, targetStatusForEvent, type PaymentEventKind } from '@/lib/state-machine/paymentStatus'
 
+export type PaymentEventResult = {
+  applied: boolean
+  reason?: 'missing_local_payment' | 'state_guard_skip'
+  paymentId?: string
+  currentStatus?: EscrowStatus
+}
+
 export async function applyStripePaymentEvent(params: {
   stripeEvent: { id: string; type: string }
   paymentIntentId: string
   eventKind: PaymentEventKind
   metadata?: Record<string, unknown>
   extraFields?: Record<string, unknown>
-}): Promise<{ applied: boolean; reason?: string; paymentId?: string }> {
+}): Promise<PaymentEventResult> {
   const { stripeEvent, paymentIntentId, eventKind, metadata, extraFields } = params
   const escrow = await getEscrowByPaymentIntent(paymentIntentId)
 
@@ -22,7 +29,7 @@ export async function applyStripePaymentEvent(params: {
 
   if (shouldSkipEventForCurrentStatus(currentStatus, nextStatus)) {
     console.info('[PAYMENT_STATE] Event skipped by state machine guard', { ...logCtx, currentStatus, nextStatus })
-    return { applied: false, reason: 'state_guard_skip', paymentId: escrow.id }
+    return { applied: false, reason: 'state_guard_skip', paymentId: escrow.id, currentStatus }
   }
 
   await updateEscrowStatus({
@@ -36,5 +43,5 @@ export async function applyStripePaymentEvent(params: {
   })
 
   console.info('[PAYMENT_STATE] Transition applied', { ...logCtx, currentStatus, nextStatus })
-  return { applied: true, paymentId: escrow.id }
+  return { applied: true, paymentId: escrow.id, currentStatus }
 }

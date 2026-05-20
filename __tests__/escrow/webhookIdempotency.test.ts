@@ -2,6 +2,8 @@ import './setup'
 
 import { POST as deprecatedWebhookPost } from '@/app/api/payments/webhook/route'
 import { applyStripePaymentEvent } from '@/lib/services/paymentStateService'
+import { stripeWebhookHandlers } from '@/lib/stripe/handlers'
+import Stripe from 'stripe'
 
 let mockEscrowData: Record<string, unknown> | null = null
 const mockUpdateSelect = jest.fn()
@@ -108,6 +110,7 @@ describe('applyStripePaymentEvent idempotency', () => {
 
     expect(result.applied).toBe(false)
     expect(result.reason).toBe('state_guard_skip')
+    expect(result.currentStatus).toBe('paid')
     expect(mockUpdateSelect).not.toHaveBeenCalled()
   })
 
@@ -174,5 +177,78 @@ describe('applyStripePaymentEvent idempotency', () => {
 
     expect(result.applied).toBe(false)
     expect(result.reason).toBe('state_guard_skip')
+  })
+})
+
+describe('Out-of-order webhook retry (handler throws on transient skip)', () => {
+  beforeEach(() => {
+    mockEscrowData = null
+    mockUpdateSelect.mockReset()
+    mockUpdateSelect.mockResolvedValue({ data: [{ id: 'tx_1' }], error: null })
+    mockAuditInsert.mockClear()
+  })
+
+  function fakeEvent(id: string, type: string, dataObject: Record<string, unknown>): Stripe.Event {
+    return { id, type, data: { object: dataObject } } as unknown as Stripe.Event
+  }
+
+  it('transfer.created throws when escrow does not exist yet', async () => {
+    mockEscrowData = null
+
+    const event = fakeEvent('evt_tf_early', 'transfer.created', {
+      id: 'tr_1',
+      metadata: { payment_intent_id: 'pi_missing' },
+      amount: 9000,
+    })
+
+    await expect(stripeWebhookHandlers['transfer.created'](event)).rejects.toThrow(/out-of-order/)
+  })
+
+  it('transfer.created throws when escrow is still pending', async () => {
+    mockEscrowData = { id: 'tx_1', status: 'pending', amount_total_cents: 10000 }
+
+    const event = fakeEvent('evt_tf_pending', 'transfer.created', {
+      id: 'tr_2',
+      metadata: { payment_intent_id: 'pi_1' },
+      amount: 9000,
+    })
+
+    await expect(stripeWebhookHandlers['transfer.created'](event)).rejects.toThrow(/out-of-order/)
+  })
+
+  it('transfer.created does not throw when escrow is already released (permanent skip)', async () => {
+    mockEscrowData = { id: 'tx_1', status: 'released', amount_total_cents: 10000 }
+
+    const event = fakeEvent('evt_tf_dup', 'transfer.created', {
+      id: 'tr_3',
+      metadata: { payment_intent_id: 'pi_1' },
+      amount: 9000,
+    })
+
+    await expect(stripeWebhookHandlers['transfer.created'](event)).resolves.toBeUndefined()
+  })
+
+  it('charge.refunded throws when escrow does not exist yet', async () => {
+    mockEscrowData = null
+
+    const event = fakeEvent('evt_ref_early', 'charge.refunded', {
+      id: 'ch_1',
+      payment_intent: 'pi_missing',
+      amount_refunded: 5000,
+    })
+
+    await expect(stripeWebhookHandlers['charge.refunded'](event)).rejects.toThrow(/out-of-order/)
+  })
+
+  it('charge.refunded does not throw when escrow is already refunded (permanent skip)', async () => {
+    mockEscrowData = { id: 'tx_1', status: 'refunded', amount_total_cents: 10000 }
+
+    const event = fakeEvent('evt_ref_dup', 'charge.refunded', {
+      id: 'ch_2',
+      payment_intent: 'pi_1',
+      amount_refunded: 10000,
+    })
+
+    await expect(stripeWebhookHandlers['charge.refunded'](event)).resolves.toBeUndefined()
   })
 })
