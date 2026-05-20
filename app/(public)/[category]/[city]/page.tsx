@@ -154,7 +154,7 @@ async function fetchDirectoryData(category: string, city: string) {
       }
 
       lastResult = result
-      const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout'
+      const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout' || result.reason === 'invalid_json'
       if (!canTryNextBase) {
         return result
       }
