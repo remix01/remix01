@@ -652,7 +652,7 @@ export default function ProfilPage() {
 
                 if (error) throw error
 
-                setCertificateUrls([...(certificateUrls || []), ...urls])
+                setCertificateUrls(urls)
                 setSuccessMessage('Certifikat je bil uspešno naložen.')
                 setTimeout(() => setSuccessMessage(''), 3000)
               } catch (err) {

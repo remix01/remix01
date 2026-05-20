@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { createClient } from '@/lib/supabase/server'
+import { suspendCraftworkerWithSideEffects } from '@/lib/admin/craftworker-suspension'
 
 type Action = 'suspend' | 'unsuspend'
 
@@ -24,14 +25,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
-  const update = body.action === 'suspend'
-    ? { is_suspended: true, suspended_at: new Date().toISOString(), suspended_reason: 'Bulk admin action' }
-    : { is_suspended: false, suspended_at: null, suspended_reason: null }
-
-  const { error } = await supabaseAdmin.from('craftworker_profile').update(update).in('user_id', ids)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (body.action === 'suspend') {
+    for (const id of ids) {
+      await suspendCraftworkerWithSideEffects(id, 'Bulk admin action')
+    }
+  } else {
+    const { error } = await supabaseAdmin
+      .from('craftworker_profile')
+      .update({ is_suspended: false, suspended_at: null, suspended_reason: null })
+      .in('user_id', ids)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   console.log(`[admin][bulk-${body.action}] ids=${ids.length} admin=${admin.id}`)
   return NextResponse.json({ success: true, count: ids.length })
 }
-
