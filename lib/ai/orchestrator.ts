@@ -156,18 +156,18 @@ export async function executeAgent(options: AgentExecutionOptions): Promise<Agen
   if (!isAIAvailable()) {
     throw new Error('[Orchestrator] AI unavailable (disabled, unconfigured, or circuit open)')
   }
-  const agentType = mapLegacyAgentType(rawAgentType)
-
-  // 1. Check access and quota
+  // 1. Check access and quota against the *raw* agent type so PRO-only
+  //    legacy agents (e.g. video_diagnosis) are blocked before mapping.
   const userTier = await getUserTier(userId)
-  if (!isAgentAccessible(agentType, userTier)) {
+  if (!isAgentAccessible(rawAgentType, userTier)) {
     throw new AgentAccessError(
-      `Agent "${agentType}" zahteva naročnino PRO. Trenutni tier: ${userTier}`
+      `Agent "${rawAgentType}" zahteva naročnino PRO. Trenutni tier: ${userTier}`
     )
   }
 
+  const dailyLimit = AGENT_DAILY_LIMITS[userTier]?.[rawAgentType] ?? 0
+  const agentType = mapLegacyAgentType(rawAgentType)
   const dailyUsage = await getDailyUsage(userId, agentType)
-  const dailyLimit = AGENT_DAILY_LIMITS[userTier]?.[agentType] ?? 0
   if (dailyUsage >= dailyLimit) {
     throw new QuotaExceededError(
       `Dnevna kvota za "${agentType}" dosežena (${dailyUsage}/${dailyLimit})`

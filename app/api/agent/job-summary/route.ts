@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
 
     const tier = obrtnik.subscription_tier ?? 'start'
     const access = evaluateAgentTierAccess('job_summary' as AIAgentType, tier)
+    if (!access.allowed) {
+      return NextResponse.json({ error: 'Poročila so na voljo samo za PRO obrtnike.', upgrade_required: true, upgrade_url: '/obrtnik/narocnine' }, { status: 403 })
+    }
     const dailyLimit = access.dailyLimit
     const profile = await loadAiUsageProfile(user.id)
     const effectiveUsed = await normalizeDailyUsageWindow(user.id, profile)
