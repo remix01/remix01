@@ -29,10 +29,20 @@ export function SandboxModule() {
   const [stderr, setStderr] = useState('')
   const [running, setRunning] = useState(false)
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const [input, setInput] = useState('')
+  const { messages, append, isLoading } = useChat({
     api: '/api/sandbox/chat',
     body: { model },
   })
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim()) return
+    await append({ role: 'user', content: input })
+    setInput('')
+  }
 
   const latestCode = useMemo(() => {
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
