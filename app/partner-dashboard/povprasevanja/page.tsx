@@ -106,7 +106,7 @@ export default async function PovprasevanjePage({
 
   // Count competitors per category
   const competitorCountByCategory: Record<string, number> = {}
-  for (const row of (competitionData ?? []) as { category_id: string }[]) {
+  for (const row of (competitionData ?? []) as unknown as { category_id: string }[]) {
     competitorCountByCategory[row.category_id] = (competitorCountByCategory[row.category_id] || 0) + 1
   }
 
