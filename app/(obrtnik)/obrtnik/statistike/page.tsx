@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { TrendingUp, Send, CheckCircle, Star } from 'lucide-react'
 
 export default async function StatistikePage() {
@@ -86,6 +87,11 @@ export default async function StatistikePage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Statistike</h1>
         <p className="text-gray-600 mb-8">Pregled vaše dejavnosti in uspešnosti</p>
+        <div className="mb-6">
+          <Button asChild variant="outline">
+            <a href="/api/obrtnik/statistike/export">Izvozi CSV</a>
+          </Button>
+        </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

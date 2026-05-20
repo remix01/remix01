@@ -30,8 +30,8 @@ export function DashboardCardActions({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const isFinal = ['v_teku', 'zakljuceno', 'preklicano', 'completed', 'cancelled'].includes(status)
-  const canCancel = !isFinal && status !== 'v_teku'
+  const isFinal = ['v_izvedbi', 'v_teku', 'zakljuceno', 'preklicano', 'completed', 'cancelled'].includes(status)
+  const canCancel = !isFinal && status !== 'v_izvedbi' && status !== 'v_teku'
   const canDelete = !hasPonudbe && !isFinal
 
   if (!canCancel && !canDelete) return null
