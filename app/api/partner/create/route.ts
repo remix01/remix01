@@ -29,7 +29,8 @@ export async function POST(req: Request) {
     }
 
     // Primary path (canonical): obrtnik_profiles
-    const { data: canonicalData, error: canonicalError } = await (supabaseAdmin as any)
+    // ignoreDuplicates ensures a repeated call doesn't overwrite is_verified.
+    const { error: upsertError } = await (supabaseAdmin as any)
       .from("obrtnik_profiles")
       .upsert(
         {
@@ -37,10 +38,18 @@ export async function POST(req: Request) {
           business_name: company_name,
           is_verified: false,
         },
-        { onConflict: "id" },
-      )
-      .select("id, business_name, is_verified, created_at")
-      .single();
+        { onConflict: "id", ignoreDuplicates: true },
+      );
+
+    const canonicalError = upsertError;
+    const canonicalData = !upsertError
+      ? (await (supabaseAdmin as any)
+          .from("obrtnik_profiles")
+          .select("id, business_name, is_verified, created_at")
+          .eq("id", user_id)
+          .single()
+        ).data
+      : null;
 
     if (!canonicalError) {
       const onboarding = await transitionOnboardingState(user_id);

@@ -24,14 +24,14 @@ export const OnboardingStatus = {
 export type OnboardingStatus = (typeof OnboardingStatus)[keyof typeof OnboardingStatus]
 
 export const ONBOARDING_TRANSITIONS: Record<OnboardingStatus, readonly OnboardingStatus[]> = {
-  [OnboardingStatus.DRAFT]:                  [OnboardingStatus.REGISTERED, OnboardingStatus.PROFILE_INCOMPLETE, OnboardingStatus.REJECTED],
-  [OnboardingStatus.REGISTERED]:             [OnboardingStatus.EMAIL_VERIFIED, OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.REJECTED],
+  [OnboardingStatus.DRAFT]:                  [OnboardingStatus.REGISTERED, OnboardingStatus.PROFILE_INCOMPLETE, OnboardingStatus.VERIFICATION_PENDING, OnboardingStatus.REJECTED],
+  [OnboardingStatus.REGISTERED]:             [OnboardingStatus.EMAIL_VERIFIED, OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.VERIFICATION_PENDING, OnboardingStatus.REJECTED],
   [OnboardingStatus.EMAIL_VERIFIED]:         [OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.REJECTED],
-  [OnboardingStatus.PROFILE_COMPLETED]:      [OnboardingStatus.EMAIL_VERIFIED, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.REJECTED],
+  [OnboardingStatus.PROFILE_COMPLETED]:      [OnboardingStatus.EMAIL_VERIFIED, OnboardingStatus.VERIFICATION_PENDING, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.REJECTED],
   [OnboardingStatus.PAYMENT_CONNECTED]:      [OnboardingStatus.ACTIVE, OnboardingStatus.PAYOUT_SETUP_REQUIRED],
-  [OnboardingStatus.PROFILE_INCOMPLETE]:     [OnboardingStatus.VERIFICATION_PENDING, OnboardingStatus.REJECTED],
-  [OnboardingStatus.VERIFICATION_PENDING]:   [OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.REJECTED],
-  [OnboardingStatus.PAYOUT_SETUP_REQUIRED]:  [OnboardingStatus.ACTIVE],
+  [OnboardingStatus.PROFILE_INCOMPLETE]:     [OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.VERIFICATION_PENDING, OnboardingStatus.REJECTED],
+  [OnboardingStatus.VERIFICATION_PENDING]:   [OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.REJECTED],
+  [OnboardingStatus.PAYOUT_SETUP_REQUIRED]:  [OnboardingStatus.ACTIVE, OnboardingStatus.PAYMENT_CONNECTED],
   [OnboardingStatus.ACTIVE]:                 [OnboardingStatus.SUSPENDED],
   [OnboardingStatus.REJECTED]:               [OnboardingStatus.DRAFT],
   [OnboardingStatus.SUSPENDED]:              [OnboardingStatus.ACTIVE],

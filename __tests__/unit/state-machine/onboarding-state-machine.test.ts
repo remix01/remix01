@@ -147,6 +147,36 @@ describe('assertOnboardingTransitionValid', () => {
       assertOnboardingTransitionValid(OnboardingStatus.REJECTED, OnboardingStatus.DRAFT),
     ).not.toThrow()
   })
+
+  it('allows profile_completed → verification_pending', () => {
+    expect(() =>
+      assertOnboardingTransitionValid(OnboardingStatus.PROFILE_COMPLETED, OnboardingStatus.VERIFICATION_PENDING),
+    ).not.toThrow()
+  })
+
+  it('allows profile_incomplete → profile_completed', () => {
+    expect(() =>
+      assertOnboardingTransitionValid(OnboardingStatus.PROFILE_INCOMPLETE, OnboardingStatus.PROFILE_COMPLETED),
+    ).not.toThrow()
+  })
+
+  it('allows verification_pending → profile_completed', () => {
+    expect(() =>
+      assertOnboardingTransitionValid(OnboardingStatus.VERIFICATION_PENDING, OnboardingStatus.PROFILE_COMPLETED),
+    ).not.toThrow()
+  })
+
+  it('allows payout_setup_required → payment_connected', () => {
+    expect(() =>
+      assertOnboardingTransitionValid(OnboardingStatus.PAYOUT_SETUP_REQUIRED, OnboardingStatus.PAYMENT_CONNECTED),
+    ).not.toThrow()
+  })
+
+  it('rejects payment_connected → draft', () => {
+    expect(() =>
+      assertOnboardingTransitionValid(OnboardingStatus.PAYMENT_CONNECTED, OnboardingStatus.DRAFT),
+    ).toThrow(TransitionError)
+  })
 })
 
 // ── migrateOnboardingState ──────────────────────────────────
@@ -333,12 +363,100 @@ describe('transitionOnboardingState', () => {
         stripe_account_id: 'acct_bf',
         stripe_onboarded: true,
       },
-      // Legacy "completed" maps to ACTIVE via migration — derived is also ACTIVE
       existingOnboardingState: { state: 'completed' },
     })
 
     const { transitionOnboardingState } = await import('@/lib/onboarding/state-machine')
     const result = await transitionOnboardingState('user-4')
     expect(result.state).toBe(OnboardingStatus.ACTIVE)
+  })
+
+  it('handles backfilled user with legacy "blocked" state transitioning to active', async () => {
+    setupSupabaseMock({
+      profile: { id: 'user-5', role: 'obrtnik' },
+      obrtnikProfile: {
+        id: 'user-5',
+        business_name: 'Reactivated OÜ',
+        description: 'Back in business',
+        is_verified: true,
+        verification_status: 'verified',
+        stripe_account_id: 'acct_re',
+        stripe_onboarded: true,
+      },
+      // Legacy "blocked" maps to SUSPENDED; derived is ACTIVE — suspended→active is allowed
+      existingOnboardingState: { state: 'blocked' },
+    })
+
+    const { transitionOnboardingState } = await import('@/lib/onboarding/state-machine')
+    const result = await transitionOnboardingState('user-5')
+    expect(result.state).toBe(OnboardingStatus.ACTIVE)
+  })
+
+  it('emits onboarding.transitioned event on state change', async () => {
+    setupSupabaseMock({
+      profile: { id: 'user-6', role: 'obrtnik' },
+      obrtnikProfile: {
+        id: 'user-6',
+        business_name: 'Evolving OÜ',
+        description: 'We evolve',
+        is_verified: false,
+        verification_status: 'pending',
+        stripe_account_id: null,
+        stripe_onboarded: false,
+      },
+      // registered → profile_completed is a valid transition
+      existingOnboardingState: { state: 'registered' },
+      updateResult: { data: [{ user_id: 'user-6' }], error: null },
+    })
+
+    const { transitionOnboardingState } = await import('@/lib/onboarding/state-machine')
+    await transitionOnboardingState('user-6')
+
+    const { eventBus } = jest.requireMock('@/lib/events') as any
+    expect(eventBus.emit).toHaveBeenCalledWith(
+      'onboarding.transitioned',
+      expect.objectContaining({
+        userId: 'user-6',
+        fromState: OnboardingStatus.REGISTERED,
+        toState: OnboardingStatus.PROFILE_COMPLETED,
+      }),
+    )
+  })
+
+  it('does not emit event when state is unchanged (idempotent)', async () => {
+    setupSupabaseMock({
+      profile: { id: 'user-7', role: 'narocnik' },
+      obrtnikProfile: null,
+      existingOnboardingState: { state: 'active' },
+    })
+
+    const { transitionOnboardingState } = await import('@/lib/onboarding/state-machine')
+    await transitionOnboardingState('user-7')
+
+    const { eventBus } = jest.requireMock('@/lib/events') as any
+    expect(eventBus.emit).not.toHaveBeenCalled()
+  })
+
+  it('throws on concurrent modification (optimistic lock)', async () => {
+    setupSupabaseMock({
+      profile: { id: 'user-8', role: 'obrtnik' },
+      obrtnikProfile: {
+        id: 'user-8',
+        business_name: 'Concurrent OÜ',
+        description: 'Racing',
+        is_verified: false,
+        verification_status: 'pending',
+        stripe_account_id: null,
+        stripe_onboarded: false,
+      },
+      // registered → profile_completed is valid, but the optimistic lock returns empty
+      existingOnboardingState: { state: 'registered' },
+      updateResult: { data: [], error: null },
+    })
+
+    const { transitionOnboardingState } = await import('@/lib/onboarding/state-machine')
+    await expect(transitionOnboardingState('user-8')).rejects.toThrow(
+      /Concurrent modification/,
+    )
   })
 })

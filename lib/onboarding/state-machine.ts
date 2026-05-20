@@ -48,8 +48,12 @@ function cleanText(value: string | null | undefined): string {
 const INITIAL_STATES: ReadonlySet<OnboardingStatus> = new Set([
   OnboardingStatus.DRAFT,
   OnboardingStatus.REGISTERED,
-  OnboardingStatus.VERIFICATION_PENDING,
+  OnboardingStatus.EMAIL_VERIFIED,
+  OnboardingStatus.PROFILE_INCOMPLETE,
   OnboardingStatus.PROFILE_COMPLETED,
+  OnboardingStatus.PAYMENT_CONNECTED,
+  OnboardingStatus.VERIFICATION_PENDING,
+  OnboardingStatus.PAYOUT_SETUP_REQUIRED,
   OnboardingStatus.ACTIVE,
   OnboardingStatus.SUSPENDED,
   OnboardingStatus.REJECTED,
