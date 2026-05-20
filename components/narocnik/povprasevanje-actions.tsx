@@ -60,7 +60,7 @@ export function PovprasevanjeActions({
   const [editTitle, setEditTitle] = useState(title)
   const [editDescription, setEditDescription] = useState(description)
 
-  const isFinal = ['v_teku', 'zakljuceno', 'preklicano'].includes(status)
+  const isFinal = ['v_izvedbi', 'v_teku', 'zakljuceno', 'preklicano'].includes(status)
   const canEdit = !isFinal && !hasAcceptedPonudba
   const canDelete = !hasPonudbe && !isFinal
   const canCancel = canCancelPovprasevanje(status)

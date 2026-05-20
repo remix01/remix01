@@ -1,8 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckCircle, XCircle, AlertCircle, Zap, RefreshCw, Trash2, Loader2 } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, Zap, RefreshCw, Trash2, Loader2, TrendingUp, Clock, BarChart3, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+
+interface LeadStats {
+  todayLeads: number
+  unansweredLeads: number
+  avgHoursToFirstOffer: number | null
+  conversionRate: number | null
+}
 
 interface Lead {
   id: string
@@ -36,6 +43,7 @@ const statusColors: Record<Lead['profile_status'], string> = {
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
+  const [stats, setStats] = useState<LeadStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -43,6 +51,24 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('lead')
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      const res = await fetch('/api/admin/leads/stats', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        setStats(await res.json() as LeadStats)
+      }
+    } catch {
+      // Stats are non-critical
+    }
+  }, [])
+
+  useEffect(() => { fetchStats() }, [fetchStats])
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -247,6 +273,45 @@ export default function LeadsPage() {
           </button>
         </div>
       </div>
+
+      {stats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <FileText className="h-4 w-4" />
+              Današnji novi leadi
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.todayLeads}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+              Neodgovorjeni (SLA potekel)
+            </div>
+            <p className={`text-2xl font-bold ${stats.unansweredLeads > 0 ? 'text-orange-600' : 'text-foreground'}`}>
+              {stats.unansweredLeads}
+            </p>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <Clock className="h-4 w-4" />
+              Povp. čas do 1. ponudbe
+            </div>
+            <p className="text-2xl font-bold text-foreground">
+              {stats.avgHoursToFirstOffer !== null ? `${stats.avgHoursToFirstOffer}h` : '—'}
+            </p>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              Konverzija (lead → posel)
+            </div>
+            <p className="text-2xl font-bold text-foreground">
+              {stats.conversionRate !== null ? `${stats.conversionRate}%` : '—'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

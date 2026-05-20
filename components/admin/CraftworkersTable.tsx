@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Checkbox } from '@/components/ui/checkbox'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ export function CraftworkersTable() {
   const [craftworkers, setCraftworkers] = useState<Craftworker[]>([])
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   useEffect(() => {
     fetchCraftworkers()
@@ -44,6 +46,7 @@ export function CraftworkersTable() {
       const response = await fetch(`/api/admin/craftworkers?filter=${filter}`)
       const data = await response.json()
       setCraftworkers(data)
+      setSelectedIds([])
     } catch (error) {
       console.error('[v0] Failed to fetch craftworkers:', error)
     } finally {
@@ -71,6 +74,22 @@ export function CraftworkersTable() {
     }
   }
 
+
+  const handleBulkAction = async (action: 'suspend' | 'unsuspend') => {
+    if (!selectedIds.length) return
+    const message = action === 'suspend'
+      ? 'Ali ste prepričani, da želite suspendirati izbrane obrtnike?'
+      : 'Ali ste prepričani, da želite odstraniti suspenz izbranim obrtnikom?'
+    if (!confirm(message)) return
+
+    await fetch('/api/admin/craftworkers/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: selectedIds, action }),
+    })
+    fetchCraftworkers()
+  }
+
   if (loading) {
     return <div className="py-8 text-center text-muted-foreground">Nalaganje...</div>
   }
@@ -90,8 +109,10 @@ export function CraftworkersTable() {
           </SelectContent>
         </Select>
 
-        <div className="text-sm text-muted-foreground">
-          Skupaj: {craftworkers.length}
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => handleBulkAction('suspend')} disabled={!selectedIds.length}>Suspendiraj izbrane</Button>
+          <Button size="sm" variant="outline" onClick={() => handleBulkAction('unsuspend')} disabled={!selectedIds.length}>Odstrani suspenz izbranih</Button>
+          <div className="text-sm text-muted-foreground">Skupaj: {craftworkers.length}</div>
         </div>
       </div>
 
@@ -100,6 +121,12 @@ export function CraftworkersTable() {
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="px-4 py-3 text-left text-sm font-medium">
+                  <Checkbox
+                    checked={craftworkers.length > 0 && selectedIds.length === craftworkers.length}
+                    onCheckedChange={(checked) => setSelectedIds(checked ? craftworkers.map((c) => c.id) : [])}
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Ime</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Paket</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Stripe</th>
@@ -114,6 +141,12 @@ export function CraftworkersTable() {
             <tbody>
               {craftworkers.map((cw) => (
                 <tr key={cw.id} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="px-4 py-3">
+                    <Checkbox
+                      checked={selectedIds.includes(cw.id)}
+                      onCheckedChange={(checked) => setSelectedIds(checked ? [...selectedIds, cw.id] : selectedIds.filter((id) => id !== cw.id))}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div>
                       <div className="font-medium">{cw.name}</div>

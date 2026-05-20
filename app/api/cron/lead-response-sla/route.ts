@@ -15,8 +15,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { liquidityEngine } from '@/lib/marketplace/liquidityEngine'
+import { workerBroadcast } from '@/lib/marketplace/workerBroadcast'
 import { createAdminClient } from '@/lib/supabase/server'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+
+const DEADLINE_WARNING_MINUTES = 30
 
 function verifyCronSecret(req: NextRequest): boolean {
   const authHeader = req.headers.get('authorization') || ''
@@ -37,8 +40,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const now = new Date().toISOString()
+    const warningThreshold = new Date(Date.now() + DEADLINE_WARNING_MINUTES * 60 * 1000).toISOString()
 
-    // Find all expired pending assignments
+    // 1. Find all expired pending assignments
     const { data: expired, error } = await (supabase as any)
       .from('lead_assignments')
       .select('id, povprasevanje_id, obrtnik_id, rank, score')
@@ -47,16 +51,30 @@ export async function GET(req: NextRequest) {
       .order('expires_at', { ascending: true })
       .limit(50)
 
+    // 2. Find assignments expiring within DEADLINE_WARNING_MINUTES (for warning notifications)
+    const { data: expiringSoon } = await (supabase as any)
+      .from('lead_assignments')
+      .select('id, povprasevanje_id, obrtnik_id, expires_at, notified_deadline_warning')
+      .eq('status', 'pending')
+      .gt('expires_at', now)
+      .lt('expires_at', warningThreshold)
+      .neq('notified_deadline_warning', true)
+      .limit(50)
+
     if (error) {
       console.error('[LeadSLA] Query error:', error.message)
       return NextResponse.json({ error: 'Query failed', details: error.message }, { status: 500 })
     }
 
-    if (!expired || expired.length === 0) {
+    const hasExpired = expired && expired.length > 0
+    const hasWarnings = expiringSoon && expiringSoon.length > 0
+
+    if (!hasExpired && !hasWarnings) {
       return NextResponse.json({
         success: true,
-        message: 'No expired lead assignments',
+        message: 'No expired or expiring lead assignments',
         processed: 0,
+        warnings: 0,
         durationMs: Date.now() - startTime,
       })
     }
@@ -64,16 +82,42 @@ export async function GET(req: NextRequest) {
     console.log(JSON.stringify({
       level: 'info',
       event: 'lead_sla_cron_start',
-      expiredCount: expired.length,
+      expiredCount: expired?.length ?? 0,
+      warningSoonCount: expiringSoon?.length ?? 0,
     }))
 
+    // 3. Send deadline warnings (push + email, ignores quiet hours)
+    let warningsSent = 0
+    for (const assignment of expiringSoon || []) {
+      try {
+        const minutesLeft = Math.max(1, Math.round(
+          (new Date(assignment.expires_at).getTime() - Date.now()) / (60 * 1000)
+        ))
+
+        await workerBroadcast.notifyDeadlineWarning(
+          assignment.povprasevanje_id,
+          [assignment.obrtnik_id],
+          minutesLeft
+        )
+
+        await (supabase as any)
+          .from('lead_assignments')
+          .update({ notified_deadline_warning: true })
+          .eq('id', assignment.id)
+
+        warningsSent++
+      } catch (err) {
+        console.error('[LeadSLA] Warning notification error for', assignment.id, ':', String(err))
+      }
+    }
+
+    // 4. Process expired assignments
     const escalated: string[] = []
     const exhausted: string[] = []
     const failed: string[] = []
 
-    for (const assignment of expired) {
+    for (const assignment of expired || []) {
       try {
-        // expire_lead_assignment returns next obrtnik if one exists
         const { data: nextData } = await (supabase as any).rpc('expire_lead_assignment', {
           p_assignment_id: assignment.id,
         })
@@ -81,8 +125,23 @@ export async function GET(req: NextRequest) {
         const next = Array.isArray(nextData) ? nextData[0] : nextData
 
         if (next?.next_obrtnik_id) {
-          // Notify the next contractor
           await liquidityEngine.escalateLead(assignment.id)
+
+          // Send escalation notification with opportunity message
+          await supabase.from('notifications').insert({
+            user_id: next.next_obrtnik_id,
+            type: 'lead_escalation',
+            title: 'Nov lead na voljo — večja možnost za posel!',
+            body: 'Ta lead je na voljo, ker prejšnji obrtnik ni odgovoril. Hitro oddajte ponudbo!',
+            message: 'Ta lead je na voljo, ker prejšnji obrtnik ni odgovoril. Hitro oddajte ponudbo!',
+            link: '/obrtnik/povprasevanja',
+            read: false,
+            metadata: {
+              povprasevanje_id: assignment.povprasevanje_id,
+              escalated_from_rank: assignment.rank,
+            },
+          })
+
           escalated.push(assignment.id)
 
           console.log(JSON.stringify({
@@ -95,7 +154,6 @@ export async function GET(req: NextRequest) {
             toRank: next.next_rank,
           }))
         } else {
-          // All ranks exhausted — log for admin
           exhausted.push(assignment.id)
 
           console.warn(JSON.stringify({
@@ -105,9 +163,8 @@ export async function GET(req: NextRequest) {
             povprasenjeId: assignment.povprasevanje_id,
           }))
 
-          // Create admin alert notification
           await canonicalWriteGateway.appendNotification({
-            user_id: null, // admin channel (type-specific)
+            user_id: null,
             type: 'lead_unassigned',
             title: 'Lead brez odgovora — ni več obrtnikov',
             message: `Povpraševanje ${assignment.povprasevanje_id} ni dobilo odgovora pri nobenem obrtniku.`,
@@ -126,10 +183,11 @@ export async function GET(req: NextRequest) {
 
     const summary = {
       success: true,
-      processed: expired.length,
+      processed: expired?.length ?? 0,
       escalated: escalated.length,
       exhausted: exhausted.length,
       failed: failed.length,
+      warningsSent,
       durationMs: Date.now() - startTime,
     }
 

@@ -20,6 +20,7 @@ const ALL = '__all__'
 
 const URGENCY_OPTIONS = [
   { value: ALL, label: 'Vse' },
+  { value: 'samo_nujne', label: 'Samo nujne' },
   { value: 'nujno', label: 'Nujno' },
   { value: 'ta_teden', label: 'Ta teden' },
 ] as const

@@ -55,8 +55,13 @@ export async function POST(request: Request) {
 
     const result = await createAppointmentEvent({
       narocnikId: povprasevanje.narocnik_id,
+<<<<<<< Updated upstream
       obrtknikId: ponudba.obrtnik_id ?? '',
       title: ponudba.povprasevanje.title ?? '',
+=======
+      obrtknikId: ponudba.obrtnik_id,
+      title: ponudba.povprasevanje.title,
+>>>>>>> Stashed changes
       description: ponudba.povprasevanje.description ?? '',
       locationCity: ponudba.povprasevanje.location_city ?? '',
       startDateTime,

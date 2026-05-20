@@ -27,6 +27,9 @@ import { buildScoringAudit } from '@/lib/services/matchingScoringContract'
 export const MAX_HARD_RADIUS_KM = 75   // never send leads beyond 75km
 export const MAX_MATCHES = 5            // top N to notify
 export const LEAD_SLA_HOURS = 4        // hours contractor has to respond
+const MIN_MATCHES_BEFORE_FALLBACK = 3
+const FALLBACK_RADIUS_MULTIPLIER = 1.5
+const FALLBACK_MIN_RATING = 2.5
 
 export interface MatchBreakdown {
   categoryScore: number       // 0–25
@@ -231,25 +234,67 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       categories: ((p.obrtnik_categories as any[]) || []).map((c: any) => c.category_id as string),
     }))
 
-    // 4. Hard filters
-    const eligible = partners.filter((p) => {
-      // Category must match
-      if (!p.categories.includes(input.categoryId)) return false
-      // Must have minimum rating (if reviewed)
-      if (p.total_reviews > 0 && p.avg_rating < 3.0) return false
-      // Must not be over active lead cap
-      if (p.active_lead_count >= p.max_active_leads) return false
-      // Distance hard filter (only if coordinates available)
-      if (p.lat && p.lng) {
-        const dist = haversineKm(input.lat, input.lng, p.lat, p.lng)
-        const radiusLimit = Math.min(p.service_radius_km, MAX_HARD_RADIUS_KM)
-        if (dist > radiusLimit) return false
-      }
-      return true
-    })
+    // 4. Hard filters with progressive fallback
+    const fallbackSteps: string[] = []
+
+    function applyFilters(opts: {
+      radiusMultiplier: number
+      minRating: number
+      ignoreLeadCapForPremium: boolean
+    }): PartnerCandidate[] {
+      return partners.filter((p) => {
+        if (!p.categories.includes(input.categoryId)) return false
+        if (p.total_reviews > 0 && p.avg_rating < opts.minRating) return false
+        if (p.active_lead_count >= p.max_active_leads) {
+          if (!opts.ignoreLeadCapForPremium) return false
+          const tier = p.subscription_tier.toLowerCase()
+          if (tier !== 'pro' && tier !== 'elite' && tier !== 'enterprise') return false
+        }
+        if (p.lat && p.lng) {
+          const dist = haversineKm(input.lat, input.lng, p.lat, p.lng)
+          const radiusLimit = Math.min(p.service_radius_km * opts.radiusMultiplier, MAX_HARD_RADIUS_KM)
+          if (dist > radiusLimit) return false
+        }
+        return true
+      })
+    }
+
+    let eligible = applyFilters({ radiusMultiplier: 1, minRating: 3.0, ignoreLeadCapForPremium: false })
+
+    if (eligible.length < MIN_MATCHES_BEFORE_FALLBACK) {
+      fallbackSteps.push('expand_radius_150pct')
+      eligible = applyFilters({ radiusMultiplier: FALLBACK_RADIUS_MULTIPLIER, minRating: 3.0, ignoreLeadCapForPremium: false })
+    }
+    if (eligible.length < MIN_MATCHES_BEFORE_FALLBACK) {
+      fallbackSteps.push('lower_min_rating_2.5')
+      eligible = applyFilters({ radiusMultiplier: FALLBACK_RADIUS_MULTIPLIER, minRating: FALLBACK_MIN_RATING, ignoreLeadCapForPremium: false })
+    }
+    if (eligible.length < MIN_MATCHES_BEFORE_FALLBACK) {
+      fallbackSteps.push('ignore_lead_cap_premium')
+      eligible = applyFilters({ radiusMultiplier: FALLBACK_RADIUS_MULTIPLIER, minRating: FALLBACK_MIN_RATING, ignoreLeadCapForPremium: true })
+    }
 
     if (eligible.length === 0) {
-      return { matches: [], matchingId: null, error: 'Ni primernih obrtnikov v dosegu' }
+      await supabase.from('notifications').insert({
+        user_id: null,
+        type: 'lead_no_match',
+        title: 'Ni razpoložljivih obrtnikov',
+        body: `Povpraševanje "${pov.title}" (${pov.location_city ?? 'neznana lokacija'}) ni dobilo nobenega ujemanja. Potreben ročni pregled.`,
+        message: `Povpraševanje "${pov.title}" nima ujemajočih obrtnikov.`,
+        link: `/admin/povprasevanja/${input.requestId}`,
+        read: false,
+        metadata: { povprasevanje_id: input.requestId, fallbackSteps },
+      })
+
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'matching_zero_results_admin_alert',
+        requestId: input.requestId,
+        fallbackSteps,
+        candidatesTotal: partners.length,
+      }))
+
+      return { matches: [], matchingId: null, error: 'Ni primernih obrtnikov v dosegu', fallbackSteps }
     }
 
     // 5. Score
@@ -356,6 +401,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       eligibleTotal: eligible.length,
       executionMs: executionTime,
       scoringAudit,
+      fallbackSteps: fallbackSteps.length > 0 ? fallbackSteps : undefined,
     }))
 
     return {
@@ -363,6 +409,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       matchingId: (logData as any)?.id || null,
       executionTimeMs: executionTime,
       scoringAudit,
+      fallbackSteps: fallbackSteps.length > 0 ? fallbackSteps : undefined,
     }
   } catch (error) {
     const executionTime = Date.now() - startTime
