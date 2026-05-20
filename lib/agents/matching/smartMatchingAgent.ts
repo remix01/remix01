@@ -284,7 +284,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         link: `/admin/povprasevanja/${input.requestId}`,
         read: false,
         metadata: { povprasevanje_id: input.requestId, fallbackSteps },
-      })
+      } as any)
 
       console.warn(JSON.stringify({
         level: 'warn',
