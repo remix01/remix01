@@ -30,23 +30,26 @@ export function SandboxModule() {
   const [running, setRunning] = useState(false)
 
   const [input, setInput] = useState('')
-  const { messages, append, isLoading } = useChat({
+  const { messages, sendMessage, status } = useChat({
     api: '/api/sandbox/chat',
     body: { model },
   })
+  const isLoading = status === 'submitted' || status === 'streaming'
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
-    await append({ role: 'user', content: input })
+    await sendMessage({ text: input })
     setInput('')
   }
 
   const latestCode = useMemo(() => {
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
-    return lastAssistant ? extractCode(lastAssistant.content) : ''
+    if (!lastAssistant) return ''
+    const text = lastAssistant.parts.filter((p) => p.type === 'text').map((p) => (p as { type: 'text'; text: string }).text).join('')
+    return extractCode(text)
   }, [messages])
 
   const highlightedCode = useMemo(() => {
@@ -111,7 +114,7 @@ export function SandboxModule() {
               {messages.map((m) => (
                 <div key={m.id} className="rounded-md border p-2 text-sm">
                   <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">{m.role}</p>
-                  <p className="whitespace-pre-wrap">{m.content}</p>
+                  <p className="whitespace-pre-wrap">{m.parts.filter((p) => p.type === 'text').map((p) => (p as { type: 'text'; text: string }).text).join('')}</p>
                 </div>
               ))}
             </div>
