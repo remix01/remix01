@@ -134,9 +134,9 @@ export async function GET(req: NextRequest) {
             title: 'Nov lead na voljo — večja možnost za posel!',
             body: 'Ta lead je na voljo, ker prejšnji obrtnik ni odgovoril. Hitro oddajte ponudbo!',
             message: 'Ta lead je na voljo, ker prejšnji obrtnik ni odgovoril. Hitro oddajte ponudbo!',
-            link: '/obrtnik/povprasevanja',
+            action_url: '/obrtnik/povprasevanja',
             read: false,
-            metadata: {
+            data: {
               povprasevanje_id: assignment.povprasevanje_id,
               escalated_from_rank: assignment.rank,
             },
