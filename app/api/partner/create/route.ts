@@ -41,17 +41,24 @@ export async function POST(req: Request) {
         { onConflict: "id", ignoreDuplicates: true },
       );
 
-    const canonicalError = upsertError;
-    const canonicalData = !upsertError
-      ? (await (supabaseAdmin as any)
-          .from("obrtnik_profiles")
-          .select("id, business_name, is_verified, created_at")
-          .eq("id", user_id)
-          .single()
-        ).data
-      : null;
+    let canonicalError = upsertError;
+    let canonicalData: any = null;
 
-    if (!canonicalError) {
+    if (!upsertError) {
+      const { data: selectData, error: selectError } = await (supabaseAdmin as any)
+        .from("obrtnik_profiles")
+        .select("id, business_name, is_verified, created_at")
+        .eq("id", user_id)
+        .single();
+
+      if (selectError) {
+        canonicalError = selectError;
+      } else {
+        canonicalData = selectData;
+      }
+    }
+
+    if (!canonicalError && canonicalData) {
       const onboarding = await transitionOnboardingState(user_id);
       const isActive = isPartnerActiveStatus(onboarding.state);
 
