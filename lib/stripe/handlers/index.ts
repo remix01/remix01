@@ -5,8 +5,7 @@ import { handlePaymentFailed } from './paymentFailed'
 import { handleSubscriptionUpdated } from './subscriptionUpdated'
 import { handleConnectAccount } from './connectAccount'
 import { handleInvoicePaymentFailed, handleInvoicePaymentSucceeded } from './invoiceEvents'
-import { getEscrowByPaymentIntent, updateEscrowStatus, writeAuditLog } from '@/lib/escrow'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { applyStripePaymentEvent } from '@/lib/services/paymentStateService'
 
 export type StripeWebhookHandler = (event: Stripe.Event) => Promise<void>
 
@@ -15,24 +14,16 @@ async function handleTransferCreated(event: Stripe.Event) {
   const piId = transfer.metadata?.payment_intent_id
   if (!piId) return
 
-  const escrow = await getEscrowByPaymentIntent(piId)
-  const { error } = await supabaseAdmin
-    .from('escrow_transactions')
-    .update({ stripe_transfer_id: transfer.id })
-    .eq('id', escrow.id)
+  const { applied } = await applyStripePaymentEvent({
+    stripeEvent: event,
+    paymentIntentId: piId,
+    eventKind: 'transfer_created',
+    extraFields: { stripe_transfer_id: transfer.id },
+    metadata: { transferId: transfer.id, transferAmount: transfer.amount },
+  })
 
-  if (!error) {
-    await writeAuditLog({
-      transactionId: escrow.id,
-      eventType: 'released',
-      actor: 'system',
-      actorId: 'stripe-webhook',
-      stripeEventId: event.id,
-      statusBefore: 'paid',
-      statusAfter: 'released',
-      amountCents: transfer.amount,
-      metadata: { transferId: transfer.id },
-    })
+  if (!applied) {
+    console.info('[WEBHOOK] transfer.created: skipped by state guard', { piId })
   }
 }
 
@@ -44,18 +35,15 @@ async function handleChargeRefunded(event: Stripe.Event) {
 
   if (!piId) return
 
-  try {
-    const escrow = await getEscrowByPaymentIntent(piId)
-    await updateEscrowStatus({
-      transactionId: escrow.id,
-      newStatus: 'refunded',
-      actor: 'system',
-      actorId: 'stripe-webhook',
-      stripeEventId: event.id,
-      extraFields: { refunded_at: new Date().toISOString() },
-      metadata: { refundAmount: charge.amount_refunded },
-    })
-  } catch {
+  const { applied, reason } = await applyStripePaymentEvent({
+    stripeEvent: event,
+    paymentIntentId: piId,
+    eventKind: 'charge_refunded',
+    extraFields: { refunded_at: new Date().toISOString() },
+    metadata: { refundAmount: charge.amount_refunded },
+  })
+
+  if (!applied && reason === 'missing_local_payment') {
     console.warn('[WEBHOOK] charge.refunded: ni v DB', piId)
   }
 }
