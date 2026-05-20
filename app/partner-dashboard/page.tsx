@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
 import type { Offer } from '@/lib/types/offer'
+import { createClient } from '@/lib/supabase/client'
+import { getCompletionStatus } from '@/lib/partner/completion'
 
 const OfferForm = dynamic(
   () => import('@/components/partner/offer-form').then((m) => m.OfferForm),
@@ -56,11 +58,13 @@ function PartnerDashboardInner() {
 
   const supabase = createClient()
 
-  const handleOfferCreated = async (partnerId: string) => {
+  const handleOfferCreated = async (partnerId?: string) => {
+    const id = partnerId ?? partner?.id
+    if (!id) return
     const { data: offersData } = await supabase
       .from('ponudbe')
       .select('*')
-      .eq('obrtnik_id', partnerId)
+      .eq('obrtnik_id', id)
       .order('created_at', { ascending: false })
     if (offersData) {
       setOffers(offersData as unknown as Offer[])
@@ -124,14 +128,8 @@ function PartnerDashboardInner() {
 
       setLoading(false)
     }
-  }
 
-  const handleOfferCreated = async () => {
-    await loadDashboard()
-  }
-
-  useEffect(() => {
-    loadDashboard()
+    getPartner()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
