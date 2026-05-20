@@ -1,10 +1,10 @@
 /**
  * Notification Subscriber — Sends real-time + email notifications
  *
- * Pattern:
- * 1. Check idempotency — skip if already processed
- * 2. Fetch detailed data from DB (names, emails, task details)
- * 3. Send notifications via notificationService
+ * Uses Pattern C (atomic claim + release on failure):
+ * 1. checkAndMark — atomic claim, skip if already processed
+ * 2. Fetch data and send notification
+ * 3. On failure, release claim so retries can re-send
  */
 
 import { randomUUID } from 'crypto'
@@ -64,6 +64,7 @@ export function registerNotificationSubscriber() {
         link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
       }).catch((err) => log('error', '[NotificationSubscriber] Slack task.matched failed', { correlationId, error: String(err) }))
     } catch (err) {
+      await idempotency.release('task.matched', 'notify', payload.taskId).catch(() => {})
       log('error', '[NotificationSubscriber] Error on task.matched', {
         correlationId,
         taskId: payload.taskId,
@@ -113,6 +114,7 @@ export function registerNotificationSubscriber() {
         link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
       }).catch((err) => log('error', '[NotificationSubscriber] Slack task.accepted failed', { correlationId, error: String(err) }))
     } catch (err) {
+      await idempotency.release('task.accepted', 'notify', payload.taskId).catch(() => {})
       log('error', '[NotificationSubscriber] Error on task.accepted', {
         correlationId,
         taskId: payload.taskId,
@@ -141,6 +143,7 @@ export function registerNotificationSubscriber() {
         link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
       }).catch((err) => log('error', '[NotificationSubscriber] Slack task.completed failed', { correlationId, error: String(err) }))
     } catch (err) {
+      await idempotency.release('task.completed', 'notify', payload.taskId).catch(() => {})
       log('error', '[NotificationSubscriber] Error on task.completed', {
         correlationId,
         taskId: payload.taskId,
@@ -177,6 +180,7 @@ export function registerNotificationSubscriber() {
         link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
       }).catch((err) => log('error', '[NotificationSubscriber] Slack payment.released failed', { correlationId, error: String(err) }))
     } catch (err) {
+      await idempotency.release('payment.released', 'notify', payload.taskId).catch(() => {})
       log('error', '[NotificationSubscriber] Error on payment.released', {
         correlationId,
         taskId: payload.taskId,
@@ -205,6 +209,7 @@ export function registerNotificationSubscriber() {
         link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
       }).catch((err) => log('error', '[NotificationSubscriber] Slack offer.sent failed', { correlationId, error: String(err) }))
     } catch (err) {
+      await idempotency.release('offer.sent', 'notify', payload.taskId).catch(() => {})
       log('error', '[NotificationSubscriber] Error on offer.sent', {
         correlationId,
         taskId: payload.taskId,
@@ -258,6 +263,7 @@ export function registerNotificationSubscriber() {
         link: `https://liftgo.net/admin/narocila/${payload.taskId}`,
       }).catch((err) => log('error', '[NotificationSubscriber] Slack review.submitted failed', { correlationId, error: String(err) }))
     } catch (err) {
+      await idempotency.release('review.submitted', 'notify', payload.taskId).catch(() => {})
       log('error', '[NotificationSubscriber] Error on review.submitted', {
         correlationId,
         taskId: payload.taskId,

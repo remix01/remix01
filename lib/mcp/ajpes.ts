@@ -121,7 +121,7 @@ export async function startVerification(params: {
       ajpesResult.businessName &&
       fuzzyMatchNames(params.businessName, ajpesResult.businessName)
     ) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('obrtnik_profiles')
         .update({
           is_verified: true,
@@ -171,7 +171,7 @@ export async function startVerification(params: {
     }
 
     // Update obrtnik status to pending
-    await supabase
+    await (supabase as any)
       .from('obrtnik_profiles')
       .update({
         verification_status: 'pending',

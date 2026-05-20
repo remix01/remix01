@@ -53,3 +53,5 @@ supabase/.temp/
 
 # Docker build secrets (use GitHub Secrets + Actions to populate)
 .env.build
+.claude/
+scout-demo-service

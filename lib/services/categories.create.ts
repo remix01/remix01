@@ -82,7 +82,7 @@ export async function getOrCreateCategory(
     }
   }
 
-  const { data: newCategory, error: insertError } = await supabase
+  const { data: newCategory, error: insertError } = await (supabase as any)
     .from('categories')
     .insert({
       name: trimmedName,

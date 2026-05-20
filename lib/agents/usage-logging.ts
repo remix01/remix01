@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { anomalyDetector } from '@/lib/observability/alerting'
 
 type LogAgentUsageParams = {
   userId: string
@@ -43,4 +44,5 @@ export async function logAgentUsage(params: LogAgentUsageParams): Promise<void> 
     ...(typeof responseTimeMs === 'number' ? { response_time_ms: responseTimeMs } : {}),
     ...(agentType ? { agent_type: agentType } : {}),
   })
+  anomalyDetector.checkDailyCostThreshold(costUsd)
 }

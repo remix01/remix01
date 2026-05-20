@@ -20,6 +20,12 @@ DECLARE
   v_pov_status TEXT;
   v_ponudba_status TEXT;
 BEGIN
+  -- Enforce that the caller is who they claim to be.
+  -- SECURITY DEFINER bypasses RLS, so identity must be validated explicitly.
+  IF p_narocnik_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
   -- Verify povprasevanje ownership
   SELECT narocnik_id, status
   INTO v_pov_narocnik_id, v_pov_status

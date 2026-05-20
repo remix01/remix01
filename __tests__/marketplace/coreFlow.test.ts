@@ -71,7 +71,7 @@ const supabaseAdminMock = {
       return makeBuilder({ data: { id: CATEGORY_ID }, error: null })
     }
     if (table === 'povprasevanja') {
-      return makeBuilder({ data: { id: POVP_ID }, error: null })
+      return makeBuilder({ data: { id: POVP_ID, status: 'odprto' }, error: null })
     }
     return makeBuilder({ data: null, error: null })
   }),
@@ -168,7 +168,7 @@ jest.mock('@/lib/rateLimit', () => ({
 function makePublicInquiryRequest(overrides: Record<string, unknown> = {}) {
   return new NextRequest('http://localhost/api/povprasevanje/public', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
     body: JSON.stringify({
       storitev: 'Vodovodar',
       lokacija: 'Ljubljana',
@@ -180,10 +180,12 @@ function makePublicInquiryRequest(overrides: Record<string, unknown> = {}) {
   })
 }
 
+const routeContext = { params: Promise.resolve({}) }
+
 function makePonudbaRequest(overrides: Record<string, unknown> = {}) {
   return new NextRequest('http://localhost/api/ponudbe', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
     body: JSON.stringify({
       povprasevanje_id: POVP_ID,
       obrtnik_id: OBRTNIK_ID,
@@ -236,7 +238,7 @@ describe('Core Marketplace Flow', () => {
     supabaseAdminMock.from.mockImplementation((table: string) => {
       if (table === 'notifications') return { insert: adminNotificationsInsert }
       if (table === 'categories')    return makeBuilder({ data: { id: CATEGORY_ID }, error: null })
-      if (table === 'povprasevanja') return makeBuilder({ data: { id: POVP_ID }, error: null })
+      if (table === 'povprasevanja') return makeBuilder({ data: { id: POVP_ID, status: 'odprto' }, error: null })
       return makeBuilder({ data: null, error: null })
     })
 
@@ -287,7 +289,7 @@ describe('Core Marketplace Flow', () => {
       const res = await POST(
         new NextRequest('http://localhost/api/povprasevanje/public', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
           body: JSON.stringify({ opis: 'only description, no service or location' }),
         })
       )
@@ -345,7 +347,7 @@ describe('Core Marketplace Flow', () => {
 
       expect(Array.isArray(results)).toBe(true)
       expect(results.length).toBeGreaterThan(0)
-      expect(results[0].status).toBe('odprto')
+      expect(results[0].status).toBe('new')
     })
 
     it('filters out povpraševanja where obrtnik already has a ponudba', async () => {
@@ -391,7 +393,7 @@ describe('Core Marketplace Flow', () => {
   describe('Step 4 — Obrtnik submits ponudba', () => {
     it('POST /api/ponudbe → 200 with ponudba record', async () => {
       const { POST } = await import('@/app/api/ponudbe/route')
-      const res = await POST(makePonudbaRequest())
+      const res = await POST(makePonudbaRequest(), routeContext)
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -408,7 +410,7 @@ describe('Core Marketplace Flow', () => {
       })
 
       const { POST } = await import('@/app/api/ponudbe/route')
-      const res = await POST(makePonudbaRequest())
+      const res = await POST(makePonudbaRequest(), routeContext)
       expect(res.status).toBe(401)
     })
 
@@ -419,7 +421,7 @@ describe('Core Marketplace Flow', () => {
       mockCreateClient.mockResolvedValue(makeUserClient(null))
 
       const { POST } = await import('@/app/api/ponudbe/route')
-      const res = await POST(makePonudbaRequest({ obrtnik_id: crypto.randomUUID() }))
+      const res = await POST(makePonudbaRequest({ obrtnik_id: crypto.randomUUID() }), routeContext)
       expect(res.status).toBe(403)
 
       // Restore default after this test
@@ -428,7 +430,7 @@ describe('Core Marketplace Flow', () => {
 
     it('validates required fields — rejects missing message (400)', async () => {
       const { POST } = await import('@/app/api/ponudbe/route')
-      const res = await POST(makePonudbaRequest({ message: '' }))
+      const res = await POST(makePonudbaRequest({ message: '' }), routeContext)
       expect(res.status).toBe(400)
     })
 

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { FileUploadZone } from '@/components/file-upload-zone'
 import { uploadFile, generateFilePath } from '@/lib/storage'
+import { isValidCertificateFile } from '@/lib/partner/certificates'
 import { AlertCircle, CheckCircle, LogOut, Upload } from 'lucide-react'
 
 export default function ProfilPage() {
@@ -615,10 +616,10 @@ export default function ProfilPage() {
         </p>
 
         <FileUploadZone
-          accept="image/*,application/pdf"
+          accept="application/pdf,image/png,image/jpeg"
           maxFiles={10}
           maxSizeMB={5}
-          label="Dodajte certifikate, licence ali reference"
+          label="Naloži certifikat"
           sublabel="PDF ali slike, max 5MB vsaka - do 10 datotek"
           onFilesChange={async (files) => {
             if (files.length > 0) {
@@ -629,6 +630,11 @@ export default function ProfilPage() {
 
                 const urls: string[] = []
                 for (const file of files) {
+                  if (!isValidCertificateFile(file)) {
+                    setErrorMessage('Datoteka ni dovoljena ali je prevelika.')
+                    return
+                  }
+
                   const path = generateFilePath(user.id, file.name)
                   const { url, error } = await uploadFile('certificates', path, file)
                   if (url) {
@@ -647,7 +653,7 @@ export default function ProfilPage() {
                 if (error) throw error
 
                 setCertificateUrls(urls)
-                setSuccessMessage('Certifikati uspešno naloženi!')
+                setSuccessMessage('Certifikat je bil uspešno naložen.')
                 setTimeout(() => setSuccessMessage(''), 3000)
               } catch (err) {
                 console.error('[v0] Error saving certificates:', err)

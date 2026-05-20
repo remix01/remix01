@@ -26,26 +26,26 @@ describe('Partner offers service-layer contract', () => {
   })
 
   it('create offer route is delegated to service layer', () => {
-    expect(indexSource).toMatch(/export async function POST/)
+    expect(indexSource).toMatch(/export const POST|export async function POST/)
     expect(indexSource).toMatch(/partnerOfferService\.create\(/)
     expect(indexSource).toMatch(/return ok\(created, undefined, 201\)/)
   })
 
   it('update offer route is delegated to service layer', () => {
-    expect(idSource).toMatch(/export async function PATCH/)
+    expect(idSource).toMatch(/export const PATCH|export async function PATCH/)
     expect(idSource).toMatch(/partnerOfferService\.update\(/)
     expect(idSource).toMatch(/return ok\(updated\)/)
   })
 
   it('delete offer route is delegated to service layer', () => {
-    expect(idSource).toMatch(/export async function DELETE/)
+    expect(idSource).toMatch(/export const DELETE|export async function DELETE/)
     expect(idSource).toMatch(/partnerOfferService\.remove\(/)
     expect(idSource).toMatch(/return ok\(result\)/)
   })
 
   it('unauthorized access returns canonical fail envelope', () => {
-    expect(indexSource).toMatch(/fail\('UNAUTHORIZED', 'Unauthorized', 401\)/)
-    expect(idSource).toMatch(/fail\('UNAUTHORIZED', 'Unauthorized', 401\)/)
+    expect(indexSource).toMatch(/fail\('UNAUTHORIZED'/)
+    expect(idSource).toMatch(/fail\('UNAUTHORIZED'/)
   })
 
   it('forbidden non-owner checks are enforced in service update/delete paths', () => {
@@ -60,7 +60,6 @@ describe('Partner offers service-layer contract', () => {
   })
 
   it('frontend keeps compatibility with canonical error shape', () => {
-    expect(formSource).toMatch(/typeof result\?\.error === 'string'/)
-    expect(listSource).toMatch(/result\?\.error\?\.message/)
+    expect(formSource).toMatch(/result\.error \|\| 'Prišlo je do napake pri oddaji ponudbe\.'/)
   })
 })

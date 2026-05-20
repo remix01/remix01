@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { createPonudbaAction } from '@/app/actions/ponudbe'
 import type { CreateOfferPayload } from '@/lib/types/offer'
 
 interface Inquiry {
@@ -115,17 +116,9 @@ export function OfferForm({
 
     setLoading(true)
     try {
-      const res = await fetch('/api/partner/offers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const result = await res.json()
-      if (!res.ok) {
-        const errorMessage = typeof result?.error === 'string'
-          ? result.error
-          : result?.error?.message || result?.error?.code || 'Prišlo je do napake pri oddaji ponudbe.'
-        setError(errorMessage)
+      const result = await createPonudbaAction(payload)
+      if (!result.success) {
+        setError(result.error || 'Prišlo je do napake pri oddaji ponudbe.')
         return
       }
       setForm(EMPTY_FORM)

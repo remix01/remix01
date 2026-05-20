@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeAgent } from '@/lib/ai/orchestrator'
 import { executeRedisOperation } from '@/lib/cache/redis-client'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 type OfferInput = {
   id: string
@@ -16,6 +17,9 @@ export async function POST(req: Request) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const body = await req.json()
     const inquiryId = body?.inquiryId as string

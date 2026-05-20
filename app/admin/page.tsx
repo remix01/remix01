@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { toLegacyInquiryStatus } from '@/lib/lead-status'
 import { StatsCards } from '@/components/admin/StatsCards'

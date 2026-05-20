@@ -6,6 +6,7 @@ import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
 import { requireAdmin } from '@/lib/admin-auth'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+import { assertPovprasevanjeTransition } from '@/lib/state/povprasevanja-status'
 
 async function ensureAdminAccess() {
   await requireAdmin()
@@ -632,7 +633,20 @@ export async function updatePovprasevanjeAdmin(
 ): Promise<{ success: boolean; error?: string }> {
   await ensureAdminAccess()
   const updates: Record<string, any> = {}
-  if (data.status !== undefined) updates.status = data.status
+  if (data.status !== undefined) {
+    const { data: current } = await supabaseAdmin
+      .from('povprasevanja')
+      .select('status')
+      .eq('id', id)
+      .maybeSingle()
+    if (!current) return { success: false, error: 'Povpraševanje ni bilo najdeno.' }
+    try {
+      assertPovprasevanjeTransition(current.status, data.status)
+    } catch {
+      return { success: false, error: 'Neveljaven prehod statusa.' }
+    }
+    updates.status = data.status
+  }
   if (data.assigned_to !== undefined) updates.assigned_to = data.assigned_to || null
   if (data.urgency !== undefined) updates.urgency = data.urgency
   if (data.budget_min !== undefined) updates.budget_min = data.budget_min

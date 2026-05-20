@@ -12,6 +12,7 @@ export type AgentType =
   | 'dispute'
   | 'notify'
   | 'supervisor'
+  | 'code_change'
 
 export type MessageType = 'request' | 'response' | 'event'
 

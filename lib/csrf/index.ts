@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { SECURITY_MESSAGES } from '@/lib/security/access'
 
 const ALLOWED_ORIGINS = new Set(
   process.env.NODE_ENV === 'production'
@@ -34,7 +35,7 @@ export function validateCsrfOrigin(request: NextRequest): boolean {
 
 export function csrfForbidden(): NextResponse {
   return NextResponse.json(
-    { error: 'Neveljavna zahteva — CSRF zaščita.', code: 'CSRF_INVALID' },
+    { error: SECURITY_MESSAGES.csrf, code: 'CSRF_INVALID' },
     { status: 403 }
   )
 }

@@ -20,19 +20,11 @@ export default async function DashboardLayout({
   }
 
   // Get user's role from profiles table
-  const { data: profileDataById } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .maybeSingle()
-
-  const { data: profileDataByAuthUserId } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
-
-  const profile = (profileDataById ?? profileDataByAuthUserId) as { role: string | null } | null
 
   if (!profile || profile.role !== 'narocnik') {
     redirect('/registracija')

@@ -17,7 +17,7 @@ const ALLOWED_ESCROW_TRANSITIONS: Record<EscrowStatus, EscrowStatus[]> = {
   refunded: [],
   disputed: ['released', 'refunded', 'resolving'],
   cancelled: [],
-  releasing: ['paid', 'released'],
+  releasing: ['paid', 'released', 'cancelled', 'refunded'],
   resolving: ['disputed', 'released', 'refunded'],
 }
 
@@ -119,17 +119,25 @@ export async function updateEscrowStatus(params: {
     )
   }
 
-  // Posodobi v DB
-  const { error } = await supabaseAdmin
+  // Atomic conditional update — only succeeds if status hasn't changed since read
+  const { data: updated, error } = await supabaseAdmin
     .from('escrow_transactions')
     .update({
       status: params.newStatus,
       ...(params.extraFields ?? {}),
     })
     .eq('id', params.transactionId)
+    .eq('status', statusBefore)
+    .select('id')
 
   if (error) {
     throw new Error(`[ESCROW] updateStatus: ${error.message}`)
+  }
+
+  if (!updated || updated.length === 0) {
+    throw new Error(
+      `[ESCROW] Concurrent modification detected on ${params.transactionId} — expected status '${statusBefore}'`
+    )
   }
 
   // Zapiši v audit log

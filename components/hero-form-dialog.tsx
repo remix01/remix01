@@ -61,22 +61,45 @@ const LOKACIJE = [
 interface HeroFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialQuery?: string
+  initialStoritev?: string
 }
 
-export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
+function matchStoritev(input?: string): string {
+  if (!input) return ""
+  const lower = input.toLowerCase()
+  return STORITVE.find((s) => s.toLowerCase().includes(lower) || lower.includes(s.toLowerCase())) ?? ""
+}
+
+export function HeroFormDialog({ open, onOpenChange, initialQuery, initialStoritev }: HeroFormDialogProps) {
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [gdprChecked, setGdprChecked] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
-    storitev: "",
+    storitev: matchStoritev(initialStoritev),
     lokacija: "",
     email: "",
     telefon: "",
     zeljeniDatum: "",
-    opis: "",
+    opis: initialQuery ?? "",
   })
+  const [prefilled, setPrefilled] = useState(false)
+
+  if (open && !prefilled) {
+    const updates: Partial<typeof formData> = {}
+    if (initialQuery && initialQuery !== formData.opis) updates.opis = initialQuery
+    const matched = matchStoritev(initialStoritev)
+    if (matched && matched !== formData.storitev) updates.storitev = matched
+    if (Object.keys(updates).length > 0) {
+      setFormData((prev) => ({ ...prev, ...updates }))
+    }
+    setPrefilled(true)
+  }
+  if (!open && prefilled) {
+    setPrefilled(false)
+  }
   const [showLokacijaSuggestions, setShowLokacijaSuggestions] = useState(false)
   const [lokacijaInput, setLokacijaInput] = useState("")
   const [filteredLokacije, setFilteredLokacije] = useState<string[]>([])
@@ -215,7 +238,7 @@ export function HeroFormDialog({ open, onOpenChange }: HeroFormDialogProps) {
       if (!newOpen) resetForm()
       onOpenChange(newOpen)
     }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         {submitted ? (
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">

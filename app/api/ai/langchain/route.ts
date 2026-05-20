@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { runLangGraphChat } from '@/lib/ai/langgraph'
 import { getLangSmithStatus } from '@/lib/ai/langsmith'
 import { getAICapabilityStatus, hasMinimumAIStackReady } from '@/lib/ai/capabilities'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 
 const requestSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required').max(8000),
@@ -12,6 +13,9 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = await checkAIRateLimit(request)
+    if (rateLimitResponse) return rateLimitResponse
+
     const body = await request.json()
     const parsed = requestSchema.safeParse(body)
 

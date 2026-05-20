@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getLeadStatusLabelSl, type CanonicalLeadStatus } from '@/lib/lead-status'
+import { DashboardCardActions } from '@/components/narocnik/dashboard-card-actions'
 
 export const metadata = {
   title: 'Dashboard | LiftGO',
@@ -21,24 +22,16 @@ export default async function DashboardPage() {
     redirect('/prijava')
   }
 
-  // Fetch user profile to get full name
-  const { data: profileDataById } = await supabase
+  // Fetch user profile — profiles.id matches auth user id
+  const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, role, subscription_tier')
     .eq('id', user.id)
-    .maybeSingle()
-
-  const { data: profileDataByAuthUserId } = await supabase
-    .from('profiles')
-    .select('full_name, role, subscription_tier')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
-
-  const profile = (profileDataById ?? profileDataByAuthUserId) as {
-    full_name: string | null
-    role: string | null
-    subscription_tier: 'start' | 'pro' | 'elite' | null
-  } | null
+    .maybeSingle() as { data: {
+      full_name: string | null
+      role: string | null
+      subscription_tier: 'start' | 'pro' | 'elite' | null
+    } | null }
 
   if (!profile || profile.role !== 'narocnik') {
     redirect(profile?.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
@@ -226,11 +219,18 @@ export default async function DashboardPage() {
                         </span>
                       </div>
                     </div>
-                    <Link href={`/povprasevanja/${povprasevanje.id}`}>
-                      <Button variant="outline" className="whitespace-nowrap">
-                        Poglej ponudbe →
-                      </Button>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/povprasevanja/${povprasevanje.id}`}>
+                        <Button variant="outline" className="whitespace-nowrap">
+                          Poglej ponudbe →
+                        </Button>
+                      </Link>
+                      <DashboardCardActions
+                        povprasevanjeId={povprasevanje.id}
+                        status={povprasevanje.status}
+                        hasPonudbe={(povprasevanje.ponudbe_count || 0) > 0}
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>

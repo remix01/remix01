@@ -301,7 +301,7 @@ function PartnerDashboardInner() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-6">Vaše ponudbe</h2>
                 <ListSyncToolbar className="mb-4" />
-                <OffersList offers={offers} onUpdate={() => handleOfferCreated()} />
+                <OffersList offers={offers} onUpdate={() => handleOfferCreated()} currentUserId={partner.id} />
               </Card>
             </TabsContent>
 

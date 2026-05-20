@@ -8,8 +8,11 @@ import { AgentMatchResults } from '@/components/liftgo/AgentMatchResults'
 import { AgentDialog } from '@/components/agents/AgentDialog'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { OfferComparisonAgent } from '@/components/agent/OfferComparisonAgent'
 import { SchedulingAssistant } from '@/components/agent/SchedulingAssistant'
+import { PovprasevanjeActions } from '@/components/narocnik/povprasevanje-actions'
+import Link from 'next/link'
 
 export function PovprasevanjeDetailClient({
   povprasevanje,
@@ -72,6 +75,11 @@ export function PovprasevanjeDetailClient({
   return (
     <div className="min-h-screen bg-muted pb-8">
       <div className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-4">
+          <Link href="/povprasevanja">
+            <Button variant="outline" size="sm">Nazaj</Button>
+          </Link>
+        </div>
 
         {/* Section 1: Request Header */}
         <Card className="mb-8 p-6">
@@ -117,6 +125,17 @@ export function PovprasevanjeDetailClient({
               <strong>Željeni termin:</strong> od {new Date(povprasevanje.preferred_date_from).toLocaleDateString('sl-SI')} do {new Date(povprasevanje.preferred_date_to).toLocaleDateString('sl-SI')}
             </div>
           )}
+
+          <div className="mt-6 border-t pt-4">
+            <PovprasevanjeActions
+              povprasevanjeId={id}
+              title={povprasevanje.title}
+              description={povprasevanje.description || ''}
+              status={povprasevanje.status}
+              hasPonudbe={ponudbe.length > 0}
+              hasAcceptedPonudba={!!ponudbe.find((p: any) => p.status === 'sprejeta')}
+            />
+          </div>
         </Card>
 
         {/* Section 2: Agent Matches (only if status is odprto) */}

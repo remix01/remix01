@@ -55,16 +55,20 @@ export async function POST(request: NextRequest) {
 
     return ok({ received: true })
   } catch (err) {
-    console.error('[WEBHOOK PROCESS]', err)
-    try {
-      await releaseStripeEventClaim(event.id)
-    } catch (releaseErr) {
-      console.error('[WEBHOOK] Failed to release idempotency claim after processing error', {
+    console.error('[WEBHOOK PROCESS]', {
+      stripeEventId: event.id,
+      eventType: event.type,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    // Release the claim so Stripe's retry can reprocess this event.
+    // Handlers guard their own side effects (e.g. escrow checks status === 'paid'),
+    // so re-running after a transient failure is safe.
+    await releaseStripeEventClaim(event.id).catch((releaseErr) => {
+      console.error('[WEBHOOK] Failed to release claim — event stuck, needs manual cleanup', {
         stripeEventId: event.id,
         releaseErr,
       })
-      throw releaseErr
-    }
+    })
     return fail('Processing error')
   }
 }

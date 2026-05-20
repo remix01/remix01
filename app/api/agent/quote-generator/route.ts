@@ -4,15 +4,21 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { estimateCost } from '@/lib/model-router'
 import { getAgentDefinition } from '@/lib/agents/ai-definitions'
+import { buildRAGContext, formatRAGContextForPrompt } from '@/lib/ai/rag'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 import { loadAiUsageProfile, normalizeDailyUsageWindow, evaluateAgentTierAccess, incrementDailyUsage } from '@/lib/agents/route-access-policy'
 import { logAgentUsage } from '@/lib/agents/usage-logging'
+import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
+import { validateAgentOutput, QuoteGeneratorSchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Nepooblaščen dostop.' }, { status: 401 })
+
+    const rateLimitResponse = await checkAIRateLimit(req, user.id)
+    if (rateLimitResponse) return rateLimitResponse
 
     const { povprasevanje_id, extra_notes } = await req.json()
     if (!povprasevanje_id) return NextResponse.json({ error: 'povprasevanje_id je obvezen.' }, { status: 400 })
@@ -52,7 +58,22 @@ export async function POST(req: NextRequest) {
       povprasevanje: { title: pov.title, description: pov.description, location_city: pov.location_city, urgency: pov.urgency, budget_min: pov.budget_min, budget_max: pov.budget_max },
       extra_notes,
     }
-    const systemPrompt = agentDef.system_prompt + `\n\n---\nKONTEKST:\n${JSON.stringify(context, null, 2)}`
+
+    let ragSection = ''
+    try {
+      const ragContext = await buildRAGContext(pov.title || pov.description || '', {
+        includeTasks: true,
+        includeOffers: true,
+        taskId: povprasevanje_id,
+        maxPerSource: 3,
+      })
+      ragSection = formatRAGContextForPrompt(ragContext)
+    } catch {
+      // RAG is optional enrichment
+    }
+
+    const structuredInstruction = buildStructuredOutputInstruction('quote_generator')
+    const systemPrompt = agentDef.system_prompt + `\n\n---\nKONTEKST:\n${JSON.stringify(context, null, 2)}${ragSection}${structuredInstruction}`
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
     const startTime = Date.now()
@@ -63,19 +84,26 @@ export async function POST(req: NextRequest) {
       messages: [{ role: 'user', content: 'Generiraj osnutek ponudbe za to povpraševanje.' }],
     })
 
-    const draftText = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
+    const rawText = response.content.filter(b => b.type === 'text').map(b => (b as any).text).join('')
     const inputTokens = response.usage.input_tokens
     const outputTokens = response.usage.output_tokens
     const costUsd = estimateCost('claude-sonnet-4-6', inputTokens, outputTokens)
 
-    // Save draft to agent_quote_drafts table
-    // Columns: id, obrtnik_id, povprasevanje_id, draft_text, price_min, price_max, duration_text, cross_sell, context_used, status, created_at, updated_at
+    const validated = validateAgentOutput(QuoteGeneratorSchema, rawText)
+    const draftText = validated.success ? validated.data.draftText : rawText
+    const priceMin = validated.success ? validated.data.priceEstimate.min : null
+    const priceMax = validated.success ? validated.data.priceEstimate.max : null
+    const durationText = validated.success ? validated.data.timeline : null
+
     const { data: draft } = await supabaseAdmin
       .from('agent_quote_drafts')
       .insert({
         obrtnik_id: obrtnik.id,
         povprasevanje_id,
         draft_text: draftText,
+        price_min: priceMin,
+        price_max: priceMax,
+        duration_text: durationText,
         context_used: context,
         status: 'draft',
       })
@@ -102,6 +130,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       draft_text: draftText,
       draft_id: draft?.id,
+      structured: validated.success ? validated.data : null,
       usage: { used: effectiveUsed + 1, limit: dailyLimit },
     })
   } catch (error) {

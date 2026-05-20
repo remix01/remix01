@@ -12,6 +12,7 @@ import {
   sanitizeText,
 } from "@/lib/email/security";
 import { writeEmailLog } from "@/lib/email/email-logs";
+import { assertPovprasevanjeTransition } from "@/lib/state/povprasevanja-status";
 
 const resend = getResendClient();
 
@@ -40,19 +41,12 @@ export async function PATCH(
   const body = await req.json();
   const { status, cena_ocena_min, cena_ocena_max, opomba } = body;
 
-  // Validate allowed partner status transitions
-  const allowedTransitions: Record<string, string[]> = {
-    dodeljeno: ["sprejeto", "zavrnjeno"],
-    sprejeto: ["v_izvajanju", "zavrnjeno"],
-    v_izvajanju: ["zakljuceno"],
-  };
-
-  if (status && !allowedTransitions[inquiry.status]?.includes(status)) {
-    return fail(
-      "INVALID_STATUS_TRANSITION",
-      `Ne morete spremeniti statusa iz ${inquiry.status} v ${status}`,
-      400,
-    );
+  if (status) {
+    try {
+      assertPovprasevanjeTransition(inquiry.status, status);
+    } catch {
+      return fail("INVALID_STATUS_TRANSITION", "Neveljaven prehod statusa.", 400);
+    }
   }
 
   const updates: Record<string, unknown> = {};

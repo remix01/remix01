@@ -51,7 +51,7 @@ export async function submitOffer(
     const { data: partnerProfile, error: partnerError } = await supabase
       .from('obrtnik_profiles')
       .select('id')
-      .eq('user_id', context.userId)
+      .eq('id', context.userId)
       .maybeSingle()
 
     if (partnerError || !partnerProfile) {

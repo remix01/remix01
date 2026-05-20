@@ -6,7 +6,7 @@ import { buildCacheKey, getCachedResponse, setCachedResponse } from '@/lib/ai-ca
 import { selectModel, estimateCost } from '@/lib/model-router'
 import { handleAuthError } from '@/lib/api/auth-errors'
 import { withRateLimit } from '@/lib/rate-limit/with-rate-limit'
-import { apiLimiter } from '@/lib/rate-limit/limiters'
+import { apiLimiter, checkAIRateLimit } from '@/lib/rate-limit/limiters'
 import { loadAiUsageProfile, normalizeDailyUsageWindow, incrementDailyUsage } from '@/lib/agents/route-access-policy'
 import { logAgentUsage } from '@/lib/agents/usage-logging'
 

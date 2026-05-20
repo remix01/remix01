@@ -92,7 +92,31 @@ export async function fetchWithRetry<T>(url: string, options: FetchRetryOptions 
       const cacheStatus = response.headers.get('x-vercel-cache')
 
       if (response.ok) {
-        const data = (await response.json()) as T
+        let data: T
+        try {
+          data = (await response.json()) as T
+        } catch {
+          const durationMs = Date.now() - startedAt
+          lastFailure = {
+            ok: false,
+            status: response.status,
+            attempt,
+            durationMs,
+            isMissing: false,
+            isTransient: false,
+            reason: 'invalid_json',
+            cacheStatus,
+          }
+          console.warn('[dynamic-route-fetch] non-json-response', {
+            requestLabel: options.requestLabel,
+            url,
+            status: response.status,
+            attempt,
+            durationMs,
+            cacheStatus,
+          })
+          return lastFailure
+        }
 
         console.info('[dynamic-route-fetch] success', {
           requestLabel: options.requestLabel,

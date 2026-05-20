@@ -109,6 +109,7 @@ async function handler(request: NextRequest) {
     // - Notify customer of dispute
     // - Notify partner of dispute
     // - Alert admin
+    // TODO(admin in-app alert): Add in-app admin notification when a stable admin-recipient mapping is available in existing notification infra.
     // - Log to webhook
     Promise.all([
       enqueue('send_dispute_email', {

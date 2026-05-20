@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
+import { assertPovprasevanjeTransition } from '@/lib/state/povprasevanja-status'
 
 const resend = getResendClient()
 
@@ -72,7 +73,14 @@ export async function PATCH(
   if (!current) return errorResponse('Not found', 404, 'NOT_FOUND')
 
   const updates: Record<string, unknown> = {}
-  if (status !== undefined) updates.status = status
+  if (status !== undefined) {
+    try {
+      assertPovprasevanjeTransition(current.status, status)
+    } catch {
+      return errorResponse('Neveljaven prehod statusa.', 400, 'INVALID_STATUS_TRANSITION')
+    }
+    updates.status = status
+  }
   if (obrtnik_id !== undefined) updates.obrtnik_id = obrtnik_id || null
   if (admin_opomba !== undefined) updates.admin_opomba = admin_opomba
   if (termin_datum !== undefined) updates.termin_datum = termin_datum
@@ -81,7 +89,14 @@ export async function PATCH(
   if (cena_ocena_max !== undefined) updates.cena_ocena_max = cena_ocena_max
 
   // Auto-set status when assigning obrtnik
-  if (obrtnik_id && !status) updates.status = 'dodeljeno'
+  if (obrtnik_id && !status) {
+    try {
+      assertPovprasevanjeTransition(current.status, 'dodeljeno')
+    } catch {
+      return errorResponse('Neveljaven prehod statusa.', 400, 'INVALID_STATUS_TRANSITION')
+    }
+    updates.status = 'dodeljeno'
+  }
 
   const { data, error } = await supabaseAdmin
     .from('povprasevanja')

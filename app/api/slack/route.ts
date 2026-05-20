@@ -27,7 +27,7 @@ async function isAdmin(req: NextRequest): Promise<boolean> {
   const { data: adminRow } = await supabase
     .from('admin_users')
     .select('id')
-    .eq('user_id', data.user.id)
+    .eq('auth_user_id', data.user.id)
     .single()
   return !!adminRow
 }

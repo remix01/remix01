@@ -9,7 +9,7 @@ export type PovprasevanjeStatus =
   | 'v_teku' 
   | 'zakljuceno' 
   | 'preklicano'
-export type PonudbaStatus = 'poslana' | 'sprejeta' | 'zavrnjena'
+export type PonudbaStatus = 'poslana' | 'sprejeta' | 'zavrnjena' | 'umaknjena'
 export type PriceType = 'fiksna' | 'ocena' | 'po_ogledu'
 export type VerificationStatus = 'pending' | 'verified' | 'rejected'
 export type ObrtnikStatus = 'pending' | 'verified' | 'blocked'
