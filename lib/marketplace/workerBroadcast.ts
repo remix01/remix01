@@ -10,6 +10,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import { sendNotificationBatch } from '@/lib/notifications'
 
 const resend = getResendClient()
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
@@ -55,20 +56,16 @@ export const workerBroadcast = {
       const link = `/obrtnik/povprasevanja`
 
       // 1. Insert in-app notifications (batch)
-      const notifications = obrtniki.map((o) => ({
-        user_id: o.id,
-        type: 'novo_povprasevanje',
+      const batchResult = await sendNotificationBatch(obrtniki.map((o) => ({
+        userId: o.id,
+        type: 'novo_povprasevanje' as const,
         title: 'Novo povpraševanje v vaši kategoriji',
-        body: `${title}${city}`,
         message: `${title}${city}`,
-        action_url: link,
-        read: false,
-        data: { povprasevanje_id: requestId },
-      }))
-
-      const { error: notifError } = await supabase.from('notifications').insert(notifications)
-      if (notifError) {
-        console.error(JSON.stringify({ level: 'error', message: '[WorkerBroadcast] notification insert error', error: notifError.message }))
+        link,
+        metadata: { povprasevanje_id: requestId },
+      })))
+      if (!batchResult.success) {
+        console.error(JSON.stringify({ level: 'error', message: '[WorkerBroadcast] notification insert error', error: batchResult.error }))
       }
 
       // 2. Send emails (skip quiet hours)
@@ -128,18 +125,14 @@ export const workerBroadcast = {
 
       if (!obrtniki?.length) return
 
-      const notifications = obrtniki.map((o) => ({
-        user_id: o.id,
-        type: 'rok_izteka',
+      await sendNotificationBatch(obrtniki.map((o) => ({
+        userId: o.id,
+        type: 'rok_izteka' as const,
         title: `Rok se izteka — še ${minutesLeft} minut!`,
-        body: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
         message: 'Oddajte ponudbo preden poteče rok za to povpraševanje.',
-        action_url: '/obrtnik/povprasevanja',
-        read: false,
-        data: { povprasevanje_id: requestId, minutes_left: minutesLeft },
-      }))
-
-      await supabase.from('notifications').insert(notifications)
+        link: '/obrtnik/povprasevanja',
+        metadata: { povprasevanje_id: requestId, minutes_left: minutesLeft },
+      })))
 
       const userIds = obrtniki.map((o) => o.id)  // obrtnik_profiles.id IS the user_id
       const { data: profilesData2 } = await supabase

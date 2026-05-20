@@ -2,18 +2,39 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { sendPushToUser } from '@/lib/push-notifications'
 
-export type NotificationType = 
-  | 'nova_ponudba'        // narocnik: obrtnik sent offer
-  | 'ponudba_sprejeta'    // obrtnik: his offer was accepted
-  | 'ponudba_zavrnjena'   // obrtnik: his offer was rejected
-  | 'nova_ocena'          // obrtnik: received new review
-  | 'termin_potrjen'      // both: appointment confirmed
-  | 'termin_opomnik'      // both: appointment reminder
-  | 'placilo_prejeto'     // obrtnik: payment received
-  | 'placilo_zahtevano'   // narocnik: payment requested
+export type NotificationType =
+  | 'nova_ponudba'
+  | 'ponudba_sprejeta'
+  | 'ponudba_zavrnjena'
+  | 'nova_ocena'
+  | 'termin_potrjen'
+  | 'termin_opomnik'
+  | 'placilo_prejeto'
+  | 'placilo_zahtevano'
   | 'povprasevanje_oddano'
   | 'ponudba_umaknjena'
   | 'izbira_ponudbe_reminder'
+  | 'novo_sporocilo'
+  | 'novo_povprasevanje'
+  | 'rok_izteka'
+  | 'lead_escalation'
+  | 'lead_no_match'
+  | 'lead_unassigned'
+  | 'NEW_REQUEST_MATCHED'
+  | 'RESPONSE_DEADLINE_90MIN'
+  | 'RESPONSE_DEADLINE_BREACH'
+  | 'OFFER_ACCEPTED'
+  | 'NEW_REVIEW_RECEIVED'
+  | 'SUBSCRIPTION_EXPIRING_7D'
+
+export interface NotificationPayload {
+  userId: string | null
+  type: NotificationType
+  title: string
+  message: string
+  link?: string
+  metadata?: Record<string, unknown>
+}
 
 export interface Notification {
   id: string
@@ -27,63 +48,92 @@ export interface Notification {
   created_at: string
 }
 
+const PUSH_NOTIFICATION_TYPES: NotificationType[] = [
+  'nova_ponudba',
+  'ponudba_sprejeta',
+  'nova_ocena',
+  'termin_opomnik',
+  'lead_escalation',
+]
+
+function buildInsertRow(p: NotificationPayload): Record<string, unknown> {
+  return {
+    user_id: p.userId,
+    type: p.type,
+    title: p.title,
+    message: p.message,
+    body: p.message,
+    link: p.link || null,
+    action_url: p.link || null,
+    metadata: p.metadata || {},
+    data: p.metadata || {},
+    read: false,
+  }
+}
+
 /**
- * Send a notification to a user
+ * Send a notification to a user (or admin alert when userId is null).
  */
-export async function sendNotification(params: {
-  userId: string
-  type: NotificationType
-  title: string
-  message: string
-  link?: string
-  metadata?: Record<string, unknown>
-}): Promise<{ success: boolean; error?: string }> {
+export async function sendNotification(
+  params: NotificationPayload
+): Promise<{ success: boolean; error?: string }> {
   try {
-    // Must use supabaseAdmin: notifications RLS has no INSERT policy for regular users.
-    // sendNotification() always writes on behalf of another user (e.g. naročnik gets
-    // notified when an obrtnik submits a ponudba). Using the caller's session client
-    // would violate RLS and silently fail.
     const { error } = await supabaseAdmin
       .from('notifications')
-      .insert({
-        user_id: params.userId,
-        type: params.type,
-        title: params.title,
-        message: params.message,
-        link: params.link || null,
-        metadata: params.metadata || {},
-      })
+      .insert(buildInsertRow(params))
 
     if (error) {
-      console.error('[v0] Error sending notification:', error)
+      console.error('[notifications] insert error:', error)
       return { success: false, error: error.message }
     }
 
-    // Also send push notification for critical notification types
-    const pushNotificationTypes: NotificationType[] = [
-      'nova_ponudba',
-      'ponudba_sprejeta',
-      'nova_ocena',
-      'termin_opomnik'
-    ]
+    if (params.userId && PUSH_NOTIFICATION_TYPES.includes(params.type)) {
+      sendPushToUser({
+        userId: params.userId,
+        title: params.title,
+        message: params.message,
+        link: params.link,
+      }).catch((e) => console.error('[notifications] push error:', e))
+    }
 
-    if (pushNotificationTypes.includes(params.type)) {
-      try {
-        await sendPushToUser({
-          userId: params.userId,
-          title: params.title,
-          message: params.message,
-          link: params.link
-        })
-      } catch (pushError) {
-        // Don't fail the main notification if push fails
-        console.error('[v0] Error sending push notification:', pushError)
+    return { success: true }
+  } catch (error) {
+    console.error('[notifications] sendNotification error:', error)
+    return { success: false, error: 'Unexpected error' }
+  }
+}
+
+/**
+ * Send notifications to multiple users in a single batch insert.
+ */
+export async function sendNotificationBatch(
+  items: NotificationPayload[]
+): Promise<{ success: boolean; error?: string }> {
+  if (items.length === 0) return { success: true }
+
+  try {
+    const rows = items.map(buildInsertRow)
+    const { error } = await supabaseAdmin.from('notifications').insert(rows)
+
+    if (error) {
+      console.error('[notifications] batch insert error:', error)
+      return { success: false, error: error.message }
+    }
+
+    for (const p of items) {
+      if (p.userId && PUSH_NOTIFICATION_TYPES.includes(p.type)) {
+        sendPushToUser({
+          userId: p.userId,
+          title: p.title,
+          message: p.message,
+          link: p.link,
+        }).catch((e) => console.error('[notifications] push error:', e))
       }
     }
 
     return { success: true }
   } catch (error) {
-    console.error('[v0] Error in sendNotification:', error)
+    console.error('[notifications] sendNotificationBatch error:', error)
     return { success: false, error: 'Unexpected error' }
   }
 }

@@ -23,6 +23,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import type { ScoringPipelineVersion, ScoringReason, ScoringResult } from '@/lib/services/matchingScoringContract'
 import { buildScoringAudit } from '@/lib/services/matchingScoringContract'
+import { sendNotification } from '@/lib/notifications'
 
 export const MAX_HARD_RADIUS_KM = 75   // never send leads beyond 75km
 export const MAX_MATCHES = 5            // top N to notify
@@ -275,16 +276,14 @@ export async function matchPartnersForRequest(input: MatchingInput) {
     }
 
     if (eligible.length === 0) {
-      await supabase.from('notifications').insert({
-        user_id: null,
+      await sendNotification({
+        userId: null,
         type: 'lead_no_match',
         title: 'Ni razpoložljivih obrtnikov',
-        body: `Povpraševanje "${pov.title}" (${pov.location_city ?? 'neznana lokacija'}) ni dobilo nobenega ujemanja. Potreben ročni pregled.`,
-        message: `Povpraševanje "${pov.title}" nima ujemajočih obrtnikov.`,
+        message: `Povpraševanje "${pov.title}" (${pov.location_city ?? 'neznana lokacija'}) ni dobilo nobenega ujemanja. Potreben ročni pregled.`,
         link: `/admin/povprasevanja/${input.requestId}`,
-        read: false,
         metadata: { povprasevanje_id: input.requestId, fallbackSteps },
-      } as any)
+      })
 
       console.warn(JSON.stringify({
         level: 'warn',
