@@ -15,6 +15,7 @@ export interface AITelemetryEvent {
   responseTimeMs?: number
   cached?: boolean
   error?: string
+  messageHash?: string | null
   toolCallsCount?: number
   ragContextUsed?: boolean
   ragSourcesCount?: number
@@ -48,6 +49,7 @@ export async function emitAITelemetry(
       cost_usd: event.costUsd,
       response_cached: event.cached ?? false,
       ...(event.agentType ? { agent_type: event.agentType } : {}),
+      ...(event.messageHash ? { message_hash: event.messageHash } : {}),
       ...(typeof event.responseTimeMs === 'number'
         ? { response_time_ms: event.responseTimeMs }
         : {}),

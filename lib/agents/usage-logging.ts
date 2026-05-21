@@ -23,6 +23,7 @@ export async function logAgentUsage(params: LogAgentUsageParams): Promise<void> 
     costUsd: params.costUsd,
     cached: params.responseCached,
     agentType: params.agentType,
+    messageHash: params.messageHash,
     userMessage: params.userMessage,
     responseTimeMs: params.responseTimeMs,
     messagePreviewLimit: params.messagePreviewLimit,
