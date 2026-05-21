@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Briefcase, Star, TrendingUp } from 'lucide-react'
+import { FileText, Briefcase, Star, TrendingUp, AlertCircle } from 'lucide-react'
 
 export default async function ObrtknikDashboardPage() {
   const supabase = await createClient()
@@ -31,47 +31,59 @@ export default async function ObrtknikDashboardPage() {
     redirect('/partner-auth/login')
   }
 
+  const queryErrors: string[] = []
+
   // Fetch stats
-  const { count: activePonudbeCount } = await supabase
+  const { count: activePonudbeCount, error: activeErr } = await supabase
     .from('ponudbe')
     .select('*', { count: 'exact', head: true })
     .eq('obrtnik_id', obrtnikProfile.id)
     .in('status', ['poslana', 'sprejeta'])
+  if (activeErr) { console.error('[v0] Dashboard active ponudbe error:', activeErr); queryErrors.push('aktivne ponudbe') }
 
-  const { count: acceptedPonudbeCount } = await supabase
+  const { count: acceptedPonudbeCount, error: acceptedErr } = await supabase
     .from('ponudbe')
     .select('*', { count: 'exact', head: true })
     .eq('obrtnik_id', obrtnikProfile.id)
     .eq('status', 'sprejeta')
+  if (acceptedErr) { console.error('[v0] Dashboard accepted ponudbe error:', acceptedErr); queryErrors.push('sprejete ponudbe') }
 
-  const { data: oceneData } = await supabase
+  const { data: oceneData, error: oceneErr } = await supabase
     .from('ocene')
     .select('rating')
     .eq('obrtnik_id', obrtnikProfile.id)
+  if (oceneErr) { console.error('[v0] Dashboard ocene error:', oceneErr); queryErrors.push('ocene') }
 
   const averageRating = oceneData && oceneData.length > 0
     ? (oceneData.reduce((sum, o) => sum + o.rating, 0) / oceneData.length).toFixed(1)
     : null
 
   // Get open povprasevanja count for obrtnik's categories
-  const { data: obrtnikCategories } = await supabase
+  const { data: obrtnikCategories, error: catErr } = await supabase
     .from('obrtnik_categories')
     .select('category_id')
     .eq('obrtnik_id', obrtnikProfile.id)
+  if (catErr) { console.error('[v0] Dashboard categories error:', catErr); queryErrors.push('kategorije') }
 
   const categoryIds = obrtnikCategories?.map((oc: { category_id: string }) => oc.category_id) || []
 
-  const { count: openPovprasevanjaCount } = await supabase
-    .from('povprasevanja')
-    .select('*', { count: 'exact', head: true })
-    .in('category_id', categoryIds)
-    .eq('status', 'odprto')
+  let openPovprasevanjaCount: number | null = 0
+  if (categoryIds.length > 0) {
+    const { count, error: povErr } = await supabase
+      .from('povprasevanja')
+      .select('*', { count: 'exact', head: true })
+      .in('category_id', categoryIds)
+      .eq('status', 'odprto')
+    openPovprasevanjaCount = count
+    if (povErr) { console.error('[v0] Dashboard povprasevanja error:', povErr); queryErrors.push('povpraševanja') }
+  }
 
   // Get existing ponudbe to check if any exist
-  const { count: existingPonudbeCount } = await supabase
+  const { count: existingPonudbeCount, error: existingErr } = await supabase
     .from('ponudbe')
     .select('*', { count: 'exact', head: true })
     .eq('obrtnik_id', obrtnikProfile.id)
+  if (existingErr) { console.error('[v0] Dashboard existing ponudbe error:', existingErr); queryErrors.push('obstoječe ponudbe') }
 
   return (
     <div className="space-y-6">
@@ -85,6 +97,13 @@ export default async function ObrtknikDashboardPage() {
           {userProfile?.subscription_tier?.toUpperCase() || 'START'}
         </Badge>
       </div>
+
+      {queryErrors.length > 0 && (
+        <div className="flex items-center gap-2 p-3 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <p className="text-sm">Nekateri podatki se niso uspeli naložiti. Poskusite osvežiti stran.</p>
+        </div>
+      )}
 
       {/* Open povpraševanja banner */}
       {openPovprasevanjaCount && openPovprasevanjaCount > 0 && (

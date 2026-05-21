@@ -76,7 +76,7 @@ export default async function InquiriesPage() {
               {povprasevanja?.map((inquiry) => {
                 const offerCount = (inquiry.ponudbe as any)?.[0]?.count || 0
                 const urgency = inquiry.priority || inquiry.urgency || 'normalno'
-                const title = inquiry.title || inquiry.naslov || 'Brez naslova'
+                const title = inquiry.title || 'Brez naslova'
                 const location = inquiry.location_city || inquiry.lokacija || 'Lokacija ni navedena'
 
                 return (
@@ -134,7 +134,7 @@ export default async function InquiriesPage() {
                   {povprasevanja?.map((inquiry) => {
                     const offerCount = (inquiry.ponudbe as any)?.[0]?.count || 0
                     const urgency = inquiry.priority || inquiry.urgency || 'normalno'
-                    const title = inquiry.title || inquiry.naslov || 'Brez naslova'
+                    const title = inquiry.title || 'Brez naslova'
                     const location = inquiry.location_city || inquiry.lokacija || 'Lokacija ni navedena'
                     const category = inquiry.category_id || inquiry.kategorija || 'Ni določena'
 

@@ -43,12 +43,12 @@ export default function NarocnikSporocila() {
 
     const supabase = createClient()
     const [povData, profData] = await Promise.all([
-      supabase.from('povprasevanja').select('title, naslov').eq('id', povprasevanjeId).single(),
+      supabase.from('povprasevanja').select('title').eq('id', povprasevanjeId).single(),
       supabase.from('profiles').select('full_name').eq('id', receiverId).single(),
     ])
 
-    const pov = povData.data as { title?: string | null; naslov?: string | null } | null
-    setPovprasevanjeTitle(pov?.title ?? pov?.naslov ?? null)
+    const pov = povData.data as { title?: string | null } | null
+    setPovprasevanjeTitle(pov?.title ?? null)
 
     const prof = profData.data as { full_name?: string | null } | null
     setReceiverName(prof?.full_name ?? receiverId)

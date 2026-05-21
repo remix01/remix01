@@ -86,7 +86,7 @@ export default async function InquiryDetailPage({
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">{povprasevanje.naslov}</h1>
+            <h1 className="text-3xl font-bold text-slate-900">{povprasevanje.title}</h1>
             <p className="text-slate-600 mt-2">{povprasevanje.opis}</p>
           </div>
           <Badge className={statusBadgeColors[povprasevanje.status as keyof typeof statusBadgeColors]}>

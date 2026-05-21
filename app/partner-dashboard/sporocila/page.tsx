@@ -44,7 +44,7 @@ export default function PartnerSporocila() {
     setShowMobileChat(true)
 
     const [povData, profData] = await Promise.all([
-      supabase.from('povprasevanja').select('title, naslov').eq('id', povprasevanjeId).maybeSingle(),
+      supabase.from('povprasevanja').select('title').eq('id', povprasevanjeId).maybeSingle(),
       supabase.from('profiles').select('full_name').eq('id', receiverId).single(),
     ])
 
