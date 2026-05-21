@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
 import { buildRAGContext, formatRAGContextForPrompt } from '@/lib/ai/rag'
 import { validateAgentOutput, OfferComparisonSchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/ai/provider-pool'
 
 function success(payload: Record<string, unknown>) {
   return NextResponse.json({ ok: true, data: payload, ...payload })
@@ -138,7 +136,7 @@ Pripravi JSON z naslednjo strukturo:
   "priceRange": "80-150 EUR"
 }`
 
-    const response = await client.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: systemPrompt,

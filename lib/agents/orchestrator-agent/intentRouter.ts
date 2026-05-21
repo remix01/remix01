@@ -5,7 +5,7 @@
  * Returns an intent that the OrchestratorAgent uses to route to the right specialist.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai/provider-pool'
 import type { AgentType } from '../base/types'
 import type { ConversationState } from '@/lib/agent/memory/shortTerm'
 
@@ -47,8 +47,6 @@ export const intentMap: Record<string, AgentType> = {
   'batchCodeChanges': 'code_change',
 }
 
-const anthropic = new Anthropic()
-
 /**
  * Route user message intent to correct agent
  * Calls Claude to classify intent and extract parameters
@@ -87,7 +85,7 @@ Rules:
 - Always return valid JSON
 `
 
-    const response = await anthropic.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 512,
       system: systemPrompt,

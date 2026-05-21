@@ -1,11 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicClient } from "@/lib/ai/provider-pool";
 import { logAgentUsage } from "../usage-logging";
 import type { CodeChangeRequest, PlanResult } from "./types";
 import { withRetry } from "./retry";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -39,7 +35,7 @@ Respond with JSON:
 
   const response = await withRetry(
     () =>
-      anthropic.messages.create({
+      getAnthropicClient().messages.create({
         model: MODEL,
         max_tokens: 8192,
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],

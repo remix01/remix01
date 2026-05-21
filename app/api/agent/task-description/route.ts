@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/ai/provider-pool'
 
 function success(payload: Record<string, unknown>) {
   return NextResponse.json({ ok: true, data: payload, ...payload })
@@ -65,7 +63,7 @@ Pripravi JSON z naslednjo strukturo:
   "suggestedTitle": "predlagani naslov"
 }`
 
-    const response = await client.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 800,
       system: systemPrompt,

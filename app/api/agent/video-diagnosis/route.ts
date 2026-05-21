@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
 import { validateAgentOutput, VideoDiagnosisSchema, buildStructuredOutputInstruction } from '@/lib/ai/structured-output'
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/ai/provider-pool'
 
 // Supported image media types for Claude Vision
 const SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
@@ -74,7 +73,7 @@ Bodi konservativen — ne diagnoziraj brez zadostnih informacij.${structuredInst
       ? `Dodatni kontekst od naročnika: ${additionalContext}\n\nAnaliziraj priloženo sliko.`
       : 'Analiziraj priloženo sliko problema.'
 
-    const response = await client.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-sonnet-4-5-20250514',
       max_tokens: 800,
       system: systemPrompt,
