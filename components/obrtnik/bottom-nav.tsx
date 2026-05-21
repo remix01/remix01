@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, FileText, Briefcase, User } from 'lucide-react'
+import { Home, FileText, Briefcase, BarChart3, MessageCircle, User } from 'lucide-react'
 
 export function ObrtknikBottomNav() {
   const pathname = usePathname()
@@ -11,14 +11,16 @@ export function ObrtknikBottomNav() {
     { href: '/obrtnik/dashboard', icon: Home, label: 'Dom' },
     { href: '/obrtnik/povprasevanja', icon: FileText, label: 'Povpraševanja' },
     { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Ponudbe' },
+    { href: '/obrtnik/sporocila', icon: MessageCircle, label: 'Sporočila' },
+    { href: '/obrtnik/statistike', icon: BarChart3, label: 'Statistika' },
     { href: '/obrtnik/profil', icon: User, label: 'Profil' },
   ]
 
   return (
-    <div className="grid grid-cols-4 bg-white">
+    <div className="grid grid-cols-6 bg-white">
       {navLinks.map((link) => {
         const Icon = link.icon
-        const isActive = pathname === link.href
+        const isActive = pathname === link.href || (link.href !== '/obrtnik/dashboard' && pathname.startsWith(`${link.href}/`))
         return (
           <Link
             key={link.href}

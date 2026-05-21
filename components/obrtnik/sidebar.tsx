@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Briefcase, FileText, BarChart3, User } from 'lucide-react'
+import { Home, Briefcase, FileText, BarChart3, MessageCircle, User } from 'lucide-react'
 
 interface ObrtknikSidebarProps {
   fullName: string
@@ -15,6 +15,7 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
     { href: '/obrtnik/dashboard', icon: Home, label: 'Dashboard' },
     { href: '/obrtnik/povprasevanja', icon: FileText, label: 'Povpraševanja' },
     { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Moje ponudbe' },
+    { href: '/obrtnik/sporocila', icon: MessageCircle, label: 'Sporočila' },
     { href: '/obrtnik/statistike', icon: BarChart3, label: 'Statistika' },
     { href: '/obrtnik/profil', icon: User, label: 'Profil' },
   ]
@@ -38,7 +39,7 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
       <nav className="flex-1 p-4 space-y-2">
         {navLinks.map((link) => {
           const Icon = link.icon
-          const isActive = pathname === link.href
+          const isActive = pathname === link.href || (link.href !== '/obrtnik/dashboard' && pathname.startsWith(`${link.href}/`))
           return (
             <Link
               key={link.href}

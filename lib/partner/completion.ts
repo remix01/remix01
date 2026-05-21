@@ -21,10 +21,15 @@ export async function getCompletionStatus(
 ): Promise<CompletionStatus> {
   const supabase = createClient()
 
-  const [profileRes, offersRes] = await Promise.all([
+  const [obrtnikRes, userProfileRes, offersRes] = await Promise.all([
     supabase
       .from('obrtnik_profiles')
-      .select('description, hourly_rate, phone')
+      .select('description, hourly_rate')
+      .eq('id', partnerId)
+      .maybeSingle(),
+    supabase
+      .from('profiles')
+      .select('phone')
       .eq('id', partnerId)
       .maybeSingle(),
     supabase
@@ -33,10 +38,11 @@ export async function getCompletionStatus(
       .eq('obrtnik_id', partnerId),
   ])
 
-  const profile = profileRes.data
+  const profile = obrtnikRes.data
+  const userProfile = userProfileRes.data
   const hasDescription = !!(profile?.description && profile.description.trim().length > 0)
   const hasHourlyRate = !!(profile?.hourly_rate && profile.hourly_rate > 0)
-  const hasPhone = !!(profile?.phone && profile.phone.trim().length > 0)
+  const hasPhone = !!(userProfile?.phone && userProfile.phone.trim().length > 0)
   const hasOffers = (offersRes.count ?? 0) > 0
 
   const checks = [hasDescription, hasHourlyRate, hasPhone, hasOffers]

@@ -102,13 +102,12 @@ export default function ProfilPage() {
         setInstagram(obrtnikProfile.instagram_url || '')
         setResponseTime(obrtnikProfile.response_time_hours?.toString() ?? '')
 
-        // Calculate profile completeness
         const filled = [
-          tagline,
-          description,
-          hourlyRate,
-          yearsExperience,
-          ajpesId,
+          obrtnikProfile.tagline,
+          obrtnikProfile.description,
+          obrtnikProfile.hourly_rate,
+          obrtnikProfile.years_experience,
+          obrtnikProfile.ajpes_id,
         ].filter(Boolean).length
         setProfileCompleness(Math.round((filled / 5) * 100))
       }
@@ -279,7 +278,9 @@ export default function ProfilPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) return
 
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email)
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/posodobi-geslo`,
+      })
       if (error) throw error
 
       setSuccessMessage(`Navodila za spremembo gesla so bila poslana na ${user.email}`)
