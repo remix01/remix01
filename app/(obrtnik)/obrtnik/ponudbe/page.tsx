@@ -289,7 +289,7 @@ export default function PonudbesPage() {
           <div className="flex items-center gap-2 p-4 mb-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
             <p className="text-sm flex-1">{loadError}</p>
-            <Button variant="outline" size="sm" onClick={loadData} className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={loadData} aria-label="Poskusi znova naložiti podatke" className="flex items-center gap-1">
               <RefreshCw className="w-4 h-4" />
               Poskusi znova
             </Button>
@@ -446,6 +446,8 @@ export default function PonudbesPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => startEditing(ponudba)}
+                            disabled={editingId !== null}
+                            aria-label="Uredi ponudbo"
                             title="Uredi ponudbo"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -454,7 +456,8 @@ export default function PonudbesPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleWithdraw(ponudba.id)}
-                            disabled={withdrawingId === ponudba.id}
+                            disabled={withdrawingId === ponudba.id || editingId !== null}
+                            aria-label="Umakni ponudbo"
                             title="Umakni ponudbo"
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />

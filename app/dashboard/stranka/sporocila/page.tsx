@@ -44,7 +44,7 @@ export default function StankaSporocila() {
     setShowMobileChat(true)
 
     const [povData, profData] = await Promise.all([
-      supabase.from('povprasevanja').select('title, naslov').eq('id', povprasevanjeId).single(),
+      supabase.from('povprasevanja').select('title').eq('id', povprasevanjeId).single(),
       supabase.from('profiles').select('full_name').eq('id', receiverId).single(),
     ])
 
@@ -91,7 +91,7 @@ export default function StankaSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.title || povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
             />
           </div>
         ) : (
@@ -122,7 +122,7 @@ export default function StankaSporocila() {
               receiverId={selectedReceiver}
               onSendMessage={sendMessage}
               isLoading={isLoading}
-              povprasevanjeTitle={povprasevanjeInfo?.title || povprasevanjeInfo?.naslov}
+              povprasevanjeTitle={povprasevanjeInfo?.title}
             />
           ) : (
             <div className="bg-white rounded-lg border flex items-center justify-center h-full">

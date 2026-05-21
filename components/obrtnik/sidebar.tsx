@@ -4,6 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Briefcase, FileText, BarChart3, MessageCircle, User } from 'lucide-react'
 
+function isNavActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true
+  if (href === '/obrtnik/dashboard') return false
+  return pathname.startsWith(`${href}/`)
+}
+
 interface ObrtknikSidebarProps {
   fullName: string
 }
@@ -36,14 +42,15 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2" aria-label="Obrtnik navigacija">
         {navLinks.map((link) => {
           const Icon = link.icon
-          const isActive = pathname === link.href || (link.href !== '/obrtnik/dashboard' && pathname.startsWith(`${link.href}/`))
+          const isActive = isNavActive(pathname, link.href)
           return (
             <Link
               key={link.href}
               href={link.href}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive
                   ? 'bg-primary text-white'
