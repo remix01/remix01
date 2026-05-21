@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { confirmSchedulingRequest } from '@/lib/agent/scheduling/confirmAppointment'
 import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { getAnthropicClient } from '@/lib/ai/provider-pool'
 
 function success(payload: Record<string, unknown>) {
   return NextResponse.json({ ok: true, data: payload, ...payload })
@@ -132,7 +130,7 @@ Predlagaj 3 konkretne termine v naslednjih 14 dneh. Vrni JSON:
   "calendarIntegration": ${!!narocnikCal || !!obrtnikCal}
 }`
 
-    const response = await client.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 600,
       system: systemPrompt,

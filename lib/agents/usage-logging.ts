@@ -1,5 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { anomalyDetector } from '@/lib/observability/alerting'
+import { emitAITelemetry } from '@/lib/ai/telemetry'
 
 type LogAgentUsageParams = {
   userId: string
@@ -15,34 +14,17 @@ type LogAgentUsageParams = {
   messagePreviewLimit?: number
 }
 
-const DEFAULT_PREVIEW_LIMIT = 500
-
 export async function logAgentUsage(params: LogAgentUsageParams): Promise<void> {
-  const {
-    userId,
-    modelUsed,
-    tokensInput,
-    tokensOutput,
-    costUsd,
-    responseCached,
-    agentType,
-    messageHash,
-    userMessage,
-    responseTimeMs,
-    messagePreviewLimit = DEFAULT_PREVIEW_LIMIT,
-  } = params
-
-  await supabaseAdmin.from('ai_usage_logs').insert({
-    user_id: userId,
-    model_used: modelUsed,
-    tokens_input: tokensInput,
-    tokens_output: tokensOutput,
-    cost_usd: costUsd,
-    response_cached: responseCached,
-    ...(messageHash ? { message_hash: messageHash } : {}),
-    ...(typeof userMessage === 'string' ? { user_message: userMessage.slice(0, messagePreviewLimit) } : {}),
-    ...(typeof responseTimeMs === 'number' ? { response_time_ms: responseTimeMs } : {}),
-    ...(agentType ? { agent_type: agentType } : {}),
+  await emitAITelemetry({
+    userId: params.userId,
+    modelUsed: params.modelUsed,
+    tokensInput: params.tokensInput,
+    tokensOutput: params.tokensOutput,
+    costUsd: params.costUsd,
+    cached: params.responseCached,
+    agentType: params.agentType,
+    userMessage: params.userMessage,
+    responseTimeMs: params.responseTimeMs,
+    messagePreviewLimit: params.messagePreviewLimit,
   })
-  anomalyDetector.checkDailyCostThreshold(costUsd)
 }

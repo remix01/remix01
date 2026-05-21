@@ -10,7 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai/provider-pool'
 import { BaseAgent } from '../base/BaseAgent'
 import type { AgentType, AgentMessage, AgentResponse } from '../base/types'
 import { routeIntent, intentMap } from './intentRouter'
@@ -19,7 +19,6 @@ import { loadLongTermMemory, appendActivity } from '@/lib/agent/memory/longTerm'
 import { messageBus } from '../base/MessageBus'
 import { tracer } from '@/lib/observability/tracing'
 
-const anthropic = new Anthropic()
 const INTERACTION_THRESHOLD = 10 // Update long-term memory every N interactions
 
 export class OrchestratorAgent extends BaseAgent {
@@ -197,7 +196,7 @@ export class OrchestratorAgent extends BaseAgent {
 Convert the structured agent response into a friendly, natural language message for the user.
 Be concise but informative.`
 
-      const response = await anthropic.messages.create({
+      const response = await getAnthropicClient().messages.create({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 256,
         system: systemPrompt,

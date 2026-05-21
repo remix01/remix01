@@ -14,14 +14,9 @@
 import { executeAgent, type AgentExecutionResult } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
 import Anthropic from '@anthropic-ai/sdk'
+import { getAnthropicClient } from '@/lib/ai/provider-pool'
 import { getWarpGrepSubagentRunner } from '@/lib/ai/morph'
 import { morphAndExecuteWithContext, type SuperAgentResult } from '@/lib/ai/super-agent'
-
-// =============================================================================
-// Anthropic Client
-// =============================================================================
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 // =============================================================================
 // Types
@@ -229,7 +224,7 @@ Odgovori IZKLJUČNO v JSON formatu:
   "reasoning": "Kratka razlaga zakaj."
 }`
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropicClient().messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 512,
     system: systemPrompt,
@@ -315,7 +310,7 @@ async function mergeAgentOutputs(results: SpawnResult[]): Promise<string> {
     )
     .join('\n\n')
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropicClient().messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 1024,
     system: `Si LiftGO AI koordinator. Združi odgovore več AI agentov v eno koherentno sporočilo za uporabnika.
