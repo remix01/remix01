@@ -10,6 +10,7 @@ import { ArrowRight } from 'lucide-react'
 import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { FAQSection } from '@/components/seo/faq-section'
 import { RelatedCategories } from '@/components/seo/related-categories'
+import { CategoryCityFallback } from '@/components/seo/CategoryCityFallback'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { buildSeoContent, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
 import { fetchWithRetry } from '@/lib/fetchWithRetry'
@@ -71,6 +72,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       return { title: 'LiftGO' }
     }
 
+    const hasProviders = (await listObrtnikiPublic({ category_id: category.id, location_city: city.name, is_available: true, limit: 1 })).length > 0
+
     const meta = generateCategoryMeta({
       categoryName: category.name,
       categorySlug: category.slug,
@@ -82,6 +85,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       title: meta.title,
       description: meta.description,
       keywords: meta.keywords,
+      robots: hasProviders ? undefined : { index: false, follow: true },
       alternates: { canonical: `https://liftgo.net/${category.slug}/${city.slug}` },
       openGraph: {
         title: meta.openGraph.title,
@@ -407,6 +411,18 @@ export default async function CategoryCityPage(props: Props) {
             )}
           </div>
         </section>
+
+        {obrtniki.length === 0 && (
+          <CategoryCityFallback
+            categoryName={category.name}
+            cityName={city.name}
+            relatedCities={nearbyCities.map((nearbyCity) => ({
+              href: `/${normalized.category}/${nearbyCity.slug}`,
+              label: `${category.name.split(' ')[0]} ${nearbyCity.name}`
+            }))}
+            relatedCategories={[]}
+          />
+        )}
 
         {/* Nearby Cities */}
         {nearbyCities.length > 0 && (
