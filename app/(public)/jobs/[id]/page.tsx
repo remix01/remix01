@@ -27,6 +27,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return {
     title: `${povprasevanje.title} | LiftGO`,
     description: (povprasevanje.description ?? '').substring(0, 160),
+    alternates: { canonical: `https://liftgo.net/dela/${povprasevanje.id}` },
+    robots: { index: false, follow: true },
     openGraph: {
       title: povprasevanje.title,
       description: povprasevanje.description ?? '',

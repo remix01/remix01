@@ -28,6 +28,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return {
     title: `${post.title} | LiftGO Blog`,
     description: post.description,
+    alternates: { canonical: `https://liftgo.net/blog/${post.slug}` },
     openGraph: {
       title: post.title,
       description: post.description,
@@ -57,7 +58,7 @@ export default async function BlogPostPage(props: Props) {
   // Generate Article schema
   const articleSchema = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': 'BlogPosting',
     'headline': post.title,
     'description': post.description,
     'datePublished': post.date,

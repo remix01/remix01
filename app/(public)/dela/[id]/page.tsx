@@ -27,6 +27,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     title: `${job.title} v ${job.location_city} | LiftGO`,
     description: `${job.title} — ${job.description}`,
     keywords: `${job.title}, ${job.category?.name}, ${job.location_city}`,
+    alternates: { canonical: `https://liftgo.net/dela/${job.id}` },
+    robots: job.status === 'cancelled' || job.status === 'completed' ? { index: false, follow: true } : undefined,
     openGraph: {
       title: `${job.title} | LiftGO`,
       description: job.description,

@@ -4,7 +4,6 @@ import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchem
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
 import { ObrtnikCard } from '@/components/obrtnik-card'
-import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
@@ -76,6 +75,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   }
 }
 
+
+
+function buildCategoryIntro(categoryName: string, providersCount: number) {
+  return `Na strani ${categoryName} najdete preverjene izvajalce iz različnih slovenskih regij. Pregledate lahko profile, primerjate odzivnost in izberete mojstra, ki ustreza vašemu projektu${providersCount > 0 ? ` med ${providersCount} aktivnimi ponudniki` : ''}.`
+}
 function humanizeSlug(slug: string): string {
   return slug
     .replace(/-/g, ' ')
@@ -110,6 +114,8 @@ export default async function CategoryPage(props: Props) {
     : []
 
   // Get pricing for schema
+  const categoryIntro = buildCategoryIntro(category.name, obrtniki.length)
+
   const pricing = getPricingForCategory(normalized.category)
 
   // Generate schema markup
@@ -153,9 +159,12 @@ export default async function CategoryPage(props: Props) {
             <h1 className="text-4xl md:text-5xl font-bold mb-4 text-balance">
               {category.name} v Sloveniji
             </h1>
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl">
-              Najdite preverjenega {category.name.toLowerCase()} mojstra v vaši okolici. 
-              {obrtniki.length}+ aktivnih mojstrov.
+            <p className="text-lg text-gray-600 mb-4 max-w-2xl">
+              Najdite preverjenega {category.name.toLowerCase()} mojstra v vaši okolici.
+              {' '}{obrtniki.length}+ aktivnih mojstrov.
+            </p>
+            <p className="text-base text-gray-600 mb-8 max-w-3xl">
+              {categoryIntro}
             </p>
             <Link href="/novo-povprasevanje">
               <Button size="lg" className="gap-2">
@@ -190,6 +199,21 @@ export default async function CategoryPage(props: Props) {
                 </Link>
               </div>
             )}
+          </div>
+        </section>
+
+        {/* Marketplace intro content */}
+        <section className="py-10 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-2xl font-bold mb-4">Kaj pričakovati pri storitvi {category.name}</h2>
+            <p className="text-gray-700 max-w-4xl mb-6">
+              LiftGO pomaga pri hitrem usklajevanju termina, primerjavi ponudb in preverjanju izvajalcev.
+              Pred oddajo povpraševanja pripravite opis del, okviren proračun in lokacijo – tako bodo ponudbe bolj natančne.
+            </p>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <Link href="/novo-povprasevanje" className="underline text-blue-700">Oddaj povpraševanje za {category.name.toLowerCase()}</Link>
+              <Link href="/mojstri" className="underline text-blue-700">Poglej vse profile mojstrov</Link>
+            </div>
           </div>
         </section>
 
