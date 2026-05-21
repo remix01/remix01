@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ObrtknikSidebar } from '@/components/obrtnik/sidebar'
@@ -6,8 +7,8 @@ import { NotificationBellClient } from '@/components/liftgo/NotificationBellClie
 import { AvailabilityToggle } from '@/components/obrtnik/availability-toggle'
 import { assertCanAccessProviderDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
 
-export const metadata = {
-  title: 'LiftGO - Obrtnik',
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
 }
 
 export default async function ObrtknikLayout({

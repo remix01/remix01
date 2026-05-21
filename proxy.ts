@@ -38,23 +38,13 @@ export async function proxy(request: NextRequest) {
   // RSC navigation requests (_rsc param) are browser fetch() calls — same
   // cross-origin risk as API routes, so exempt them from the canonical redirect.
   const isRscRequest = request.nextUrl.searchParams.has('_rsc')
-  if (host.includes('vercel.app') && !host.includes('localhost') && !isApiRoute && !isRscRequest) {
+  if ((host === 'www.liftgo.net' || (host.includes('vercel.app') && !host.includes('localhost'))) && !isApiRoute && !isRscRequest) {
     const url = request.nextUrl.clone()
     url.host = 'liftgo.net'
     url.protocol = 'https'
     return NextResponse.redirect(url, { status: 301 })
   }
 
-  const retry = request.nextUrl.searchParams.get('retry')
-  const userAgent = request.headers.get('user-agent')?.toLowerCase() || ''
-  const isCrawler = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|linkedinbot/.test(userAgent)
-
-  if (request.method === 'GET' && isCrawler && isCategoryCityPath(pathname) && retry !== '1') {
-    const retryUrl = request.nextUrl.clone()
-    retryUrl.searchParams.set('retry', '1')
-    retryUrl.searchParams.set('_rt', Date.now().toString())
-    return NextResponse.redirect(retryUrl, { status: 302 })
-  }
 
   let supabaseResponse = NextResponse.next({ request })
 

@@ -48,7 +48,7 @@ export const viewport: Viewport = {
 
 // ─── METADATA ────────────────────────────────────────────────────────────────
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.liftgo.net'),
+  metadataBase: new URL('https://liftgo.net'),
 
   title: {
     default: 'LiftGO — Najdi obrtnika v Sloveniji v 30 sekundah',
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     'parketar', 'malar', 'vodoinstalater', 'mizar', 'Ljubljana',
     'Maribor', 'renovacija', 'popravilo', 'LiftGO', 'adaptacije',
   ],
-  authors: [{ name: 'LiftGO', url: 'https://www.liftgo.net' }],
+  authors: [{ name: 'LiftGO', url: 'https://liftgo.net' }],
   creator: 'LiftGO',
   publisher: 'Liftgo d.o.o.',
   // FIX 5: applicationName — obvezno za PWA install prompt in
@@ -75,7 +75,7 @@ export const metadata: Metadata = {
       'Oddajte brezplačno povpraševanje in prejmite ponudbo preverjenega obrtnika v manj kot 24 urah.',
     // FIX 6: url je bil 'https://liftgo.net' brez www —
     // neskladnost s canonical in metadataBase
-    url: 'https://www.liftgo.net',
+    url: 'https://liftgo.net',
     siteName: 'LiftGO',
     locale: 'sl_SI',
     type: 'website',
@@ -113,7 +113,7 @@ export const metadata: Metadata = {
 
   // ─── Canonical ──────────────────────────────────────────────────────────
   alternates: {
-    canonical: 'https://www.liftgo.net',
+    canonical: 'https://liftgo.net',
   },
 
   // ─── Ikone ──────────────────────────────────────────────────────────────
@@ -145,15 +145,15 @@ const organizationSchema = {
   '@type': ['Organization', 'LocalBusiness'],
   name: 'LiftGO',
   legalName: 'Liftgo d.o.o.',
-  url: 'https://www.liftgo.net',
+  url: 'https://liftgo.net',
   // FIX 13: logo kot ImageObject z dimenzijami — Google Knowledge Panel zahteva
   logo: {
     '@type': 'ImageObject',
-    url: 'https://www.liftgo.net/logo.png',
+    url: 'https://liftgo.net/logo.png',
     width: 512,
     height: 512,
   },
-  image: 'https://www.liftgo.net/images/og-image.jpg',
+  image: 'https://liftgo.net/images/og-image.jpg',
   description: 'Platforma za iskanje zanesljivih preverjenjih obrtnikov po vsej Sloveniji.',
   foundingDate: '2024',
   address: {
@@ -177,7 +177,7 @@ const organizationSchema = {
   },
   sameAs: [
     'https://liftgo.net',
-    'https://www.liftgo.net',
+    'https://liftgo.net',
   ],
 }
 
@@ -186,12 +186,12 @@ const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'LiftGO',
-  url: 'https://www.liftgo.net',
+  url: 'https://liftgo.net',
   potentialAction: {
     '@type': 'SearchAction',
     target: {
       '@type': 'EntryPoint',
-      urlTemplate: 'https://www.liftgo.net/search?q={search_term_string}',
+      urlTemplate: 'https://liftgo.net/search?q={search_term_string}',
     },
     'query-input': 'required name=search_term_string',
   },

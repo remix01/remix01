@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Registracija za obrtnike | LiftGO',
   description: 'Pridružite se platformi LiftGO kot preverjen obrtnik. Brezplačna registracija, START ali PRO paket.',
   alternates: {
-    canonical: 'https://www.liftgo.net/registracija-mojster',
+    canonical: 'https://liftgo.net/registracija-mojster',
   },
 }
 

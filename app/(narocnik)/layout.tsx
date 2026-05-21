@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
@@ -9,8 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { assertCanAccessBuyerDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
 
-export const metadata = {
-  title: 'LiftGO - Naročnik',
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
 }
 
 export default async function NarocnikLayout({
