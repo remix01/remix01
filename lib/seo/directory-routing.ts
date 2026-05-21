@@ -1,5 +1,5 @@
 import type { Category } from '@/types/marketplace'
-import { getActiveCategoriesPublic, getCategoryBySlug } from '@/lib/dal/categories'
+import { getActiveCategoriesPublic, getCategoryBySlugPublic } from '@/lib/dal/categories'
 import { getCityBySlug } from '@/lib/seo/locations'
 
 const CITY_ALIASES: Record<string, string> = {
@@ -42,7 +42,7 @@ export function normalizeDirectoryParams(rawCategory: string, rawCity?: string) 
 }
 
 export async function resolveCategorySlugOrFallback(slug: string): Promise<Category | null> {
-  const direct = await getCategoryBySlug(slug)
+  const direct = await getCategoryBySlugPublic(slug)
   if (direct) return direct
 
   const all = await getActiveCategoriesPublic()

@@ -41,6 +41,24 @@ export async function createClient() {
 }
 
 /**
+ * Creates a cookie-free Supabase client safe for static/ISR rendering.
+ * Uses the anon key with RLS enforced. Never reads cookies() or headers().
+ * Use this in public SEO routes and generateStaticParams/generateMetadata.
+ */
+export function createPublicClient() {
+  return createSupabaseClient<Database>(
+    env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'development-anon-key',
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  )
+}
+
+/**
  * Creates a Supabase admin client that bypasses Row Level Security.
  * Uses the service role key - USE WITH EXTREME CAUTION!
  * 

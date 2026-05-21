@@ -4,6 +4,7 @@ export {
   getActiveCategories,
   getCategory,
   getCategoryBySlug,
+  getCategoryBySlugPublic,
   getObrtnikCategories,
   countObrtnikPerCategory,
 } from './categories.read'

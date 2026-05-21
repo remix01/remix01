@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
-import { listObrtniki } from '@/lib/dal/profiles'
+import { listObrtnikiPublic } from '@/lib/dal/profiles'
 import { ObrtnikCard } from '@/components/obrtnik-card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -18,12 +18,17 @@ interface Props {
   params: Promise<{ category: string }>
 }
 
-// Exclude static files and reserved paths from being caught by dynamic route
-const EXCLUDED_PATHS = [
-  'images', 'icons', 'fonts', 'api', 'admin', 
+// Slugs that must never be treated as category pages — static assets,
+// framework internals, and common scanner/bot targets that would otherwise
+// trigger DB calls and cause static-to-dynamic rendering errors.
+const RESERVED_SLUGS = new Set([
+  'images', 'icons', 'fonts', 'api', 'admin',
   '_next', 'static', 'favicon.ico', 'robots.txt',
-  'sitemap.xml', 'sw.js', 'manifest.json'
-]
+  'sitemap.xml', 'sw.js', 'manifest.json',
+  'actuator', 'env', '__depproxyproof',
+  'wp-admin', 'wp-login', 'phpinfo', 'server-status',
+  'dashboard', 'partner-dashboard', 'auth',
+])
 
 export async function generateStaticParams() {
   // Fetch all active categories from database
@@ -40,9 +45,8 @@ export async function generateStaticParams() {
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
   const normalized = normalizeDirectoryParams(params.category)
-  
-  // Exclude static paths from being treated as categories
-  if (EXCLUDED_PATHS.includes(normalized.category) || normalized.category.includes('.')) {
+
+  if (RESERVED_SLUGS.has(normalized.category) || normalized.category.includes('.')) {
     return { title: 'LiftGO' }
   }
   
@@ -91,10 +95,9 @@ function humanizeSlug(slug: string): string {
 export default async function CategoryPage(props: Props) {
   const params = await props.params
   const normalized = normalizeDirectoryParams(params.category)
-  
-  // Exclude static files and reserved paths
-  if (EXCLUDED_PATHS.includes(normalized.category) || normalized.category.includes('.')) {
-    return null
+
+  if (RESERVED_SLUGS.has(normalized.category) || normalized.category.includes('.')) {
+    notFound()
   }
   
   const resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
@@ -104,9 +107,9 @@ export default async function CategoryPage(props: Props) {
 
   const category = resolvedCategory
 
-  // Fetch verified obrtniki for this category
+  // Fetch verified obrtniki for this category (cookie-free, ISR-safe)
   const obrtniki = resolvedCategory
-    ? await listObrtniki({
+    ? await listObrtnikiPublic({
         category_id: category.id,
         is_available: true,
         limit: 12

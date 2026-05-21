@@ -1,5 +1,5 @@
 // Data Access Layer - Profiles
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createPublicClient } from '@/lib/supabase/server'
 import type { 
   Profile, 
   ProfileInsert, 
@@ -217,6 +217,82 @@ export async function listObrtniki(filters?: {
 
   if (error) {
     console.error('[v0] Error listing obrtniki:', error)
+    return []
+  }
+
+  return data as unknown as ObrtnikProfile[]
+}
+
+/**
+ * Cookie-free variant of listObrtniki for public/static/ISR pages.
+ * Identical query logic but uses the public anon client without cookies().
+ */
+export async function listObrtnikiPublic(filters?: {
+  category_id?: string
+  location_city?: string
+  min_rating?: number
+  is_available?: boolean
+  limit?: number
+  offset?: number
+}): Promise<ObrtnikProfile[]> {
+  const supabase = createPublicClient()
+
+  let query = supabase
+    .from('obrtnik_profiles')
+    .select(`
+      *,
+      profile:profiles(*)
+    `)
+    .eq('is_verified', true)
+
+  if (filters?.is_available !== undefined) {
+    query = query.eq('is_available', filters.is_available)
+  }
+
+  if (filters?.min_rating) {
+    query = query.gte('avg_rating', filters.min_rating)
+  }
+
+  if (filters?.location_city) {
+    query = query.eq('profile.location_city', filters.location_city)
+  }
+
+  if (filters?.category_id) {
+    const { data: categoryRows, error: categoryError } = await supabase
+      .from('obrtnik_categories')
+      .select('obrtnik_id')
+      .eq('category_id', filters.category_id)
+
+    if (categoryError) {
+      console.error('[v0] Error loading obrtnik category mappings (public):', categoryError)
+      return []
+    }
+
+    const categoryObrtnikIds = (categoryRows ?? [])
+      .map((row) => row.obrtnik_id)
+      .filter((id): id is string => Boolean(id))
+
+    if (categoryObrtnikIds.length === 0) {
+      return []
+    }
+
+    query = query.in('id', categoryObrtnikIds)
+  }
+
+  query = query.order('avg_rating', { ascending: false })
+
+  if (filters?.limit) {
+    query = query.limit(filters.limit)
+  }
+
+  if (filters?.offset) {
+    query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('[v0] Error listing obrtniki (public):', error)
     return []
   }
 
