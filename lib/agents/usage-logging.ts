@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { anomalyDetector } from '@/lib/observability/alerting'
 
-type LogAgentUsageParams = {
+export type LogAgentUsageParams = {
   userId: string
   modelUsed: string
   tokensInput: number
@@ -13,6 +13,8 @@ type LogAgentUsageParams = {
   userMessage?: string
   responseTimeMs?: number
   messagePreviewLimit?: number
+  requestId?: string
+  endpoint?: string
 }
 
 const DEFAULT_PREVIEW_LIMIT = 500
@@ -45,4 +47,16 @@ export async function logAgentUsage(params: LogAgentUsageParams): Promise<void> 
     ...(agentType ? { agent_type: agentType } : {}),
   })
   anomalyDetector.checkDailyCostThreshold(costUsd)
+}
+
+/**
+ * Fire-and-forget wrapper — logging failure never breaks the user response.
+ */
+export function safeLogAgentUsage(params: LogAgentUsageParams): void {
+  logAgentUsage(params).catch((err) => {
+    console.error(
+      `[safeLogAgentUsage] failed for ${params.endpoint ?? params.agentType ?? 'unknown'}:`,
+      err instanceof Error ? err.message : err
+    )
+  })
 }

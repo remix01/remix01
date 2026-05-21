@@ -13,7 +13,12 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[cron/metrics-push] CRON_SECRET not configured in production — request denied')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  } else if (req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
