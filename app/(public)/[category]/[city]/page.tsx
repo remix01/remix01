@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
-import { listObrtniki } from '@/lib/dal/profiles'
+import { listObrtnikiPublic } from '@/lib/dal/profiles'
 import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
 import { ObrtnikCard } from '@/components/obrtnik-card'
 import { Button } from '@/components/ui/button'
@@ -24,12 +24,17 @@ interface Props {
 export const revalidate = 300
 export const dynamicParams = true
 
-// Exclude static files and reserved paths from being caught by dynamic route
-const EXCLUDED_PATHS = [
+// Slugs that must never be treated as category/city pages — static assets,
+// framework internals, and common scanner/bot targets that would otherwise
+// trigger DB calls and cause static-to-dynamic rendering errors.
+const RESERVED_SLUGS = new Set([
   'images', 'icons', 'fonts', 'api', 'admin',
   '_next', 'static', 'favicon.ico', 'robots.txt',
-  'sitemap.xml', 'sw.js', 'manifest.json'
-]
+  'sitemap.xml', 'sw.js', 'manifest.json',
+  'actuator', 'env', '__depproxyproof',
+  'wp-admin', 'wp-login', 'phpinfo', 'server-status',
+  'dashboard', 'partner-dashboard', 'auth',
+])
 
 export async function generateStaticParams() {
   // Generate all combinations of category slugs × city slugs
@@ -59,9 +64,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     const normalized = normalizeDirectoryParams(params.category, params.city)
     const citySlug = normalized.city ?? ''
 
-    // Exclude static paths and file extensions
     if (
-      EXCLUDED_PATHS.includes(normalized.category) ||
+      RESERVED_SLUGS.has(normalized.category) ||
       normalized.category.includes('.') ||
       citySlug.includes('.')
     ) {
@@ -188,9 +192,9 @@ export default async function CategoryCityPage(props: Props) {
   const citySlug = normalized.city ?? ''
   const pathname = `/${normalized.category}/${citySlug}`
 
-  // Exclude static files, reserved paths, and dotfile-style segments (e.g. /.aws/credentials)
+  // Reject reserved slugs and dotfile-style segments (e.g. /.aws/credentials, /actuator/env)
   if (
-    EXCLUDED_PATHS.includes(normalized.category) ||
+    RESERVED_SLUGS.has(normalized.category) ||
     normalized.category.includes('.') ||
     citySlug.includes('.')
   ) {
@@ -263,12 +267,12 @@ export default async function CategoryCityPage(props: Props) {
     })
   }
 
-  let obrtniki = [] as Awaited<ReturnType<typeof listObrtniki>>
+  let obrtniki = [] as Awaited<ReturnType<typeof listObrtnikiPublic>>
   let dataWarning: string | null = null
 
   try {
     if (resolvedCategory) {
-      obrtniki = await listObrtniki({
+      obrtniki = await listObrtnikiPublic({
         category_id: category.id,
         location_city: city.name,
         is_available: true,

@@ -1,6 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createPublicClient } from '@supabase/supabase-js'
-import { env } from '@/lib/env'
+import { createClient, createPublicClient } from '@/lib/supabase/server'
 import type { Category } from '@/types/marketplace'
 
 // Guard to avoid noisy repeated public-fetch logs during build/runtime retries.
@@ -9,10 +7,7 @@ const categoriesGlobalState = globalThis as typeof globalThis & {
 }
 
 export function getPublicSupabaseClient() {
-  return createPublicClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
+  return createPublicClient()
 }
 
 
@@ -85,6 +80,24 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
 
   if (error) {
     console.error('[v0] Error fetching category by slug:', error)
+    return null
+  }
+
+  return data as Category | null
+}
+
+/** Cookie-free variant — safe for static/ISR rendering and generateMetadata. */
+export async function getCategoryBySlugPublic(slug: string): Promise<Category | null> {
+  const supabase = getPublicSupabaseClient()
+
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[v0] Error fetching category by slug (public):', error)
     return null
   }
 
