@@ -11,16 +11,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { env } from '@/lib/env'
 import { executeAgent, AgentAccessError, QuotaExceededError } from '@/lib/ai/orchestrator'
 import type { AIAgentType } from '@/lib/agents/ai-router'
-import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
-
-const supabaseAdmin = createClient(
-  env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
-  env.SUPABASE_SERVICE_ROLE_KEY || 'development-service-role-key'
-)
+import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
 
 interface ChatRequest {
   message: string
@@ -34,35 +27,18 @@ interface ChatRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate user
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const security = await validateAIRequest(request)
+    if ('error' in security) return security.error
+    const { context: secCtx } = security
 
-    const token = authHeader.substring(7)
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token)
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-    }
-
-    const rateLimitResponse = await checkAIRateLimit(request, user.id)
-    if (rateLimitResponse) return rateLimitResponse
-
-    // 2. Parse request
     const body: ChatRequest = await request.json()
 
     if (!body.message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    // 3. Execute agent
     const result = await executeAgent({
-      userId: user.id,
+      userId: secCtx.userId,
       agentType: body.agentType || 'support_agent',
       userMessage: body.message,
       taskId: body.taskId,

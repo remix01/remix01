@@ -7,6 +7,10 @@ import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
 
 export async function POST(request: NextRequest) {
   try {
+    const security = await validateAIRequest(request, { skipQuotaCheck: true })
+    if ('error' in security) return security.error
+    const { context: secCtx } = security
+
     const { povprasevanjeId } = await request.json()
 
     if (!povprasevanjeId) {
@@ -15,10 +19,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    const security = await validateAIRequest(request, { skipQuotaCheck: true })
-    if ('error' in security) return security.error
-    const { context: secCtx } = security
 
     // Run guardrails via shared route policy helper
     try {

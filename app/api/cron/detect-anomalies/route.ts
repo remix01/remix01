@@ -3,7 +3,13 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 
 function verifyCron(req: Request) {
   const secret = process.env.CRON_SECRET
-  if (!secret) return true
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[cron/detect-anomalies] CRON_SECRET not configured in production — request denied')
+      return false
+    }
+    return true
+  }
   return req.headers.get('authorization') === `Bearer ${secret}`
 }
 

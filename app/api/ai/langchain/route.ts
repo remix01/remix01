@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
 import { runLangGraphChat } from '@/lib/ai/langgraph'
 import { getLangSmithStatus } from '@/lib/ai/langsmith'
 import { getAICapabilityStatus, hasMinimumAIStackReady } from '@/lib/ai/capabilities'
-import { checkAIRateLimit } from '@/lib/rate-limit/limiters'
-import { logAgentUsage } from '@/lib/agents/usage-logging'
-import { handleAuthError } from '@/lib/api/auth-errors'
+import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
+import { safeLogAgentUsage } from '@/lib/agents/usage-logging'
 
 const ALLOWED_MODELS = ['gpt-4o-mini', 'gpt-4o'] as const
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -25,19 +23,9 @@ function resolveModel(requested?: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError) return handleAuthError(authError)
-    if (!user) {
-      return NextResponse.json(
-        { ok: false, error: 'Nepooblaščen dostop.', canonical_error: { code: 'UNAUTHORIZED', message: 'Nepooblaščen dostop.' } },
-        { status: 401 }
-      )
-    }
-
-    const rateLimitResponse = await checkAIRateLimit(request, user.id)
-    if (rateLimitResponse) return rateLimitResponse
+    const security = await validateAIRequest(request)
+    if ('error' in security) return security.error
+    const { context: secCtx } = security
 
     const body = await request.json()
     const parsed = requestSchema.safeParse(body)
@@ -58,10 +46,11 @@ export async function POST(request: NextRequest) {
     const result = await runLangGraphChat({ ...parsed.data, model: resolvedModel })
     const responseTimeMs = Date.now() - startTime
 
-    // TODO: LangChain ChatOpenAI does not surface token usage in the current integration.
-    // Once token counts are available, replace tokensInput/tokensOutput/costUsd with real values.
-    logAgentUsage({
-      userId: user.id,
+    // TODO: LangChain ChatOpenAI does not expose token usage in response metadata.
+    // To capture real values, the LangGraph integration needs to return
+    // `response.usage_metadata` from the ChatOpenAI response object.
+    safeLogAgentUsage({
+      userId: secCtx.userId,
       modelUsed: resolvedModel,
       tokensInput: 0,
       tokensOutput: 0,
@@ -71,7 +60,8 @@ export async function POST(request: NextRequest) {
       userMessage: parsed.data.prompt,
       responseTimeMs,
       messagePreviewLimit: 500,
-    }).catch((err) => console.error('[ai/langchain] usage log failed:', err))
+      endpoint: 'ai/langchain',
+    })
 
     return NextResponse.json({
       success: true,
