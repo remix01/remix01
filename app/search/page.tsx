@@ -26,7 +26,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     openGraph: {
       title,
       description,
-      url: `https://www.liftgo.net/search${storitev ? `?storitev=${storitev}` : ''}`,
+      url: 'https://liftgo.net/search',
       siteName: 'LiftGO',
       locale: 'sl_SI',
       type: 'website',
@@ -37,7 +37,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       description,
     },
     alternates: {
-      canonical: `https://www.liftgo.net/search${storitev ? `?storitev=${storitev}` : ''}`,
+      canonical: 'https://liftgo.net/search',
+    },
+    robots: {
+      index: false,
+      follow: true,
     },
   }
 }
@@ -55,7 +59,7 @@ export default async function SearchPage({ searchParams }: Props) {
     "provider": {
       "@type": "Organization",
       "name": "LiftGO",
-      "url": "https://www.liftgo.net"
+      "url": "https://liftgo.net"
     },
     "areaServed": {
       "@type": "Place",

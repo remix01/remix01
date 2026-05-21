@@ -40,4 +40,4 @@ Allow: /
 User-agent: msnbot
 Allow: /
 
-Sitemap: https://www.liftgo.net/sitemap.xml
+Sitemap: https://liftgo.net/sitemap.xml

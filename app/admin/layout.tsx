@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
@@ -5,6 +6,10 @@ import { createClient } from '@/lib/supabase/server'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { AdminAuthProvider } from '@/lib/auth/AdminAuthContext'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export default async function AdminLayout({
   children,

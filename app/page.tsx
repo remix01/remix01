@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   description:
     'Najdite preverjenega mojstra ali postanite LiftGO partner. AI Concierge pomaga izbrati pravo kategorijo in oceno cene.',
   alternates: {
-    canonical: 'https://www.liftgo.net',
+    canonical: 'https://liftgo.net',
   },
 }
 
@@ -29,7 +29,7 @@ const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'LiftGO',
-  url: 'https://www.liftgo.net',
+  url: 'https://liftgo.net',
   description:
     'Platforma za iskanje zanesljivih obrtnikov po vsej Sloveniji. Brezplačno povpraševanje, odziv v 24 urah.',
   inLanguage: 'sl-SI',

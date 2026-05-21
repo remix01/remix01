@@ -154,6 +154,12 @@ const nextConfig: NextConfig = {
   // ═══════════════════════════════════════════════════════════════════════════
   async redirects() {
     return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.liftgo.net' }],
+        destination: 'https://liftgo.net/:path*',
+        permanent: true,
+      },
       // Customer route consolidation: legacy /dashboard/stranka routes with
       // confirmed canonical replacements now redirect to flat customer routes.
       {
@@ -183,11 +189,6 @@ const nextConfig: NextConfig = {
       {
         source: '/apple-touch-icon-precomposed.png',
         destination: '/icons/icon-180x180.png',
-        permanent: false,
-      },
-      {
-        source: '/blog/kako-izbrati-elektroinatalaterja',
-        destination: '/blog/kako-izbrati-elektroinatalaterja',
         permanent: false,
       },
       {
@@ -231,7 +232,7 @@ const nextConfig: NextConfig = {
       {
         source: '/api/(.*)',
         headers: [
-          { key: 'Access-Control-Allow-Origin', value: 'https://www.liftgo.net' },
+          { key: 'Access-Control-Allow-Origin', value: 'https://liftgo.net' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         ],

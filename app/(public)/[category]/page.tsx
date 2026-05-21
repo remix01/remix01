@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { listObrtniki } from '@/lib/dal/profiles'
@@ -66,7 +67,11 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       description: meta.openGraph.description,
       type: 'website',
       locale: 'sl_SI',
-      siteName: 'LiftGO'
+      siteName: 'LiftGO',
+      url: `https://liftgo.net/${category.slug}`
+    },
+    alternates: {
+      canonical: `https://liftgo.net/${category.slug}`
     }
   }
 }
@@ -89,11 +94,11 @@ export default async function CategoryPage(props: Props) {
   }
   
   const resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
-  const category = resolvedCategory || {
-    id: `fallback:${normalized.category}`,
-    name: humanizeSlug(normalized.category),
-    slug: normalized.category,
+  if (!resolvedCategory) {
+    notFound()
   }
+
+  const category = resolvedCategory
 
   // Fetch verified obrtniki for this category
   const obrtniki = resolvedCategory
