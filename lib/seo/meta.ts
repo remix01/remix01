@@ -67,10 +67,11 @@ export function generateLocalBusinessSchema(params: {
 export function generateFAQSchema(faqs: {
   question: string
   answer: string
-}[]) {
+}[], canonicalUrl?: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
+    ...(canonicalUrl ? { '@id': canonicalUrl + '#faq', url: canonicalUrl } : {}),
     'mainEntity': faqs.map((faq: any) => ({
       '@type': 'Question',
       'name': faq.question,
