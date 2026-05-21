@@ -137,12 +137,15 @@ export default function PonudbesPage() {
 
       if (aErr) console.error('[v0] Arhiv query error:', aErr)
 
-      setNovaPovprasevanja(nP || [])
-      setPoslane(pP || [])
-      setArhiv(aP || [])
-      setNovaHasMore((nP?.length ?? 0) > PAGE_SIZE)
-      setPoslaneHasMore((pP?.length ?? 0) > PAGE_SIZE)
-      setArhivHasMore((aP?.length ?? 0) > PAGE_SIZE)
+      const nArr = nP || []
+      const pArr = pP || []
+      const aArr = aP || []
+      setNovaHasMore(nArr.length > PAGE_SIZE)
+      setPoslaneHasMore(pArr.length > PAGE_SIZE)
+      setArhivHasMore(aArr.length > PAGE_SIZE)
+      setNovaPovprasevanja(nArr.slice(0, PAGE_SIZE))
+      setPoslane(pArr.slice(0, PAGE_SIZE))
+      setArhiv(aArr.slice(0, PAGE_SIZE))
       setNovaPage(0)
       setPoslanePage(0)
       setArhivPage(0)
@@ -158,7 +161,7 @@ export default function PonudbesPage() {
     setLoadingMore(true)
     try {
       const nextPage = novaPage + 1
-      const from = (nextPage) * PAGE_SIZE + nextPage
+      const from = nextPage * PAGE_SIZE
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
@@ -192,8 +195,9 @@ export default function PonudbesPage() {
 
       const { data } = await query.order('created_at', { ascending: false }).range(from, from + PAGE_SIZE)
       if (data) {
-        setNovaPovprasevanja(prev => [...prev, ...data])
-        setNovaHasMore(data.length > PAGE_SIZE)
+        const hasMore = data.length > PAGE_SIZE
+        setNovaPovprasevanja(prev => [...prev, ...data.slice(0, PAGE_SIZE)])
+        setNovaHasMore(hasMore)
         setNovaPage(nextPage)
       }
     } finally {
