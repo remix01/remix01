@@ -43,6 +43,7 @@ export async function generateStaticParams() {
           category: category.slug,
           city: city.slug
         })
+        url: `https://liftgo.net/${category.slug}/${city.slug}`
       }
     }
     return params
@@ -85,12 +86,14 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       title: meta.title,
       description: meta.description,
       keywords: meta.keywords,
+      alternates: { canonical: `https://liftgo.net/${category.slug}/${city.slug}` },
       openGraph: {
         title: meta.openGraph.title,
         description: meta.openGraph.description,
         type: 'website',
         locale: 'sl_SI',
-        siteName: 'LiftGO'
+        siteName: 'LiftGO',
+        url: `https://liftgo.net/${category.slug}/${city.slug}`
       }
     }
   } catch (error) {
@@ -216,7 +219,7 @@ export default async function CategoryCityPage(props: Props) {
   }
 
   if (!resolvedCategory || !resolvedCity) {
-    console.info('[category-city-page] fallback_route_render', {
+    console.info('[category-city-page] route_not_found', {
       pathname,
       params,
       found: true,
@@ -224,6 +227,7 @@ export default async function CategoryCityPage(props: Props) {
       deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
       region: process.env.VERCEL_REGION,
     })
+    notFound()
   }
 
   const fallbackResult = {
@@ -363,6 +367,20 @@ export default async function CategoryCityPage(props: Props) {
                 Oddaj brezplačno povpraševanje <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
+          </div>
+        </section>
+
+        <section className="py-10 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-2xl font-bold mb-4">{category.name} storitve v mestu {city.name}</h2>
+            <p className="text-gray-700 max-w-4xl mb-6">
+              Za lokalne projekte v mestu {city.name} lahko primerjate profile, odzivne čase in ponudbe izvajalcev.
+              V opisu povpraševanja navedite obseg dela, željen termin in posebnosti lokacije, da dobite bolj relevantne ponudbe.
+            </p>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <Link href={`/${normalized.category}`} className="underline text-blue-700">Nazaj na {category.name} po Sloveniji</Link>
+              <Link href="/novo-povprasevanje" className="underline text-blue-700">Oddaj povpraševanje v mestu {city.name}</Link>
+            </div>
           </div>
         </section>
 

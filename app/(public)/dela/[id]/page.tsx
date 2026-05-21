@@ -23,10 +23,14 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     return { title: 'LiftGO' }
   }
 
+  const canonicalStatus = toCanonicalLeadStatus(job.status)
+
   return {
     title: `${job.title} v ${job.location_city} | LiftGO`,
     description: `${job.title} — ${job.description}`,
     keywords: `${job.title}, ${job.category?.name}, ${job.location_city}`,
+    alternates: { canonical: `https://liftgo.net/dela/${job.id}` },
+    robots: canonicalStatus === 'cancelled' || canonicalStatus === 'completed' ? { index: false, follow: true } : undefined,
     openGraph: {
       title: `${job.title} | LiftGO`,
       description: job.description,

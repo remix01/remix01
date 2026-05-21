@@ -25,6 +25,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     title: `${obrtnik.business_name} | LiftGO`,
     description: `${obrtnik.description || 'Preverjeni obrtnik'} — Ocene: ${obrtnik.avg_rating.toFixed(1)}/5`,
     keywords: `${obrtnik.business_name}, ${obrtnik.profiles.location_city}, obrtnik`,
+    alternates: { canonical: `https://liftgo.net/obrtniki/${obrtnik.id}` },
     openGraph: {
       title: `${obrtnik.business_name} | LiftGO`,
       description: obrtnik.description || 'Preverjeni obrtnik',
@@ -89,29 +90,27 @@ export default async function ObrtnikProfilePage(props: Props) {
     getReviews(params.id),
   ])
 
-  const schema = {
+  const hasLocalBusinessData = Boolean(obrtnik.business_name && obrtnik.profiles?.location_city)
+  const schema = hasLocalBusinessData ? {
     '@context': 'https://schema.org',
-    '@type': ['Person', 'LocalBusiness'],
+    '@type': 'LocalBusiness',
     'name': obrtnik.business_name,
+    'url': `https://liftgo.net/obrtniki/${obrtnik.id}`,
     'areaServed': {
       '@type': 'City',
-      'name': obrtnik.profiles.location_city || 'Slovenija',
+      'name': obrtnik.profiles.location_city,
       'addressCountry': 'SI',
     },
-    'aggregateRating': {
-      '@type': 'AggregateRating',
-      'ratingValue': obrtnik.avg_rating.toFixed(1),
-      'bestRating': '5',
-      'worstRating': '1',
-    },
-  }
+  } : null
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
+      {schema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      )}
 
       <Breadcrumb
         items={[
