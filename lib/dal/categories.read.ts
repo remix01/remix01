@@ -32,7 +32,7 @@ export async function getActiveCategoriesPublic(): Promise<Category[]> {
     return []
   }
 
-  return data
+  return data as Category[]
 }
 
 export async function getActiveCategories(): Promise<Category[]> {
