@@ -18,7 +18,6 @@ export default function robots(): MetadataRoute.Robots {
           '/profil/',
           '/obvestila/',
           '/povprasevanja/',
-          '/jobs/',
           '/novo-povprasevanje/',
           '/ocena/',
           '/sandbox',
