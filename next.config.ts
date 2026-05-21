@@ -177,6 +177,13 @@ const nextConfig: NextConfig = {
         destination: '/sporocila',
         permanent: true,
       },
+      // Marketplace entity consolidation: legacy public detail route
+      // now canonicalized to /dela/:id to reduce duplicate crawl surface.
+      {
+        source: '/jobs/:id',
+        destination: '/dela/:id',
+        permanent: true,
+      },
       // TODO(route-consolidation): Keep legacy detail/profile routes until
       // canonical parity is confirmed:
       // - /dashboard/stranka/povprasevanja/:id
