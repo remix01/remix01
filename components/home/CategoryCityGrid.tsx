@@ -24,6 +24,7 @@ interface CategoryCityGridProps {
 }
 
 export function CategoryCityGrid({ categories: sourceCategories = fallbackCategories }: CategoryCityGridProps) {
+  const hasDirectoryCategories = sourceCategories.length > 0
   const renderedCategories = sourceCategories.length > 0 ? sourceCategories : fallbackCategories
 
   return (
@@ -34,7 +35,7 @@ export function CategoryCityGrid({ categories: sourceCategories = fallbackCatego
           {renderedCategories.map((item) => (
             <Link
               key={item.slug}
-              href={`/${item.slug}`}
+              href={hasDirectoryCategories ? `/${item.slug}` : `/mojstri?category=${encodeURIComponent(item.slug)}`}
               className="min-h-11 rounded-lg border px-3 py-2 text-sm hover:bg-muted"
             >
               {item.label}
