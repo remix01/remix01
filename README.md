@@ -87,6 +87,7 @@ LiftGO offers two main plans for craftsmen:
 |------|------------|--------------|
 | **START** | 10% | €0/month |
 | **PRO** | 5% | €29/month |
+| **ELITE** | 0% | €79/month |
 
 *(Includes priority listing, CRM tools, and more.)*
 
@@ -102,8 +103,8 @@ LiftGO offers two main plans for craftsmen:
 
 ## 📍 Contact
 
-**LiftGO d.o.o.**  
-Kuraltova ulica 12,  
+**LiftGO**  
+Poslovna cona.  
 4208 Šenčur, Slovenia  
 📧 info@liftgo.net  
 🌐 https://liftgo.net
