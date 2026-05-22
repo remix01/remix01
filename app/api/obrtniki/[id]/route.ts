@@ -70,7 +70,7 @@ export async function PATCH(
         html: `
           <h2>Čestitamo ${ime}!</h2>
           <p>Vaš profil je bil verificiran. Zdaj boste prejemali povpraševanja.</p>
-          <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/dashboard">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL}/partner-dashboard">
             Odprite dashboard →
           </a>
         `,

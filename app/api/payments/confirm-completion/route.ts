@@ -150,7 +150,7 @@ async function handler(request: NextRequest) {
                 <tr><td style="padding:8px;color:#64748b;">Status:</td><td style="padding:8px;">Sproščeno na vaš Stripe račun</td></tr>
               </table>
               <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
-              <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="${process.env.NEXT_PUBLIC_APP_URL}/obrtnik/dashboard" style="color:#0d9488;">Odpri dashboard</a></p>
+              <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="${process.env.NEXT_PUBLIC_APP_URL}/partner-dashboard" style="color:#0d9488;">Odpri dashboard</a></p>
             </div>
           `,
         }).catch(err => console.error('[confirm-completion] Craftworker email failed:', err))
