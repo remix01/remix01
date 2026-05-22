@@ -2,31 +2,30 @@
 
 import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
-import { FileText, TrendingUp, Clock, DollarSign } from 'lucide-react'
+import { FileText, TrendingUp, Star, Inbox } from 'lucide-react'
 
 export function PartnerStats({
   offers,
+  openRequestsCount,
+  averageRating,
 }: {
   offers: any[]
+  openRequestsCount: number
+  averageRating: number
 }) {
   const [stats, setStats] = useState({
-    totalOffers: 0,
     activeOffers: 0,
-    totalValue: 0,
-    avgPrice: 0,
+    acceptedOffers: 0,
   })
 
   useEffect(() => {
     const calculateStats = () => {
       const active = offers.filter((o) => o.status === 'poslana').length
-      const total = offers.reduce((sum, o) => sum + (o.price_estimate || 0), 0)
-      const avg = offers.length > 0 ? total / offers.length : 0
+      const accepted = offers.filter((o) => o.status === 'sprejeta').length
 
       setStats({
-        totalOffers: offers.length,
         activeOffers: active,
-        totalValue: total,
-        avgPrice: avg,
+        acceptedOffers: accepted,
       })
     }
 
@@ -35,28 +34,28 @@ export function PartnerStats({
 
   const statCards = [
     {
-      icon: FileText,
-      label: 'Skupna ponudb',
-      value: stats.totalOffers,
-      color: 'text-blue-500',
-    },
-    {
       icon: TrendingUp,
       label: 'Aktivne ponudbe',
       value: stats.activeOffers,
       color: 'text-green-500',
     },
     {
-      icon: DollarSign,
-      label: 'Povprečna cena',
-      value: `€${stats.avgPrice.toFixed(2)}`,
+      icon: FileText,
+      label: 'Sprejete ponudbe',
+      value: stats.acceptedOffers,
       color: 'text-amber-500',
     },
     {
-      icon: Clock,
-      label: 'Skupna vrednost',
-      value: `€${stats.totalValue.toFixed(2)}`,
+      icon: Star,
+      label: 'Povprečna ocena',
+      value: averageRating > 0 ? averageRating.toFixed(1) : '—',
       color: 'text-purple-500',
+    },
+    {
+      icon: Inbox,
+      label: 'Odprta povpraševanja',
+      value: openRequestsCount,
+      color: 'text-blue-500',
     },
   ]
 
