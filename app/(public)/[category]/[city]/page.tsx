@@ -12,10 +12,8 @@ import { FAQSection } from '@/components/seo/faq-section'
 import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { buildSeoContent, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
-import { fetchWithRetry } from '@/lib/fetchWithRetry'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
 import { resolveMarketplaceIntent } from '@/lib/marketplace/resolve-marketplace-intent'
-import { env } from '@/lib/env'
 import { notFound } from 'next/navigation'
 
 interface Props {
@@ -116,69 +114,6 @@ function humanizeSlug(slug: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-async function fetchDirectoryData(category: string, city: string) {
-  const pathname = `/${category}/${city}`
-  const endpoint = `/pro/${encodeURIComponent(category)}/${encodeURIComponent(city)}`
-  const baseCandidates = Array.from(new Set([
-    process.env.DIRECTORY_API_BASE_URL,
-    env.NEXT_PUBLIC_APP_URL,
-    'https://liftgo.net',
-    'https://api.liftgo.net',
-  ]
-    .filter((value): value is string => !!value)
-    .map(value => value.replace(/\/$/, ''))))
-
-  let lastResult: Awaited<ReturnType<typeof fetchWithRetry<{
-    providers?: Array<Record<string, unknown>>
-    category?: string
-    city?: string
-  }>>> | null = null
-
-  for (const baseUrl of baseCandidates) {
-    try {
-      const apiUrl = `${baseUrl}${endpoint}`
-      const result = await fetchWithRetry<{
-        providers?: Array<Record<string, unknown>>
-        category?: string
-        city?: string
-      }>(apiUrl, {
-        retries: 2,
-        timeoutMs: 2500,
-        initialDelayMs: 250,
-        next: { revalidate },
-        requestLabel: `${pathname}@${baseUrl}`,
-      })
-
-      if (result.ok) {
-        return result
-      }
-
-      lastResult = result
-      const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout' || result.reason === 'invalid_json'
-      if (!canTryNextBase) {
-        return result
-      }
-    } catch (error) {
-      console.warn('[fetchDirectoryData] unexpected error', {
-        baseUrl,
-        pathname,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-
-  return lastResult ?? {
-    ok: false,
-    status: null,
-    attempt: 0,
-    durationMs: 0,
-    isMissing: false,
-    isTransient: true,
-    reason: 'unknown_error',
-    cacheStatus: null,
-  }
-}
-
 export default async function CategoryCityPage(props: Props) {
   const params = await props.params
   const normalized = normalizeDirectoryParams(params.category, params.city)
@@ -215,39 +150,6 @@ export default async function CategoryCityPage(props: Props) {
     notFound()
   }
 
-  const fallbackResult = {
-    ok: false as const,
-    status: null,
-    attempt: 0,
-    durationMs: 0,
-    isMissing: false,
-    isTransient: true,
-    reason: 'unknown_error',
-    cacheStatus: null,
-  }
-  let externalResult: Awaited<ReturnType<typeof fetchDirectoryData>> = fallbackResult
-  try {
-    externalResult = await fetchDirectoryData(normalized.category, citySlug)
-  } catch (error) {
-    console.error('[category-city-page] fetchDirectoryData failed', {
-      pathname,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-
-  if (!externalResult.ok && externalResult.isMissing) {
-    console.info('[category-city-page] external_missing_continue', {
-      pathname,
-      params,
-      found: true,
-      reason_not_found: externalResult.reason,
-      status: externalResult.status,
-      fetchDurationMs: externalResult.durationMs,
-      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-      region: process.env.VERCEL_REGION,
-    })
-  }
-
   let obrtniki = [] as Awaited<ReturnType<typeof listObrtnikiPublic>>
   let dataWarning: string | null = null
 
@@ -274,18 +176,14 @@ export default async function CategoryCityPage(props: Props) {
     })
   }
 
-  if (!externalResult.ok && externalResult.isTransient && !dataWarning) {
-    dataWarning = 'Stran je trenutno prikazana v varnem načinu zaradi začasnih težav s podatkovnim virom.'
-  }
-
   console.info('[category-city-page] render', {
     pathname,
     params,
     found: true,
     reason_not_found: 'none',
-    fetchDurationMs: externalResult.durationMs,
-    externalStatus: externalResult.status,
-    externalSourceOk: externalResult.ok,
+    fetchDurationMs: null,
+    externalStatus: null,
+    externalSourceOk: null,
     deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
     region: process.env.VERCEL_REGION,
   })
@@ -384,14 +282,22 @@ export default async function CategoryCityPage(props: Props) {
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-lg text-gray-600 mb-6">
-                  Trenutno ni {category.name.toLowerCase()} mojstrov v {city.name}
+                <h3 className="text-2xl font-semibold mb-4">{category.name} v {city.name}</h3>
+                <p className="text-lg text-gray-600 mb-3">
+                  Trenutno še ne prikazujemo izvajalcev za točno kombinacijo, vendar lahko oddate povpraševanje in LiftGO vam pomaga najti primernega mojstra.
                 </p>
-                <Link href="/za-obrtnike">
-                  <Button variant="outline" size="lg">
-                    Postani prvi partnerski mojster v mestu
-                  </Button>
-                </Link>
+                <p className="text-sm text-gray-500 mb-6">Naša ekipa in Concierge vam pomagata najti ustreznega izvajalca v najkrajšem času.</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link href="/novo-povprasevanje">
+                    <Button size="lg">Oddaj povpraševanje</Button>
+                  </Link>
+                  <Link href="/mojstri">
+                    <Button variant="outline" size="lg">Prebrskaj mojstre</Button>
+                  </Link>
+                  <Link href="/">
+                    <Button variant="ghost" size="lg">Odpri LiftGO Concierge</Button>
+                  </Link>
+                </div>
               </div>
             )}
           </div>
