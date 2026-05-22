@@ -14,6 +14,7 @@ import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { buildSeoContent, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
 import { fetchWithRetry } from '@/lib/fetchWithRetry'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
+import { resolveMarketplaceIntent } from '@/lib/marketplace/resolve-marketplace-intent'
 import { env } from '@/lib/env'
 import { notFound } from 'next/navigation'
 
@@ -24,11 +25,11 @@ interface Props {
 export const revalidate = 300
 export const dynamicParams = true
 
+const RESERVED_SLUGS = RESERVED_DIRECTORY_SLUGS
+
 // Slugs that must never be treated as category/city pages — static assets,
 // framework internals, and common scanner/bot targets that would otherwise
 // trigger DB calls and cause static-to-dynamic rendering errors.
-const RESERVED_SLUGS = RESERVED_DIRECTORY_SLUGS
-
 export async function generateStaticParams() {
   // Generate all combinations of category slugs × city slugs
   try {
@@ -184,25 +185,13 @@ export default async function CategoryCityPage(props: Props) {
   const citySlug = normalized.city ?? ''
   const pathname = `/${normalized.category}/${citySlug}`
 
-  // Reject reserved slugs and dotfile-style segments (e.g. /.aws/credentials, /actuator/env)
-  if (
-    RESERVED_SLUGS.has(normalized.category) ||
-    normalized.category.includes('.') ||
-    citySlug.includes('.')
-  ) {
+  const intent = await resolveMarketplaceIntent(params.category, params.city)
+  if (intent.kind === 'scanner_or_reserved' || intent.kind === 'unknown_invalid') {
     notFound()
   }
 
-  let resolvedCategory: Awaited<ReturnType<typeof resolveCategorySlugOrFallback>> = null
-  try {
-    resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
-  } catch (error) {
-    console.error('[category-city-page] resolveCategorySlugOrFallback failed', {
-      pathname,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-  const resolvedCity = resolveCitySlugOrFallback(citySlug)
+  const resolvedCategory = intent.category
+  const resolvedCity = intent.city
   const category = resolvedCategory || {
     id: `fallback:${normalized.category}`,
     name: humanizeSlug(normalized.category),
