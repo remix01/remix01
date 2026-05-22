@@ -833,8 +833,12 @@ export async function dodajPartnerja(data: {
     const subscriptionTier = data.subscription_tier || 'start'
     const paymentConfirmed = Boolean(data.payment_confirmed)
 
-    if (!businessName || !email) {
-      return { success: false, error: 'E-mail in ime podjetja sta obvezna.' }
+    if (!businessName || businessName.trim().length === 0) {
+      return { success: false, error: 'Ime podjetja je obvezno.' }
+    }
+
+    if (!email) {
+      return { success: false, error: 'E-mail je obvezen.' }
     }
 
     if (subscriptionTier !== 'start' && !paymentConfirmed) {
