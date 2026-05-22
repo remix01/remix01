@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { generateCategoryMeta, generateLocalBusinessSchema, generateServiceSchema } from '@/lib/seo/meta'
 import { getActiveCategoriesPublic } from '@/lib/dal/categories'
-import { listObrtnikiPublic } from '@/lib/dal/profiles'
+
 import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
 import { ObrtnikCard } from '@/components/obrtnik-card'
 import { Button } from '@/components/ui/button'
@@ -13,9 +13,9 @@ import { RelatedCategories } from '@/components/seo/related-categories'
 import { CategoryCityFallback } from '@/components/seo/CategoryCityFallback'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { buildSeoContent, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
-import { fetchWithRetry } from '@/lib/fetchWithRetry'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
-import { env } from '@/lib/env'
+import { safeProviderLookup } from '@/lib/marketplace/provider-lookup'
+import { resolveMarketplaceIntent } from '@/lib/marketplace/resolve-marketplace-intent'
 import { notFound } from 'next/navigation'
 
 interface Props {
@@ -72,6 +72,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       return { title: 'LiftGO' }
     }
 
+    const providerResult = await safeProviderLookup({ categoryId: category.id, cityName: city.name, limit: 1 })
+
     const meta = generateCategoryMeta({
       categoryName: category.name,
       categorySlug: category.slug,
@@ -83,6 +85,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       title: meta.title,
       description: meta.description,
       keywords: meta.keywords,
+      robots: providerResult.ok && !providerResult.hasProviders ? { index: false, follow: true } : undefined,
       alternates: { canonical: `https://liftgo.net/${category.slug}/${city.slug}` },
       openGraph: {
         title: meta.openGraph.title,
@@ -116,69 +119,6 @@ function humanizeSlug(slug: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-async function fetchDirectoryData(category: string, city: string) {
-  const pathname = `/${category}/${city}`
-  const endpoint = `/pro/${encodeURIComponent(category)}/${encodeURIComponent(city)}`
-  const baseCandidates = Array.from(new Set([
-    process.env.DIRECTORY_API_BASE_URL,
-    env.NEXT_PUBLIC_APP_URL,
-    'https://liftgo.net',
-    'https://api.liftgo.net',
-  ]
-    .filter((value): value is string => !!value)
-    .map(value => value.replace(/\/$/, ''))))
-
-  let lastResult: Awaited<ReturnType<typeof fetchWithRetry<{
-    providers?: Array<Record<string, unknown>>
-    category?: string
-    city?: string
-  }>>> | null = null
-
-  for (const baseUrl of baseCandidates) {
-    try {
-      const apiUrl = `${baseUrl}${endpoint}`
-      const result = await fetchWithRetry<{
-        providers?: Array<Record<string, unknown>>
-        category?: string
-        city?: string
-      }>(apiUrl, {
-        retries: 2,
-        timeoutMs: 2500,
-        initialDelayMs: 250,
-        next: { revalidate },
-        requestLabel: `${pathname}@${baseUrl}`,
-      })
-
-      if (result.ok) {
-        return result
-      }
-
-      lastResult = result
-      const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout' || result.reason === 'invalid_json'
-      if (!canTryNextBase) {
-        return result
-      }
-    } catch (error) {
-      console.warn('[fetchDirectoryData] unexpected error', {
-        baseUrl,
-        pathname,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-
-  return lastResult ?? {
-    ok: false,
-    status: null,
-    attempt: 0,
-    durationMs: 0,
-    isMissing: false,
-    isTransient: true,
-    reason: 'unknown_error',
-    cacheStatus: null,
-  }
-}
-
 export default async function CategoryCityPage(props: Props) {
   const params = await props.params
   const normalized = normalizeDirectoryParams(params.category, params.city)
@@ -194,114 +134,38 @@ export default async function CategoryCityPage(props: Props) {
     notFound()
   }
 
-  let resolvedCategory: Awaited<ReturnType<typeof resolveCategorySlugOrFallback>> = null
-  try {
-    resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
-  } catch (error) {
-    console.error('[category-city-page] resolveCategorySlugOrFallback failed', {
-      pathname,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
+  const resolvedCategory = await resolveCategorySlugOrFallback(normalized.category).catch(() => null)
   const resolvedCity = resolveCitySlugOrFallback(citySlug)
-  const category = resolvedCategory || {
-    id: `fallback:${normalized.category}`,
-    name: humanizeSlug(normalized.category),
-    slug: normalized.category,
-  }
-  const city = resolvedCity || {
-    name: humanizeSlug(citySlug),
-    slug: citySlug,
-    region: 'Slovenija',
-  }
 
-  if (!resolvedCategory || !resolvedCity) {
-    console.info('[category-city-page] route_not_found', {
-      pathname,
-      params,
-      found: true,
-      reason_not_found: 'category_or_city_missing_fallback',
-      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-      region: process.env.VERCEL_REGION,
-    })
+  const initialIntent = await resolveMarketplaceIntent({
+    categorySlug: normalized.category,
+    citySlug,
+  })
+
+  if (initialIntent.kind === 'scanner_or_reserved' || initialIntent.kind === 'unknown_invalid') {
     notFound()
   }
 
-  const fallbackResult = {
-    ok: false as const,
-    status: null,
-    attempt: 0,
-    durationMs: 0,
-    isMissing: false,
-    isTransient: true,
-    reason: 'unknown_error',
-    cacheStatus: null,
-  }
-  let externalResult: Awaited<ReturnType<typeof fetchDirectoryData>> = fallbackResult
-  try {
-    externalResult = await fetchDirectoryData(normalized.category, citySlug)
-  } catch (error) {
-    console.error('[category-city-page] fetchDirectoryData failed', {
-      pathname,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
+  const category = resolvedCategory || { id: `fallback:${normalized.category}`, name: humanizeSlug(normalized.category), slug: normalized.category }
+  const city = resolvedCity || { name: humanizeSlug(citySlug), slug: citySlug, region: 'Slovenija' }
 
-  if (!externalResult.ok && externalResult.isMissing) {
-    console.info('[category-city-page] external_missing_continue', {
-      pathname,
-      params,
-      found: true,
-      reason_not_found: externalResult.reason,
-      status: externalResult.status,
-      fetchDurationMs: externalResult.durationMs,
-      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-      region: process.env.VERCEL_REGION,
-    })
-  }
+  let providerResult = resolvedCategory && resolvedCity
+    ? await safeProviderLookup({ categoryId: resolvedCategory.id, cityName: resolvedCity.name, limit: 12 })
+    : { ok: false as const, error: 'category_or_city_missing' }
 
-  let obrtniki = [] as Awaited<ReturnType<typeof listObrtnikiPublic>>
-  let dataWarning: string | null = null
-
-  try {
-    if (resolvedCategory) {
-      obrtniki = await listObrtnikiPublic({
-        category_id: category.id,
-        location_city: city.name,
-        is_available: true,
-        limit: 12
-      })
-    }
-  } catch (error) {
-    dataWarning = 'Podatki o mojstrih so začasno nedosegljivi. Poskusite osvežiti stran čez nekaj trenutkov.'
-    console.warn('[category-city-page] obrtniki_fetch_failed', {
-      pathname,
-      params,
-      found: true,
-      reason_not_found: 'none',
-      fetchDurationMs: null,
-      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-      region: process.env.VERCEL_REGION,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-
-  if (!externalResult.ok && externalResult.isTransient && !dataWarning) {
-    dataWarning = 'Stran je trenutno prikazana v varnem načinu zaradi začasnih težav s podatkovnim virom.'
-  }
-
-  console.info('[category-city-page] render', {
-    pathname,
-    params,
-    found: true,
-    reason_not_found: 'none',
-    fetchDurationMs: externalResult.durationMs,
-    externalStatus: externalResult.status,
-    externalSourceOk: externalResult.ok,
-    deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-    region: process.env.VERCEL_REGION,
+  const intent = await resolveMarketplaceIntent({
+    categorySlug: normalized.category,
+    citySlug,
+    providerLookupOk: providerResult.ok,
+    hasProviders: providerResult.ok ? providerResult.hasProviders : false,
   })
 
+  if (intent.kind === 'scanner_or_reserved' || intent.kind === 'unknown_invalid') {
+    notFound()
+  }
+
+  const obrtniki = providerResult.ok ? providerResult.providers : []
+  const dataWarning = providerResult.ok ? null : 'Podatki o mojstrih so začasno nedosegljivi. Stran je prikazana v varnem načinu.'
   const nearbyCities = getNearbyCities(city.region, citySlug)
 
   // Get pricing for schema
@@ -413,6 +277,15 @@ export default async function CategoryCityPage(props: Props) {
           <CategoryCityFallback
             categoryName={category.name}
             cityName={city.name}
+            serviceSlug={normalized.category}
+            locationSlug={citySlug}
+            state={
+              intent.kind === 'provider_lookup_error' ? 'provider_lookup_error' :
+              intent.kind === 'category_not_listed_yet' ? 'category_not_listed_yet' :
+              intent.kind === 'location_not_listed_yet' ? 'location_not_listed_yet' :
+              intent.kind === 'global_market_coming_soon' || intent.kind === 'human_service_location_intent' ? 'global_market_coming_soon' :
+              'zero_providers'
+            }
             relatedCities={nearbyCities.map((nearbyCity) => ({
               href: `/${normalized.category}/${nearbyCity.slug}`,
               label: `${category.name.split(' ')[0]} ${nearbyCity.name}`
