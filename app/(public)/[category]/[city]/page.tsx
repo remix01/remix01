@@ -72,8 +72,6 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       return { title: 'LiftGO' }
     }
 
-    const hasProviders = (await listObrtnikiPublic({ category_id: category.id, location_city: city.name, is_available: true, limit: 1 })).length > 0
-
     const meta = generateCategoryMeta({
       categoryName: category.name,
       categorySlug: category.slug,
@@ -85,7 +83,6 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       title: meta.title,
       description: meta.description,
       keywords: meta.keywords,
-      robots: hasProviders ? undefined : { index: false, follow: true },
       alternates: { canonical: `https://liftgo.net/${category.slug}/${city.slug}` },
       openGraph: {
         title: meta.openGraph.title,
