@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
 import type { Offer } from '@/lib/types/offer'
 import { createClient } from '@/lib/supabase/client'
-import { getCompletionStatus } from '@/lib/partner/completion'
+import { getPartnerDashboardSummary } from '@/lib/partner/dashboard-summary'
 import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
 
 const OfferForm = dynamic(
@@ -110,22 +110,14 @@ function PartnerDashboardInner() {
       if (partnerData) {
         setPartner(partnerData)
 
-        const [status, offersRes, openCountRes] = await Promise.all([
-          getCompletionStatus(partnerData.id),
-          sb
-            .from('ponudbe')
-            .select('*')
-            .eq('obrtnik_id', partnerData.id)
-            .order('created_at', { ascending: false }),
-          sb
-            .from('povprasevanja')
-            .select('id', { count: 'exact', head: true })
-            .eq('status', 'odprto'),
-        ])
+        const summary = await getPartnerDashboardSummary({
+          userId: partnerData.id,
+          filters: parseDashboardFilters(searchParams),
+        })
 
-        if (status) setCompletionStatus(status)
-        if (offersRes.data) setOffers(offersRes.data as unknown as Offer[])
-        if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
+        if (summary.onboardingProgress) setCompletionStatus(summary.onboardingProgress)
+        setOffers(summary.offers as unknown as Offer[])
+        setOpenRequestsCount(summary.relevantOpenRequests)
       }
 
       setLoading(false)
@@ -134,6 +126,20 @@ function PartnerDashboardInner() {
     getPartner()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+
+  useEffect(() => {
+    const refreshSummary = async () => {
+      if (!partner?.id) return
+      const summary = await getPartnerDashboardSummary({
+        userId: partner.id,
+        filters: parseDashboardFilters(searchParams),
+      })
+      setOpenRequestsCount(summary.relevantOpenRequests)
+    }
+
+    refreshSummary()
+  }, [partner?.id, searchParams])
 
   useEffect(() => {
     const tab = searchParams.get('tab')
