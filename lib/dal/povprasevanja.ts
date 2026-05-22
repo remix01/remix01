@@ -131,7 +131,13 @@ export async function listPovprasevanja(filters?: PovprasevanjeFilters & {
 /**
  * Get povprasevanja for naročnik
  */
-export async function getNarocnikPovprasevanja(narocnikId: string, limit?: number): Promise<Povprasevanje[]> {
+export async function getNarocnikPovprasevanja(narocnikId: string, filters?: {
+  dateRange?: "7d" | "30d" | "90d" | "custom"
+  status?: string
+  category?: string
+  location?: string
+  limit?: number
+}): Promise<Povprasevanje[]> {
   const supabase = await createClient()
   
   let query = supabase
@@ -144,8 +150,27 @@ export async function getNarocnikPovprasevanja(narocnikId: string, limit?: numbe
     .eq('narocnik_id', narocnikId)
     .order('created_at', { ascending: false })
 
-  if (limit) {
-    query = query.limit(limit)
+  if (filters?.status) {
+    query = query.eq('status', toLegacyInquiryStatus(toCanonicalLeadStatus(filters.status)))
+  }
+
+  if (filters?.category) {
+    query = query.ilike('kategorija', `%${filters.category}%`)
+  }
+
+  if (filters?.location) {
+    query = query.ilike('location_city', `%${filters.location}%`)
+  }
+
+  if (filters?.dateRange && filters.dateRange !== "custom") {
+    const days = filters.dateRange === "30d" ? 30 : filters.dateRange === "90d" ? 90 : 7
+    const from = new Date()
+    from.setDate(from.getDate() - (days - 1))
+    query = query.gte('created_at', from.toISOString())
+  }
+
+  if (filters?.limit) {
+    query = query.limit(filters.limit)
   }
 
   const { data, error } = await query

@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Badge } from '@/components/ui/badge'
@@ -36,13 +38,15 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<AnalyticsSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const filterQuery = serializeDashboardFilters(parseDashboardFilters(searchParams))
 
   const fetchData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/admin/analytics/summary')
+      const response = await fetch(`/api/admin/analytics/summary?${filterQuery}`)
 
       console.log('[v0] Analytics API response status:', response.status)
 
@@ -87,7 +91,7 @@ export default function AdminDashboardPage() {
     // Auto-refresh every 60 seconds
     const interval = setInterval(fetchData, 60000)
     return () => clearInterval(interval)
-  }, [])
+  }, [filterQuery])
 
   if (loading) {
     return (
@@ -170,41 +174,41 @@ export default function AdminDashboardPage() {
 
       {/* Today's stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Link href={`/admin/povprasevanja?${filterQuery}`}><Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Povpraševanja danes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{todayStats.inquiries || 0}</div>
           </CardContent>
-        </Card>
+        </Card></Link>
 
-        <Card>
+        <Link href={`/admin/ponudbe?${filterQuery}`}><Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sprejete ponudbe</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{todayStats.conversions || 0}</div>
           </CardContent>
-        </Card>
+        </Card></Link>
 
-        <Card>
+        <Link href={`/admin/uporabniki?${filterQuery}`}><Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Aktivni uporabniki</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{todayStats.activeUsers || 0}</div>
           </CardContent>
-        </Card>
+        </Card></Link>
 
-        <Card>
+        <Link href={`/admin/analytics?${filterQuery}`}><Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Dogodki danes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{todayStats.events || 0}</div>
           </CardContent>
-        </Card>
+        </Card></Link>
       </div>
 
       {/* 7-day trend */}

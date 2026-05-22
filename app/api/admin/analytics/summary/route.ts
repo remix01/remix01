@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
+import { parseDashboardFilters } from '@/lib/dashboard/filters'
+import { toLegacyInquiryStatus } from '@/lib/lead-status'
 
 type EventName = 'inquiry_submitted' | 'offer_sent' | 'offer_accepted' | 'payment_completed'
 
@@ -112,18 +114,34 @@ async function getCountWithFallback(
   return { count: fallbackCount, source: 'fallback_tables' as const }
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     await requireAdmin()
+    const filters = parseDashboardFilters(request.nextUrl.searchParams)
+    const legacyInquiryStatus = filters.status ? toLegacyInquiryStatus(filters.status) : undefined
+    const applyInquiryFilters = <T>(query: T): T => {
+      let q: any = query
+      if (legacyInquiryStatus) q = q.eq('status', legacyInquiryStatus)
+      if (filters.category) q = q.ilike('kategorija', `%${filters.category}%`)
+      if (filters.location) q = q.ilike('location_city', `%${filters.location}%`)
+      return q as T
+    }
 
     const { todayStart, tomorrowStart, sevenDaysAgo } = getDateWindow()
 
     // Decide once: use analytics_events only if it has data in the 7-day window.
     // All metrics in this response use the same source so numbers are comparable.
-    const { count: analyticsCount, error: analyticsCheckError } = await supabaseAdmin
+    let analyticsCheckQuery = supabaseAdmin
       .from('analytics_events')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', sevenDaysAgo.toISOString())
+    if (filters.dateRange !== 'custom') {
+      const days = filters.dateRange === '30d' ? 30 : filters.dateRange === '90d' ? 90 : 7
+      const from = new Date()
+      from.setDate(from.getDate() - (days - 1))
+      analyticsCheckQuery = analyticsCheckQuery.gte('created_at', from.toISOString())
+    }
+    const { count: analyticsCount, error: analyticsCheckError } = await analyticsCheckQuery
     const useAnalyticsEvents = !analyticsCheckError && (analyticsCount ?? 0) > 0
 
     const todayInquiries = await getCountWithFallback(
@@ -204,9 +222,9 @@ export async function GET(_request: NextRequest) {
       })
     } else {
       // Build synthetic trend from core tables (fallback source)
-      const { data: inquiries } = await supabaseAdmin
+      const { data: inquiries } = await applyInquiryFilters(supabaseAdmin
         .from('povprasevanja')
-        .select('created_at')
+        .select('created_at'))
         .gte('created_at', sevenDaysAgo.toISOString())
 
       const { data: payments } = await supabaseAdmin
@@ -240,9 +258,9 @@ export async function GET(_request: NextRequest) {
         if (category) categoryCount[category] = (categoryCount[category] || 0) + 1
       })
     } else {
-      const { data: inquiries } = await supabaseAdmin
+      const { data: inquiries } = await applyInquiryFilters(supabaseAdmin
         .from('povprasevanja')
-        .select('kategorija')
+        .select('kategorija'))
         .gte('created_at', sevenDaysAgo.toISOString())
 
       inquiries?.forEach((row) => {

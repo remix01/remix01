@@ -13,6 +13,7 @@ import { CheckCircle2, Circle } from 'lucide-react'
 import type { Offer } from '@/lib/types/offer'
 import { createClient } from '@/lib/supabase/client'
 import { getCompletionStatus } from '@/lib/partner/completion'
+import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
 
 const OfferForm = dynamic(
   () => import('@/components/partner/offer-form').then((m) => m.OfferForm),
@@ -57,6 +58,7 @@ function PartnerDashboardInner() {
   const [completionStatus, setCompletionStatus] = useState<any>(null)
 
   const supabase = createClient()
+  const filterQuery = serializeDashboardFilters(parseDashboardFilters(searchParams))
 
   const handleOfferCreated = async (partnerId?: string) => {
     const id = partnerId ?? partner?.id
@@ -189,7 +191,7 @@ function PartnerDashboardInner() {
                   Pošljite ponudbo in pridobite nove stranke
                 </p>
               </div>
-              <Link href="/partner-dashboard/povprasevanja" className="flex-shrink-0">
+              <Link href={`/partner-dashboard/povprasevanja?${filterQuery}`} className="flex-shrink-0">
                 <Button className="gap-2 whitespace-nowrap">
                   Pregled povpraševanj →
                 </Button>
@@ -209,7 +211,7 @@ function PartnerDashboardInner() {
                 </p>
                 <div className="space-y-3">
                   {/* Item 1: Description */}
-                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard/account?${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasDescription ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -221,7 +223,7 @@ function PartnerDashboardInner() {
                   </Link>
 
                   {/* Item 2: Hourly Rate */}
-                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard/account?${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasHourlyRate ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -233,7 +235,7 @@ function PartnerDashboardInner() {
                   </Link>
 
                   {/* Item 3: Phone */}
-                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard/account?${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasPhone ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -245,7 +247,7 @@ function PartnerDashboardInner() {
                   </Link>
 
                   {/* Item 4: First Offer */}
-                  <Link href="/partner-dashboard?tab=new-offer" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard?tab=new-offer&${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasOffers ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -261,7 +263,10 @@ function PartnerDashboardInner() {
           )}
 
           {/* Horizontally scrollable tabs for mobile */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs value={activeTab} onValueChange={(tab) => {
+            setActiveTab(tab)
+            router.replace(`/partner-dashboard?tab=${tab}&${filterQuery}`)
+          }} className="space-y-6">
             <div className="overflow-x-auto scrollbar-hide">
               <TabsList className="flex-nowrap w-max">
                 <TabsTrigger value="overview">Pregled</TabsTrigger>
