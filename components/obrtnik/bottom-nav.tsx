@@ -6,7 +6,7 @@ import { Home, FileText, Briefcase, BarChart3, MessageCircle, User } from 'lucid
 
 function isNavActive(pathname: string, href: string): boolean {
   if (pathname === href) return true
-  if (href === '/obrtnik/dashboard') return false
+  if (href === '/partner-dashboard') return false
   return pathname.startsWith(`${href}/`)
 }
 
@@ -14,7 +14,7 @@ export function ObrtknikBottomNav() {
   const pathname = usePathname()
 
   const navLinks = [
-    { href: '/obrtnik/dashboard', icon: Home, label: 'Dom' },
+    { href: '/partner-dashboard', icon: Home, label: 'Dom' },
     { href: '/obrtnik/povprasevanja', icon: FileText, label: 'Povpraš.' },
     { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Ponudbe' },
     { href: '/obrtnik/sporocila', icon: MessageCircle, label: 'Sporočila' },
