@@ -294,7 +294,7 @@ export default async function CategoryCityPage(props: Props) {
                   <Link href="/mojstri">
                     <Button variant="outline" size="lg">Prebrskaj mojstre</Button>
                   </Link>
-                  <Link href="/ai-asistent">
+                  <Link href="/">
                     <Button variant="ghost" size="lg">Odpri LiftGO Concierge</Button>
                   </Link>
                 </div>

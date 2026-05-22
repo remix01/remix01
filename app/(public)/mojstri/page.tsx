@@ -3,6 +3,7 @@ import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { CatalogFilters } from '@/components/mojstri/CatalogFilters'
 import { MojsterCard } from '@/components/mojstri/MojsterCard'
 import { listVerifiedObrtniki, getActiveSpecialnosti, getActiveLokacije } from '@/lib/dal/obrtniki'
+import { getCityBySlug } from '@/lib/seo/locations'
 
 export const revalidate = 60 // ISR — osveži vsakih 60 sekund
 
@@ -31,7 +32,9 @@ export default async function MojstriCatalogPage(props: PageProps) {
   const maxPrice    = searchParams.max_price ? parseFloat(searchParams.max_price as string) : undefined
   const search      = searchParams.search    as string | undefined
   const kategorija  = (searchParams.category || searchParams.kategorija) as string | undefined
-  const lokacija    = (searchParams.location || searchParams.lokacija) as string | undefined
+  const cityParam   = searchParams.city as string | undefined
+  const cityFromSlug = cityParam ? getCityBySlug(cityParam)?.name : undefined
+  const lokacija    = (searchParams.location || searchParams.lokacija || cityFromSlug || cityParam) as string | undefined
 
   const [obrtniki, availableSpecialnosti, availableLokacije] = await Promise.all([
     listVerifiedObrtniki({ minRating, minPrice, maxPrice, search, kategorija, lokacija, limit: 50 }),
