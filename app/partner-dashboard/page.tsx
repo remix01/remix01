@@ -65,7 +65,7 @@ function PartnerDashboardInner() {
     if (!id) return
     const { data: offersData } = await supabase
       .from('ponudbe')
-      .select('*, obrtnik_categories(category_id)')
+      .select('*')
       .eq('obrtnik_id', id)
       .order('created_at', { ascending: false })
     if (offersData) {
