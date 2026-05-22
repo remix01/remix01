@@ -9,11 +9,12 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { FAQSection } from '@/components/seo/faq-section'
-import { RelatedCities } from '@/components/seo/related-cities'
 import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
+import { buildSeoContent, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
 import { fetchWithRetry } from '@/lib/fetchWithRetry'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
+import { resolveMarketplaceIntent } from '@/lib/marketplace/resolve-marketplace-intent'
 import { env } from '@/lib/env'
 import { notFound } from 'next/navigation'
 
@@ -24,18 +25,11 @@ interface Props {
 export const revalidate = 300
 export const dynamicParams = true
 
+const RESERVED_SLUGS = RESERVED_DIRECTORY_SLUGS
+
 // Slugs that must never be treated as category/city pages — static assets,
 // framework internals, and common scanner/bot targets that would otherwise
 // trigger DB calls and cause static-to-dynamic rendering errors.
-const RESERVED_SLUGS = new Set([
-  'images', 'icons', 'fonts', 'api', 'admin',
-  '_next', 'static', 'favicon.ico', 'robots.txt',
-  'sitemap.xml', 'sw.js', 'manifest.json',
-  'actuator', 'env', '__depproxyproof',
-  'wp-admin', 'wp-login', 'phpinfo', 'server-status',
-  'dashboard', 'partner-dashboard', 'auth',
-])
-
 export async function generateStaticParams() {
   // Generate all combinations of category slugs × city slugs
   try {
@@ -48,7 +42,6 @@ export async function generateStaticParams() {
           category: category.slug,
           city: city.slug
         })
-        url: `https://liftgo.net/${category.slug}/${city.slug}`
       }
     }
     return params
@@ -192,25 +185,13 @@ export default async function CategoryCityPage(props: Props) {
   const citySlug = normalized.city ?? ''
   const pathname = `/${normalized.category}/${citySlug}`
 
-  // Reject reserved slugs and dotfile-style segments (e.g. /.aws/credentials, /actuator/env)
-  if (
-    RESERVED_SLUGS.has(normalized.category) ||
-    normalized.category.includes('.') ||
-    citySlug.includes('.')
-  ) {
+  const intent = await resolveMarketplaceIntent(params.category, params.city)
+  if (intent.kind === 'scanner_or_reserved' || intent.kind === 'unknown_invalid') {
     notFound()
   }
 
-  let resolvedCategory: Awaited<ReturnType<typeof resolveCategorySlugOrFallback>> = null
-  try {
-    resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
-  } catch (error) {
-    console.error('[category-city-page] resolveCategorySlugOrFallback failed', {
-      pathname,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-  const resolvedCity = resolveCitySlugOrFallback(citySlug)
+  const resolvedCategory = intent.category
+  const resolvedCity = intent.city
   const category = resolvedCategory || {
     id: `fallback:${normalized.category}`,
     name: humanizeSlug(normalized.category),
@@ -312,6 +293,7 @@ export default async function CategoryCityPage(props: Props) {
   const nearbyCities = getNearbyCities(city.region, citySlug)
 
   // Get pricing for schema
+  const seoContent = buildSeoContent({ categoryName: category.name, categorySlug: category.slug, citySlug, cityName: city.name })
   const pricing = getPricingForCategory(normalized.category)
 
   // Generate schema markup
@@ -327,7 +309,7 @@ export default async function CategoryCityPage(props: Props) {
   const serviceSchema = generateServiceSchema({
     categoryName: category.name,
     cityName: city.name,
-    description: 'Preverjeni ' + category.name.toLowerCase() + ' mojstri v ' + city.name + ' s hirim odzivom in ocenami strank.',
+    description: seoContent.schemaDescription,
     minPrice: pricing.minHourly,
     maxPrice: pricing.maxHourly
   })
@@ -378,12 +360,11 @@ export default async function CategoryCityPage(props: Props) {
           <div className="max-w-6xl mx-auto px-4">
             <h2 className="text-2xl font-bold mb-4">{category.name} storitve v mestu {city.name}</h2>
             <p className="text-gray-700 max-w-4xl mb-6">
-              Za lokalne projekte v mestu {city.name} lahko primerjate profile, odzivne čase in ponudbe izvajalcev.
-              V opisu povpraševanja navedite obseg dela, željen termin in posebnosti lokacije, da dobite bolj relevantne ponudbe.
+              {seoContent.whatToExpect}
             </p>
             <div className="flex flex-wrap gap-3 text-sm">
               <Link href={`/${normalized.category}`} className="underline text-blue-700">Nazaj na {category.name} po Sloveniji</Link>
-              <Link href="/novo-povprasevanje" className="underline text-blue-700">Oddaj povpraševanje v mestu {city.name}</Link>
+              <Link href={getInquiryLink(normalized.category, citySlug)} className="underline text-blue-700">Oddaj povpraševanje v mestu {city.name}</Link>
             </div>
           </div>
         </section>
@@ -446,14 +427,20 @@ export default async function CategoryCityPage(props: Props) {
           categoryName={category.name}
           categorySlug={normalized.category}
           cityName={city.name}
+          canonicalPath={`https://liftgo.net/${normalized.category}/${citySlug}`}
+          items={seoContent.faqItems}
         />
 
-        {/* Related Cities */}
-        <RelatedCities
-          categorySlug={normalized.category}
-          categoryName={category.name}
-          currentCitySlug={citySlug}
-        />
+        <section className="py-10 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-2xl font-bold mb-6">{seoContent.relatedCitiesLabel}</h2>
+            <div className="flex flex-wrap gap-3">
+              {getRelatedCityLinks(normalized.category, citySlug).map((link) => (
+                <Link key={link.href} href={link.href} className="px-3 py-2 text-sm border rounded-md hover:bg-white">{link.label}</Link>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Related Categories */}
         <RelatedCategories

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getActiveCategories } from '@/lib/dal/categories'
+import { getRelatedCategoryLinks } from '@/lib/seo/programmatic-content'
 
 interface RelatedCategoriesProps {
   currentCategorySlug: string
@@ -14,9 +15,7 @@ export async function RelatedCategories({
     const categories = await getActiveCategories()
     
     // Filter out current category and get 6 related ones
-    const related = categories
-      .filter(cat => cat.slug !== currentCategorySlug)
-      .slice(0, 6)
+    const related = getRelatedCategoryLinks(categories, currentCategorySlug, citySlug)
 
     if (related.length === 0) {
       return null
@@ -31,21 +30,17 @@ export async function RelatedCategories({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {related.map(category => {
-              const href = citySlug
-                ? `/${category.slug}/${citySlug}`
-                : `/${category.slug}`
-
               return (
                 <Link
-                  key={category.id}
-                  href={href}
+                  key={category.href}
+                  href={category.href}
                   className="p-6 border rounded-lg hover:shadow-lg transition-shadow bg-white"
                 >
                   <h3 className="text-lg font-semibold mb-2">
-                    {category.name}
+                    {category.label}
                   </h3>
                   <p className="text-gray-600 text-sm mb-4">
-                    {category.description || 'Preverjeni strokovnjaki za ' + category.name.toLowerCase()}
+                    {'Preverjeni strokovnjaki za ' + category.label.toLowerCase()}
                   </p>
                   <span className="text-blue-600 font-medium text-sm hover:underline">
                     Preberi več →
