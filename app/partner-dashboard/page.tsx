@@ -65,7 +65,7 @@ function PartnerDashboardInner() {
     if (!id) return
     const { data: offersData } = await supabase
       .from('ponudbe')
-      .select('*')
+      .select('*, obrtnik_categories(category_id)')
       .eq('obrtnik_id', id)
       .order('created_at', { ascending: false })
     if (offersData) {
@@ -103,12 +103,16 @@ function PartnerDashboardInner() {
 
       const { data: partnerData } = await sb
         .from('obrtnik_profiles')
-        .select('*')
+        .select('*, obrtnik_categories(category_id)')
         .eq('id', user.id)
         .maybeSingle()
 
       if (partnerData) {
         setPartner(partnerData)
+
+        const partnerCategoryIds = (partnerData.obrtnik_categories ?? [])
+          .map((row: any) => row?.category_id)
+          .filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
 
         const [status, offersRes, openCountRes] = await Promise.all([
           getCompletionStatus(partnerData.id),
@@ -117,10 +121,18 @@ function PartnerDashboardInner() {
             .select('*')
             .eq('obrtnik_id', partnerData.id)
             .order('created_at', { ascending: false }),
-          sb
-            .from('povprasevanja')
-            .select('id', { count: 'exact', head: true })
-            .eq('status', 'odprto'),
+          (() => {
+            let query = sb
+              .from('povprasevanja')
+              .select('id', { count: 'exact', head: true })
+              .eq('status', 'odprto')
+
+            if (partnerCategoryIds.length > 0) {
+              query = query.in('category_id', partnerCategoryIds)
+            }
+
+            return query
+          })(),
         ])
 
         if (status) setCompletionStatus(status)
@@ -195,6 +207,20 @@ function PartnerDashboardInner() {
                 <Button className="gap-2 whitespace-nowrap">
                   Pregled povpraševanj →
                 </Button>
+              </Link>
+            </div>
+          </Card>
+
+          <Card className="mb-8 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/partner-dashboard/povprasevanja?${filterQuery}`}>
+                <Button variant="outline">Nova povpraševanja</Button>
+              </Link>
+              <Link href={`/partner-dashboard?tab=offers&${filterQuery}`}>
+                <Button variant="outline">Moje ponudbe</Button>
+              </Link>
+              <Link href={`/partner-dashboard?tab=overview&${filterQuery}`}>
+                <Button variant="outline">Statistika</Button>
               </Link>
             </div>
           </Card>
@@ -279,7 +305,11 @@ function PartnerDashboardInner() {
             </div>
 
             <TabsContent value="overview" className="space-y-6">
-              <PartnerStats offers={offers} />
+              <PartnerStats
+                offers={offers}
+                openRequestsCount={openRequestsCount}
+                averageRating={partner?.avg_rating ?? 0}
+              />
               <RouteOptimizerCard visits={offers} />
             </TabsContent>
 
