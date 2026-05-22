@@ -4,8 +4,9 @@ import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Briefcase, Star, TrendingUp, AlertCircle } from 'lucide-react'
+import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
 
-export default async function ObrtknikDashboardPage() {
+export default async function ObrtknikDashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const supabase = await createClient()
 
   // Check authentication
@@ -32,6 +33,8 @@ export default async function ObrtknikDashboardPage() {
   }
 
   const queryErrors: string[] = []
+  const filters = parseDashboardFilters(await searchParams)
+  const filterQuery = serializeDashboardFilters(filters)
 
   // Fetch stats
   const { count: activePonudbeCount, error: activeErr } = await supabase
@@ -107,7 +110,7 @@ export default async function ObrtknikDashboardPage() {
 
       {/* Open povpraševanja banner */}
       {openPovprasevanjaCount && openPovprasevanjaCount > 0 && (
-        <Link href="/obrtnik/povprasevanja">
+        <Link href={`/obrtnik/povprasevanja?${filterQuery}`}>
           <Card className="p-4 bg-primary/5 border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer">
             <p className="text-sm font-semibold text-primary">
               🔔 {openPovprasevanjaCount} povpraševanj čaka na vašo ponudbo →
@@ -168,7 +171,7 @@ export default async function ObrtknikDashboardPage() {
       <div className="md:hidden">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Hitre akcije</h2>
         <div className="flex gap-4 overflow-x-auto pb-2">
-          <Link href="/obrtnik/povprasevanja">
+          <Link href={`/obrtnik/povprasevanja?${filterQuery}`}>
             <Card className="p-6 min-w-[160px] hover:shadow-lg transition-shadow">
               <div className="flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
@@ -179,7 +182,7 @@ export default async function ObrtknikDashboardPage() {
             </Card>
           </Link>
 
-          <Link href="/obrtnik/ponudbe">
+          <Link href={`/obrtnik/ponudbe?${filterQuery}`}>
             <Card className="p-6 min-w-[160px] hover:shadow-lg transition-shadow">
               <div className="flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
