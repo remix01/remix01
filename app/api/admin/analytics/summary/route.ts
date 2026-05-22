@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireAdmin, toAdminAuthFailure } from '@/lib/admin-auth'
 import { parseDashboardFilters } from '@/lib/dashboard/filters'
+import { toLegacyInquiryStatus } from '@/lib/lead-status'
 
 type EventName = 'inquiry_submitted' | 'offer_sent' | 'offer_accepted' | 'payment_completed'
 
@@ -117,9 +118,10 @@ export async function GET(request: NextRequest) {
   try {
     await requireAdmin()
     const filters = parseDashboardFilters(request.nextUrl.searchParams)
+    const legacyInquiryStatus = filters.status ? toLegacyInquiryStatus(filters.status) : undefined
     const applyInquiryFilters = <T>(query: T): T => {
       let q: any = query
-      if (filters.status) q = q.eq('status', filters.status)
+      if (legacyInquiryStatus) q = q.eq('status', legacyInquiryStatus)
       if (filters.category) q = q.ilike('kategorija', `%${filters.category}%`)
       if (filters.location) q = q.ilike('location_city', `%${filters.location}%`)
       return q as T
