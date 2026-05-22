@@ -103,7 +103,7 @@ function PartnerDashboardInner() {
 
       const { data: partnerData } = await sb
         .from('obrtnik_profiles')
-        .select('*')
+        .select('*, obrtnik_categories(category_id)')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -205,6 +205,20 @@ function PartnerDashboardInner() {
             </div>
           </Card>
 
+          <Card className="mb-8 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/partner-dashboard/povprasevanja?${filterQuery}`}>
+                <Button variant="outline">Nova povpraševanja</Button>
+              </Link>
+              <Link href={`/partner-dashboard?tab=offers&${filterQuery}`}>
+                <Button variant="outline">Moje ponudbe</Button>
+              </Link>
+              <Link href={`/partner-dashboard?tab=overview&${filterQuery}`}>
+                <Button variant="outline">Statistika</Button>
+              </Link>
+            </div>
+          </Card>
+
           {/* Onboarding Checklist - Show only if completion < 80% */}
           {completionStatus && completionStatus.completionPercentage < 80 && (
             <Card className="mb-8 bg-blue-50 border-blue-200">
@@ -285,7 +299,11 @@ function PartnerDashboardInner() {
             </div>
 
             <TabsContent value="overview" className="space-y-6">
-              <PartnerStats offers={offers} />
+              <PartnerStats
+                offers={offers}
+                openRequestsCount={openRequestsCount}
+                averageRating={partner?.avg_rating ?? 0}
+              />
               <RouteOptimizerCard visits={offers} />
             </TabsContent>
 
