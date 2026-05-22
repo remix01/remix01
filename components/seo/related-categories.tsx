@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getActiveCategories } from '@/lib/dal/categories'
+import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { getRelatedCategoryLinks } from '@/lib/seo/programmatic-content'
 
 interface RelatedCategoriesProps {
@@ -12,7 +12,7 @@ export async function RelatedCategories({
   citySlug
 }: RelatedCategoriesProps) {
   try {
-    const categories = await getActiveCategories()
+    const categories = await getActiveCategoriesPublic()
     
     // Filter out current category and get 6 related ones
     const related = getRelatedCategoryLinks(categories, currentCategorySlug, citySlug)

@@ -20,8 +20,11 @@ export default function Error({
           <Button onClick={reset} variant="outline">
             Poskusi znova
           </Button>
+          <Link href="/novo-povprasevanje">
+            <Button>Oddaj povpraševanje</Button>
+          </Link>
           <Link href="/">
-            <Button>Domov</Button>
+            <Button variant="ghost">Domov</Button>
           </Link>
         </div>
       </div>
