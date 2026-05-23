@@ -91,7 +91,10 @@ export function withCronGuard(opts: CronGuardOptions, handler: Handler): Handler
     try {
       // ── 2. Window idempotency ─────────────────────────────────────────────
       if (windowKey && windowTtlSeconds && redis) {
-        const wKey = `cron:win:${windowKey()}`
+        // Key is scoped by jobName so jobs sharing the same window helper
+        // (e.g. detect-anomalies and risk-check both use cronWindow.halfDay)
+        // cannot suppress each other.
+        const wKey = `cron:win:${jobName}:${windowKey()}`
         const alreadyDone = await redis.get(wKey).catch(() => null)
         if (alreadyDone !== null) {
           cronLog('info', jobName, 'skip:window', { wKey })
@@ -101,14 +104,23 @@ export function withCronGuard(opts: CronGuardOptions, handler: Handler): Handler
 
       // ── 3. Overlap lock ───────────────────────────────────────────────────
       if (redis) {
-        const acquired = await redis
-          .set(lockKey, '1', { nx: true, ex: lockTtlSeconds })
-          .catch(() => null)
-        if (acquired === null) {
+        let acquired: string | null
+        let redisError = false
+        try {
+          acquired = await redis.set(lockKey, '1', { nx: true, ex: lockTtlSeconds })
+        } catch (err) {
+          // Network/Upstash error — distinct from NX contention.
+          // Proceed unlocked so a Redis outage does not silently drop jobs.
+          redisError = true
+          acquired = null
+          cronLog('warn', jobName, 'lock_redis_error:proceeding_unlocked', { err: String(err) })
+        }
+        if (!redisError && acquired === null) {
+          // NX returned null → another instance holds the lock
           cronLog('warn', jobName, 'skip:locked')
           return NextResponse.json({ ok: true, skipped: true, reason: 'already_running' })
         }
-        lockAcquired = true
+        if (!redisError) lockAcquired = true
       } else {
         cronLog('warn', jobName, 'no_redis:proceeding_unlocked')
       }
@@ -120,7 +132,7 @@ export function withCronGuard(opts: CronGuardOptions, handler: Handler): Handler
 
       // ── 5. Mark window complete (only on success) ─────────────────────────
       if (windowKey && windowTtlSeconds && redis && response.status < 400) {
-        const wKey = `cron:win:${windowKey()}`
+        const wKey = `cron:win:${jobName}:${windowKey()}`
         await redis.set(wKey, '1', { ex: windowTtlSeconds }).catch(() => null)
       }
 
