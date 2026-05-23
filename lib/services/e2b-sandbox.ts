@@ -183,7 +183,7 @@ export async function executeSandboxCode(
     }
     activeMap.set(input.sandboxId!, now)
     sessionTracker.set(input.userId, activeMap)
-    sandbox = await (Sandbox as any).connect(input.sandboxId, { apiKey: env.E2B_API_KEY })
+    sandbox = await (Sandbox as any).connect(input.sandboxId, { apiKey: env.E2B_API_KEY, timeoutMs: policy.maxRuntimeMs })
   } else {
     if (activeMap.size >= policy.maxActiveSandboxes) {
       await logger.onBlocked?.({ userId: input.userId, reason: 'CONCURRENCY_LIMIT', active: activeMap.size, limit: policy.maxActiveSandboxes, ts: new Date().toISOString() })

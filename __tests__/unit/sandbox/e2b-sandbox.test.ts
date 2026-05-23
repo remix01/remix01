@@ -48,6 +48,16 @@ describe('e2b sandbox service', () => {
       .rejects.toBeInstanceOf(SandboxPolicyError)
   })
 
+
+  it('passes policy timeout when reconnecting sandbox', async () => {
+    runMock.mockResolvedValue({ stdout: 'ok', stderr: '', exitCode: 0 })
+
+    await executeSandboxCode({ userId: 'u1', tier: 'start', code: 'print(1)', language: 'python' })
+    await executeSandboxCode({ userId: 'u1', tier: 'start', code: 'print(2)', language: 'python', sandboxId: 'sbx_1' })
+
+    expect(connectMock).toHaveBeenCalledWith('sbx_1', { apiKey: 'test-key', timeoutMs: 45_000 })
+  })
+
   it('enforces daily quota', async () => {
     runMock.mockResolvedValue({ stdout: 'ok', stderr: '', exitCode: 0 })
     for (let i = 0; i < 20; i++) {
