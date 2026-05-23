@@ -2,6 +2,7 @@ import 'server-only'
 
 import { Sandbox } from '@e2b/code-interpreter'
 import { env } from '@/lib/env'
+import { getConcurrentSandboxCount, getDailySandboxUsage, logAbuseEvent, logSandboxExecutionFinished, logSandboxQuotaExceeded, logSandboxSessionStarted } from '@/lib/services/sandbox-observability'
 
 export type SandboxLanguage = 'python' | 'nodejs'
 
@@ -128,10 +129,10 @@ export interface SandboxAuditLogger {
 }
 
 const defaultLogger: SandboxAuditLogger = {
-  onSessionCreated: async (event) => { console.info('[sandbox][session_created]', event) },
-  onExecutionCompleted: async (event) => { console.info('[sandbox][execution_completed]', event) },
-  onBlocked: async (event) => { console.warn('[sandbox][blocked]', event) },
-  onQuotaExceeded: async (event) => { console.warn('[sandbox][quota_exceeded]', event) },
+  onSessionCreated: async (event) => { await logSandboxSessionStarted({ userId: String(event.userId), sandboxId: String(event.sandboxId), language: String(event.language), template: String(event.template), tier: String(event.tier) }) },
+  onExecutionCompleted: async (event) => { await logSandboxExecutionFinished({ userId: String(event.userId), sandboxId: String(event.sandboxId), executionId: `${event.sandboxId}-${event.ts}`, runtimeMs: Number(event.runtimeMs), exitCode: Number(event.exitCode ?? 0), stdoutSize: Number(event.stdoutSize ?? 0), stderrSize: Number(event.stderrSize ?? 0), timedOut: false, estimatedCostUsd: null, code: String(event.code ?? ''), prompt: String(event.prompt ?? '') }) },
+  onBlocked: async (event) => { await logAbuseEvent({ userId: String(event.userId), sandboxId: event.sandboxId ? String(event.sandboxId) : undefined, reason: String(event.reason), eventType: String(event.reason) === 'DANGEROUS_PATTERN' ? 'dangerous_command_blocked' : 'excessive_concurrency', details: event as Record<string, unknown> }) },
+  onQuotaExceeded: async (event) => { await logSandboxQuotaExceeded({ userId: String(event.userId), sandboxId: event.sandboxId ? String(event.sandboxId) : undefined, reason: String(event.reason ?? 'QUOTA_EXCEEDED'), details: event as Record<string, unknown> }) },
   onTimeoutKilled: async (event) => { console.warn('[sandbox][timeout_killed]', event) },
 }
 
@@ -147,8 +148,8 @@ export async function executeSandboxCode(
 
   const policy = getTierPolicy(input.tier)
   const day = todayKey()
-  const usage = usageTracker.get(input.userId)
-  const currentRuns = usage?.day === day ? usage.runs : 0
+  const dailyUsage = await getDailySandboxUsage(input.userId)
+  const currentRuns = dailyUsage.executions
   if (policy.runsPerDay !== 'unlimited' && currentRuns >= policy.runsPerDay) {
     await logger.onQuotaExceeded?.({ userId: input.userId, tier: input.tier, runs: currentRuns, limit: policy.runsPerDay, ts: new Date().toISOString() })
     throw new SandboxPolicyError('QUOTA_EXCEEDED', `Sandbox daily quota exceeded (${policy.runsPerDay}).`, 429)
@@ -178,14 +179,23 @@ export async function executeSandboxCode(
     }
     sandbox = await (Sandbox as any).connect(input.sandboxId, { apiKey: env.E2B_API_KEY })
   } else {
-    if (activeMap.size >= policy.maxActiveSandboxes) {
+    const concurrentCount = await getConcurrentSandboxCount(input.userId)
+    if (concurrentCount >= policy.maxActiveSandboxes) {
       await logger.onBlocked?.({ userId: input.userId, reason: 'CONCURRENCY_LIMIT', active: activeMap.size, limit: policy.maxActiveSandboxes, ts: new Date().toISOString() })
       throw new SandboxPolicyError('CONCURRENCY_LIMIT', `Too many active sandboxes (${policy.maxActiveSandboxes}).`, 429)
     }
     sandbox = await (Sandbox as any).create({ apiKey: env.E2B_API_KEY, timeoutMs: policy.maxRuntimeMs })
     activeMap.set(sandbox.sandboxId, now)
     sessionTracker.set(input.userId, activeMap)
-    await logger.onSessionCreated?.({ userId: input.userId, sandboxId: sandbox.sandboxId, language: input.language, template: TEMPLATE_MAP[input.language], tier: input.tier, ts: new Date().toISOString() })
+    await logger.onSessionCreated?.({
+      userId: input.userId,
+      sandboxId: sandbox.sandboxId,
+      language: input.language,
+      template: TEMPLATE_MAP[input.language],
+      tier: input.tier,
+      expiresAt: new Date(now + policy.maxRuntimeMs).toISOString(),
+      ts: new Date().toISOString(),
+    })
   }
 
   const command = input.language === 'python' ? `python -c ${JSON.stringify(input.code)}` : `node -e ${JSON.stringify(input.code)}`
