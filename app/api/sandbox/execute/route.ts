@@ -1,51 +1,36 @@
-import { Sandbox } from 'e2b'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { validateAIRequest } from '@/lib/ai/ai-security-middleware'
+import { executeSandboxCode, SandboxPolicyError } from '@/lib/services/e2b-sandbox'
 
-const templateMap = {
-  python: 'base',
-  nodejs: 'base',
-} as const
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { code, language, sandboxId } = await req.json()
+    const security = await validateAIRequest(req)
+    if ('error' in security) return security.error
 
-    if (!process.env.E2B_API_KEY) {
-      return NextResponse.json({ error: 'E2B_API_KEY manjka v okolju.' }, { status: 500 })
-    }
+    const body = await req.json()
+    const code = typeof body?.code === 'string' ? body.code : ''
+    const language = body?.language
+    const sandboxId = typeof body?.sandboxId === 'string' ? body.sandboxId : undefined
 
-    let sandbox: Sandbox
-
-    if (sandboxId) {
-      sandbox = await Sandbox.connect(sandboxId, { apiKey: process.env.E2B_API_KEY })
-    } else {
-      sandbox = await Sandbox.create(templateMap[language as keyof typeof templateMap] ?? 'base', {
-        apiKey: process.env.E2B_API_KEY,
-      })
-    }
-
-    const command = language === 'python'
-      ? `python -c ${JSON.stringify(code)}`
-      : `node -e ${JSON.stringify(code)}`
-
-    const execution = await sandbox.commands.run(command, {
-      timeoutMs: 120000,
-      onStdout(data: string) {
-        void data
-      },
-      onStderr(data: string) {
-        void data
-      },
+    const result = await executeSandboxCode({
+      userId: security.context.userId,
+      tier: security.context.tier,
+      code,
+      language,
+      sandboxId,
     })
 
-    return NextResponse.json({
-      sandboxId: sandbox.sandboxId,
-      stdout: execution.stdout,
-      stderr: execution.stderr,
-      exitCode: execution.exitCode,
-    })
+    return NextResponse.json(result)
   } catch (error) {
+    if (error instanceof SandboxPolicyError) {
+      return NextResponse.json({
+        ok: false,
+        error: error.message,
+        canonical_error: { code: error.reason, message: error.message },
+      }, { status: error.status })
+    }
+
     const message = error instanceof Error ? error.message : 'Napaka pri izvajanju kode.'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
