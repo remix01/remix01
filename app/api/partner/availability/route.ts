@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const allowed = ['vacation_mode', 'daily_lead_limit'] as const
-  const update: Record<string, unknown> = {}
+  const update: { vacation_mode?: boolean; daily_lead_limit?: number } = {}
 
   for (const key of allowed) {
     if (key in body) {
