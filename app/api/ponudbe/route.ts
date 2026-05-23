@@ -164,7 +164,7 @@ async function postHandler(request: NextRequest) {
       }
     })()
 
-    void invalidatePartnerDashboardCache(user.id)
+    await invalidatePartnerDashboardCache(user.id)
     return apiSuccess(ponudba)
   } catch (error) {
     console.error('[v0] Error creating ponudba:', error)
