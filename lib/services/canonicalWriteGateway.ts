@@ -30,6 +30,18 @@ export const canonicalWriteGateway = {
     return data
   },
 
+  async updateProviderProfile(id: string, payload: Record<string, any>, writeSource: WriteSource) {
+    const { data, error } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .update(payload)
+      .eq('id', id)
+      .select('*')
+      .single()
+    if (error) throw error
+    logCanonical('provider_profile', id, writeSource, 'update')
+    return data
+  },
+
   async createOrUpdatePovprasevanje(id: string, payload: Record<string, any>, writeSource: WriteSource) {
     const { data, error } = await supabaseAdmin.from('povprasevanja').update(payload).eq('id', id).select('*').single()
     if (error) throw error

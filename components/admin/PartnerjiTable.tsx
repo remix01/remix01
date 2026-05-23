@@ -37,14 +37,18 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
     partnerId: null,
   })
   const [razlog, setRazlog] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const handleReject = async () => {
-    if (rejectDialog.partnerId && razlog.trim().length >= 3) {
-      await zavrniPartnerja(rejectDialog.partnerId, razlog)
+    if (!rejectDialog.partnerId || razlog.trim().length < 3) return
+    setActionError(null)
+    try {
+      const result = await zavrniPartnerja(rejectDialog.partnerId, razlog)
+      if (!result.success) { setActionError(result.error || 'Napaka pri zavrnitvi.'); return }
       setRejectDialog({ open: false, partnerId: null })
       setRazlog('')
       window.location.reload()
-    }
+    } catch { setActionError('Napaka pri zavrnitvi.') }
   }
 
   if (partnerji.length === 0) {
@@ -123,12 +127,16 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
                       size="icon"
                       title={partner.status === 'SUSPENDIRAN' ? 'Reaktiviraj' : 'Suspendiraj'}
                       onClick={async () => {
-                        if (partner.status === 'SUSPENDIRAN') {
-                          await reaktivirajPartnerja(partner.id)
-                        } else {
-                          await suspendiranjPartnerja(partner.id)
-                        }
-                        window.location.reload()
+                        setActionError(null)
+                        try {
+                          if (partner.status === 'SUSPENDIRAN') {
+                            const result = await reaktivirajPartnerja(partner.id)
+                            if (!result.success) { setActionError(result.error || 'Napaka pri reaktivaciji.'); return }
+                          } else {
+                            await suspendiranjPartnerja(partner.id)
+                          }
+                          window.location.reload()
+                        } catch { setActionError('Napaka.') }
                       }}
                     >
                       <Ban className="h-4 w-4" />
@@ -189,7 +197,7 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
       )}
 
       {/* Reject Dialog */}
-      <Dialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog({ open, partnerId: null })}>
+      <Dialog open={rejectDialog.open} onOpenChange={(open) => { setRejectDialog({ open, partnerId: null }); setActionError(null) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Zavrni partnerja</DialogTitle>
@@ -207,11 +215,13 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
             <p className="text-xs text-muted-foreground">
               Navedi razlog za zavrnitev (vsaj 3 znaki)
             </p>
+            {actionError && <p className="text-xs text-destructive">{actionError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setRejectDialog({ open: false, partnerId: null })
               setRazlog('')
+              setActionError(null)
             }}>
               Prekliči
             </Button>
