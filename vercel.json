@@ -52,6 +52,10 @@
     {
       "path": "/api/cron/metrics-push",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/leads-retry",
+      "schedule": "0 * * * *"
     }
   ]
 }

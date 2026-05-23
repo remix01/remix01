@@ -24,6 +24,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import type { ScoringPipelineVersion, ScoringReason, ScoringResult } from '@/lib/services/matchingScoringContract'
 import { buildScoringAudit } from '@/lib/services/matchingScoringContract'
 import { sendNotification } from '@/lib/notifications'
+import { isFeatureEnabled } from '@/lib/features/agentFlags'
+import { MATCHING_RULES } from '@/lib/task-engine/constants'
 
 export const MAX_HARD_RADIUS_KM = 75   // never send leads beyond 75km
 export const MAX_MATCHES = 5            // top N to notify
@@ -157,6 +159,14 @@ interface PartnerCandidate {
   lng: number | null
   subscription_tier: string
   categories: string[]
+  // Rec 4: round-robin + inactivity
+  last_lead_assigned_at: string | null
+  recent_inactivity_count: number  // expired/declined leads in last 7 days
+  // Rec 7: vacation mode + daily limit
+  vacation_mode: boolean
+  daily_lead_limit: number
+  daily_leads_today: number
+  daily_leads_reset_at: string | null
 }
 
 interface ScoredPartner {
@@ -179,6 +189,13 @@ export async function matchPartnersForRequest(input: MatchingInput) {
   const startTime = Date.now()
 
   try {
+    // Check feature flag before running (Rec 5)
+    const matchingEnabled = await isFeatureEnabled('matching.enabled', true)
+    if (!matchingEnabled) {
+      console.warn(JSON.stringify({ level: 'warn', event: 'matching_disabled_by_flag', requestId: input.requestId }))
+      return { matches: [], matchingId: null, error: 'Matching is disabled via feature flag' }
+    }
+
     const supabase = createAdminClient()
 
     // 1. Load request
@@ -190,7 +207,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
 
     if (povError || !pov) throw new Error('Povpraševanje ni bilo mogoče naložiti')
 
-    // 2. Fetch candidates: verified, available, not busy, not over lead cap
+    // 2. Fetch candidates: verified, available, not busy, not on vacation
     const { data: rawPartners, error: partnersError } = await supabase
       .from('obrtnik_profiles')
       .select(`
@@ -205,6 +222,11 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         service_radius_km,
         max_active_leads,
         active_lead_count,
+        vacation_mode,
+        daily_lead_limit,
+        daily_leads_today,
+        daily_leads_reset_at,
+        last_lead_assigned_at,
         profile:profiles(
           lat,
           lng,
@@ -216,10 +238,24 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       .eq('is_verified', true)
       .eq('is_available', true)
       .eq('is_busy', false)
+      .eq('vacation_mode', false)
 
     if (partnersError || !rawPartners) throw new Error('Obrtnike ni bilo mogoče naložiti')
 
-    // 3. Transform
+    // 3. Fetch recent inactivity counts (expired/declined in last 7 days) for Rec 4
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: inactivityData } = await (supabase as any)
+      .from('lead_assignments')
+      .select('obrtnik_id')
+      .in('status', ['expired', 'declined'])
+      .gt('assigned_at', sevenDaysAgo)
+
+    const inactivityMap = new Map<string, number>()
+    for (const row of inactivityData ?? []) {
+      inactivityMap.set(row.obrtnik_id, (inactivityMap.get(row.obrtnik_id) ?? 0) + 1)
+    }
+
+    // 4. Transform
     const partners: PartnerCandidate[] = rawPartners.map((p: any) => ({
       id: p.id as string,
       is_online: p.is_online as boolean,
@@ -233,22 +269,40 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       lng: (p.profile as any)?.lng as number | null,
       subscription_tier: ((p.profile as any)?.subscription_tier as string) || 'start',
       categories: ((p.obrtnik_categories as any[]) || []).map((c: any) => c.category_id as string),
+      last_lead_assigned_at: p.last_lead_assigned_at as string | null,
+      recent_inactivity_count: inactivityMap.get(p.id as string) ?? 0,
+      vacation_mode: !!(p.vacation_mode),
+      daily_lead_limit: (p.daily_lead_limit as number) || 0,
+      daily_leads_today: (p.daily_leads_today as number) || 0,
+      daily_leads_reset_at: p.daily_leads_reset_at as string | null,
     }))
 
-    // 4. Hard filters with progressive fallback
+    // 5. Hard filters with progressive fallback
     const fallbackSteps: string[] = []
+    const allowLeadCapSkip = await isFeatureEnabled('fallback.allow_lead_cap_skip', true)
+
+    function isDailyLimitReached(p: PartnerCandidate): boolean {
+      if (p.daily_lead_limit === 0) return false
+      const resetDate = p.daily_leads_reset_at ? new Date(p.daily_leads_reset_at).toDateString() : null
+      const today = new Date().toDateString()
+      if (resetDate !== today) return false
+      return p.daily_leads_today >= p.daily_lead_limit
+    }
 
     function applyFilters(opts: {
       radiusMultiplier: number
       minRating: number
-      ignoreLeadCapForPremium: boolean
+      ignoreLeadCapForPremium: boolean  // PRO+ only — START is never in fallback 3
     }): PartnerCandidate[] {
       return partners.filter((p) => {
         if (!p.categories.includes(input.categoryId)) return false
         if (p.total_reviews > 0 && p.avg_rating < opts.minRating) return false
+        if (isDailyLimitReached(p)) return false
         if (p.active_lead_count >= p.max_active_leads) {
           if (!opts.ignoreLeadCapForPremium) return false
           const tier = p.subscription_tier.toLowerCase()
+          // Rec 1: START tier is NEVER included in fallback step 3
+          if (tier === 'start' || tier === '') return false
           if (tier !== 'pro' && tier !== 'elite' && tier !== 'enterprise') return false
         }
         if (p.lat && p.lng) {
@@ -270,9 +324,21 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       fallbackSteps.push('lower_min_rating_2.5')
       eligible = applyFilters({ radiusMultiplier: FALLBACK_RADIUS_MULTIPLIER, minRating: FALLBACK_MIN_RATING, ignoreLeadCapForPremium: false })
     }
-    if (eligible.length < MIN_MATCHES_BEFORE_FALLBACK) {
+    if (eligible.length < MIN_MATCHES_BEFORE_FALLBACK && allowLeadCapSkip) {
       fallbackSteps.push('ignore_lead_cap_premium')
+      const beforeFallback3 = eligible.length
       eligible = applyFilters({ radiusMultiplier: FALLBACK_RADIUS_MULTIPLIER, minRating: FALLBACK_MIN_RATING, ignoreLeadCapForPremium: true })
+      // Rec 1: warn about PRO+ partners added due to fallback step 3
+      const overCapPartners = eligible.slice(beforeFallback3)
+      if (overCapPartners.length > 0) {
+        console.warn(JSON.stringify({
+          level: 'warn',
+          event: 'fallback_step3_over_cap',
+          requestId: input.requestId,
+          overCapPartnerIds: overCapPartners.map(p => p.id),
+          note: 'PRO+ assigned despite active_lead_count >= max; START excluded',
+        }))
+      }
     }
 
     if (eligible.length === 0) {
@@ -296,7 +362,10 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       return { matches: [], matchingId: null, error: 'Ni primernih obrtnikov v dosegu', fallbackSteps }
     }
 
-    // 5. Score
+    // 6. Score (with inactivity penalty + round-robin tiebreaker, Rec 4)
+    const INACTIVITY_THRESHOLD = 2   // 2+ expired/declined in 7 days → -10 pts
+    const INACTIVITY_PENALTY   = 10
+
     const scored: ScoredPartner[] = eligible
       .map((p: PartnerCandidate) => {
         const distanceKm = p.lat && p.lng
@@ -309,11 +378,14 @@ export async function matchPartnersForRequest(input: MatchingInput) {
         const ratingScore = Math.round(scoreRating(p.avg_rating) * 10) / 10
         const activityScore = scoreActivity(p.is_online, false)
 
-        const baseScore = categoryScore + locationScore + responseScore + ratingScore + activityScore
+        // Inactivity penalty: partner that frequently ignores leads gets lower priority
+        const inactivityPenalty = p.recent_inactivity_count >= INACTIVITY_THRESHOLD ? INACTIVITY_PENALTY : 0
+
+        const baseScore = categoryScore + locationScore + responseScore + ratingScore + activityScore - inactivityPenalty
 
         const multiplier = subscriptionMultiplier(p.subscription_tier)
-        const finalScore = Math.round(baseScore * multiplier * 100) / 100
-        const subscriptionBoost = Math.round((finalScore - baseScore) * 100) / 100
+        const finalScore = Math.round(Math.max(0, baseScore) * multiplier * 100) / 100
+        const subscriptionBoost = Math.round((finalScore - Math.max(0, baseScore)) * 100) / 100
 
         const reasons: ScoringReason[] = [
           { code: 'category', message: 'Category match', impact: categoryScore },
@@ -322,6 +394,9 @@ export async function matchPartnersForRequest(input: MatchingInput) {
           { code: 'rating', message: `Rating ${p.avg_rating.toFixed(1)}/5`, impact: ratingScore },
           { code: 'activity', message: p.is_online ? 'Online' : 'Offline', impact: activityScore },
         ]
+        if (inactivityPenalty > 0) {
+          reasons.push({ code: 'inactivity', message: `${p.recent_inactivity_count} ignored leads (7d)`, impact: -inactivityPenalty })
+        }
 
         const pipelineVersion: ScoringPipelineVersion = 'smart-v3-production'
 
@@ -342,6 +417,8 @@ export async function matchPartnersForRequest(input: MatchingInput) {
             ? Math.round(p.response_time_hours * 60)
             : 240,
           subscriptionTier: p.subscription_tier,
+          // Store for round-robin tiebreaking
+          _lastAssignedAt: p.last_lead_assigned_at,
           scoringResult: {
             candidateId: p.id,
             score: finalScore,
@@ -352,7 +429,14 @@ export async function matchPartnersForRequest(input: MatchingInput) {
           },
         }
       })
-      .sort((a: ScoredPartner, b: ScoredPartner) => b.score - a.score)
+      .sort((a: ScoredPartner & { _lastAssignedAt?: string | null }, b: ScoredPartner & { _lastAssignedAt?: string | null }) => {
+        // Primary: higher score first
+        if (Math.abs(b.score - a.score) > 2) return b.score - a.score
+        // Secondary tiebreaker: least-recently-assigned first (round-robin, Rec 4)
+        const aTime = a._lastAssignedAt ? new Date(a._lastAssignedAt).getTime() : 0
+        const bTime = b._lastAssignedAt ? new Date(b._lastAssignedAt).getTime() : 0
+        return aTime - bTime
+      })
 
     // 6. Top MAX_MATCHES
     const topMatchesWithScoring: MatchResultInternal[] = scored
