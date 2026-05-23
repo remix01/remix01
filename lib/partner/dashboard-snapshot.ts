@@ -43,7 +43,8 @@ export function createDashboardSnapshot(
 export async function persistDashboardSnapshot(snapshot: DashboardSnapshot): Promise<void> {
   try {
     const { createAdminClient } = await import('@/lib/supabase/server')
-    const supabase = createAdminClient()
+    // Cast to any: table exists in migration but not yet in generated types
+    const supabase = createAdminClient() as any
     await supabase.from('dashboard_summary_snapshots').insert({
       user_id: snapshot.userId,
       generated_at: snapshot.generatedAt,
