@@ -19,9 +19,11 @@ export interface PartnerDashboardSummary {
 export async function getPartnerDashboardSummary({ userId, filters }: { userId: string, filters: DashboardFilters }): Promise<PartnerDashboardSummary> {
   const supabase = createClient()
 
-  const [offersRes, completionStatus, categoriesRes, avgRatingRes] = await Promise.all([
+  // Phase 1: fetch offers, categories, and ratings in parallel.
+  // Offers are fetched here so we can pass the count to getCompletionStatus
+  // and avoid a redundant ponudbe query inside that helper.
+  const [offersRes, categoriesRes, avgRatingRes] = await Promise.all([
     supabase.from('ponudbe').select('*').eq('obrtnik_id', userId).order('created_at', { ascending: false }),
-    getCompletionStatus(userId),
     supabase.from('obrtnik_categories').select('category_id, categories(id, name)').eq('obrtnik_id', userId),
     supabase.from('ocene').select('rating').eq('obrtnik_id', userId),
   ])
@@ -40,6 +42,8 @@ export async function getPartnerDashboardSummary({ userId, filters }: { userId: 
     .map((row: any) => row.categories?.name)
     .filter((name: unknown): name is string => typeof name === 'string')
 
+  // Phase 2: fetch completion status and open requests in parallel.
+  // Pass offers.length so getCompletionStatus skips its own ponudbe count query.
   let openRequestsQuery = supabase
     .from('povprasevanja')
     .select('id', { count: 'exact', head: true })
@@ -55,8 +59,10 @@ export async function getPartnerDashboardSummary({ userId, filters }: { userId: 
     openRequestsQuery = openRequestsQuery.ilike('location_city', `%${filters.location}%`)
   }
 
-
-  const openRequestsRes = await openRequestsQuery
+  const [completionStatus, openRequestsRes] = await Promise.all([
+    getCompletionStatus(userId, offers.length),
+    openRequestsQuery,
+  ])
 
   return {
     offers,
