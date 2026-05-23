@@ -36,7 +36,7 @@ export const liquidityEngine = {
     lng: number,
     categoryId: string,
     userId: string
-  ): Promise<void> {
+  ): Promise<{ success: boolean }> {
     try {
       console.log(JSON.stringify({
         level: 'info',
@@ -55,23 +55,28 @@ export const liquidityEngine = {
           error: matchResult.error,
         }))
 
-        // Rec 6: enqueue retry instead of immediately expiring
+        // P1 fix: only enqueue if not already in retry queue (prevents re-enqueue from retry cron)
         const supabaseRetry = createAdminClient()
-        await (supabaseRetry as any).from('lead_retry_queue').insert({
-          povprasevanje_id: requestId,
-          lat,
-          lng,
-          category_id: categoryId,
-          user_id: userId,
-          next_retry_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          last_error: matchResult.error ?? 'no_matches',
-        }).catch((e: any) => console.error('[LiquidityEngine] Failed to enqueue retry:', String(e)))
+        const { data: existing } = await (supabaseRetry as any)
+          .from('lead_retry_queue')
+          .select('id')
+          .eq('povprasevanje_id', requestId)
+          .maybeSingle()
 
-        await taskOrchestrator.updateTaskStatus(requestId, 'matched', {
-          reason: 'queued_for_retry',
-          searchRadiusKm: 75,
-        }).catch(() => {})
-        return
+        if (!existing) {
+          await (supabaseRetry as any).from('lead_retry_queue').insert({
+            povprasevanje_id: requestId,
+            lat,
+            lng,
+            category_id: categoryId,
+            user_id: userId,
+            next_retry_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            last_error: matchResult.error ?? 'no_matches',
+          }).catch((e: any) => console.error('[LiquidityEngine] Failed to enqueue retry:', String(e)))
+        }
+
+        // P2 fix: leave task in current state ('new'), not 'matched' — no match happened
+        return { success: false }
       }
 
       // Fetch urgency to set correct SLA times
@@ -110,6 +115,7 @@ export const liquidityEngine = {
         totalMatches: matchResult.matches.length,
         slaHours: slaHoursForUrgency(urgency),
       }))
+      return { success: true }
     } catch (error) {
       console.error(JSON.stringify({
         level: 'error',
@@ -117,6 +123,7 @@ export const liquidityEngine = {
         requestId,
         error: error instanceof Error ? error.message : String(error),
       }))
+      return { success: false }
     }
   },
 
@@ -154,11 +161,13 @@ export const liquidityEngine = {
       return
     }
 
-    // Increment active_lead_count + last_lead_assigned_at for rank-1 contractor
+    // Increment active_lead_count + daily_leads_today + last_lead_assigned_at for rank-1
     if (rows.length > 0) {
-      await (supabase as any).rpc('increment_active_leads', {
-        p_obrtnik_id: (matches as any[])[0].partnerId,
-      })
+      const rank1PartnerId = (matches as any[])[0].partnerId
+      await (supabase as any).rpc('increment_active_leads', { p_obrtnik_id: rank1PartnerId })
+      // P1 fix: also update daily counter so daily_lead_limit filter is effective
+      await (supabase as any).rpc('increment_daily_leads', { p_obrtnik_id: rank1PartnerId })
+        .catch((e: any) => console.warn('[LiquidityEngine] increment_daily_leads failed (non-fatal):', String(e)))
       // Notify PRO+ partners assigned via fallback step 3 (Rec 1)
       const overCapMatches = (matches as any[]).filter((m: any) =>
         fallbackFlags.includes('ignore_lead_cap_premium') &&

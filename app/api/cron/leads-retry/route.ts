@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
       }
 
       // Re-run matching with expanded search
-      await liquidityEngine.onNewRequest(
+      const result = await liquidityEngine.onNewRequest(
         item.povprasevanje_id,
         item.lat,
         item.lng,
@@ -89,16 +89,19 @@ export async function GET(req: NextRequest) {
         item.user_id,
       )
 
-      // Exponential backoff: 1h, 2h, 4h, 8h, 16h
-      const backoffHours = Math.pow(2, item.retry_count)
-      const nextRetry = new Date(Date.now() + backoffHours * 60 * 60 * 1000).toISOString()
-
-      await (supabase as any)
-        .from('lead_retry_queue')
-        .update({ retry_count: item.retry_count + 1, next_retry_at: nextRetry })
-        .eq('id', item.id)
-
-      retried.push(item.id)
+      if (result.success) {
+        // P1 fix: matching succeeded — remove from queue so it isn't retried again
+        await (supabase as any).from('lead_retry_queue').delete().eq('id', item.id)
+        retried.push(item.id)
+      } else {
+        // Still no match — exponential backoff: 1h, 2h, 4h, 8h, 16h
+        const backoffHours = Math.pow(2, item.retry_count)
+        const nextRetry = new Date(Date.now() + backoffHours * 60 * 60 * 1000).toISOString()
+        await (supabase as any)
+          .from('lead_retry_queue')
+          .update({ retry_count: item.retry_count + 1, next_retry_at: nextRetry })
+          .eq('id', item.id)
+      }
     } catch (err) {
       console.error('[leads-retry] Error processing', item.id, ':', String(err))
       await (supabase as any)

@@ -50,18 +50,19 @@ export async function PATCH(req: NextRequest) {
   const update: { vacation_mode?: boolean; daily_lead_limit?: number } = {}
 
   for (const key of allowed) {
-    if (key in body) {
-      const val = body[key]
-      if (key === 'vacation_mode' && typeof val !== 'boolean') {
+    if (!(key in body)) continue
+    const val = body[key]
+    if (key === 'vacation_mode') {
+      if (typeof val !== 'boolean') {
         return NextResponse.json({ error: 'vacation_mode must be boolean' }, { status: 400 })
       }
-      if (key === 'daily_lead_limit') {
-        const n = Number(val)
-        if (!Number.isInteger(n) || n < 0) {
-          return NextResponse.json({ error: 'daily_lead_limit must be a non-negative integer' }, { status: 400 })
-        }
+      update.vacation_mode = val
+    } else if (key === 'daily_lead_limit') {
+      const n = Number(val)
+      if (!Number.isInteger(n) || n < 0) {
+        return NextResponse.json({ error: 'daily_lead_limit must be a non-negative integer' }, { status: 400 })
       }
-      update[key] = val
+      update.daily_lead_limit = n
     }
   }
 
