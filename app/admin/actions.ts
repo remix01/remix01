@@ -202,98 +202,109 @@ export async function getPartnerji(
   return { partnerji, total: total || 0, pages: Math.ceil((total || 0) / pageSize) }
 }
 
-export async function odobriPartnerja(id: string) {
-  const admin = await requireAdmin()
+export async function odobriPartnerja(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = await requireAdmin()
 
-  const { data: current } = await supabaseAdmin
-    .from('obrtnik_profiles')
-    .select('id, verification_status, is_verified')
-    .eq('id', id)
-    .maybeSingle()
+    const { data: current } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id, verification_status, is_verified')
+      .eq('id', id)
+      .maybeSingle()
 
-  if (!current) throw new Error('Partner not found')
+    if (!current) return { success: false, error: 'Partner ni bil najden.' }
 
-  const updates = {
-    is_verified: true,
-    verification_status: 'verified',
-    verified_at: new Date().toISOString(),
-    blocked_reason: null,
+    const updates = {
+      is_verified: true,
+      verification_status: 'verified',
+      verified_at: new Date().toISOString(),
+      blocked_reason: null,
+    }
+
+    // Use update (not upsert) — row is confirmed to exist; upsert INSERT path
+    // would fail with 23502 because business_name has no default.
+    await canonicalWriteGateway.updateProviderProfile(id, updates, 'admin.odobriPartnerja')
+
+    await Promise.allSettled([
+      supabaseAdmin.from('provider_approval_transitions').insert({
+        provider_id: id,
+        from_state: current.verification_status,
+        to_state: 'verified',
+        actor: admin.userId,
+        reason: null,
+      }),
+      supabaseAdmin
+        .from('verifications')
+        .update({
+          status: 'approved',
+          reviewed_by: admin.userId,
+          reviewed_at: new Date().toISOString(),
+          notes: 'Odobril administrator',
+        })
+        .eq('obrtnik_id', id)
+        .eq('status', 'pending'),
+      logAction(admin.userId, 'PROVIDER_APPROVED', 'obrtnik_profiles', id, current, updates),
+      transitionOnboardingState(id).catch((e) =>
+        console.error('[odobriPartnerja] onboarding transition failed:', e)
+      ),
+    ])
+
+    revalidatePath('/admin/partnerji')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Napaka pri odobritvi partnerja.' }
   }
-
-  await canonicalWriteGateway.createOrUpdateProviderProfile({ id, ...updates }, 'admin.odobriPartnerja')
-
-  // Audit side-effects — non-critical, must not block the main approval
-  await Promise.allSettled([
-    supabaseAdmin.from('provider_approval_transitions').insert({
-      provider_id: id,
-      from_state: current.verification_status,
-      to_state: 'verified',
-      actor: admin.userId,
-      reason: null,
-    }),
-    supabaseAdmin
-      .from('verifications')
-      .update({
-        status: 'approved',
-        reviewed_by: admin.userId,
-        reviewed_at: new Date().toISOString(),
-        notes: 'Odobril administrator',
-      })
-      .eq('obrtnik_id', id)
-      .eq('status', 'pending'),
-    logAction(admin.userId, 'PROVIDER_APPROVED', 'obrtnik_profiles', id, current, updates),
-    transitionOnboardingState(id).catch((e) =>
-      console.error('[odobriPartnerja] onboarding transition failed:', e)
-    ),
-  ])
-
-  revalidatePath('/admin/partnerji')
 }
 
-export async function zavrniPartnerja(id: string, razlog: string) {
-  const admin = await requireAdmin()
+export async function zavrniPartnerja(id: string, razlog: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = await requireAdmin()
 
-  const { data: current } = await supabaseAdmin
-    .from('obrtnik_profiles')
-    .select('id, verification_status, is_verified')
-    .eq('id', id)
-    .maybeSingle()
+    const { data: current } = await supabaseAdmin
+      .from('obrtnik_profiles')
+      .select('id, verification_status, is_verified')
+      .eq('id', id)
+      .maybeSingle()
 
-  if (!current) throw new Error('Partner not found')
+    if (!current) return { success: false, error: 'Partner ni bil najden.' }
 
-  const updates = {
-    is_verified: false,
-    verification_status: 'rejected',
-    blocked_reason: razlog || null,
+    const updates = {
+      is_verified: false,
+      verification_status: 'rejected',
+      blocked_reason: razlog || null,
+    }
+
+    await canonicalWriteGateway.updateProviderProfile(id, updates, 'admin.zavrniPartnerja')
+
+    await Promise.allSettled([
+      supabaseAdmin.from('provider_approval_transitions').insert({
+        provider_id: id,
+        from_state: current.verification_status,
+        to_state: 'rejected',
+        actor: admin.userId,
+        reason: razlog,
+      }),
+      supabaseAdmin
+        .from('verifications')
+        .update({
+          status: 'rejected',
+          reviewed_by: admin.userId,
+          reviewed_at: new Date().toISOString(),
+          notes: razlog,
+        })
+        .eq('obrtnik_id', id)
+        .eq('status', 'pending'),
+      logAction(admin.userId, 'PROVIDER_REJECTED', 'obrtnik_profiles', id, current, updates),
+      transitionOnboardingState(id).catch((e) =>
+        console.error('[zavrniPartnerja] onboarding transition failed:', e)
+      ),
+    ])
+
+    revalidatePath('/admin/partnerji')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Napaka pri zavrnitvi partnerja.' }
   }
-
-  await canonicalWriteGateway.createOrUpdateProviderProfile({ id, ...updates }, 'admin.zavrniPartnerja')
-
-  await Promise.allSettled([
-    supabaseAdmin.from('provider_approval_transitions').insert({
-      provider_id: id,
-      from_state: current.verification_status,
-      to_state: 'rejected',
-      actor: admin.userId,
-      reason: razlog,
-    }),
-    supabaseAdmin
-      .from('verifications')
-      .update({
-        status: 'rejected',
-        reviewed_by: admin.userId,
-        reviewed_at: new Date().toISOString(),
-        notes: razlog,
-      })
-      .eq('obrtnik_id', id)
-      .eq('status', 'pending'),
-    logAction(admin.userId, 'PROVIDER_REJECTED', 'obrtnik_profiles', id, current, updates),
-    transitionOnboardingState(id).catch((e) =>
-      console.error('[zavrniPartnerja] onboarding transition failed:', e)
-    ),
-  ])
-
-  revalidatePath('/admin/partnerji')
 }
 
 export async function suspendiranjPartnerja(id: string, razlog?: string) {
@@ -665,11 +676,16 @@ export async function updatePovprasevanjeAdmin(
   return { success: true }
 }
 
-export async function reaktivirajPartnerja(id: string) {
-  await ensureAdminAccess()
-  await canonicalWriteGateway.createOrUpdateProviderProfile({ id, is_available: true }, 'admin.reaktivirajPartnerja')
-  revalidatePath(`/admin/partnerji/${id}`)
-  revalidatePath('/admin/partnerji')
+export async function reaktivirajPartnerja(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await ensureAdminAccess()
+    await canonicalWriteGateway.updateProviderProfile(id, { is_available: true }, 'admin.reaktivirajPartnerja')
+    revalidatePath(`/admin/partnerji/${id}`)
+    revalidatePath('/admin/partnerji')
+    return { success: true }
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Napaka pri reaktivaciji partnerja.' }
+  }
 }
 
 export async function bulkSuspendStranke(ids: string[]): Promise<void> {
