@@ -238,7 +238,7 @@ export async function matchPartnersForRequest(input: MatchingInput) {
       .eq('is_verified', true)
       .eq('is_available', true)
       .eq('is_busy', false)
-      .eq('vacation_mode', false)
+      // vacation_mode filtered in JS applyFilters (column not yet in generated types)
 
     if (partnersError || !rawPartners) throw new Error('Obrtnike ni bilo mogoče naložiti')
 
