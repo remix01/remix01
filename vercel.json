@@ -51,7 +51,7 @@
     },
     {
       "path": "/api/cron/metrics-push",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/leads-retry",

@@ -28,11 +28,23 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  // Configurable batch size — override via OUTBOX_BATCH_SIZE env var.
+  // Default 50; set lower in staging or if subscribers are slow.
+  const batchSize = Math.min(
+    Math.max(1, Number(process.env.OUTBOX_BATCH_SIZE ?? 50)),
+    200 // hard ceiling to prevent accidental overload
+  )
+
+  // Dry-run: ?dry_run=1 reports pending count without processing.
+  const dryRun = req.nextUrl.searchParams.get('dry_run') === '1'
+
   const start = Date.now()
-  console.log(JSON.stringify({ 
-    level: 'info', 
-    message: '[event-processor] start', 
-    ranAt: new Date().toISOString() 
+  console.log(JSON.stringify({
+    level: 'info',
+    message: '[event-processor] start',
+    ranAt: new Date().toISOString(),
+    batchSize,
+    dryRun,
   }))
 
   try {
@@ -101,33 +113,45 @@ export async function GET(req: NextRequest) {
       throw new Error(`Failed to import outbox: ${importErr}`)
     }
 
-    // STEP 3: Process pending events
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] processing batch', 
-      batchSize: 50 
+    // STEP 3: Process pending events (or just report pending count for dry-run)
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] processing batch',
+      batchSize,
+      dryRun,
     }))
-    
-    const result = await outbox.processPendingBatch(50)
+
+    let result: { processed: number; failed: number }
+    if (dryRun) {
+      result = { processed: 0, failed: 0 }
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] dry-run: skipping actual processing',
+      }))
+    } else {
+      result = await outbox.processPendingBatch(batchSize)
+    }
 
     // Heartbeat is implicit in the HTTP response – health-sweep cron handles
     // dead-man alerting via checkEventLag() if outbox backlog accumulates.
     // Do NOT insert into alert_log here: that table is for real alerts only.
 
     const durationMs = Date.now() - start
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] batch completed', 
-      processed: result.processed, 
-      failed: result.failed, 
-      durationMs 
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] batch completed',
+      processed: result.processed,
+      failed: result.failed,
+      dryRun,
+      durationMs,
     }))
 
-    return NextResponse.json({ 
-      ok: true, 
-      processed: result.processed, 
-      failed: result.failed, 
-      durationMs 
+    return NextResponse.json({
+      ok: true,
+      processed: result.processed,
+      failed: result.failed,
+      dryRun,
+      durationMs,
     })
 
   } catch (err) {
