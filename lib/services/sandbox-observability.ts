@@ -37,10 +37,12 @@ export async function logSandboxExecutionFinished(event: { userId: string; sandb
     code_hash: toHash(event.code),
   })
 
-  await supabase.rpc('increment_sandbox_session_usage' as any, { p_sandbox_id: event.sandboxId, p_runtime_ms: event.runtimeMs }).catch(async () => {
+  try {
+    await supabase.rpc('increment_sandbox_session_usage' as any, { p_sandbox_id: event.sandboxId, p_runtime_ms: event.runtimeMs })
+  } catch {
     const { data } = await supabase.from('sandbox_sessions').select('runtime_total_ms, execution_count').eq('sandbox_id', event.sandboxId).single()
     await supabase.from('sandbox_sessions').update({ runtime_total_ms: (data?.runtime_total_ms ?? 0) + event.runtimeMs, execution_count: (data?.execution_count ?? 0) + 1 }).eq('sandbox_id', event.sandboxId)
-  })
+  }
 }
 
 export async function logSandboxBlocked(event: { userId: string; sandboxId?: string; reason: string; details?: Record<string, unknown> }) {
@@ -53,7 +55,7 @@ export async function logSandboxQuotaExceeded(event: { userId: string; sandboxId
 
 export async function logAbuseEvent(event: { userId: string; sessionId?: string; sandboxId?: string; eventType: SandboxAbuseEventType; reason?: string; details?: Record<string, unknown> }) {
   const supabase = createAdminClient()
-  await supabase.from('sandbox_abuse_events').insert({ user_id: event.userId, session_id: event.sessionId ?? null, sandbox_id: event.sandboxId ?? null, event_type: event.eventType, reason: event.reason ?? null, details: event.details ?? {} })
+  await supabase.from('sandbox_abuse_events').insert({ user_id: event.userId, session_id: event.sessionId ?? null, sandbox_id: event.sandboxId ?? null, event_type: event.eventType, reason: event.reason ?? null, details: (event.details ?? {}) as any })
 }
 
 export async function getDailySandboxUsage(userId: string) {

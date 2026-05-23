@@ -157,6 +157,60 @@ export default function PonudbesPage() {
     }
   }
 
+  const loadMorePoslane = async () => {
+    setLoadingMore(true)
+    try {
+      const nextPage = poslanePage + 1
+      const from = nextPage * PAGE_SIZE
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: obrtnikProfile } = await supabase
+        .from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle()
+      if (!obrtnikProfile) return
+      const { data } = await supabase
+        .from('ponudbe')
+        .select(`id, status, price_estimate, price_type, message, available_date, created_at, povprasevanja(id, title, category_id, location_city)`)
+        .eq('obrtnik_id', obrtnikProfile.id)
+        .in('status', ['poslana', 'sprejeta'])
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE)
+      if (data) {
+        setPoslane(prev => [...prev, ...data.slice(0, PAGE_SIZE)])
+        setPoslaneHasMore(data.length > PAGE_SIZE)
+        setPoslanePage(nextPage)
+      }
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  const loadMoreArhiv = async () => {
+    setLoadingMore(true)
+    try {
+      const nextPage = arhivPage + 1
+      const from = nextPage * PAGE_SIZE
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: obrtnikProfile } = await supabase
+        .from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle()
+      if (!obrtnikProfile) return
+      const { data } = await supabase
+        .from('ponudbe')
+        .select(`id, status, price_estimate, created_at, povprasevanja(id, title, location_city)`)
+        .eq('obrtnik_id', obrtnikProfile.id)
+        .in('status', ['zavrnjena', 'preklicana'])
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE)
+      if (data) {
+        setArhiv(prev => [...prev, ...data.slice(0, PAGE_SIZE)])
+        setArhivHasMore(data.length > PAGE_SIZE)
+        setArhivPage(nextPage)
+      }
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
   const loadMoreNova = async () => {
     setLoadingMore(true)
     try {
@@ -237,6 +291,14 @@ export default function PonudbesPage() {
 
   const handleEditSave = async (ponudbaId: string) => {
     setEditError(null)
+    if (!editForm.message.trim()) {
+      setEditError('Sporočilo ne sme biti prazno.')
+      return
+    }
+    if (editForm.message.trim().length > 2000) {
+      setEditError('Sporočilo je predolgo (največ 2000 znakov).')
+      return
+    }
     const parsedPrice = Number(editForm.price_estimate)
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
       setEditError('Cena mora biti večja od 0.')
@@ -377,7 +439,8 @@ export default function PonudbesPage() {
                 <p className="text-lg text-gray-500">Ni poslanih ponudb</p>
               </Card>
             ) : (
-              poslane.map((ponudba: any) => (
+              <>
+              {poslane.map((ponudba: any) => (
                 <Card key={ponudba.id} className="p-5 border">
                   {editingId === ponudba.id ? (
                     <div className="space-y-4">
@@ -393,6 +456,7 @@ export default function PonudbesPage() {
                           <Textarea
                             id={`edit-msg-${ponudba.id}`}
                             rows={4}
+                            maxLength={2000}
                             value={editForm.message}
                             onChange={(e) => setEditForm(prev => ({ ...prev, message: e.target.value }))}
                           />
@@ -467,7 +531,13 @@ export default function PonudbesPage() {
                     </div>
                   )}
                 </Card>
-              ))
+              ))}
+              {poslaneHasMore && (
+                <Button variant="outline" className="w-full" onClick={loadMorePoslane} disabled={loadingMore}>
+                  {loadingMore ? 'Nalagam...' : 'Prikaži več'}
+                </Button>
+              )}
+              </>
             )}
           </TabsContent>
 
@@ -478,7 +548,8 @@ export default function PonudbesPage() {
                 <p className="text-lg text-gray-500">Arhiv je prazen</p>
               </Card>
             ) : (
-              arhiv.map((ponudba: any) => (
+              <>
+              {arhiv.map((ponudba: any) => (
                 <Card key={ponudba.id} className="p-5 border opacity-75">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1">
@@ -498,7 +569,13 @@ export default function PonudbesPage() {
                     </Badge>
                   </div>
                 </Card>
-              ))
+              ))}
+              {arhivHasMore && (
+                <Button variant="outline" className="w-full" onClick={loadMoreArhiv} disabled={loadingMore}>
+                  {loadingMore ? 'Nalagam...' : 'Prikaži več'}
+                </Button>
+              )}
+              </>
             )}
           </TabsContent>
         </Tabs>
