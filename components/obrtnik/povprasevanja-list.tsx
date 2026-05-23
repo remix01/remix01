@@ -38,7 +38,7 @@ export function PovprasevanjaList({ povprasevanja, categories, obrtnikId, subscr
   // AI quote generator state
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
-  const isProTier = subscriptionTier === 'pro' || subscriptionTier === 'elite' || subscriptionTier === 'enterprise'
+  const isStartTier = subscriptionTier === 'start' || !subscriptionTier
 
   const handleAIDraft = async () => {
     if (!selectedPovprasevanje) return
@@ -348,24 +348,23 @@ export function PovprasevanjaList({ povprasevanja, categories, obrtnikId, subscr
             </div>
 
             {/* AI Quote Generator */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">AI pomoč pri sestavi ponudbe</span>
-              {isProTier ? (
-                <button
-                  type="button"
-                  onClick={handleAIDraft}
-                  disabled={aiLoading}
-                  className="flex items-center gap-1.5 text-sm font-medium text-purple-700 border border-purple-300 rounded-lg px-3 py-1.5 hover:bg-purple-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {aiLoading ? 'Generiram...' : 'AI osnutek'}
-                </button>
-              ) : (
-                <span className="flex items-center gap-1 text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-1.5 cursor-not-allowed">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  AI osnutek · PRO
-                </span>
-              )}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-500 shrink-0">
+                {isStartTier ? 'AI osnutek · 3/dan' : 'AI osnutek'}
+              </span>
+              <button
+                type="button"
+                onClick={handleAIDraft}
+                disabled={aiLoading}
+                className={`flex items-center gap-1.5 text-sm font-medium rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-wait ${
+                  isStartTier
+                    ? 'text-teal-700 border border-teal-300 hover:bg-teal-50'
+                    : 'text-purple-700 border border-purple-300 hover:bg-purple-50'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                {aiLoading ? 'Generiram...' : 'AI osnutek'}
+              </button>
             </div>
 
             {aiError && (

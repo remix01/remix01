@@ -92,6 +92,9 @@ for (const tier of Object.keys(AGENT_DAILY_LIMITS) as Array<keyof typeof AGENT_D
   }
 }
 
+// Per-agent START overrides — agents removed from PRO_ONLY_AGENTS but still limited on START
+AGENT_DAILY_LIMITS.start.quote_generator = 3   // START: 3/day (PRO: 200, ELITE: 500)
+
 export function isAgentAccessible(agentType: AIAgentType, userTier: string): boolean {
   const tierLimits = AGENT_DAILY_LIMITS[userTier] ?? AGENT_DAILY_LIMITS.start
   const limit = (tierLimits as Record<string, number>)[agentType]

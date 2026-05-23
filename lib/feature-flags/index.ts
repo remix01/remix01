@@ -61,7 +61,7 @@ const PLATFORM_DEFAULTS: Record<FlagValue, boolean> = {
 
 /** Flags that require PRO subscription tier */
 const PRO_FLAGS: ReadonlySet<FlagValue> = new Set([
-  'ai_quote_generator',
+  // ai_quote_generator intentionally excluded — START gets 3 calls/day (see ai-router.ts)
   'ai_materials_agent',
   'video_diagnosis',
   'job_summary_ai',
