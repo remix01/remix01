@@ -32,12 +32,14 @@ export async function GET(req: Request) {
       .from('ponudbe')
       .select('obrtnik_id, created_at')
       .gte('created_at', since)
+      .order('created_at', { ascending: false })
       .limit(PONUDBE_SCAN_LIMIT),
     supabaseAdmin
       .from('message')
       .select('id, body, sender_user_id, created_at')
       .gte('created_at', since)
       .or('body.ilike.%@%,body.ilike.%+386%,body.ilike.%http%')
+      .order('created_at', { ascending: false })
       .limit(MESSAGE_SCAN_LIMIT),
     // Fetch open alerts already created in this 24h window to avoid duplicates.
     // The cron runs hourly; without this, the same anomaly triggers a new alert each run.

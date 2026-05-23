@@ -11,8 +11,9 @@ import { withCronGuard } from '@/lib/cron/cronGuard'
 
   // Configurable batch size — override via OUTBOX_BATCH_SIZE env var.
   // Default 50; set lower in staging or if subscribers are slow.
+  const rawBatchSize = Number(process.env.OUTBOX_BATCH_SIZE)
   const batchSize = Math.min(
-    Math.max(1, Number(process.env.OUTBOX_BATCH_SIZE ?? 50)),
+    Math.max(1, Number.isFinite(rawBatchSize) && rawBatchSize > 0 ? Math.floor(rawBatchSize) : 50),
     200 // hard ceiling to prevent accidental overload
   )
 
