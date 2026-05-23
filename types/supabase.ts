@@ -3972,6 +3972,160 @@ export type Database = {
         }
         Relationships: []
       }
+      sandbox_abuse_events: {
+        Row: {
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          reason: string | null
+          sandbox_id: string | null
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          reason?: string | null
+          sandbox_id?: string | null
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          reason?: string | null
+          sandbox_id?: string | null
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sandbox_abuse_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sandbox_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sandbox_executions: {
+        Row: {
+          blocked_reason: string | null
+          code_hash: string | null
+          created_at: string
+          estimated_cost_usd: number | null
+          execution_id: string
+          exit_code: number | null
+          id: string
+          prompt_hash: string | null
+          runtime_ms: number
+          sandbox_id: string
+          session_id: string
+          status: string
+          stderr_size: number
+          stdout_size: number
+          timed_out: boolean
+          user_id: string
+        }
+        Insert: {
+          blocked_reason?: string | null
+          code_hash?: string | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          execution_id: string
+          exit_code?: number | null
+          id?: string
+          prompt_hash?: string | null
+          runtime_ms: number
+          sandbox_id: string
+          session_id: string
+          status: string
+          stderr_size?: number
+          stdout_size?: number
+          timed_out?: boolean
+          user_id: string
+        }
+        Update: {
+          blocked_reason?: string | null
+          code_hash?: string | null
+          created_at?: string
+          estimated_cost_usd?: number | null
+          execution_id?: string
+          exit_code?: number | null
+          id?: string
+          prompt_hash?: string | null
+          runtime_ms?: number
+          sandbox_id?: string
+          session_id?: string
+          status?: string
+          stderr_size?: number
+          stdout_size?: number
+          timed_out?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sandbox_executions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sandbox_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sandbox_sessions: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          execution_count: number
+          expires_at: string | null
+          id: string
+          language: string
+          runtime_total_ms: number
+          sandbox_id: string
+          started_at: string
+          status: string
+          template: string
+          tier: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          execution_count?: number
+          expires_at?: string | null
+          id?: string
+          language: string
+          runtime_total_ms?: number
+          sandbox_id: string
+          started_at?: string
+          status: string
+          template: string
+          tier: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          execution_count?: number
+          expires_at?: string | null
+          id?: string
+          language?: string
+          runtime_total_ms?: number
+          sandbox_id?: string
+          started_at?: string
+          status?: string
+          template?: string
+          tier?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       service_areas: {
         Row: {
           city: string
