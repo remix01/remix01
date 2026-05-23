@@ -53,6 +53,7 @@ export default function ProfilPage() {
   const [successMessage, setSuccessMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [profileCompleness, setProfileCompleness] = useState(0)
+  const [sendingReset, setSendingReset] = useState(false)
 
   useEffect(() => {
     loadProfileData()
@@ -274,6 +275,7 @@ export default function ProfilPage() {
   }
 
   const resetPassword = async () => {
+    setSendingReset(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) return
@@ -288,6 +290,8 @@ export default function ProfilPage() {
     } catch (error) {
       console.error('[v0] Error resetting password:', error)
       setErrorMessage('Napaka pri pošiljanju navodil')
+    } finally {
+      setSendingReset(false)
     }
   }
 
@@ -587,6 +591,7 @@ export default function ProfilPage() {
             <button
               key={cat.id}
               onClick={() => toggleCategory(cat.id)}
+              aria-pressed={selectedCategories.includes(cat.id)}
               className={`p-3 rounded-lg border-2 text-left transition ${
                 selectedCategories.includes(cat.id)
                   ? 'border-teal-600 bg-teal-50'
@@ -700,8 +705,10 @@ export default function ProfilPage() {
               onClick={resetPassword}
               variant="outline"
               className="w-full"
+              disabled={sendingReset}
+              aria-busy={sendingReset}
             >
-              Spremenite geslo
+              {sendingReset ? 'Pošiljam...' : 'Spremenite geslo'}
             </Button>
           </div>
 

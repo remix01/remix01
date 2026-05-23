@@ -67,7 +67,7 @@ export default async function ObrtknikLayout({
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background">
+      <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <ObrtknikBottomNav />
       </div>
     </div>
