@@ -40,6 +40,7 @@ export function PartnerDetailClient({
   const [isPending, startTransition] = useTransition()
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const renderStars = (rating: number) => (
     <div className="flex gap-1">
@@ -56,28 +57,41 @@ export function PartnerDetailClient({
 
   const handleApprove = () =>
     startTransition(async () => {
-      await odobriPartnerja(partnerId)
-      router.refresh()
+      setActionError(null)
+      try {
+        const result = await odobriPartnerja(partnerId)
+        if (!result.success) { setActionError(result.error || 'Napaka pri odobritvi.'); return }
+        router.refresh()
+      } catch { setActionError('Napaka pri odobritvi.') }
     })
 
   const handleSuspend = () =>
     startTransition(async () => {
+      setActionError(null)
       await suspendiranjPartnerja(partnerId)
       router.refresh()
     })
 
   const handleReactivate = () =>
     startTransition(async () => {
-      await reaktivirajPartnerja(partnerId)
-      router.refresh()
+      setActionError(null)
+      try {
+        const result = await reaktivirajPartnerja(partnerId)
+        if (!result.success) { setActionError(result.error || 'Napaka pri reaktivaciji.'); return }
+        router.refresh()
+      } catch { setActionError('Napaka pri reaktivaciji.') }
     })
 
   const handleReject = () =>
     startTransition(async () => {
-      await zavrniPartnerja(partnerId, rejectReason)
-      setRejectDialogOpen(false)
-      setRejectReason('')
-      router.refresh()
+      setActionError(null)
+      try {
+        const result = await zavrniPartnerja(partnerId, rejectReason)
+        if (!result.success) { setActionError(result.error || 'Napaka pri zavrnitvi.'); return }
+        setRejectDialogOpen(false)
+        setRejectReason('')
+        router.refresh()
+      } catch { setActionError('Napaka pri zavrnitvi.') }
     })
 
   return (
@@ -147,6 +161,10 @@ export function PartnerDetailClient({
       </Card>
 
       <EditPartnerForm partner={partner} currentTier={currentTier} />
+
+      {actionError && (
+        <p className="text-sm text-destructive">{actionError}</p>
+      )}
 
       <div className="flex flex-wrap gap-3">
         {partner.status === 'PENDING' && (

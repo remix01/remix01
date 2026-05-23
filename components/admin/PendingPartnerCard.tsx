@@ -20,11 +20,16 @@ export function PendingPartnerCard({ partner }: PendingPartnerCardProps) {
   const handleApprove = async () => {
     setLoading(true)
     setError(null)
-    const result = await odobriPartnerja(partner.id)
-    if (result.success) {
-      window.location.reload()
-    } else {
-      setError(result.error || 'Napaka pri odobritvi.')
+    try {
+      const result = await odobriPartnerja(partner.id)
+      if (result.success) {
+        window.location.reload()
+      } else {
+        setError(result.error || 'Napaka pri odobritvi.')
+        setLoading(false)
+      }
+    } catch {
+      setError('Napaka pri odobritvi.')
       setLoading(false)
     }
   }
@@ -35,11 +40,16 @@ export function PendingPartnerCard({ partner }: PendingPartnerCardProps) {
 
     setLoading(true)
     setError(null)
-    const result = await zavrniPartnerja(partner.id, razlog)
-    if (result.success) {
-      window.location.reload()
-    } else {
-      setError(result.error || 'Napaka pri zavrnitvi.')
+    try {
+      const result = await zavrniPartnerja(partner.id, razlog)
+      if (result.success) {
+        window.location.reload()
+      } else {
+        setError(result.error || 'Napaka pri zavrnitvi.')
+        setLoading(false)
+      }
+    } catch {
+      setError('Napaka pri zavrnitvi.')
       setLoading(false)
     }
   }
