@@ -9,7 +9,9 @@ import { RouteOptimizerCard } from '@/components/partner/RouteOptimizerCard'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CheckCircle2, Circle } from 'lucide-react'
+import { CheckCircle2, Circle, Moon, Sun } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import type { Offer } from '@/lib/types/offer'
 import { createClient } from '@/lib/supabase/client'
 import { getPartnerDashboardSummary } from '@/lib/partner/dashboard-summary'
@@ -57,9 +59,27 @@ function PartnerDashboardInner() {
   const [avgRating, setAvgRating] = useState<number>(0)
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
+  const [vacationMode, setVacationMode] = useState(false)
+  const [vacationLoading, setVacationLoading] = useState(false)
   const skipFirstRefresh = useRef(true)
 
   const filterQuery = serializeDashboardFilters(parseDashboardFilters(searchParams))
+
+  const toggleVacationMode = async (enabled: boolean) => {
+    setVacationLoading(true)
+    try {
+      const res = await fetch('/api/partner/availability', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vacation_mode: enabled }),
+      })
+      if (res.ok) setVacationMode(enabled)
+    } catch (e) {
+      console.error('[dashboard] vacation mode toggle failed:', e)
+    } finally {
+      setVacationLoading(false)
+    }
+  }
 
   const handleOfferCreated = async (partnerId?: string) => {
     const id = partnerId ?? partner?.id
@@ -93,6 +113,7 @@ function PartnerDashboardInner() {
 
       if (partnerData) {
         setPartner(partnerData)
+        setVacationMode(!!(partnerData as any).vacation_mode)
 
         const summary = await getPartnerDashboardSummary({
           userId: partnerData.id,
@@ -162,20 +183,52 @@ function PartnerDashboardInner() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
-          {/* Header with business name and subscription badge */}
-          <div className="mb-8 flex items-start justify-between">
+          {/* Header with business name, subscription badge, and vacation mode toggle */}
+          <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h1 className="text-3xl font-bold text-foreground">{partner?.business_name || 'Moj portal'}</h1>
               <p className="text-muted-foreground mt-1">
                 {partner?.is_verified && '✓ '} Dobrodošli nazaj
               </p>
             </div>
-            {partner?.subscription_tier && (
-              <div className="text-sm font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">
-                {partner.subscription_tier === 'elite' ? 'ELITE plan' : partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Daily lead counter (Rec 7) */}
+              {(partner?.daily_lead_limit ?? 0) > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  Leadi danes: {partner?.daily_leads_today ?? 0} / {partner?.daily_lead_limit}
+                </Badge>
+              )}
+              {/* Vacation mode toggle (Rec 7) */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-background">
+                {vacationMode ? <Moon className="h-4 w-4 text-blue-500" /> : <Sun className="h-4 w-4 text-amber-500" />}
+                <span className="text-sm font-medium">{vacationMode ? 'Počitniški način' : 'Aktiven'}</span>
+                <Switch
+                  checked={vacationMode}
+                  onCheckedChange={toggleVacationMode}
+                  disabled={vacationLoading}
+                  aria-label="Počitniški način"
+                />
               </div>
-            )}
+              {partner?.subscription_tier && (
+                <div className="text-sm font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">
+                  {partner.subscription_tier === 'elite' ? 'ELITE plan' : partner.subscription_tier === 'pro' ? 'PRO plan' : 'START plan'}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Vacation mode banner */}
+          {vacationMode && (
+            <Card className="mb-6 p-4 border-blue-200 bg-blue-50">
+              <div className="flex items-center gap-3">
+                <Moon className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-blue-900 text-sm">Počitniški način je vklopljen</p>
+                  <p className="text-blue-700 text-xs">Novi leadi vam ne bodo dodeljeni. Izklopite ga, ko se vrnete.</p>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Open requests CTA banner */}
           <Card className="mb-8 p-6 bg-primary/5 border-primary/20">

@@ -36,7 +36,7 @@ export const liquidityEngine = {
     lng: number,
     categoryId: string,
     userId: string
-  ): Promise<void> {
+  ): Promise<{ success: boolean }> {
     try {
       console.log(JSON.stringify({
         level: 'info',
@@ -55,11 +55,28 @@ export const liquidityEngine = {
           error: matchResult.error,
         }))
 
-        await taskOrchestrator.updateTaskStatus(requestId, 'expired', {
-          reason: 'no_coverage',
-          searchRadiusKm: 75,
-        })
-        return
+        // P1 fix: only enqueue if not already in retry queue (prevents re-enqueue from retry cron)
+        const supabaseRetry = createAdminClient()
+        const { data: existing } = await (supabaseRetry as any)
+          .from('lead_retry_queue')
+          .select('id')
+          .eq('povprasevanje_id', requestId)
+          .maybeSingle()
+
+        if (!existing) {
+          await (supabaseRetry as any).from('lead_retry_queue').insert({
+            povprasevanje_id: requestId,
+            lat,
+            lng,
+            category_id: categoryId,
+            user_id: userId,
+            next_retry_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            last_error: matchResult.error ?? 'no_matches',
+          }).catch((e: any) => console.error('[LiquidityEngine] Failed to enqueue retry:', String(e)))
+        }
+
+        // P2 fix: leave task in current state ('new'), not 'matched' — no match happened
+        return { success: false }
       }
 
       // Fetch urgency to set correct SLA times
@@ -72,7 +89,8 @@ export const liquidityEngine = {
       const urgency = (povData as any)?.urgency as string | null
 
       // 2. Persist lead_assignments for all matches (rank 1 = active, rest = skipped until escalated)
-      await this.createLeadAssignments(requestId, matchResult.matches, urgency)
+      const fallbackFlags = (matchResult as any).fallbackSteps ?? []
+      await this.createLeadAssignments(requestId, matchResult.matches, urgency, fallbackFlags, 'system')
 
       // 3. Try instant offer for rank-1 (PRO+ only)
       const rank1 = matchResult.matches[0]
@@ -97,6 +115,7 @@ export const liquidityEngine = {
         totalMatches: matchResult.matches.length,
         slaHours: slaHoursForUrgency(urgency),
       }))
+      return { success: true }
     } catch (error) {
       console.error(JSON.stringify({
         level: 'error',
@@ -104,6 +123,7 @@ export const liquidityEngine = {
         requestId,
         error: error instanceof Error ? error.message : String(error),
       }))
+      return { success: false }
     }
   },
 
@@ -111,9 +131,15 @@ export const liquidityEngine = {
    * Write lead_assignments rows for all matched partners.
    * Rank 1 → status='pending' (SLA clock starts now).
    * Ranks 2–N → status='skipped' (activated by cron if rank-1 doesn't respond).
-   * Also increments active_lead_count for rank-1 only.
+   * Also increments active_lead_count and last_lead_assigned_at for rank-1 only.
    */
-  async createLeadAssignments(requestId: string, matches: MatchResult[], urgency?: string | null): Promise<void> {
+  async createLeadAssignments(
+    requestId: string,
+    matches: MatchResult[],
+    urgency?: string | null,
+    fallbackFlags: string[] = [],
+    assignedBy = 'system',
+  ): Promise<void> {
     const supabase = createAdminClient()
     const slaHours = slaHoursForUrgency(urgency ?? null)
     const expiresAt = new Date(Date.now() + slaHours * 60 * 60 * 1000).toISOString()
@@ -125,6 +151,8 @@ export const liquidityEngine = {
       score: m.score,
       status: i === 0 ? 'pending' : 'skipped',
       expires_at: i === 0 ? expiresAt : new Date(Date.now() + (slaHours * (i + 1)) * 60 * 60 * 1000).toISOString(),
+      assigned_by: assignedBy,
+      fallback_flags: fallbackFlags,
     }))
 
     const { error } = await supabase.from('lead_assignments' as any).insert(rows)
@@ -133,11 +161,30 @@ export const liquidityEngine = {
       return
     }
 
-    // Increment active_lead_count for rank-1 contractor
+    // Increment active_lead_count + daily_leads_today + last_lead_assigned_at for rank-1
     if (rows.length > 0) {
-      await (supabase as any).rpc('increment_active_leads', {
-        p_obrtnik_id: (matches as any[])[0].partnerId,
-      })
+      const rank1PartnerId = (matches as any[])[0].partnerId
+      await (supabase as any).rpc('increment_active_leads', { p_obrtnik_id: rank1PartnerId })
+      // P1 fix: also update daily counter so daily_lead_limit filter is effective
+      await (supabase as any).rpc('increment_daily_leads', { p_obrtnik_id: rank1PartnerId })
+        .catch((e: any) => console.warn('[LiquidityEngine] increment_daily_leads failed (non-fatal):', String(e)))
+      // Notify PRO+ partners assigned via fallback step 3 (Rec 1)
+      const overCapMatches = (matches as any[]).filter((m: any) =>
+        fallbackFlags.includes('ignore_lead_cap_premium') &&
+        m.rank === 1 &&
+        (m.subscriptionTier?.toLowerCase() === 'pro' || m.subscriptionTier?.toLowerCase() === 'elite' || m.subscriptionTier?.toLowerCase() === 'enterprise')
+      )
+      for (const m of overCapMatches) {
+        await (supabase as any).from('notifications').insert({
+          user_id: m.partnerId,
+          type: 'lead_escalation',
+          title: 'Dodeljeni ste bili zunaj rednega procesa',
+          body: 'Prejeli ste lead izven vaše normalne kapacitete. Prosimo potrdite ali zavrnite v roku 1 ure.',
+          link: '/partner-dashboard/povprasevanja',
+          metadata: { povprasevanje_id: requestId, fallback_reason: 'lead_cap_skip' },
+          read: false,
+        }).catch((e: any) => console.warn('[LiquidityEngine] fallback notify failed:', String(e)))
+      }
     }
   },
 
