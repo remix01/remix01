@@ -51,7 +51,7 @@ async function postHandler(req: Request) {
     const body: CreateOfferPayload = await req.json()
     const created = await partnerOfferService.create(auth.supabase, auth.userId, body)
 
-    void invalidatePartnerDashboardCache(auth.userId)
+    await invalidatePartnerDashboardCache(auth.userId)
     return ok(created, undefined, 201)
   } catch (error) {
     return handleRouteError(error, 'POST /api/partner/offers')

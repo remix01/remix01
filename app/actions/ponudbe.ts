@@ -56,10 +56,20 @@ export async function acceptPonudbaAction(
     revalidatePath('/partner-dashboard')
     revalidatePath('/admin/povprasevanja')
 
-    // Invalidate the obrtnik's cached dashboard — acceptedOffers/activeOffers changed
-    if (accepted.obrtnik_id) {
-      await invalidatePartnerDashboardCache(accepted.obrtnik_id)
-    }
+    // Invalidate ALL contractors who had offers on this povprasevanje:
+    // the accepted one (acceptedOffers/activeOffers changed) and all auto-rejected
+    // ones (acceptPonudbaFull marks their offers 'zavrnjena', so activeOffers changed).
+    const { data: affectedOffers } = await supabase
+      .from('ponudbe')
+      .select('obrtnik_id')
+      .eq('povprasevanje_id', povprasevanjeId)
+
+    const affectedIds = [
+      ...new Set(
+        (affectedOffers ?? []).map((o: any) => o.obrtnik_id).filter(Boolean) as string[]
+      ),
+    ]
+    await Promise.all(affectedIds.map((id) => invalidatePartnerDashboardCache(id)))
 
     return { success: true }
   } catch (error) {
