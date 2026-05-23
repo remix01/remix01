@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
-
+import { withCronGuard } from '@/lib/cron/cronGuard'
 
 function serializeError(error: unknown) {
   if (error instanceof Error) {
@@ -57,33 +57,12 @@ function getCronEnvDiagnostics() {
   }
 }
 
-function verifyCronSecret(req: NextRequest): boolean {
-  const authHeader = req.headers.get('authorization') || ''
-  const cronSecret = process.env.CRON_SECRET
-
-  if (!cronSecret) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[v0] CRON_SECRET not configured in production — request denied')
-      return false
-    }
-    return true
-  }
-
-  return authHeader === `Bearer ${cronSecret}`
-}
-
-export async function GET(req: NextRequest) {
+async function _handler(req: NextRequest) {
   try {
     const requestId =
       req.headers.get('x-request-id') ||
       req.headers.get('x-vercel-id') ||
       'unknown'
-
-    // Verify cron authorization
-    if (!verifyCronSecret(req)) {
-      console.error('[v0] Unauthorized cron request', { requestId })
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     console.log('[v0] SLA task expiry cron job started', {
       requestId,
@@ -239,7 +218,10 @@ async function expireTask(taskId: string) {
   return firstTry
 }
 
+export const GET = withCronGuard(
+  { jobName: 'sla-task-expiry', lockTtlSeconds: 300 },
+  _handler,
+)
+
 // Also export POST for testing
-export async function POST(req: NextRequest) {
-  return GET(req)
-}
+export const POST = GET

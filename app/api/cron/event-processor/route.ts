@@ -1,38 +1,22 @@
 /**
- * Cron Worker – Event Processor (IMPROVED)
- * 
- * Runs every 5 minutes to process pending events from outbox.
+ * Cron Worker – Event Processor
+ *
+ * Processes pending events from the outbox (fallback poller).
  * Triggered by Vercel Cron (configured in vercel.json).
- * 
- * Protected by CRON_SECRET to prevent unauthorized invocations.
- * 
- * CHANGELOG (2026-03-31):
- * - Added robust error handling for dynamic imports
- * - Initialize event subscribers in serverless context
- * - Detailed logging for debugging
- * - Fixes event-processor 500 errors
+ * Protected by CRON_SECRET + overlap lock via withCronGuard.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { withCronGuard } from '@/lib/cron/cronGuard'
 
-export async function GET(req: NextRequest) {
-  // Verify CRON_SECRET
-  const authHeader = req.headers.get('authorization')
-  const expectedToken = `Bearer ${process.env.CRON_SECRET}`
-
-  if (authHeader !== expectedToken) {
-    console.warn('[Cron] Unauthorized event processor call')
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
+export const GET = withCronGuard(
+  { jobName: 'event-processor', lockTtlSeconds: 180 },
+  async (_req) => {
   const start = Date.now()
-  console.log(JSON.stringify({ 
-    level: 'info', 
-    message: '[event-processor] start', 
-    ranAt: new Date().toISOString() 
+  console.log(JSON.stringify({
+    level: 'info',
+    message: '[event-processor] start',
+    ranAt: new Date().toISOString()
   }))
 
   try {
@@ -132,17 +116,17 @@ export async function GET(req: NextRequest) {
 
   } catch (err) {
     const durationMs = Date.now() - start
-    console.error(JSON.stringify({ 
-      level: 'error', 
-      message: '[event-processor] fatal error', 
+    console.error(JSON.stringify({
+      level: 'error',
+      message: '[event-processor] fatal error',
       error: String(err),
       stack: err instanceof Error ? err.stack : undefined,
-      durationMs 
+      durationMs
     }))
-    
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error',
       details: process.env.NODE_ENV === 'development' ? String(err) : undefined
     }, { status: 500 })
   }
-}
+  },
+)

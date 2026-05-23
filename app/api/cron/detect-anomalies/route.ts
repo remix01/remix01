@@ -1,23 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { withCronGuard, cronWindow } from '@/lib/cron/cronGuard'
 
-function verifyCron(req: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[cron/detect-anomalies] CRON_SECRET not configured in production — request denied')
-      return false
-    }
-    return true
-  }
-  return req.headers.get('authorization') === `Bearer ${secret}`
-}
-
-export async function GET(req: Request) {
-  if (!verifyCron(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+// Half-day window (11.5h TTL) prevents duplicate alert inserts if the route is
+// invoked manually or if the cron entry is re-enabled in vercel.json.
+export const GET = withCronGuard(
+  {
+    jobName: 'detect-anomalies',
+    lockTtlSeconds: 120,
+    windowKey: cronWindow.halfDay,
+    windowTtlSeconds: 41400,
+  },
+  async (_req: NextRequest) => {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   const [highOfferUsers, suspiciousMessages] = await Promise.all([
@@ -66,4 +60,5 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({ success: true, inserted: alerts.length })
-}
+  },
+)

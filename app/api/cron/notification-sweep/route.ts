@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { FUNNEL_EVENTS, trackFunnelEvent } from '@/lib/analytics/funnel'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+import { withCronGuard } from '@/lib/cron/cronGuard'
 
 function deterministicReminderNotificationId(userId: string, povprasevanjeId: string) {
   const seed = `izbira_ponudbe_reminder:${userId}:${povprasevanjeId}`
@@ -11,15 +12,7 @@ function deterministicReminderNotificationId(userId: string, povprasevanjeId: st
   return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-${variant.toString(16)}${h.slice(17,20)}-${h.slice(20,32)}`
 }
 
-
-export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  const token = authHeader?.replace('Bearer ', '')
-
-  if (!token || token !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+async function _handler(request: NextRequest) {
   const sweepId = randomUUID()
   const start = Date.now()
 
@@ -145,3 +138,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
+
+// Lock TTL: 4 min — longer than the 10-min interval is intentional only if a sweep is
+// genuinely slow. Overlap is the bigger risk given the reminder-loop's table scan.
+export const GET = withCronGuard(
+  { jobName: 'notification-sweep', lockTtlSeconds: 240 },
+  _handler,
+)
