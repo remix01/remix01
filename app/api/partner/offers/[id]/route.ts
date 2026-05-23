@@ -7,6 +7,7 @@ import {
 } from '@/lib/partner/offers/service'
 import { withCsrf } from '@/lib/csrf/with-csrf'
 import { SECURITY_MESSAGES } from '@/lib/security/access'
+import { invalidatePartnerDashboardCache } from '@/lib/partner/dashboard-summary'
 
 type RouteParams = { params: Promise<{ id: string }> }
 
@@ -45,6 +46,7 @@ async function patchHandler(req: Request, { params }: RouteParams) {
     const body: UpdateOfferPayload = await req.json()
     const updated = await partnerOfferService.update(auth.supabase, auth.userId, id, body)
 
+    void invalidatePartnerDashboardCache(auth.userId)
     return ok(updated)
   } catch (error) {
     return handleRouteError(error, 'PATCH /api/partner/offers/[id]')
@@ -59,6 +61,8 @@ async function deleteHandler(_req: Request, { params }: RouteParams) {
 
   try {
     const result = await partnerOfferService.remove(auth.supabase, auth.userId, id)
+
+    void invalidatePartnerDashboardCache(auth.userId)
     return ok(result)
   } catch (error) {
     return handleRouteError(error, 'DELETE /api/partner/offers/[id]')
