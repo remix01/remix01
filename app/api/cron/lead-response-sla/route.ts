@@ -19,23 +19,11 @@ import { workerBroadcast } from '@/lib/marketplace/workerBroadcast'
 import { createAdminClient } from '@/lib/supabase/server'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { sendNotification } from '@/lib/notifications'
+import { withCronGuard } from '@/lib/cron/cronGuard'
 
 const DEADLINE_WARNING_MINUTES = 30
 
-function verifyCronSecret(req: NextRequest): boolean {
-  const authHeader = req.headers.get('authorization') || ''
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return process.env.NODE_ENV !== 'production'
-  }
-  return authHeader === `Bearer ${cronSecret}`
-}
-
-export async function GET(req: NextRequest) {
-  if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+async function _handler(req: NextRequest) {
   const startTime = Date.now()
   const supabase = createAdminClient()
 
@@ -201,6 +189,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  return GET(req)
-}
+export const GET = withCronGuard(
+  { jobName: 'lead-response-sla', lockTtlSeconds: 300 },
+  _handler,
+)
+
+export const POST = GET
