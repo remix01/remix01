@@ -176,14 +176,14 @@ export async function executeSandboxCode(
   }
 
   let sandbox: any
-  let trackedSandboxId: string | undefined
   const connecting = Boolean(input.sandboxId)
   if (connecting) {
     if (!activeMap.has(input.sandboxId!)) {
       throw new SandboxPolicyError('SANDBOX_REUSE_DENIED', 'Sandbox reuse denied.', 403)
     }
     sandbox = await (Sandbox as any).connect(input.sandboxId, { apiKey: env.E2B_API_KEY })
-    trackedSandboxId = sandbox.sandboxId
+    activeMap.set(input.sandboxId!, now)
+    sessionTracker.set(input.userId, activeMap)
   } else {
     if (activeMap.size >= policy.maxActiveSandboxes) {
       await logger.onBlocked?.({ userId: input.userId, reason: 'CONCURRENCY_LIMIT', active: activeMap.size, limit: policy.maxActiveSandboxes, ts: new Date().toISOString() })
@@ -192,7 +192,6 @@ export async function executeSandboxCode(
     sandbox = await (Sandbox as any).create({ apiKey: env.E2B_API_KEY, timeoutMs: policy.maxRuntimeMs })
     activeMap.set(sandbox.sandboxId, now)
     sessionTracker.set(input.userId, activeMap)
-    trackedSandboxId = sandbox.sandboxId
     await logger.onSessionCreated?.({ userId: input.userId, sandboxId: sandbox.sandboxId, language: input.language, template: TEMPLATE_MAP[input.language], tier: input.tier, ts: new Date().toISOString() })
   }
 
@@ -238,12 +237,6 @@ export async function executeSandboxCode(
       await logger.onTimeoutKilled?.({ userId: input.userId, sandboxId: sandbox.sandboxId, runtimeMs, limitMs: policy.maxRuntimeMs, ts: new Date().toISOString() })
     }
     throw new SandboxPolicyError(timedOut ? 'RUNTIME_LIMIT' : 'INTERNAL_ERROR', timedOut ? 'Sandbox execution timed out.' : message, timedOut ? 408 : 500)
-  } finally {
-    if (trackedSandboxId) {
-      activeMap.delete(trackedSandboxId)
-      if (activeMap.size === 0) sessionTracker.delete(input.userId)
-      else sessionTracker.set(input.userId, activeMap)
-    }
   }
 }
 

@@ -57,12 +57,13 @@ describe('e2b sandbox service', () => {
       .rejects.toMatchObject({ reason: 'QUOTA_EXCEEDED' })
   })
 
-  it('releases tracked sandbox ids after execution when reusing a session', async () => {
+  it('keeps tracked sandbox ids available for follow-up reuse', async () => {
     runMock.mockResolvedValue({ stdout: 'ok', stderr: '', exitCode: 0 })
     __sandboxInternals.sessionTracker.set('u1', new Map([['sbx_1', Date.now()]]))
 
     await executeSandboxCode({ userId: 'u1', tier: 'start', code: 'print(1)', language: 'python', sandboxId: 'sbx_1' })
 
-    expect(__sandboxInternals.sessionTracker.has('u1')).toBe(false)
+    expect(__sandboxInternals.sessionTracker.has('u1')).toBe(true)
+    expect(__sandboxInternals.sessionTracker.get('u1')?.has('sbx_1')).toBe(true)
   })
 })
