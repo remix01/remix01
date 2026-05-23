@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/client'
 import type { DashboardFilters } from '@/lib/dashboard/filters'
+import { serializeDashboardFilters } from '@/lib/dashboard/filters'
 import { getCompletionStatus, type CompletionStatus } from '@/lib/partner/completion'
+import { getOrSetCache, deleteFromCache } from '@/lib/cache/strategies'
+import { CACHE_KEYS, CACHE_TTL } from '@/lib/cache/cache-keys'
 
 export interface PartnerDashboardSummary {
   offers: any[]
@@ -16,7 +19,7 @@ export interface PartnerDashboardSummary {
   filterContext: DashboardFilters
 }
 
-export async function getPartnerDashboardSummary({ userId, filters }: { userId: string, filters: DashboardFilters }): Promise<PartnerDashboardSummary> {
+async function fetchPartnerDashboardSummary({ userId, filters }: { userId: string, filters: DashboardFilters }): Promise<PartnerDashboardSummary> {
   const supabase = createClient()
 
   // Phase 1: fetch offers, categories, and ratings in parallel.
@@ -77,4 +80,33 @@ export async function getPartnerDashboardSummary({ userId, filters }: { userId: 
     categoryIds,
     filterContext: filters,
   }
+}
+
+/**
+ * Public API — wraps fetchPartnerDashboardSummary with a 5-minute Redis cache.
+ * Key is scoped per userId + filter combination; falls back to a live query if
+ * Redis is unavailable or the key has expired.
+ */
+export async function getPartnerDashboardSummary(
+  { userId, filters }: { userId: string; filters: DashboardFilters }
+): Promise<PartnerDashboardSummary> {
+  const cacheKey = CACHE_KEYS.partnerDashboard(userId, serializeDashboardFilters(filters))
+  return getOrSetCache(
+    cacheKey,
+    () => fetchPartnerDashboardSummary({ userId, filters }),
+    CACHE_TTL.SHORT,
+  )
+}
+
+/**
+ * Invalidate the cached summary for a given partner.
+ * Pass filters to invalidate a specific variant; omit to delete the default view.
+ */
+export async function invalidatePartnerDashboardCache(
+  userId: string,
+  filters?: DashboardFilters,
+): Promise<void> {
+  const f = filters ?? { dateRange: '7d' as const }
+  const cacheKey = CACHE_KEYS.partnerDashboard(userId, serializeDashboardFilters(f))
+  await deleteFromCache(cacheKey)
 }

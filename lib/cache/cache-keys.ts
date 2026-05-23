@@ -81,6 +81,10 @@ export const CACHE_KEYS = {
   // ── FEATURE FLAGS
   featureFlag: (flagName: string) => `feature:${flagName}`,
   featureFlagUser: (flagName: string, userId: string) => `feature:${flagName}:user:${userId}`,
+
+  // ── PARTNER DASHBOARD
+  partnerDashboard: (userId: string, filterFingerprint: string) =>
+    `partner:dashboard:summary:${userId}:${filterFingerprint}`,
 }
 
 // ── CACHE TTL STRATEGIES
