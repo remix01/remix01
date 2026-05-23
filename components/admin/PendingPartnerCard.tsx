@@ -15,14 +15,16 @@ interface PendingPartnerCardProps {
 
 export function PendingPartnerCard({ partner }: PendingPartnerCardProps) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleApprove = async () => {
     setLoading(true)
-    try {
-      await odobriPartnerja(partner.id)
+    setError(null)
+    const result = await odobriPartnerja(partner.id)
+    if (result.success) {
       window.location.reload()
-    } catch (error) {
-      console.error('Napaka pri odobritvi:', error)
+    } else {
+      setError(result.error || 'Napaka pri odobritvi.')
       setLoading(false)
     }
   }
@@ -32,11 +34,12 @@ export function PendingPartnerCard({ partner }: PendingPartnerCardProps) {
     if (!razlog) return
 
     setLoading(true)
-    try {
-      await zavrniPartnerja(partner.id, razlog)
+    setError(null)
+    const result = await zavrniPartnerja(partner.id, razlog)
+    if (result.success) {
       window.location.reload()
-    } catch (error) {
-      console.error('Napaka pri zavrnitvi:', error)
+    } else {
+      setError(result.error || 'Napaka pri zavrnitvi.')
       setLoading(false)
     }
   }
@@ -60,6 +63,9 @@ export function PendingPartnerCard({ partner }: PendingPartnerCardProps) {
             </p>
           </div>
 
+          {error && (
+            <p className="text-xs text-destructive">{error}</p>
+          )}
           <div className="flex gap-2">
             <Button
               size="sm"
