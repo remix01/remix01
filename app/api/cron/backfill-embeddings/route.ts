@@ -2,37 +2,16 @@
  * Cron Job: Embedding Backfill
  *
  * Automatically generates embeddings for new records.
- * Triggered by Vercel Cron or QStash scheduler.
- *
- * Schedule: Every 15 minutes
- * Configure in vercel.json with cron schedule: 0 [slash]15 [space] [asterisk] [space] [asterisk] [space] [asterisk] [space] [asterisk]
+ * Triggered by Vercel Cron (nightly 02:00 UTC) or QStash scheduler.
+ * Protected by CRON_SECRET + overlap lock + day-window via withCronGuard.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { env, hasEmbeddings } from '@/lib/env'
 import { backfillEmbeddings, type EmbeddingTarget } from '@/lib/ai/rag'
+import { withCronGuard, cronWindow } from '@/lib/cron/cronGuard'
 
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization')
-  const cronSecret = env.CRON_SECRET
-
-  if (!cronSecret) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[v0] CRON_SECRET not configured in production — request denied')
-      return false
-    }
-    return true
-  }
-
-  return authHeader === `Bearer ${cronSecret}`
-}
-
-export async function GET(request: NextRequest) {
-  // Verify authorization
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+async function _handler(request: NextRequest) {
   const startTime = Date.now()
   const results: Record<
     string,
@@ -111,7 +90,17 @@ export async function GET(request: NextRequest) {
   }, { status: statusCode })
 }
 
+// Window TTL 82800s (23h) — prevents re-running the nightly job if Vercel retries.
+// Lock TTL 1800s (30 min) — embedding calls can be slow at max batch size.
+export const GET = withCronGuard(
+  {
+    jobName: 'backfill-embeddings',
+    lockTtlSeconds: 1800,
+    windowKey: cronWindow.day,
+    windowTtlSeconds: 82800,
+  },
+  _handler,
+)
+
 // Also support POST for QStash
-export async function POST(request: NextRequest) {
-  return GET(request)
-}
+export const POST = GET

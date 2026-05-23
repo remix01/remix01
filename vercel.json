@@ -2,60 +2,56 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "crons": [
     {
-      "path": "/api/cron/event-processor",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron/metrics-push",
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/health-sweep",
-      "schedule": "*/2 * * * *"
-    },
-    {
-      "path": "/api/cron/risk-check",
-      "schedule": "0 */4 * * *"
-    },
-    {
-      "path": "/api/cron/check-tier-upgrades",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/escrow-auto-release",
-      "schedule": "0 3 * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/notification-sweep",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/event-processor",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/lead-response-sla",
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/retry-commission-transfers",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/sla-task-expiry",
       "schedule": "0 * * * *"
     },
     {
-      "path": "/api/cron/detect-anomalies",
-      "schedule": "15 * * * *"
+      "path": "/api/cron/risk-check",
+      "schedule": "0 */12 * * *"
     },
     {
       "path": "/api/cron/backfill-embeddings",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/leads-retry",
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/leads-auto-process",
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/lead-response-sla",
-      "schedule": "*/15 * * * *"
-    },
-    {
       "path": "/api/cron/metrics-push",
       "schedule": "*/5 * * * *"
     },
     {
-      "path": "/api/cron/leads-retry",
-      "schedule": "0 * * * *"
+      "path": "/api/cron/escrow-auto-release",
+      "schedule": "0 3 * * *"
     }
   ]
 }

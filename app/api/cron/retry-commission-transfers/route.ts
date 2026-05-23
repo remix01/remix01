@@ -1,54 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { commissionService } from '@/lib/services/commissionService'
+import { withCronGuard, cronWindow } from '@/lib/cron/cronGuard'
 
 /**
  * Cron Job: Retry failed commission transfers
- * 
- * Runs periodically (e.g., every 30 minutes) to retry failed Stripe transfers.
- * Limits retry attempts to 3 per commission log.
- * 
- * Triggered by: Vercel Cron Schedules or external scheduler
- * Auth: Vercel's X-Vercel-Cron header
+ *
+ * Retries failed Stripe transfers, up to 3 attempts per commission log.
+ * Protected by CRON_SECRET + overlap lock + hour-window via withCronGuard.
+ * The hour-window prevents double-retrying the same transfers if Vercel retries.
  */
-export async function GET(request: NextRequest) {
-  // Verify this is a real cron request from Vercel
-  const authHeader = request.headers.get('authorization')
-  const expectedToken = process.env.CRON_SECRET
-  
-  if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
-  try {
-    console.log('[retry-commission-transfers] Starting retry job')
-
+export const GET = withCronGuard(
+  {
+    jobName: 'retry-commission-transfers',
+    lockTtlSeconds: 600,
+    windowKey: cronWindow.hour,
+    windowTtlSeconds: 3540,
+  },
+  async (_req) => {
     const result = await commissionService.retryFailedTransfers()
-
-    console.log(
-      `[retry-commission-transfers] Retry completed: ` +
-      `${result.retried} retried, ${result.succeeded} succeeded, ${result.failed} failed`
-    )
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Commission transfer retry job completed',
-        ...result,
-      },
-      { status: 200 }
-    )
-  } catch (error) {
-    console.error('[retry-commission-transfers] Error:', error)
-    
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
-  }
-}
+    console.log(JSON.stringify({
+      level: 'info',
+      job: 'retry-commission-transfers',
+      event: 'done',
+      retried: result.retried,
+      succeeded: result.succeeded,
+      failed: result.failed,
+    }))
+    return NextResponse.json({ success: true, ...result })
+  },
+)

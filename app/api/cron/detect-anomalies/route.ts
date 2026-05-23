@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { withCronGuard, cronWindow } from '@/lib/cron/cronGuard'
 
 function verifyCron(req: Request) {
   const secret = process.env.CRON_SECRET

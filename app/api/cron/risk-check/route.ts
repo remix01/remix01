@@ -1,25 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { calculateJobRisk, getJobsForRiskCheck } from '@/lib/riskScoring/calculator'
 import { adminAlertEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/sender'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
 import { toLegacyInquiryStatus } from '@/lib/lead-status'
+import { withCronGuard, cronWindow } from '@/lib/cron/cronGuard'
 
 export const maxDuration = 60
 
 /**
  * Cron job: risk assessment for active povpraševanja.
- * Runs every 4 hours via Vercel Cron.
- * Authorization: CRON_SECRET in Bearer token.
+ * Runs every 12 hours via Vercel Cron.
+ * Half-day window prevents duplicate admin emails and auto-cancels within
+ * the same 12-hour bucket if Vercel retries or the schedule overlaps.
  */
-export async function GET(request: NextRequest) {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-  if (!token || token !== env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+export const GET = withCronGuard(
+  {
+    jobName: 'risk-check',
+    lockTtlSeconds: 1800,
+    windowKey: cronWindow.halfDay,
+    windowTtlSeconds: 41400,
+  },
+  async (_request) => {
   console.log('[risk-check] Starting risk assessment for active jobs...')
 
   try {
@@ -60,7 +63,8 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+  },
+)
 
 async function sendAdminAlert(jobId: string, score: number, flags: string[], level: string) {
   const adminEmail = env.ADMIN_EMAIL || 'admin@liftgo.net'
