@@ -9,12 +9,11 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { FAQSection } from '@/components/seo/faq-section'
-import { RelatedCities } from '@/components/seo/related-cities'
 import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
-import { fetchWithRetry } from '@/lib/fetchWithRetry'
+import { buildSeoContent, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
-import { env } from '@/lib/env'
+import { resolveMarketplaceIntent } from '@/lib/marketplace/resolve-marketplace-intent'
 import { notFound } from 'next/navigation'
 
 interface Props {
@@ -24,18 +23,11 @@ interface Props {
 export const revalidate = 300
 export const dynamicParams = true
 
+const RESERVED_SLUGS = RESERVED_DIRECTORY_SLUGS
+
 // Slugs that must never be treated as category/city pages — static assets,
 // framework internals, and common scanner/bot targets that would otherwise
 // trigger DB calls and cause static-to-dynamic rendering errors.
-const RESERVED_SLUGS = new Set([
-  'images', 'icons', 'fonts', 'api', 'admin',
-  '_next', 'static', 'favicon.ico', 'robots.txt',
-  'sitemap.xml', 'sw.js', 'manifest.json',
-  'actuator', 'env', '__depproxyproof',
-  'wp-admin', 'wp-login', 'phpinfo', 'server-status',
-  'dashboard', 'partner-dashboard', 'auth',
-])
-
 export async function generateStaticParams() {
   // Generate all combinations of category slugs × city slugs
   try {
@@ -48,7 +40,6 @@ export async function generateStaticParams() {
           category: category.slug,
           city: city.slug
         })
-        url: `https://liftgo.net/${category.slug}/${city.slug}`
       }
     }
     return params
@@ -123,94 +114,19 @@ function humanizeSlug(slug: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-async function fetchDirectoryData(category: string, city: string) {
-  const pathname = `/${category}/${city}`
-  const endpoint = `/pro/${encodeURIComponent(category)}/${encodeURIComponent(city)}`
-  const baseCandidates = Array.from(new Set([
-    process.env.DIRECTORY_API_BASE_URL,
-    env.NEXT_PUBLIC_APP_URL,
-    'https://liftgo.net',
-    'https://api.liftgo.net',
-  ]
-    .filter((value): value is string => !!value)
-    .map(value => value.replace(/\/$/, ''))))
-
-  let lastResult: Awaited<ReturnType<typeof fetchWithRetry<{
-    providers?: Array<Record<string, unknown>>
-    category?: string
-    city?: string
-  }>>> | null = null
-
-  for (const baseUrl of baseCandidates) {
-    try {
-      const apiUrl = `${baseUrl}${endpoint}`
-      const result = await fetchWithRetry<{
-        providers?: Array<Record<string, unknown>>
-        category?: string
-        city?: string
-      }>(apiUrl, {
-        retries: 2,
-        timeoutMs: 2500,
-        initialDelayMs: 250,
-        next: { revalidate },
-        requestLabel: `${pathname}@${baseUrl}`,
-      })
-
-      if (result.ok) {
-        return result
-      }
-
-      lastResult = result
-      const canTryNextBase = result.reason === 'network_error' || result.reason === 'timeout' || result.reason === 'invalid_json'
-      if (!canTryNextBase) {
-        return result
-      }
-    } catch (error) {
-      console.warn('[fetchDirectoryData] unexpected error', {
-        baseUrl,
-        pathname,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
-
-  return lastResult ?? {
-    ok: false,
-    status: null,
-    attempt: 0,
-    durationMs: 0,
-    isMissing: false,
-    isTransient: true,
-    reason: 'unknown_error',
-    cacheStatus: null,
-  }
-}
-
 export default async function CategoryCityPage(props: Props) {
   const params = await props.params
   const normalized = normalizeDirectoryParams(params.category, params.city)
   const citySlug = normalized.city ?? ''
   const pathname = `/${normalized.category}/${citySlug}`
 
-  // Reject reserved slugs and dotfile-style segments (e.g. /.aws/credentials, /actuator/env)
-  if (
-    RESERVED_SLUGS.has(normalized.category) ||
-    normalized.category.includes('.') ||
-    citySlug.includes('.')
-  ) {
+  const intent = await resolveMarketplaceIntent(params.category, params.city)
+  if (intent.kind === 'scanner_or_reserved' || intent.kind === 'unknown_invalid') {
     notFound()
   }
 
-  let resolvedCategory: Awaited<ReturnType<typeof resolveCategorySlugOrFallback>> = null
-  try {
-    resolvedCategory = await resolveCategorySlugOrFallback(normalized.category)
-  } catch (error) {
-    console.error('[category-city-page] resolveCategorySlugOrFallback failed', {
-      pathname,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-  const resolvedCity = resolveCitySlugOrFallback(citySlug)
+  const resolvedCategory = intent.category
+  const resolvedCity = intent.city
   const category = resolvedCategory || {
     id: `fallback:${normalized.category}`,
     name: humanizeSlug(normalized.category),
@@ -232,39 +148,6 @@ export default async function CategoryCityPage(props: Props) {
       region: process.env.VERCEL_REGION,
     })
     notFound()
-  }
-
-  const fallbackResult = {
-    ok: false as const,
-    status: null,
-    attempt: 0,
-    durationMs: 0,
-    isMissing: false,
-    isTransient: true,
-    reason: 'unknown_error',
-    cacheStatus: null,
-  }
-  let externalResult: Awaited<ReturnType<typeof fetchDirectoryData>> = fallbackResult
-  try {
-    externalResult = await fetchDirectoryData(normalized.category, citySlug)
-  } catch (error) {
-    console.error('[category-city-page] fetchDirectoryData failed', {
-      pathname,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-
-  if (!externalResult.ok && externalResult.isMissing) {
-    console.info('[category-city-page] external_missing_continue', {
-      pathname,
-      params,
-      found: true,
-      reason_not_found: externalResult.reason,
-      status: externalResult.status,
-      fetchDurationMs: externalResult.durationMs,
-      deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-      region: process.env.VERCEL_REGION,
-    })
   }
 
   let obrtniki = [] as Awaited<ReturnType<typeof listObrtnikiPublic>>
@@ -293,18 +176,14 @@ export default async function CategoryCityPage(props: Props) {
     })
   }
 
-  if (!externalResult.ok && externalResult.isTransient && !dataWarning) {
-    dataWarning = 'Stran je trenutno prikazana v varnem načinu zaradi začasnih težav s podatkovnim virom.'
-  }
-
   console.info('[category-city-page] render', {
     pathname,
     params,
     found: true,
     reason_not_found: 'none',
-    fetchDurationMs: externalResult.durationMs,
-    externalStatus: externalResult.status,
-    externalSourceOk: externalResult.ok,
+    fetchDurationMs: null,
+    externalStatus: null,
+    externalSourceOk: null,
     deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
     region: process.env.VERCEL_REGION,
   })
@@ -312,6 +191,7 @@ export default async function CategoryCityPage(props: Props) {
   const nearbyCities = getNearbyCities(city.region, citySlug)
 
   // Get pricing for schema
+  const seoContent = buildSeoContent({ categoryName: category.name, categorySlug: category.slug, citySlug, cityName: city.name })
   const pricing = getPricingForCategory(normalized.category)
 
   // Generate schema markup
@@ -327,7 +207,7 @@ export default async function CategoryCityPage(props: Props) {
   const serviceSchema = generateServiceSchema({
     categoryName: category.name,
     cityName: city.name,
-    description: 'Preverjeni ' + category.name.toLowerCase() + ' mojstri v ' + city.name + ' s hirim odzivom in ocenami strank.',
+    description: seoContent.schemaDescription,
     minPrice: pricing.minHourly,
     maxPrice: pricing.maxHourly
   })
@@ -378,12 +258,11 @@ export default async function CategoryCityPage(props: Props) {
           <div className="max-w-6xl mx-auto px-4">
             <h2 className="text-2xl font-bold mb-4">{category.name} storitve v mestu {city.name}</h2>
             <p className="text-gray-700 max-w-4xl mb-6">
-              Za lokalne projekte v mestu {city.name} lahko primerjate profile, odzivne čase in ponudbe izvajalcev.
-              V opisu povpraševanja navedite obseg dela, željen termin in posebnosti lokacije, da dobite bolj relevantne ponudbe.
+              {seoContent.whatToExpect}
             </p>
             <div className="flex flex-wrap gap-3 text-sm">
               <Link href={`/${normalized.category}`} className="underline text-blue-700">Nazaj na {category.name} po Sloveniji</Link>
-              <Link href="/novo-povprasevanje" className="underline text-blue-700">Oddaj povpraševanje v mestu {city.name}</Link>
+              <Link href={getInquiryLink(normalized.category, citySlug)} className="underline text-blue-700">Oddaj povpraševanje v mestu {city.name}</Link>
             </div>
           </div>
         </section>
@@ -403,14 +282,22 @@ export default async function CategoryCityPage(props: Props) {
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-lg text-gray-600 mb-6">
-                  Trenutno ni {category.name.toLowerCase()} mojstrov v {city.name}
+                <h3 className="text-2xl font-semibold mb-4">{category.name} v {city.name}</h3>
+                <p className="text-lg text-gray-600 mb-3">
+                  Trenutno še ne prikazujemo izvajalcev za točno kombinacijo, vendar lahko oddate povpraševanje in LiftGO vam pomaga najti primernega mojstra.
                 </p>
-                <Link href="/za-obrtnike">
-                  <Button variant="outline" size="lg">
-                    Postani prvi partnerski mojster v mestu
-                  </Button>
-                </Link>
+                <p className="text-sm text-gray-500 mb-6">Naša ekipa in Concierge vam pomagata najti ustreznega izvajalca v najkrajšem času.</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link href="/novo-povprasevanje">
+                    <Button size="lg">Oddaj povpraševanje</Button>
+                  </Link>
+                  <Link href="/mojstri">
+                    <Button variant="outline" size="lg">Prebrskaj mojstre</Button>
+                  </Link>
+                  <Link href="/">
+                    <Button variant="ghost" size="lg">Odpri LiftGO Concierge</Button>
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -446,14 +333,20 @@ export default async function CategoryCityPage(props: Props) {
           categoryName={category.name}
           categorySlug={normalized.category}
           cityName={city.name}
+          canonicalPath={`https://liftgo.net/${normalized.category}/${citySlug}`}
+          items={seoContent.faqItems}
         />
 
-        {/* Related Cities */}
-        <RelatedCities
-          categorySlug={normalized.category}
-          categoryName={category.name}
-          currentCitySlug={citySlug}
-        />
+        <section className="py-10 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-2xl font-bold mb-6">{seoContent.relatedCitiesLabel}</h2>
+            <div className="flex flex-wrap gap-3">
+              {getRelatedCityLinks(normalized.category, citySlug).map((link) => (
+                <Link key={link.href} href={link.href} className="px-3 py-2 text-sm border rounded-md hover:bg-white">{link.label}</Link>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Related Categories */}
         <RelatedCategories

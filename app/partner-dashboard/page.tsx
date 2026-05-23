@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, Circle } from 'lucide-react'
 import type { Offer } from '@/lib/types/offer'
 import { createClient } from '@/lib/supabase/client'
-import { getCompletionStatus } from '@/lib/partner/completion'
+import { getPartnerDashboardSummary } from '@/lib/partner/dashboard-summary'
+import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
 
 const OfferForm = dynamic(
   () => import('@/components/partner/offer-form').then((m) => m.OfferForm),
@@ -55,8 +56,10 @@ function PartnerDashboardInner() {
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
+  const skipFirstRefresh = useRef(true)
 
   const supabase = createClient()
+  const filterQuery = serializeDashboardFilters(parseDashboardFilters(searchParams))
 
   const handleOfferCreated = async (partnerId?: string) => {
     const id = partnerId ?? partner?.id
@@ -101,29 +104,22 @@ function PartnerDashboardInner() {
 
       const { data: partnerData } = await sb
         .from('obrtnik_profiles')
-        .select('*')
+        .select('*, obrtnik_categories(category_id)')
         .eq('id', user.id)
         .maybeSingle()
 
       if (partnerData) {
         setPartner(partnerData)
 
-        const [status, offersRes, openCountRes] = await Promise.all([
-          getCompletionStatus(partnerData.id),
-          sb
-            .from('ponudbe')
-            .select('*')
-            .eq('obrtnik_id', partnerData.id)
-            .order('created_at', { ascending: false }),
-          sb
-            .from('povprasevanja')
-            .select('id', { count: 'exact', head: true })
-            .eq('status', 'odprto'),
-        ])
+        const summary = await getPartnerDashboardSummary({
+          userId: partnerData.id,
+          filters: parseDashboardFilters(searchParams),
+        })
 
-        if (status) setCompletionStatus(status)
-        if (offersRes.data) setOffers(offersRes.data as unknown as Offer[])
-        if (openCountRes.count !== null) setOpenRequestsCount(openCountRes.count)
+        if (summary.onboardingProgress) setCompletionStatus(summary.onboardingProgress)
+        setOffers(summary.offers as unknown as Offer[])
+        setOpenRequestsCount(summary.relevantOpenRequests)
+        skipFirstRefresh.current = false
       }
 
       setLoading(false)
@@ -132,6 +128,24 @@ function PartnerDashboardInner() {
     getPartner()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+
+  useEffect(() => {
+    const refreshSummary = async () => {
+      if (!partner?.id) return
+      if (skipFirstRefresh.current) {
+        skipFirstRefresh.current = false
+        return
+      }
+      const summary = await getPartnerDashboardSummary({
+        userId: partner.id,
+        filters: parseDashboardFilters(searchParams),
+      })
+      setOpenRequestsCount(summary.relevantOpenRequests)
+    }
+
+    refreshSummary()
+  }, [partner?.id, searchParams])
 
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -189,10 +203,24 @@ function PartnerDashboardInner() {
                   Pošljite ponudbo in pridobite nove stranke
                 </p>
               </div>
-              <Link href="/partner-dashboard/povprasevanja" className="flex-shrink-0">
+              <Link href={`/partner-dashboard/povprasevanja?${filterQuery}`} className="flex-shrink-0">
                 <Button className="gap-2 whitespace-nowrap">
                   Pregled povpraševanj →
                 </Button>
+              </Link>
+            </div>
+          </Card>
+
+          <Card className="mb-8 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/partner-dashboard/povprasevanja?${filterQuery}`}>
+                <Button variant="outline">Nova povpraševanja</Button>
+              </Link>
+              <Link href={`/partner-dashboard?tab=offers&${filterQuery}`}>
+                <Button variant="outline">Moje ponudbe</Button>
+              </Link>
+              <Link href={`/partner-dashboard?tab=overview&${filterQuery}`}>
+                <Button variant="outline">Statistika</Button>
               </Link>
             </div>
           </Card>
@@ -209,7 +237,7 @@ function PartnerDashboardInner() {
                 </p>
                 <div className="space-y-3">
                   {/* Item 1: Description */}
-                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard/account?${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasDescription ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -221,7 +249,7 @@ function PartnerDashboardInner() {
                   </Link>
 
                   {/* Item 2: Hourly Rate */}
-                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard/account?${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasHourlyRate ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -233,7 +261,7 @@ function PartnerDashboardInner() {
                   </Link>
 
                   {/* Item 3: Phone */}
-                  <Link href="/partner-dashboard/account" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard/account?${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasPhone ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -245,7 +273,7 @@ function PartnerDashboardInner() {
                   </Link>
 
                   {/* Item 4: First Offer */}
-                  <Link href="/partner-dashboard?tab=new-offer" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
+                  <Link href={`/partner-dashboard?tab=new-offer&${filterQuery}`} className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-muted transition-colors">
                     {completionStatus.hasOffers ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
                     ) : (
@@ -261,7 +289,10 @@ function PartnerDashboardInner() {
           )}
 
           {/* Horizontally scrollable tabs for mobile */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs value={activeTab} onValueChange={(tab) => {
+            setActiveTab(tab)
+            router.replace(`/partner-dashboard?tab=${tab}&${filterQuery}`)
+          }} className="space-y-6">
             <div className="overflow-x-auto scrollbar-hide">
               <TabsList className="flex-nowrap w-max">
                 <TabsTrigger value="overview">Pregled</TabsTrigger>
@@ -274,7 +305,11 @@ function PartnerDashboardInner() {
             </div>
 
             <TabsContent value="overview" className="space-y-6">
-              <PartnerStats offers={offers} />
+              <PartnerStats
+                offers={offers}
+                openRequestsCount={openRequestsCount}
+                averageRating={partner?.avg_rating ?? 0}
+              />
               <RouteOptimizerCard visits={offers} />
             </TabsContent>
 

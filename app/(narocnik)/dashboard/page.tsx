@@ -7,13 +7,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getLeadStatusLabelSl, type CanonicalLeadStatus } from '@/lib/lead-status'
 import { DashboardCardActions } from '@/components/narocnik/dashboard-card-actions'
+import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
 
 export const metadata = {
   title: 'Dashboard | LiftGO',
   description: 'Upravljajte vaša povpraševanja in prejete ponudbe',
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const supabase = await createClient()
   
   // Get current user
@@ -37,8 +38,11 @@ export default async function DashboardPage() {
     redirect(profile?.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
   }
 
+  const filters = parseDashboardFilters(await searchParams)
+  const filterQuery = serializeDashboardFilters(filters)
+
   // Fetch povprasevanja
-  const povprasevanja = await getNarocnikPovprasevanja(user.id)
+  const povprasevanja = await getNarocnikPovprasevanja(user.id, { ...filters, limit: 100 })
 
   // Calculate stats
   const ACTIVE_STATUSES: ReadonlyArray<CanonicalLeadStatus> = ['new', 'matched', 'contacted', 'in_progress']
@@ -116,26 +120,26 @@ export default async function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card className="border-l-4 border-l-blue-500">
+        <Link href={`/povprasevanja?${filterQuery}`}><Card className="border-l-4 border-l-blue-500">
           <CardContent className="p-6">
             <div className="text-3xl font-bold text-blue-600 mb-2">{aktivna}</div>
             <div className="text-sm text-muted-foreground">Aktivna povpraševanja</div>
           </CardContent>
-        </Card>
+        </Card></Link>
 
-        <Card className="border-l-4 border-l-orange-500">
+        <Link href={`/povprasevanja?${filterQuery}`}><Card className="border-l-4 border-l-orange-500">
           <CardContent className="p-6">
             <div className="text-3xl font-bold text-orange-600 mb-2">{ponudbe_count}</div>
             <div className="text-sm text-muted-foreground">Prejete ponudbe</div>
           </CardContent>
-        </Card>
+        </Card></Link>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Link href={`/povprasevanja?${filterQuery}`}><Card className="border-l-4 border-l-green-500">
           <CardContent className="p-6">
             <div className="text-3xl font-bold text-green-600 mb-2">{zaprta}</div>
             <div className="text-sm text-muted-foreground">Zaključena dela</div>
           </CardContent>
-        </Card>
+        </Card></Link>
       </div>
 
       {/* Subscription */}

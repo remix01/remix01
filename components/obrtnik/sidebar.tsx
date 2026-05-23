@@ -6,7 +6,7 @@ import { Home, Briefcase, FileText, BarChart3, MessageCircle, User } from 'lucid
 
 function isNavActive(pathname: string, href: string): boolean {
   if (pathname === href) return true
-  if (href === '/obrtnik/dashboard') return false
+  if (href === '/partner-dashboard') return false
   return pathname.startsWith(`${href}/`)
 }
 
@@ -18,7 +18,7 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
   const pathname = usePathname()
 
   const navLinks = [
-    { href: '/obrtnik/dashboard', icon: Home, label: 'Dashboard' },
+    { href: '/partner-dashboard', icon: Home, label: 'Dashboard' },
     { href: '/obrtnik/povprasevanja', icon: FileText, label: 'Povpraševanja' },
     { href: '/obrtnik/ponudbe', icon: Briefcase, label: 'Moje ponudbe' },
     { href: '/obrtnik/sporocila', icon: MessageCircle, label: 'Sporočila' },
@@ -30,7 +30,7 @@ export function ObrtknikSidebar({ fullName }: ObrtknikSidebarProps) {
     <div className="flex flex-col h-full bg-white">
       {/* Logo */}
       <div className="p-6 border-b">
-        <Link href="/obrtnik/dashboard">
+        <Link href="/partner-dashboard">
           <h1 className="text-2xl font-bold text-primary">LiftGO</h1>
         </Link>
       </div>

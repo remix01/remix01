@@ -22,7 +22,9 @@
     "test:jest": "jest",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
     "openapi:check": "pnpm openapi:generate && git diff --exit-code -- docs/openapi.json",
-    "deploy:resend-email": "pnpm exec supabase functions deploy resend-email --project-ref whabaeatixtymbccwigu --no-verify-jwt"
+    "deploy:resend-email": "pnpm exec supabase functions deploy resend-email --project-ref whabaeatixtymbccwigu --no-verify-jwt",
+    "test:smoke:p1c": "node scripts/p1c-smoke-check.mjs",
+    "test:smoke:marketplace": "node scripts/marketplace-route-smoke.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.9",

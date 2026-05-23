@@ -9,10 +9,10 @@ import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Breadcrumb } from '@/components/seo/breadcrumb'
 import { FAQSection } from '@/components/seo/faq-section'
-import { RelatedCities } from '@/components/seo/related-cities'
 import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback } from '@/lib/seo/directory-routing'
+import { buildSeoContent, getCatalogLink, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
 
 interface Props {
   params: Promise<{ category: string }>
@@ -21,14 +21,7 @@ interface Props {
 // Slugs that must never be treated as category pages — static assets,
 // framework internals, and common scanner/bot targets that would otherwise
 // trigger DB calls and cause static-to-dynamic rendering errors.
-const RESERVED_SLUGS = new Set([
-  'images', 'icons', 'fonts', 'api', 'admin',
-  '_next', 'static', 'favicon.ico', 'robots.txt',
-  'sitemap.xml', 'sw.js', 'manifest.json',
-  'actuator', 'env', '__depproxyproof',
-  'wp-admin', 'wp-login', 'phpinfo', 'server-status',
-  'dashboard', 'partner-dashboard', 'auth',
-])
+const RESERVED_SLUGS = RESERVED_DIRECTORY_SLUGS
 
 export async function generateStaticParams() {
   // Fetch all active categories from database
@@ -81,17 +74,6 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 
 
-function buildCategoryIntro(categoryName: string, providersCount: number) {
-  return `Na strani ${categoryName} najdete preverjene izvajalce iz različnih slovenskih regij. Pregledate lahko profile, primerjate odzivnost in izberete mojstra, ki ustreza vašemu projektu${providersCount > 0 ? ` med ${providersCount} aktivnimi ponudniki` : ''}.`
-}
-function humanizeSlug(slug: string): string {
-  return slug
-    .replace(/-/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-}
-
 export default async function CategoryPage(props: Props) {
   const params = await props.params
   const normalized = normalizeDirectoryParams(params.category)
@@ -117,7 +99,8 @@ export default async function CategoryPage(props: Props) {
     : []
 
   // Get pricing for schema
-  const categoryIntro = buildCategoryIntro(category.name, obrtniki.length)
+  const seoContent = buildSeoContent({ categoryName: category.name, categorySlug: category.slug })
+  const categoryIntro = seoContent.categoryIntro + (obrtniki.length > 0 ? ` Trenutno je aktivnih ${obrtniki.length} ponudnikov.` : '')
 
   const pricing = getPricingForCategory(normalized.category)
 
@@ -134,7 +117,7 @@ export default async function CategoryPage(props: Props) {
   const serviceSchema = generateServiceSchema({
     categoryName: category.name,
     cityName: 'Slovenija',
-    description: 'Preverjeni ' + category.name.toLowerCase() + ' mojstri s hirim odzivom in ocenami strank.',
+    description: seoContent.schemaDescription,
     minPrice: pricing.minHourly,
     maxPrice: pricing.maxHourly
   })
@@ -152,7 +135,7 @@ export default async function CategoryPage(props: Props) {
 
       <Breadcrumb items={[
         { name: 'Domov', href: '/' },
-        { name: category.name, href: '/' + normalized.category }
+        { name: seoContent.breadcrumbLabels[1], href: '/' + normalized.category }
       ]} />
 
       <main className="min-h-screen">
@@ -210,12 +193,11 @@ export default async function CategoryPage(props: Props) {
           <div className="max-w-6xl mx-auto px-4">
             <h2 className="text-2xl font-bold mb-4">Kaj pričakovati pri storitvi {category.name}</h2>
             <p className="text-gray-700 max-w-4xl mb-6">
-              LiftGO pomaga pri hitrem usklajevanju termina, primerjavi ponudb in preverjanju izvajalcev.
-              Pred oddajo povpraševanja pripravite opis del, okviren proračun in lokacijo – tako bodo ponudbe bolj natančne.
+              {seoContent.whatToExpect}
             </p>
             <div className="flex flex-wrap gap-3 text-sm">
-              <Link href="/novo-povprasevanje" className="underline text-blue-700">Oddaj povpraševanje za {category.name.toLowerCase()}</Link>
-              <Link href="/mojstri" className="underline text-blue-700">Poglej vse profile mojstrov</Link>
+              <Link href={getInquiryLink(normalized.category)} className="underline text-blue-700">Oddaj povpraševanje za {category.name.toLowerCase()}</Link>
+              <Link href={getCatalogLink()} className="underline text-blue-700">Poglej vse profile mojstrov</Link>
             </div>
           </div>
         </section>
@@ -246,16 +228,23 @@ export default async function CategoryPage(props: Props) {
         </section>
 
         {/* FAQ Section */}
-        <FAQSection 
+        <FAQSection
           categoryName={category.name}
           categorySlug={normalized.category}
+          canonicalPath={`https://liftgo.net/${normalized.category}`}
+          items={seoContent.faqItems}
         />
 
-        {/* Related Cities */}
-        <RelatedCities
-          categorySlug={normalized.category}
-          categoryName={category.name}
-        />
+        <section className="py-10 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-2xl font-bold mb-6">{seoContent.relatedCitiesLabel}</h2>
+            <div className="flex flex-wrap gap-3">
+              {getRelatedCityLinks(normalized.category).map((link) => (
+                <Link key={link.href} href={link.href} className="px-3 py-2 text-sm border rounded-md hover:bg-white">{link.label}</Link>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Related Categories */}
         <RelatedCategories

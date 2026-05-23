@@ -36,7 +36,7 @@ export default async function NarocnikLayout({
 
   // Obrtniki ne sodijo sem
   if (profile?.role === 'obrtnik') {
-    redirect('/obrtnik/dashboard')
+    redirect('/partner-dashboard')
   }
 
   try {
