@@ -6,9 +6,10 @@
  * Protected by CRON_SECRET + overlap lock via withCronGuard.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { withCronGuard } from '@/lib/cron/cronGuard'
 
+async function _handler(req: NextRequest): Promise<NextResponse> {
   // Configurable batch size — override via OUTBOX_BATCH_SIZE env var.
   // Default 50; set lower in staging or if subscribers are slow.
   const rawBatchSize = Number(process.env.OUTBOX_BATCH_SIZE)
@@ -31,25 +32,25 @@ import { withCronGuard } from '@/lib/cron/cronGuard'
 
   try {
     // STEP 1: Import and initialize event subscribers
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] importing subscribers' 
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] importing subscribers',
     }))
-    
+
     let initEventSubscribers: () => void
     try {
       const subscribers = await import('@/lib/events')
       initEventSubscribers = subscribers.initEventSubscribers
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] subscribers imported successfully' 
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] subscribers imported successfully',
       }))
     } catch (importErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to import subscribers', 
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] failed to import subscribers',
         error: String(importErr),
-        stack: importErr instanceof Error ? importErr.stack : undefined
+        stack: importErr instanceof Error ? importErr.stack : undefined,
       }))
       throw new Error(`Failed to import subscribers: ${importErr}`)
     }
@@ -57,40 +58,40 @@ import { withCronGuard } from '@/lib/cron/cronGuard'
     // Initialize subscribers for this serverless execution context
     try {
       initEventSubscribers()
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] subscribers initialized' 
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] subscribers initialized',
       }))
     } catch (initErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to initialize subscribers', 
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] failed to initialize subscribers',
         error: String(initErr),
-        stack: initErr instanceof Error ? initErr.stack : undefined
+        stack: initErr instanceof Error ? initErr.stack : undefined,
       }))
       throw new Error(`Failed to initialize subscribers: ${initErr}`)
     }
 
     // STEP 2: Import outbox processor
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] importing outbox' 
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] importing outbox',
     }))
-    
+
     let outbox: any
     try {
       const outboxModule = await import('@/lib/events/outbox')
       outbox = outboxModule.outbox
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] outbox imported successfully' 
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] outbox imported successfully',
       }))
     } catch (importErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to import outbox', 
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] failed to import outbox',
         error: String(importErr),
-        stack: importErr instanceof Error ? importErr.stack : undefined
+        stack: importErr instanceof Error ? importErr.stack : undefined,
       }))
       throw new Error(`Failed to import outbox: ${importErr}`)
     }
@@ -135,7 +136,6 @@ import { withCronGuard } from '@/lib/cron/cronGuard'
       dryRun,
       durationMs,
     })
-
   } catch (err) {
     const durationMs = Date.now() - start
     console.error(JSON.stringify({
@@ -143,12 +143,18 @@ import { withCronGuard } from '@/lib/cron/cronGuard'
       message: '[event-processor] fatal error',
       error: String(err),
       stack: err instanceof Error ? err.stack : undefined,
-      durationMs
+      durationMs,
     }))
-    return NextResponse.json({
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? String(err) : undefined
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? String(err) : undefined,
+      },
+      { status: 500 }
+    )
   }
-  },
-)
+}
+
+// lockTtlSeconds: 270s (4.5 min) — safely below the 15-min run interval
+export const GET = withCronGuard({ jobName: 'event-processor', lockTtlSeconds: 270 }, _handler)
+export const POST = GET

@@ -2,28 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { withCronGuard, cronWindow } from '@/lib/cron/cronGuard'
 
-function verifyCron(req: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[cron/detect-anomalies] CRON_SECRET not configured in production — request denied')
-      return false
-    }
-    return true
-  }
-  return req.headers.get('authorization') === `Bearer ${secret}`
-}
-
 // Safe upper bounds — prevents full-table scans loading unbounded rows into memory.
 const PONUDBE_SCAN_LIMIT = 1000
 const MESSAGE_SCAN_LIMIT = 500
 const OFFER_SPIKE_THRESHOLD = 10
 
-export async function GET(req: Request) {
-  if (!verifyCron(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+async function _handler(_req: NextRequest): Promise<NextResponse> {
   const start = Date.now()
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
@@ -67,7 +51,7 @@ export async function GET(req: Request) {
   const alerts: any[] = []
 
   Object.entries(offerCounts).forEach(([userId, count]) => {
-    if (count > OFFER_SPIKE_THRESHOLD && !seenOfferSpikes.has(userId)) {
+    if ((count as number) > OFFER_SPIKE_THRESHOLD && !seenOfferSpikes.has(userId)) {
       alerts.push({
         type: 'offer_spike',
         severity: 'high',
@@ -112,3 +96,16 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ success: true, inserted })
 }
+
+// windowKey: cronWindow.hour — Redis window guard prevents re-scanning within the same
+// clock hour. DB-level dedup (seenOfferSpikes / seenContactAlerts) is the safety net
+// when Redis is unavailable.
+export const GET = withCronGuard(
+  {
+    jobName: 'detect-anomalies',
+    lockTtlSeconds: 120,
+    windowKey: cronWindow.hour,
+    windowTtlSeconds: 3500,
+  },
+  _handler,
+)

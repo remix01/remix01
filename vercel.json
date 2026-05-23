@@ -46,8 +46,8 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/metrics-push",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron/detect-anomalies",
+      "schedule": "15 * * * *"
     },
     {
       "path": "/api/cron/escrow-auto-release",
