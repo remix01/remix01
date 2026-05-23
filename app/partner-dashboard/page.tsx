@@ -54,40 +54,23 @@ function PartnerDashboardInner() {
   const [loading, setLoading] = useState(true)
   const [offers, setOffers] = useState<Offer[]>([])
   const [openRequestsCount, setOpenRequestsCount] = useState(0)
+  const [avgRating, setAvgRating] = useState<number>(0)
   const [activeTab, setActiveTab] = useState(initialTab)
   const [completionStatus, setCompletionStatus] = useState<any>(null)
   const skipFirstRefresh = useRef(true)
 
-  const supabase = createClient()
   const filterQuery = serializeDashboardFilters(parseDashboardFilters(searchParams))
 
   const handleOfferCreated = async (partnerId?: string) => {
     const id = partnerId ?? partner?.id
     if (!id) return
-    const { data: offersData } = await supabase
-      .from('ponudbe')
-      .select('*')
-      .eq('obrtnik_id', id)
-      .order('created_at', { ascending: false })
-    if (offersData) {
-      setOffers(offersData as unknown as Offer[])
-      setCompletionStatus((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              hasOffers: offersData.length > 0,
-              completionPercentage: prev.hasOffers === (offersData.length > 0)
-                ? prev.completionPercentage
-                : (([
-                    prev.hasDescription,
-                    prev.hasHourlyRate,
-                    prev.hasPhone,
-                    offersData.length > 0,
-                  ].filter(Boolean).length / 4) * 100),
-            }
-          : prev
-      )
-    }
+    const summary = await getPartnerDashboardSummary({
+      userId: id,
+      filters: parseDashboardFilters(searchParams),
+    })
+    setOffers(summary.offers as unknown as Offer[])
+    if (summary.onboardingProgress) setCompletionStatus(summary.onboardingProgress)
+    setAvgRating(summary.avgRating ?? 0)
   }
 
   useEffect(() => {
@@ -104,7 +87,7 @@ function PartnerDashboardInner() {
 
       const { data: partnerData } = await sb
         .from('obrtnik_profiles')
-        .select('*, obrtnik_categories(category_id)')
+        .select('*')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -119,6 +102,7 @@ function PartnerDashboardInner() {
         if (summary.onboardingProgress) setCompletionStatus(summary.onboardingProgress)
         setOffers(summary.offers as unknown as Offer[])
         setOpenRequestsCount(summary.relevantOpenRequests)
+        setAvgRating(summary.avgRating ?? 0)
         skipFirstRefresh.current = false
       }
 
@@ -142,6 +126,7 @@ function PartnerDashboardInner() {
         filters: parseDashboardFilters(searchParams),
       })
       setOpenRequestsCount(summary.relevantOpenRequests)
+      setAvgRating(summary.avgRating ?? 0)
     }
 
     refreshSummary()
@@ -308,7 +293,7 @@ function PartnerDashboardInner() {
               <PartnerStats
                 offers={offers}
                 openRequestsCount={openRequestsCount}
-                averageRating={partner?.avg_rating ?? 0}
+                averageRating={avgRating}
               />
               <RouteOptimizerCard visits={offers} />
             </TabsContent>
