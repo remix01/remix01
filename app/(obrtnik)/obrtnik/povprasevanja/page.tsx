@@ -16,7 +16,7 @@ export default async function ObrtknikPovprasevanjaPage() {
   // Get obrtnik profile
   const { data: obrtnikProfile } = await supabase
     .from('obrtnik_profiles')
-    .select('id')
+    .select('id, subscription_tier')
     .eq('id', user.id)
     .single()
 
@@ -53,6 +53,7 @@ export default async function ObrtknikPovprasevanjaPage() {
         povprasevanja={povprasevanja}
         categories={categories || []}
         obrtnikId={obrtnikProfile.id}
+        subscriptionTier={(obrtnikProfile as any).subscription_tier ?? 'start'}
       />
     </div>
   )

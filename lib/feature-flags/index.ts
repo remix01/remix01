@@ -17,7 +17,7 @@
  * Email notifications   | active      | —                      | Resend wired, worker live
  * Payment service       | active      | —                      | saga steps implemented
  * Realtime messaging    | active      | realtime_messaging     | Supabase channels, DAL ready
- * AI quote generator    | planned     | ai_quote_generator     | PRO, agent skeleton exists
+ * AI quote generator    | active      | ai_quote_generator     | PRO, UI + API wired
  * AI materials agent    | planned     | ai_materials_agent     | PRO, not implemented
  * Video diagnosis       | planned     | video_diagnosis        | PRO, upload UI stub only
  * Job summary AI        | planned     | job_summary_ai         | PRO, not implemented
@@ -45,7 +45,7 @@ export type FlagValue = (typeof FLAGS)[FlagKey]
 
 /** Which flags are on by default in production (without PostHog override) */
 const PLATFORM_DEFAULTS: Record<FlagValue, boolean> = {
-  ai_quote_generator:    false, // planned — PRO only
+  ai_quote_generator:    true,  // active  — PRO only
   ai_materials_agent:    false, // planned — PRO only
   video_diagnosis:       false, // planned — PRO only, upload UI stub
   job_summary_ai:        false, // planned — PRO only
@@ -61,7 +61,7 @@ const PLATFORM_DEFAULTS: Record<FlagValue, boolean> = {
 
 /** Flags that require PRO subscription tier */
 const PRO_FLAGS: ReadonlySet<FlagValue> = new Set([
-  'ai_quote_generator',
+  // ai_quote_generator intentionally excluded — START gets 3 calls/day (see ai-router.ts)
   'ai_materials_agent',
   'video_diagnosis',
   'job_summary_ai',

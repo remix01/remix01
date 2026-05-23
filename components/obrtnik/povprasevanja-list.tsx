@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Filter, MapPin, Euro, Clock, Check } from 'lucide-react'
+import { Filter, MapPin, Euro, Clock, Check, Sparkles } from 'lucide-react'
 import { MobileBottomSheet } from '@/components/liftgo/MobileBottomSheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,9 +14,10 @@ interface PovprasevanjaListProps {
   povprasevanja: any[]
   categories: any[]
   obrtnikId: string
+  subscriptionTier?: string
 }
 
-export function PovprasevanjaList({ povprasevanja, categories, obrtnikId }: PovprasevanjaListProps) {
+export function PovprasevanjaList({ povprasevanja, categories, obrtnikId, subscriptionTier = 'start' }: PovprasevanjaListProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isPonudbaOpen, setIsPonudbaOpen] = useState(false)
   const [selectedPovprasevanje, setSelectedPovprasevanje] = useState<any>(null)
@@ -33,6 +34,45 @@ export function PovprasevanjaList({ povprasevanja, categories, obrtnikId }: Povp
   const [priceType, setPriceType] = useState<'fiksna' | 'ocena' | 'po_ogledu'>('ocena')
   const [availableDate, setAvailableDate] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // AI quote generator state
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const isStartTier = subscriptionTier === 'start' || !subscriptionTier
+
+  const handleAIDraft = async () => {
+    if (!selectedPovprasevanje) return
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const res = await fetch('/api/agent/quote-generator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ povprasevanje_id: selectedPovprasevanje.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.upgrade_required) {
+          setAiError('Za AI generiranje ponudb potrebujete PRO naročnino.')
+        } else if (data.limit_reached) {
+          setAiError(`Dnevni limit AI klicev je dosežen (${data.error ?? ''}).`)
+        } else {
+          setAiError(data.error ?? 'Napaka pri generiranju osnutka.')
+        }
+        return
+      }
+      if (data.draft_text) setMessage(data.draft_text)
+      if (data.structured?.priceEstimate?.min) {
+        setPriceEstimate(String(data.structured.priceEstimate.min))
+        setPriceType('ocena')
+      }
+      toast.success('AI osnutek je bil generiran!')
+    } catch {
+      setAiError('Napaka pri dostopu do AI storitve.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
 
   // Apply filters
   const filteredPovprasevanja = povprasevanja.filter(p => {
@@ -79,6 +119,7 @@ export function PovprasevanjaList({ povprasevanja, categories, obrtnikId }: Povp
     setPriceEstimate('')
     setPriceType('ocena')
     setAvailableDate('')
+    setAiError('')
     setIsPonudbaOpen(true)
   }
 
@@ -305,6 +346,32 @@ export function PovprasevanjaList({ povprasevanja, categories, obrtnikId }: Povp
                 {selectedPovprasevanje.title}
               </div>
             </div>
+
+            {/* AI Quote Generator */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-gray-500 shrink-0">
+                {isStartTier ? 'AI osnutek · 3/dan' : 'AI osnutek'}
+              </span>
+              <button
+                type="button"
+                onClick={handleAIDraft}
+                disabled={aiLoading}
+                className={`flex items-center gap-1.5 text-sm font-medium rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-wait ${
+                  isStartTier
+                    ? 'text-teal-700 border border-teal-300 hover:bg-teal-50'
+                    : 'text-purple-700 border border-purple-300 hover:bg-purple-50'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                {aiLoading ? 'Generiram...' : 'AI osnutek'}
+              </button>
+            </div>
+
+            {aiError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {aiError}
+              </p>
+            )}
 
             {/* Message */}
             <div>

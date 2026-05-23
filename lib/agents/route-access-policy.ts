@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { getAgentDailyLimit, isAgentAccessible, type AIAgentType } from '@/lib/agents/ai-router'
+import { isFlagEnabled, type FlagKey } from '@/lib/feature-flags'
 
 const DAILY_RESET_WINDOW_MS = 24 * 60 * 60 * 1000
 
@@ -35,7 +36,24 @@ export async function normalizeDailyUsageWindow(userId: string, profile: AiUsage
   return 0
 }
 
+// Agents that require an explicit feature flag in addition to tier gating.
+// Flag must be enabled (or FEATURE_<FLAG>=1 env var set) for access to be granted.
+const AGENT_GATE_FLAGS: Partial<Record<AIAgentType, FlagKey>> = {
+  quote_generator: 'AI_QUOTE_GENERATOR',
+  materials_agent: 'AI_MATERIALS_AGENT',
+  video_diagnosis: 'VIDEO_DIAGNOSIS',
+  job_summary:     'JOB_SUMMARY_AI',
+}
+
 export function evaluateAgentTierAccess(agentType: AIAgentType, tier: string) {
+  const flagKey = AGENT_GATE_FLAGS[agentType]
+  if (flagKey !== undefined) {
+    const plan: 'START' | 'PRO' =
+      (tier === 'pro' || tier === 'elite' || tier === 'enterprise') ? 'PRO' : 'START'
+    if (!isFlagEnabled(flagKey, plan)) {
+      return { allowed: false, dailyLimit: 0 }
+    }
+  }
   return {
     allowed: isAgentAccessible(agentType, tier),
     dailyLimit: getAgentDailyLimit(agentType, tier),
