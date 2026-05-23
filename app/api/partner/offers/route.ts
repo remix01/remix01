@@ -7,6 +7,7 @@ import {
 } from '@/lib/partner/offers/service'
 import { withCsrf } from '@/lib/csrf/with-csrf'
 import { SECURITY_MESSAGES } from '@/lib/security/access'
+import { invalidatePartnerDashboardCache } from '@/lib/partner/dashboard-summary'
 
 async function withPartnerAuth() {
   const supabase = await createClient()
@@ -50,6 +51,7 @@ async function postHandler(req: Request) {
     const body: CreateOfferPayload = await req.json()
     const created = await partnerOfferService.create(auth.supabase, auth.userId, body)
 
+    void invalidatePartnerDashboardCache(auth.userId)
     return ok(created, undefined, 201)
   } catch (error) {
     return handleRouteError(error, 'POST /api/partner/offers')

@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { DashboardFilters } from '@/lib/dashboard/filters'
 import { serializeDashboardFilters } from '@/lib/dashboard/filters'
 import { getCompletionStatus, type CompletionStatus } from '@/lib/partner/completion'
-import { getOrSetCache, deleteFromCache } from '@/lib/cache/strategies'
+import { getOrSetCache, deleteFromCache, invalidatePattern } from '@/lib/cache/strategies'
 import { CACHE_KEYS, CACHE_TTL } from '@/lib/cache/cache-keys'
 
 export interface PartnerDashboardSummary {
@@ -100,13 +100,16 @@ export async function getPartnerDashboardSummary(
 
 /**
  * Invalidate the cached summary for a given partner.
- * Pass filters to invalidate a specific variant; omit to delete the default view.
+ * Without filters: wipes ALL cached filter variants for that user (correct after mutations).
+ * With filters: deletes only that specific variant.
  */
 export async function invalidatePartnerDashboardCache(
   userId: string,
   filters?: DashboardFilters,
 ): Promise<void> {
-  const f = filters ?? { dateRange: '7d' as const }
-  const cacheKey = CACHE_KEYS.partnerDashboard(userId, serializeDashboardFilters(f))
-  await deleteFromCache(cacheKey)
+  if (filters) {
+    await deleteFromCache(CACHE_KEYS.partnerDashboard(userId, serializeDashboardFilters(filters)))
+  } else {
+    await invalidatePattern(`partner:dashboard:summary:${userId}:*`)
+  }
 }

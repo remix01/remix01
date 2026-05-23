@@ -9,6 +9,7 @@ import { offerService } from '@/lib/services/offerService'
 import { sendNotification } from '@/lib/notifications'
 import { assertPonudbaTransition } from '@/lib/state/ponudbe-status'
 import type { CreateOfferPayload } from '@/lib/types/offer'
+import { invalidatePartnerDashboardCache } from '@/lib/partner/dashboard-summary'
 
 export async function acceptPonudbaAction(
   ponudbaId: string,
@@ -54,6 +55,11 @@ export async function acceptPonudbaAction(
     revalidatePath('/dashboard')
     revalidatePath('/partner-dashboard')
     revalidatePath('/admin/povprasevanja')
+
+    // Invalidate the obrtnik's cached dashboard — acceptedOffers/activeOffers changed
+    if (accepted.obrtnik_id) {
+      await invalidatePartnerDashboardCache(accepted.obrtnik_id)
+    }
 
     return { success: true }
   } catch (error) {
@@ -117,6 +123,8 @@ export async function withdrawPonudbaAction(
     revalidatePath('/admin/ponudbe')
     revalidatePath('/admin/povprasevanja')
 
+    await invalidatePartnerDashboardCache(user.id)
+
     return { success: true }
   } catch (error) {
     console.error('[v0] withdrawPonudbaAction error:', error)
@@ -161,6 +169,8 @@ export async function updatePonudbaAction(
     revalidatePath('/admin/ponudbe')
     revalidatePath('/admin/povprasevanja')
 
+    await invalidatePartnerDashboardCache(user.id)
+
     return { success: true }
   } catch (error) {
     console.error('[v0] updatePonudbaAction error:', error)
@@ -195,6 +205,8 @@ export async function createPonudbaAction(
     revalidatePath('/dashboard')
     revalidatePath('/admin/ponudbe')
     revalidatePath('/admin/povprasevanja')
+
+    await invalidatePartnerDashboardCache(user.id)
 
     return { success: true }
   } catch (error) {

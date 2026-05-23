@@ -11,6 +11,7 @@ import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 import { withCsrf } from '@/lib/csrf/with-csrf'
 import { SECURITY_MESSAGES } from '@/lib/security/access'
+import { invalidatePartnerDashboardCache } from '@/lib/partner/dashboard-summary'
 
 async function postHandler(request: NextRequest) {
   try {
@@ -163,6 +164,7 @@ async function postHandler(request: NextRequest) {
       }
     })()
 
+    void invalidatePartnerDashboardCache(user.id)
     return apiSuccess(ponudba)
   } catch (error) {
     console.error('[v0] Error creating ponudba:', error)
