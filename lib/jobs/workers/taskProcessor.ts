@@ -39,7 +39,7 @@ export async function handleMatchRequest(job: Job): Promise<void> {
 
     // Update task to 'matched' status
     await taskOrchestrator.updateTaskStatus(taskId, 'matched', {
-      matchIds: (matches.matches as any[])?.map((m: { id: string }) => m.id) || [],
+      matchIds: matches.matches?.map((m) => m.partnerId) || [],
     })
 
     console.log(`[TaskProcessor] Matched ${matches.matches?.length || 0} partners for task ${taskId}`)
@@ -160,7 +160,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
 
     // Atomically claim the escrow by transitioning paid → releasing
     // This prevents concurrent release attempts from both proceeding
-    const { data: claimed, error: claimError } = await (supabaseAdmin as any)
+    const { data: claimed, error: claimError } = await supabaseAdmin
       .from('escrow_transactions')
       .update({ status: 'releasing' })
       .eq('id', escrowId)
@@ -172,7 +172,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     }
 
     if (!claimed || claimed.length === 0) {
-      const { data: current } = await (supabaseAdmin as any)
+      const { data: current } = await supabaseAdmin
         .from('escrow_transactions')
         .select('status')
         .eq('id', escrowId)
@@ -186,7 +186,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     const escrow = claimed[0]
 
     // Fetch partner's Stripe connected account
-    const { data: obrtnikProfile } = await (supabaseAdmin as any)
+    const { data: obrtnikProfile } = await supabaseAdmin
       .from('obrtnik_profiles')
       .select('stripe_account_id')
       .eq('user_id', partnerId)
@@ -194,7 +194,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
 
     if (!obrtnikProfile?.stripe_account_id) {
       // Revert to paid — partner not onboarded on Stripe yet
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from('escrow_transactions')
         .update({ status: 'paid', notes: 'release_pending_stripe_onboarding' })
         .eq('id', escrowId)
@@ -205,7 +205,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       return
     }
 
-    let transfer: any
+    let transfer: { id: string }
     try {
       const { stripe } = await import('@/lib/stripe/client')
       transfer = await stripe.transfers.create({
@@ -217,7 +217,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       })
     } catch (stripeErr) {
       // Stripe transfer failed — revert to paid so it can be retried
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from('escrow_transactions')
         .update({ status: 'paid' })
         .eq('id', escrowId)
@@ -226,7 +226,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     }
 
     // Stripe succeeded — finalize in DB
-    const { data: released, error: releaseError } = await (supabaseAdmin as any)
+    const { data: released, error: releaseError } = await supabaseAdmin
       .from('escrow_transactions')
       .update({
         status: 'released',
@@ -245,7 +245,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       try {
         const { stripe: stripeClient } = await import('@/lib/stripe/client')
         await stripeClient.transfers.createReversal(transfer.id)
-        await (supabaseAdmin as any)
+        await supabaseAdmin
           .from('escrow_transactions')
           .update({ status: 'paid' })
           .eq('id', escrowId)

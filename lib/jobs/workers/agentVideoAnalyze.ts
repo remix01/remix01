@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import type { TextBlock } from '@anthropic-ai/sdk/resources/messages'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { estimateCost } from '@/lib/model-router'
 import type { Job, AgentVideoAnalyzePayload } from '../queue'
@@ -64,7 +65,7 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
       }],
     })
 
-    const raw = apiResponse.content.filter((b: any) => b.type === 'text').map((b: any) => (b as any).text).join('')
+    const raw = apiResponse.content.filter((b): b is TextBlock => b.type === 'text').map((b) => b.text).join('')
     let result: Record<string, unknown>
     
     try {
@@ -89,7 +90,7 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
     }).eq('id', job_id)
 
     try {
-      await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
+      await supabaseAdmin.rpc('upsert_agent_cost_summary', {
         p_user_id: user_id,
         p_agent_type: 'video_diagnosis',
         p_tokens_in: inputTokens,
@@ -108,7 +109,7 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
         response_cached: false,
         agent_type: 'video_diagnosis',
         user_message: `[async video analysis] ${file_type}`,
-      } as any)
+      })
     } catch { /* ignore */ }
 
   } catch (error) {

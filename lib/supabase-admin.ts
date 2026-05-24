@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 import { env, isProduction, requireFeatureEnv } from './env'
 
 /**
@@ -9,7 +10,7 @@ import { env, isProduction, requireFeatureEnv } from './env'
  */
 if (isProduction()) requireFeatureEnv('supabase')
 
-export const supabaseAdmin = createClient(
+export const supabaseAdmin = createClient<Database>(
   env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
   env.SUPABASE_SERVICE_ROLE_KEY || 'development-service-role-key',
   {

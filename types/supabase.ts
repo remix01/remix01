@@ -1552,73 +1552,87 @@ export type Database = {
       }
       escrow_transactions: {
         Row: {
-          amount: number
-          created_at: string | null
-          currency: string
-          hold_id: string | null
           id: string
-          metadata: Json | null
-          processed_at: string | null
-          reference: string | null
-          status: string
+          created_at: string
+          updated_at: string
+          inquiry_id: string | null
+          partner_id: string | null
+          customer_email: string
+          amount_total_cents: number
+          commission_rate: number
+          commission_cents: number
+          payout_cents: number
           stripe_payment_intent_id: string | null
           stripe_transfer_id: string | null
-          task_id: string | null
-          type: string
-          user_id: string | null
+          stripe_refund_id: string | null
+          status: string
+          paid_at: string | null
+          released_at: string | null
+          refunded_at: string | null
+          release_due_at: string | null
+          description: string | null
+          notes: string | null
+          lock_version: number
         }
         Insert: {
-          amount: number
-          created_at?: string | null
-          currency?: string
-          hold_id?: string | null
           id?: string
-          metadata?: Json | null
-          processed_at?: string | null
-          reference?: string | null
-          status?: string
+          created_at?: string
+          updated_at?: string
+          inquiry_id?: string | null
+          partner_id?: string | null
+          customer_email: string
+          amount_total_cents: number
+          commission_rate: number
+          commission_cents: number
+          payout_cents: number
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
-          task_id?: string | null
-          type: string
-          user_id?: string | null
+          stripe_refund_id?: string | null
+          status?: string
+          paid_at?: string | null
+          released_at?: string | null
+          refunded_at?: string | null
+          release_due_at?: string | null
+          description?: string | null
+          notes?: string | null
+          lock_version?: number
         }
         Update: {
-          amount?: number
-          created_at?: string | null
-          currency?: string
-          hold_id?: string | null
           id?: string
-          metadata?: Json | null
-          processed_at?: string | null
-          reference?: string | null
-          status?: string
+          created_at?: string
+          updated_at?: string
+          inquiry_id?: string | null
+          partner_id?: string | null
+          customer_email?: string
+          amount_total_cents?: number
+          commission_rate?: number
+          commission_cents?: number
+          payout_cents?: number
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
-          task_id?: string | null
-          type?: string
-          user_id?: string | null
+          stripe_refund_id?: string | null
+          status?: string
+          paid_at?: string | null
+          released_at?: string | null
+          refunded_at?: string | null
+          release_due_at?: string | null
+          description?: string | null
+          notes?: string | null
+          lock_version?: number
         }
         Relationships: [
           {
             foreignKeyName: "escrow_transactions_hold_id_fkey"
-            columns: ["hold_id"]
+            columns: ["inquiry_id"]
             isOneToOne: false
-            referencedRelation: "escrow_holds"
+            referencedRelation: "inquiries"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "escrow_transactions_task_id_fkey"
-            columns: ["task_id"]
+            foreignKeyName: "escrow_transactions_partner_id_fkey"
+            columns: ["partner_id"]
             isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "escrow_transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "obrtnik_profiles"
             referencedColumns: ["id"]
           },
         ]
