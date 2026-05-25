@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, Wrench } from 'lucide-react'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth'
 
 function PrijavaContent() {
   const router = useRouter()
