@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       .eq('aktiven', true)
       .maybeSingle()
 
-    let destination = safeNext ?? DEFAULT_REDIRECT
+    let destination = DEFAULT_REDIRECT
 
     if (adminUser) {
       destination = '/admin'
@@ -62,9 +62,25 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle()
 
-      if (profile?.role === 'obrtnik') destination = '/partner-dashboard'
-      else if (profile?.role === 'narocnik') destination = safeNext ?? '/dashboard'
+      if (profile?.role === 'obrtnik') {
+        destination = '/partner-dashboard'
+      } else if (profile?.role === 'narocnik') {
+        destination = '/dashboard'
+      }
       else logAuth('role_mismatch', { userId: user.id })
+    }
+
+    if (safeNext) {
+      const isAdmin = destination === '/admin'
+      const isObrtnik = destination === '/partner-dashboard'
+      const adminOnlyPath = safeNext === '/admin' || safeNext.startsWith('/admin/')
+      const obrtnikOnlyPath = safeNext === '/partner-dashboard' || safeNext.startsWith('/partner-dashboard/')
+
+      if ((isAdmin && adminOnlyPath) || (isObrtnik && obrtnikOnlyPath) || (!isAdmin && !isObrtnik && !adminOnlyPath && !obrtnikOnlyPath)) {
+        destination = safeNext
+      } else {
+        logAuth('ignored_unsafe_next_for_role', { destination, safeNext })
+      }
     }
 
     logAuth('success', { destination })

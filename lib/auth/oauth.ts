@@ -33,6 +33,16 @@ export function buildOAuthCallbackUrl(params?: { next?: string; intendedRole?: '
 export function getSafeNextPath(value: string | null): string | null {
   if (!value) return null
   if (!value.startsWith('/') || value.startsWith('//')) return null
-  if (value.startsWith('/auth/callback')) return null
+
+  let pathname = value
+  try {
+    pathname = new URL(value, 'https://liftgo.net').pathname
+  } catch {
+    return null
+  }
+
+  if (pathname.startsWith('/auth/callback')) return null
+  if (pathname === '/prijava' || pathname.startsWith('/prijava/')) return null
+
   return value
 }
