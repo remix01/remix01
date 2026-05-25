@@ -1,15 +1,16 @@
 import { env } from '@/lib/env'
 
-const PROD_HOST = 'liftgo.net'
-const PROD_WWW_HOST = 'www.liftgo.net'
-
 function parseBaseUrl(): URL {
-  try {
-    const parsed = new URL(env.NEXT_PUBLIC_APP_URL)
-    if (parsed.protocol === 'https:' && (parsed.hostname === PROD_HOST || parsed.hostname === PROD_WWW_HOST || parsed.hostname.endsWith('.vercel.app'))) {
-      return parsed
-    }
-  } catch {}
+  const configured = env.NEXT_PUBLIC_APP_URL?.trim()
+
+  if (configured) {
+    try {
+      const parsed = new URL(configured)
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return parsed
+      }
+    } catch {}
+  }
 
   return new URL('https://liftgo.net')
 }
