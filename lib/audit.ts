@@ -156,7 +156,7 @@ export async function getRecentAuditLogs(limit: number = 50) {
     .from('audit_log')
     .select(`
       *,
-      job:job_id(id, customer:customer_id(name), craftworker:craftworker_id(name)),
+      job:job_id(id, customer_id, craftworker_id),
       payment:payment_id(id, amount, status)
     `)
     .order('created_at', { ascending: false })

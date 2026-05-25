@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       .from(CANONICAL_TABLES.provider)
       .update({
         stripe_account_id: account.id,
-        stripe_onboarded: false
+        stripe_onboarding_complete: false
       })
       .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
 

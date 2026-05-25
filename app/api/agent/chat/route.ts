@@ -75,12 +75,12 @@ async function getAssistantContext(userId: string): Promise<AssistantContext> {
   const [profileRes, craftProfileRes, inquiriesRes] = await Promise.all([
     supabaseAdmin
       .from('profiles')
-      .select('city')
+      .select('location_city')
       .eq('id', userId)
       .maybeSingle(),
     supabaseAdmin
       .from('obrtnik_profiles')
-      .select('id, city, kategorije')
+      .select('id, location_city, category_id')
       .eq('id', userId)
       .maybeSingle(),
     supabaseAdmin
@@ -92,11 +92,11 @@ async function getAssistantContext(userId: string): Promise<AssistantContext> {
   ])
 
   const inquiryCategories = toStringArray((inquiriesRes.data || []).map((item) => item.kategorija))
-  const craftCategories = toStringArray(craftProfileRes.data?.kategorije)
+  const craftCategories = toStringArray(craftProfileRes.data?.category_id ? [craftProfileRes.data.category_id] : [])
   const categories = Array.from(new Set([...craftCategories, ...inquiryCategories])).slice(0, 5)
 
   const persona: UserPersona = craftProfileRes.data?.id ? 'obrtnik' : profileRes.data ? 'narocnik' : 'unknown'
-  const city = craftProfileRes.data?.city || profileRes.data?.city || undefined
+  const city = craftProfileRes.data?.location_city || profileRes.data?.location_city || undefined
 
   return { persona, city, categories }
 }
@@ -273,7 +273,9 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
         .eq('user_id', user.id)
         .maybeSingle()
 
-      const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+      const isStoredMsg = (m: unknown): m is StoredMessage =>
+        typeof m === 'object' && m !== null && 'role' in m && 'content' in m && 'timestamp' in m
+      const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages.filter(isStoredMsg) : []
       await supabaseAdmin
         .from('agent_conversations')
         .upsert(
@@ -306,7 +308,9 @@ async function postHandler(req: NextRequest, _context: { params: Promise<unknown
       .eq('user_id', user.id)
       .maybeSingle()
 
-    const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+    const isStoredMsg2 = (m: unknown): m is StoredMessage =>
+      typeof m === 'object' && m !== null && 'role' in m && 'content' in m && 'timestamp' in m
+    const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages.filter(isStoredMsg2) : []
 
     const claudeMessages = history.map(m => ({
       role: (m.role === 'agent' ? 'assistant' : 'user') as 'user' | 'assistant',

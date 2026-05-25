@@ -11,7 +11,7 @@ export async function GET(req: Request) {
 
   let query = supabaseAdmin
     .from('povprasevanja')
-    .select('*, obrtniki(ime, priimek, email)')
+    .select('*, narocnik:narocnik_id(full_name, email)')
     .order('created_at', { ascending: false })
 
   if (od)  query = query.gte('created_at', od)
@@ -20,19 +20,25 @@ export async function GET(req: Request) {
   const { data } = await query
 
   const headers = [
-    'ID','Storitev','Lokacija','Stranka','Email','Telefon',
-    'Status','Obrtnik','Termin datum','Termin ura',
-    'Cena min','Cena max','Admin opomba','Ustvarjeno'
+    'ID', 'Naslov', 'Lokacija', 'Stranka', 'Email', 'Telefon',
+    'Status', 'Obrtnik ID', 'Datum od', 'Datum do',
+    'Cena min', 'Cena max', 'Admin opomba', 'Ustvarjeno',
   ]
 
   const rows = (data || []).map(r => [
-    r.id, r.storitev, r.lokacija, r.stranka_ime,
-    r.stranka_email || '', r.stranka_telefon || '',
+    r.id,
+    r.title,
+    r.location_city,
+    r.narocnik && !Array.isArray(r.narocnik) ? (r.narocnik.full_name ?? '') : '',
+    r.stranka_email ?? (r.narocnik && !Array.isArray(r.narocnik) ? (r.narocnik.email ?? '') : ''),
+    r.stranka_telefon ?? '',
     r.status,
-    r.obrtniki ? `${r.obrtniki.ime} ${r.obrtniki.priimek}` : '',
-    r.termin_datum || '', r.termin_ura || '',
-    r.cena_ocena_min || '', r.cena_ocena_max || '',
-    r.admin_opomba || '',
+    r.obrtnik_id ?? '',
+    r.preferred_date_from ?? '',
+    r.preferred_date_to ?? '',
+    r.budget_min ?? '',
+    r.budget_max ?? '',
+    r.admin_opomba ?? '',
     new Date(r.created_at).toLocaleString('sl-SI'),
   ])
 

@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     // Analyze message content
     const detection = analyzeMessage(messageBody)
 
-    // Find conversation and related job
+    // Find conversation and related job (no nested craftworker_profile — two FKs to user cause type ambiguity)
     const { data: conversation, error: convoError } = await supabaseAdmin
       .from('conversation')
       .select(`
@@ -77,7 +77,6 @@ export async function POST(req: NextRequest) {
         job:job_id(
           *,
           customer:customer_id(*),
-          craftworker:craftworker_id(craftworker_profile(*)),
           payment:payment_id(*)
         )
       `)
@@ -159,22 +158,27 @@ export async function POST(req: NextRequest) {
       }
 
       // Update craftworker warnings if sender is craftworker
-      if (senderUserId === conversation.job.craftworker_id && conversation.job.craftworker?.craftworker_profile) {
-        const craftworkerProfile = conversation.job.craftworker.craftworker_profile
-        const newWarnings = (craftworkerProfile.bypass_warnings || 0) + 1
-        
-        await supabaseAdmin
+      if (senderUserId === conversation.job.craftworker_id) {
+        const { data: craftworkerProfile } = await supabaseAdmin
           .from('craftworker_profile')
-          .update({
-            bypass_warnings: newWarnings,
-            // Suspend if 3+ warnings
-            is_suspended: newWarnings >= 3,
-            suspended_at: newWarnings >= 3 ? new Date().toISOString() : undefined,
-            suspended_reason: newWarnings >= 3 
-              ? 'Večkratne kršitve pravil proti izogibanju platformi'
-              : undefined,
-          })
-          .eq('id', craftworkerProfile.id)
+          .select('id, bypass_warnings')
+          .eq('user_id', senderUserId)
+          .maybeSingle()
+
+        if (craftworkerProfile) {
+          const newWarnings = (craftworkerProfile.bypass_warnings || 0) + 1
+          await supabaseAdmin
+            .from('craftworker_profile')
+            .update({
+              bypass_warnings: newWarnings,
+              is_suspended: newWarnings >= 3,
+              suspended_at: newWarnings >= 3 ? new Date().toISOString() : undefined,
+              suspended_reason: newWarnings >= 3
+                ? 'Večkratne kršitve pravil proti izogibanju platformi'
+                : undefined,
+            })
+            .eq('id', craftworkerProfile.id)
+        }
       }
 
       // Send warning message to conversation (async, don't wait)

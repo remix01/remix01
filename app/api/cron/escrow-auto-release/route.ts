@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     .limit(10)
 
   for (const tx of stuck ?? []) {
+    if (!tx.stripe_payment_intent_id) continue
     try {
       const pi = await stripe.paymentIntents.retrieve(tx.stripe_payment_intent_id)
       if (pi.status === 'succeeded' && tx.stripe_transfer_id) {
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
     .update({ status: 'releasing' })
     .eq('status', 'paid')
     .lt('release_due_at', new Date().toISOString())
-    .select('id, stripe_payment_intent_id, partner_id, amount_total_cents, platform_fee_cents')
+    .select('id, stripe_payment_intent_id, partner_id, amount_total_cents, commission_cents')
     .limit(20)
 
   if (claimError) {
@@ -80,25 +81,30 @@ export async function GET(request: NextRequest) {
   // Process only the transactions THIS cron instance claimed
   const results: { id: string; success: boolean; error?: string }[] = []
   for (const tx of claimed) {
+    if (!tx.stripe_payment_intent_id) {
+      results.push({ id: tx.id, success: false, error: 'Missing stripe_payment_intent_id' })
+      continue
+    }
+    const piId = tx.stripe_payment_intent_id
     try {
       console.log(`[CRON AUTO-RELEASE] Processing transaction ${tx.id}`)
 
       // ========== TRANSACTIONAL CONSISTENCY FIX ==========
       // Capture payment FIRST, then update DB status ONLY on success
       // Never update DB before confirming Stripe success
-      
+
       let stripeSuccess = false
       try {
         // Capture payment in Stripe (must succeed)
-        await stripe.paymentIntents.capture(tx.stripe_payment_intent_id)
+        await stripe.paymentIntents.capture(piId)
         stripeSuccess = true
-        console.log(`[CRON AUTO-RELEASE] Captured PI ${tx.stripe_payment_intent_id}`)
+        console.log(`[CRON AUTO-RELEASE] Captured PI ${piId}`)
       } catch (stripeErr: any) {
         console.error(`[CRON AUTO-RELEASE] Stripe capture failed for ${tx.id}: ${stripeErr.message}`)
 
         const TERMINAL_PI_STATUSES = new Set(['canceled', 'requires_payment_method', 'requires_confirmation', 'processing'])
         if (stripeErr.code === 'payment_intent_unexpected_state') {
-          const pi = await stripe.paymentIntents.retrieve(tx.stripe_payment_intent_id)
+          const pi = await stripe.paymentIntents.retrieve(piId)
           if (TERMINAL_PI_STATUSES.has(pi.status)) {
             await supabaseAdmin
               .from('escrow_transactions')
@@ -106,7 +112,7 @@ export async function GET(request: NextRequest) {
               .eq('id', tx.id)
               .eq('status', 'releasing')
             console.error(`[CRON AUTO-RELEASE] Escrow ${tx.id} cancelled — PI in terminal state '${pi.status}' — manual intervention required`, {
-              paymentIntent: tx.stripe_payment_intent_id,
+              paymentIntent: piId,
             })
             throw stripeErr
           }
@@ -145,7 +151,7 @@ export async function GET(request: NextRequest) {
         })
         try {
           await stripe.refunds.create({
-            payment_intent: tx.stripe_payment_intent_id,
+            payment_intent: piId,
           }, {
             idempotencyKey: `escrow-release-refund:${tx.id}`,
           })
@@ -154,10 +160,10 @@ export async function GET(request: NextRequest) {
             .update({ status: 'refunded' })
             .eq('id', tx.id)
             .eq('status', 'releasing')
-          console.warn(`[CRON AUTO-RELEASE] Refunded PI ${tx.stripe_payment_intent_id} after DB failure — marked as refunded`)
+          console.warn(`[CRON AUTO-RELEASE] Refunded PI ${piId} after DB failure — marked as refunded`)
         } catch (refundErr) {
           console.error(`[CRON AUTO-RELEASE] CRITICAL: Refund also failed for ${tx.id} — manual intervention required`, {
-            paymentIntent: tx.stripe_payment_intent_id,
+            paymentIntent: piId,
             refundErr,
           })
         }
@@ -175,7 +181,7 @@ export async function GET(request: NextRequest) {
         amountCents: tx.amount_total_cents,
         metadata: {
           reason: 'auto_release_timeout',
-          stripe_payment_intent_id: tx.stripe_payment_intent_id,
+          stripe_payment_intent_id: piId,
         },
       })
 

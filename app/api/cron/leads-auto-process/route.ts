@@ -73,7 +73,15 @@ export async function GET(req: NextRequest) {
       continue
     }
 
-    const decision = await evaluateLeadWithAI(client, lead, 'cron/leads-auto-process')
+    const decision = await evaluateLeadWithAI(client, {
+      id: lead.id,
+      business_name: lead.business_name ?? '',
+      description: lead.description,
+      location_city: lead.location_city ?? '',
+      avg_rating: lead.avg_rating,
+      total_reviews: lead.total_reviews,
+      source: lead.source,
+    }, 'cron/leads-auto-process')
     if (decision === 'APPROVE') {
       approved.push(lead.id)
     } else if (decision === 'REJECT') {

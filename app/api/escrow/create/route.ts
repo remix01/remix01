@@ -46,7 +46,7 @@ async function handler(request: NextRequest) {
     // 2. PREBERI PAKET PARTNERJA (za provizijo)
     const { data: partner, error: partnerErr } = await supabaseAdmin
       .from('partners')
-      .select('paket')
+      .select('subscription_plan')
       .eq('id', partnerId)
       .maybeSingle()
 
@@ -55,7 +55,7 @@ async function handler(request: NextRequest) {
     }
 
     const { commissionRate, commissionCents, payoutCents } =
-      calculateEscrow(amountCents, partner.paket as 'start' | 'pro')
+      calculateEscrow(amountCents, (partner.subscription_plan ?? 'start') as 'start' | 'pro')
 
     // 3. USTVARI STRIPE PAYMENT INTENT
     // capture_method: 'manual' = sredstva rezervirana, NE pobrana takoj

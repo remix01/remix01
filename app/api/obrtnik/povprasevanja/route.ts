@@ -107,14 +107,14 @@ export async function GET(request: NextRequest) {
       .select(
         `
         id,
-        storitev,
-        lokacija,
-        opis,
-        termin_datum,
-        termin_ura,
+        title,
+        location_city,
+        description,
+        preferred_date_from,
         status,
-        email,
-        telefon,
+        stranka_email,
+        stranka_telefon,
+        lead_status,
         created_at
       `
       )
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
       try {
         const updateResult = await supabaseAdmin
           .from('povprasevanja')
-          .update({ lead_status: 'opened' } as any)
+          .update({ lead_status: 'opened' })
           .in('id', openedIds)
           .eq('lead_status', 'matched')
 

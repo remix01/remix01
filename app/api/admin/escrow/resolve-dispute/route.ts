@@ -44,20 +44,28 @@ export async function POST(request: NextRequest) {
     // Perform Stripe operation FIRST, verify success, THEN update DB
     // Never update DB status before confirming Stripe success
     
+    if (!claimed.stripe_payment_intent_id) {
+      return NextResponse.json(
+        { success: false, message: 'Stripe payment intent ID missing on escrow transaction.' },
+        { status: 400 }
+      )
+    }
+    const paymentIntentId = claimed.stripe_payment_intent_id
+
     let stripeSuccess = false
     try {
       if (resolution === 'full_refund') {
         // Preklici PI → vrni stranki
-        console.log(`[RESOLVE DISPUTE] Cancelling PI for refund: ${claimed.stripe_payment_intent_id}`)
-        await stripe.paymentIntents.cancel(claimed.stripe_payment_intent_id)
+        console.log(`[RESOLVE DISPUTE] Cancelling PI for refund: ${paymentIntentId}`)
+        await stripe.paymentIntents.cancel(paymentIntentId)
         newEscrowStatus = 'refunded'
         stripeSuccess = true
         console.log(`[RESOLVE DISPUTE] Successfully cancelled PI`)
 
       } else if (resolution === 'release_to_partner') {
         // Poberi PI → sprosti obrtniku
-        console.log(`[RESOLVE DISPUTE] Capturing PI for release: ${claimed.stripe_payment_intent_id}`)
-        await stripe.paymentIntents.capture(claimed.stripe_payment_intent_id)
+        console.log(`[RESOLVE DISPUTE] Capturing PI for release: ${paymentIntentId}`)
+        await stripe.paymentIntents.capture(paymentIntentId)
         newEscrowStatus = 'released'
         stripeSuccess = true
         console.log(`[RESOLVE DISPUTE] Successfully captured PI`)
@@ -97,7 +105,7 @@ export async function POST(request: NextRequest) {
         resolved_at: new Date().toISOString(),
         resolution,
       })
-      .eq('transaction_id', escrowId)
+      .eq('hold_id', escrowId)
 
     if (disputeError) {
       console.error(`[RESOLVE DISPUTE] Failed to update dispute: ${disputeError.message}`)

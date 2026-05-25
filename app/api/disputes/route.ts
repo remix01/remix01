@@ -26,9 +26,8 @@ export async function GET(request: NextRequest) {
       .select(
         `
         id,
-        transaction_id,
+        hold_id,
         opened_by,
-        opened_by_id,
         reason,
         description,
         status,
@@ -36,15 +35,14 @@ export async function GET(request: NextRequest) {
         resolved_at,
         resolution,
         admin_notes,
-        escrow_transactions(id, status, amount_cents, customer_name, partner_name, created_by),
-        profiles!opened_by_id(id, full_name, email)
+        opened_by_profile:profiles!escrow_disputes_opened_by_fkey(id, full_name, email)
       `
       )
       .order('created_at', { ascending: false })
 
     // If not admin, only show user's own disputes
     if (!isAdmin) {
-      query = query.eq('opened_by_id', user.id)
+      query = query.eq('opened_by', user.id)
     }
 
     const { data: disputes, error: queryError } = await query
@@ -57,13 +55,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const result = (disputes || []).map((dispute: any) => ({
+    const result = (disputes || []).map((dispute) => ({
       id: dispute.id,
-      escrowId: dispute.transaction_id,
-      escrowStatus: dispute.escrow_transactions?.status,
-      amount: dispute.escrow_transactions?.amount_cents || 0,
-      customerName: dispute.escrow_transactions?.customer_name || 'Unknown',
-      partnerName: dispute.escrow_transactions?.partner_name || 'Unknown',
+      escrowId: dispute.hold_id,
       reason: dispute.reason,
       description: dispute.description,
       status: dispute.status,
@@ -71,7 +65,7 @@ export async function GET(request: NextRequest) {
       resolvedAt: dispute.resolved_at,
       resolution: dispute.resolution,
       adminNotes: dispute.admin_notes,
-      openedBy: dispute.profiles,
+      openedBy: dispute.opened_by_profile,
       daysOpen: Math.floor(
         (Date.now() - new Date(dispute.created_at).getTime()) / (1000 * 60 * 60 * 24)
       ),

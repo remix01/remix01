@@ -40,7 +40,7 @@ export async function GET(request: Request) {
       .eq('id', user.id)
       .maybeSingle()
 
-    const userRole = profile?.role
+    const userRole = profile?.role ?? null
 
     const { searchParams } = new URL(request.url)
     const partnerId = searchParams.get('partner_id') || undefined

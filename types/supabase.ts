@@ -116,6 +116,78 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_audit_log: {
+        Row: {
+          id: string
+          povprasevanje_id: string | null
+          status: string | null
+          actor_type: string | null
+          actor_id: string | null
+          response_time_ms: number | null
+          conversion: boolean | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          povprasevanje_id?: string | null
+          status?: string | null
+          actor_type?: string | null
+          actor_id?: string | null
+          response_time_ms?: number | null
+          conversion?: boolean | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          povprasevanje_id?: string | null
+          status?: string | null
+          actor_type?: string | null
+          actor_id?: string | null
+          response_time_ms?: number | null
+          conversion?: boolean | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          table_name: string | null
+          record_id: string | null
+          action: string | null
+          new_data: Json | null
+          old_data: Json | null
+          changed_by: string | null
+          changed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           aktiven: boolean
@@ -956,6 +1028,45 @@ export type Database = {
           resolved?: boolean | null
           resolved_at?: string | null
           severity?: string
+        }
+        Relationships: []
+      }
+      appointments: {
+        Row: {
+          id: string
+          ponudba_id: string | null
+          narocnik_id: string | null
+          obrtnik_id: string | null
+          scheduled_start: string | null
+          scheduled_end: string | null
+          narocnik_calendar_event_id: string | null
+          obrtnik_calendar_event_id: string | null
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ponudba_id?: string | null
+          narocnik_id?: string | null
+          obrtnik_id?: string | null
+          scheduled_start?: string | null
+          scheduled_end?: string | null
+          narocnik_calendar_event_id?: string | null
+          obrtnik_calendar_event_id?: string | null
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ponudba_id?: string | null
+          narocnik_id?: string | null
+          obrtnik_id?: string | null
+          scheduled_start?: string | null
+          scheduled_end?: string | null
+          narocnik_calendar_event_id?: string | null
+          obrtnik_calendar_event_id?: string | null
+          status?: string
+          created_at?: string
         }
         Relationships: []
       }
@@ -2720,6 +2831,13 @@ export type Database = {
           updated_at: string | null
           verification_status: string
           verified_at: string | null
+          loyalty_points: number | null
+          referral_code: string | null
+          referred_by: string | null
+          stripe_charges_enabled: boolean | null
+          stripe_payouts_enabled: boolean | null
+          stripe_details_submitted: boolean | null
+          stripe_requirements_due: string[] | null
           visibility: string
           website_url: string | null
           working_since: string | null
@@ -2768,6 +2886,13 @@ export type Database = {
           updated_at?: string | null
           verification_status?: string
           verified_at?: string | null
+          loyalty_points?: number | null
+          referral_code?: string | null
+          referred_by?: string | null
+          stripe_charges_enabled?: boolean | null
+          stripe_payouts_enabled?: boolean | null
+          stripe_details_submitted?: boolean | null
+          stripe_requirements_due?: string[] | null
           visibility?: string
           website_url?: string | null
           working_since?: string | null
@@ -2814,6 +2939,13 @@ export type Database = {
           tagline?: string | null
           total_reviews?: number | null
           updated_at?: string | null
+          loyalty_points?: number | null
+          referral_code?: string | null
+          referred_by?: string | null
+          stripe_charges_enabled?: boolean | null
+          stripe_payouts_enabled?: boolean | null
+          stripe_details_submitted?: boolean | null
+          stripe_requirements_due?: string[] | null
           verification_status?: string
           verified_at?: string | null
           visibility?: string
@@ -3602,10 +3734,12 @@ export type Database = {
           id: string
           kategorija: string | null
           lat: number | null
+          lead_fingerprint: string | null
           lng: number | null
           location_city: string
           location_notes: string | null
           location_region: string | null
+          lead_status: string | null
           lock_version: number
           narocnik_id: string | null
           notified_at: string | null
@@ -3624,6 +3758,8 @@ export type Database = {
         Insert: {
           admin_opomba?: string | null
           assigned_to?: string | null
+          lead_fingerprint?: string | null
+          lead_status?: string | null
           attachments?: string[] | null
           budget_max?: number | null
           budget_min?: number | null
@@ -3653,6 +3789,8 @@ export type Database = {
         Update: {
           admin_opomba?: string | null
           assigned_to?: string | null
+          lead_fingerprint?: string | null
+          lead_status?: string | null
           attachments?: string[] | null
           budget_max?: number | null
           budget_min?: number | null
@@ -3695,6 +3833,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      locations: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          is_active: boolean | null
+          is_auto_created: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          is_active?: boolean | null
+          is_auto_created?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          is_active?: boolean | null
+          is_auto_created?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          id: number
+          logo_url: string | null
+          hero_image_url: string | null
+          favicon_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          logo_url?: string | null
+          hero_image_url?: string | null
+          favicon_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          logo_url?: string | null
+          hero_image_url?: string | null
+          favicon_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -4098,6 +4287,7 @@ export type Database = {
           id: string
           location_city: string
           narocnik_id: string | null
+          povprasevanje_id: string | null
           status: string
           title: string
           updated_at: string | null
@@ -4109,6 +4299,7 @@ export type Database = {
           id?: string
           location_city: string
           narocnik_id?: string | null
+          povprasevanje_id?: string | null
           status?: string
           title: string
           updated_at?: string | null
@@ -4120,6 +4311,7 @@ export type Database = {
           id?: string
           location_city?: string
           narocnik_id?: string | null
+          povprasevanje_id?: string | null
           status?: string
           title?: string
           updated_at?: string | null
@@ -4414,6 +4606,9 @@ export type Database = {
           role: string
           stripe_customer_id: string | null
           updated_at: string
+          tos_accepted_at: string | null
+          tos_version: string | null
+          craftworker_agreement_accepted_at: string | null
         }
         Insert: {
           created_at?: string
@@ -4424,6 +4619,9 @@ export type Database = {
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
+          tos_accepted_at?: string | null
+          tos_version?: string | null
+          craftworker_agreement_accepted_at?: string | null
         }
         Update: {
           created_at?: string
@@ -4434,6 +4632,9 @@ export type Database = {
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
+          tos_accepted_at?: string | null
+          tos_version?: string | null
+          craftworker_agreement_accepted_at?: string | null
         }
         Relationships: []
       }

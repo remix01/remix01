@@ -17,8 +17,8 @@ export async function GET(req: Request) {
   ] = await Promise.all([
     supabaseAdmin.from('povprasevanja').select('*', { count: 'exact', head: true }),
     supabaseAdmin.from('povprasevanja').select('*', { count: 'exact', head: true }).eq('status', 'novo'),
-    supabaseAdmin.from('obrtniki').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('obrtniki').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabaseAdmin.from('obrtnik_profiles').select('*', { count: 'exact', head: true }),
+    supabaseAdmin.from('obrtnik_profiles').select('*', { count: 'exact', head: true }).eq('profile_status', 'pending'),
     supabaseAdmin.from('povprasevanja').select('*', { count: 'exact', head: true }).eq('status', 'zakljuceno'),
     supabaseAdmin.from('povprasevanja')
       .select('created_at, status')

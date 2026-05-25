@@ -31,15 +31,10 @@ export async function POST(request: NextRequest) {
 
     const { jobId, reason } = validation.data
 
-    // 3. Fetch job with payment info
+    // 3. Fetch job with payment info (no user joins — two FKs to user cause type ambiguity)
     const { data: job, error: jobError } = await supabaseAdmin
       .from('job')
-      .select(`
-        *,
-        payment:payment_id(*),
-        customer:customer_id(*),
-        craftworker:craftworker_id(*)
-      `)
+      .select(`*, payment:payment_id(*)`)
       .eq('id', jobId)
       .single()
 
@@ -84,6 +79,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Send alert email to admin
+    // Fetch user names for email (separate queries to avoid dual-FK ambiguity)
+    const [customerResult, craftworkerResult] = await Promise.all([
+      job.customer_id
+        ? supabaseAdmin.from('user').select('name, email').eq('id', job.customer_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      job.craftworker_id
+        ? supabaseAdmin.from('user').select('name, email').eq('id', job.craftworker_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+    const customer = customerResult.data
+    const craftworker = craftworkerResult.data
+
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@liftgo.net'
 
     const { getResendClient, getDefaultFrom, resolveEmailRecipients } = await import('@/lib/resend')
@@ -93,14 +100,14 @@ export async function POST(request: NextRequest) {
       await resend.emails.send({
         from: getDefaultFrom('LiftGO Admin'),
         to: resolvedTo,
-        subject: `[DISPUTE] Job ${jobId} — ${job.customer?.name ?? 'neznani kupec'}`,
+        subject: `[DISPUTE] Job ${jobId} — ${customer?.name ?? 'neznani kupec'}`,
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
             <h2 style="color:#dc2626;">⚠️ Odprt spor — zahteva takojšnjo pozornost</h2>
             <table style="width:100%;border-collapse:collapse;margin:16px 0;">
               <tr><td style="padding:8px;color:#64748b;width:35%;">Job ID:</td><td style="padding:8px;"><strong>${jobId}</strong></td></tr>
-              <tr><td style="padding:8px;color:#64748b;">Kupec:</td><td style="padding:8px;">${job.customer?.name ?? '–'} (${job.customer?.email ?? '–'})</td></tr>
-              <tr><td style="padding:8px;color:#64748b;">Obrtnik:</td><td style="padding:8px;">${job.craftworker?.name ?? '–'} (${job.craftworker?.email ?? '–'})</td></tr>
+              <tr><td style="padding:8px;color:#64748b;">Kupec:</td><td style="padding:8px;">${customer?.name ?? '–'} (${customer?.email ?? '–'})</td></tr>
+              <tr><td style="padding:8px;color:#64748b;">Obrtnik:</td><td style="padding:8px;">${craftworker?.name ?? '–'} (${craftworker?.email ?? '–'})</td></tr>
               <tr><td style="padding:8px;color:#64748b;">Znesek:</td><td style="padding:8px;"><strong>${job.payment.amount} EUR</strong></td></tr>
               <tr><td style="padding:8px;color:#64748b;">Razlog:</td><td style="padding:8px;">${reason}</td></tr>
             </table>

@@ -202,8 +202,7 @@ async function logAuditEvent(
 
 async function expireTask(taskId: string) {
   const firstTry = await supabaseAdmin.rpc('expire_task', {
-    task_id: taskId,
-    reason: 'SLA deadline passed - automated expiry',
+    p_task_id: taskId,
   })
 
   if (
@@ -212,7 +211,7 @@ async function expireTask(taskId: string) {
       firstTry.error.message?.includes('does not exist') ||
       firstTry.error.message?.includes('No function matches'))
   ) {
-    return supabaseAdmin.rpc('expire_task', { task_id: taskId })
+    return supabaseAdmin.rpc('expire_task', { p_task_id: taskId })
   }
 
   return firstTry

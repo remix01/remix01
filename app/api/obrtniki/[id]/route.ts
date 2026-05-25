@@ -1,6 +1,9 @@
 import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
+import type { Database } from '@/types/supabase'
+
+type ObrtnikProfileUpdate = Database['public']['Tables']['obrtnik_profiles']['Update']
 
 const resend = getResendClient()
 
@@ -22,7 +25,7 @@ export async function PATCH(
 
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const updates: Record<string, unknown> = {}
+  const updates: ObrtnikProfileUpdate = {}
 
   if (body.status === 'verified') {
     updates.is_verified = true
