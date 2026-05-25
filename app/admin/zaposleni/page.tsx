@@ -41,7 +41,7 @@ interface Zaposleni {
   priimek: string;
   vloga: Vloga;
   aktiven: boolean;
-  createdAt: Date;
+  created_at: string;
 }
 
 export default function ZaposleniPage() {
