@@ -24,7 +24,7 @@ async function countAnalyticsEvent(eventName: EventName, fromIso: string, toIso?
   let query = supabaseAdmin
     .from('analytics_events')
     .select('*', { count: 'exact', head: true })
-    .eq('event_name', eventName)
+    .eq('event', eventName)
     .gte('created_at', fromIso)
 
   if (toIso) {
@@ -184,14 +184,14 @@ export async function GET(request: NextRequest) {
 
     const trendPromise = supabaseAdmin
       .from('analytics_events')
-      .select('created_at, event_name')
+      .select('created_at, event')
       .gte('created_at', sevenDaysAgo.toISOString())
       .order('created_at', { ascending: true })
 
     const categoriesPromise = supabaseAdmin
       .from('analytics_events')
       .select('properties')
-      .eq('event_name', 'inquiry_submitted')
+      .eq('event', 'inquiry_submitted')
       .gte('created_at', sevenDaysAgo.toISOString())
 
     const [activeUsersRes, trendRes, categoriesRes] = await Promise.all([
@@ -217,8 +217,8 @@ export async function GET(request: NextRequest) {
         if (!dailyStats[key]) return
 
         dailyStats[key].events += 1
-        if (event.event_name === 'inquiry_submitted') dailyStats[key].inquiries += 1
-        if (event.event_name === 'payment_completed') dailyStats[key].conversions += 1
+        if (event.event === 'inquiry_submitted') dailyStats[key].inquiries += 1
+        if (event.event === 'payment_completed') dailyStats[key].conversions += 1
       })
     } else {
       // Build synthetic trend from core tables (fallback source)
