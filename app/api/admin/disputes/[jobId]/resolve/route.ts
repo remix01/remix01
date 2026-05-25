@@ -46,8 +46,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .select(`
         *,
         payment:payment_id(*),
-        customer:customer_id(*),
-        craftworker:craftworker_id(*, craftworker_profile(*))
+        customer:customer_id!job_customer_id_fkey(*),
+        craftworker:craftworker_id!job_craftworker_id_fkey(*, craftworker_profile(*))
       `)
       .eq('id', jobId)
       .single()
