@@ -214,6 +214,7 @@ export async function GET(request: NextRequest) {
 
     if (useAnalyticsEvents && !trendRes.error && trendRes.data) {
       trendRes.data.forEach((event) => {
+        if (!event.created_at) return
         const key = event.created_at.split('T')[0]
         if (!dailyStats[key]) return
 
