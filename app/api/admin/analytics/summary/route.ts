@@ -177,10 +177,10 @@ export async function GET(request: NextRequest) {
 
     const activeUsersPromise = supabaseAdmin
       .from('analytics_events')
-      .select('user_id')
+      .select('partner_id')
       .gte('created_at', todayStart.toISOString())
       .lt('created_at', tomorrowStart.toISOString())
-      .not('user_id', 'is', null)
+      .not('partner_id', 'is', null)
 
     const trendPromise = supabaseAdmin
       .from('analytics_events')
@@ -190,9 +190,10 @@ export async function GET(request: NextRequest) {
 
     const categoriesPromise = supabaseAdmin
       .from('analytics_events')
-      .select('properties')
+      .select('category_id')
       .eq('event', 'inquiry_submitted')
       .gte('created_at', sevenDaysAgo.toISOString())
+      .not('category_id', 'is', null)
 
     const [activeUsersRes, trendRes, categoriesRes] = await Promise.all([
       activeUsersPromise,
@@ -200,7 +201,7 @@ export async function GET(request: NextRequest) {
       categoriesPromise,
     ])
 
-    const uniqueActiveUsers = new Set(activeUsersRes.data?.map((e) => e.user_id).filter(Boolean) || []).size
+    const uniqueActiveUsers = new Set(activeUsersRes.data?.map((e) => e.partner_id).filter(Boolean) || []).size
 
     const dailyStats: Record<string, { events: number; inquiries: number; conversions: number }> = {}
 
@@ -254,7 +255,7 @@ export async function GET(request: NextRequest) {
 
     if (useAnalyticsEvents && !categoriesRes.error && categoriesRes.data && categoriesRes.data.length > 0) {
       categoriesRes.data.forEach((event) => {
-        const category = event.properties?.category
+        const category = event.category_id
         if (category) categoryCount[category] = (categoryCount[category] || 0) + 1
       })
     } else {
