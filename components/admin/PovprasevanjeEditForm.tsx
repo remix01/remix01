@@ -13,11 +13,11 @@ import { updatePovprasevanjeAdmin } from '@/app/admin/actions'
 type DetailData = {
   id: string
   title: string
-  description: string
+  description: string | null
   status: string
   location_city: string
   category_name: string
-  urgency: string
+  urgency: string | null
   budget_min: number | null
   budget_max: number | null
   preferred_date_from: string | null

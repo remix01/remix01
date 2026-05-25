@@ -596,13 +596,20 @@ export async function getAdminPovprasevanjeDetail(id: string) {
     .single()
   if (!row) return null
 
+  type NarocnikRow = { full_name: string | null; email: string | null; phone: string | null }
+  type CategoryRow = { name: string }
+
+  const narocnikPromise: Promise<{ data: NarocnikRow | null; error: unknown }> = row.narocnik_id
+    ? supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()
+    : Promise.resolve({ data: null, error: null })
+
+  const categoryPromise: Promise<{ data: CategoryRow | null; error: unknown }> = row.category_id
+    ? supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()
+    : Promise.resolve({ data: null, error: null })
+
   const [{ data: narocnik }, { data: category }, { data: obrtniki }] = await Promise.all([
-    row.narocnik_id
-      ? supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()
-      : Promise.resolve({ data: null }),
-    row.category_id
-      ? supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()
-      : Promise.resolve({ data: null }),
+    narocnikPromise,
+    categoryPromise,
     supabaseAdmin.from('obrtnik_profiles').select('id, business_name').eq('is_verified', true).order('business_name'),
   ])
 
@@ -613,19 +620,19 @@ export async function getAdminPovprasevanjeDetail(id: string) {
     status: row.status,
     location_city: row.location_city,
     category_id: row.category_id,
-    category_name: (category as any)?.name || '—',
+    category_name: category?.name ?? '—',
     urgency: row.urgency,
     budget_min: row.budget_min,
     budget_max: row.budget_max,
     preferred_date_from: row.preferred_date_from,
     preferred_date_to: row.preferred_date_to,
     assigned_to: row.assigned_to,
-    admin_opomba: row.admin_opomba || '',
+    admin_opomba: row.admin_opomba ?? '',
     narocnik_id: row.narocnik_id,
-    narocnik_ime: (narocnik as any)?.full_name || '—',
-    narocnik_email: (narocnik as any)?.email || '—',
-    narocnik_telefon: (narocnik as any)?.phone || '',
-    obrtniki: (obrtniki || []) as { id: string; business_name: string }[],
+    narocnik_ime: narocnik?.full_name ?? '—',
+    narocnik_email: narocnik?.email ?? '—',
+    narocnik_telefon: narocnik?.phone ?? '',
+    obrtniki: obrtniki ?? [],
   }
 }
 
