@@ -331,7 +331,7 @@ export async function getStranka(id: string): Promise<Stranka | null> {
     id: user.id,
     ime: fullName.split(' ')[0] || user.email?.split('@')[0] || '',
     priimek: fullName.split(' ').slice(1).join(' ') || '',
-    email: user.email,
+    email: user.email ?? '',
     telefon: user.phone || undefined,
     lokacija: user.location_city || undefined,
     createdAt: new Date(user.created_at),
