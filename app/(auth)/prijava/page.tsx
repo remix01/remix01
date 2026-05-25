@@ -1,10 +1,10 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ensureOAuthProfile } from '@/app/(auth)/actions'
+import { buildOAuthCallbackUrl, getSafeInternalRedirect } from '@/lib/auth/oauth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,9 +32,12 @@ function PrijavaContent() {
     const supabase = createClient()
 
     const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
-    if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
-      router.push(redirectTarget)
-      return
+    if (redirectTarget) {
+      const safeRedirect = getSafeInternalRedirect(redirectTarget)
+      if (safeRedirect === redirectTarget) {
+        router.push(safeRedirect)
+        return
+      }
     }
 
     // Check admin status directly via client session (avoids cookie-timing issues with fetch)
@@ -70,10 +73,12 @@ function PrijavaContent() {
 
     try {
       const supabase = createClient()
+      const next = getSafeInternalRedirect(searchParams.get('redirect') ?? searchParams.get('redirectTo'))
+      const role = 'narocnik'
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+          redirectTo: buildOAuthCallbackUrl({ provider: 'google', role, next }),
         },
       })
 
@@ -86,54 +91,6 @@ function PrijavaContent() {
       setGoogleLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (searchParams.get('oauth') !== 'google') return
-
-    let active = true
-
-    const handleGoogleCallback = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (!session?.user?.id) {
-          return
-        }
-
-        if (!active) return
-        setStrankaLoading(true)
-
-        let intendedRole: 'narocnik' | 'obrtnik' = 'narocnik'
-        try {
-          const stored = sessionStorage.getItem('oauth_intended_role')
-          if (stored === 'obrtnik') intendedRole = 'obrtnik'
-          sessionStorage.removeItem('oauth_intended_role')
-        } catch {}
-
-        // Create the profiles row if this is a first Google OAuth sign-in.
-        await ensureOAuthProfile(intendedRole)
-
-        await routeAuthenticatedUser(session.user.id)
-      } catch {
-        if (!active) return
-        setStrankaError('Google prijava ni uspela. Poskusite znova.')
-      } finally {
-        if (active) {
-          setStrankaLoading(false)
-          setGoogleLoading(false)
-        }
-      }
-    }
-
-    void handleGoogleCallback()
-
-    return () => {
-      active = false
-    }
-  }, [searchParams])
 
   const handleStrankaSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
