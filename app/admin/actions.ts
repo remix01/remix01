@@ -596,22 +596,19 @@ export async function getAdminPovprasevanjeDetail(id: string) {
     .single()
   if (!row) return null
 
-  type NarocnikRow = { full_name: string | null; email: string | null; phone: string | null }
-  type CategoryRow = { name: string }
+  const narocnik = row.narocnik_id
+    ? (await supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()).data
+    : null
 
-  const narocnikPromise: Promise<{ data: NarocnikRow | null; error: unknown }> = row.narocnik_id
-    ? supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()
-    : Promise.resolve({ data: null, error: null })
+  const category = row.category_id
+    ? (await supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()).data
+    : null
 
-  const categoryPromise: Promise<{ data: CategoryRow | null; error: unknown }> = row.category_id
-    ? supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()
-    : Promise.resolve({ data: null, error: null })
-
-  const [{ data: narocnik }, { data: category }, { data: obrtniki }] = await Promise.all([
-    narocnikPromise,
-    categoryPromise,
-    supabaseAdmin.from('obrtnik_profiles').select('id, business_name').eq('is_verified', true).order('business_name'),
-  ])
+  const { data: obrtniki } = await supabaseAdmin
+    .from('obrtnik_profiles')
+    .select('id, business_name')
+    .eq('is_verified', true)
+    .order('business_name')
 
   return {
     id: row.id,
