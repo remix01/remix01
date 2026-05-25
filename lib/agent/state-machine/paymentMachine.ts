@@ -67,12 +67,10 @@ async function logRejectedTransition(
   try {
     await supabaseAdmin.from('escrow_audit_log').insert({
       transaction_id: transactionId,
-      event_type: 'transition_rejected',
-      actor: 'system',
-      actor_id: 'state-machine',
-      status_before: currentStatus,
-      status_after: targetStatus,
-      metadata: { reason, resource: 'payment' },
+      action: 'transition_rejected',
+      performed_by: null,
+      old_state: { status: currentStatus } as import('@/types/supabase').Json,
+      new_state: { status: targetStatus, reason, resource: 'payment' } as import('@/types/supabase').Json,
     })
   } catch (err) {
     console.error('[STATE-MACHINE] Failed to log rejected payment transition:', err)

@@ -1629,6 +1629,72 @@ export type Database = {
           },
         ]
       }
+      disputes: {
+        Row: {
+          id: string
+          escrow_id: string
+          opened_by: string
+          reason: string
+          description: string | null
+          status: string
+          resolution: string | null
+          resolved_by: string | null
+          resolved_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          escrow_id: string
+          opened_by: string
+          reason: string
+          description?: string | null
+          status?: string
+          resolution?: string | null
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          escrow_id?: string
+          opened_by?: string
+          reason?: string
+          description?: string | null
+          status?: string
+          resolution?: string | null
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      escrows: {
+        Row: {
+          id: string
+          job_id: string | null
+          amount: number
+          status: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          job_id?: string | null
+          amount: number
+          status?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          job_id?: string | null
+          amount?: number
+          status?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       device_tokens: {
         Row: {
           id: string
