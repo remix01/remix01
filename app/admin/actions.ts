@@ -957,10 +957,10 @@ export async function addAsZaposleni(
     .eq('id', id)
     .single()
 
-  if (!profile) return { success: false, error: 'Profil ne obstaja' }
+  if (!profile || !profile.email) return { success: false, error: 'Profil ne obstaja ali nima e-poštnega naslova' }
 
   const nameParts = (profile.full_name || '').trim().split(' ')
-  const ime = nameParts[0] || profile.email?.split('@')[0] || 'Zaposleni'
+  const ime = nameParts[0] || profile.email.split('@')[0] || 'Zaposleni'
   const priimek = nameParts.slice(1).join(' ') || '—'
 
   const { error } = await supabaseAdmin.from('admin_users').insert({
