@@ -33,10 +33,12 @@ function PrijavaContent() {
     const supabase = createClient()
 
     const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
-    const safeRedirect = getSafeInternalRedirect(redirectTarget)
-    if (safeRedirect !== '/dashboard') {
-      router.push(safeRedirect)
-      return
+    if (redirectTarget) {
+      const safeRedirect = getSafeInternalRedirect(redirectTarget)
+      if (safeRedirect === redirectTarget) {
+        router.push(safeRedirect)
+        return
+      }
     }
 
     // Check admin status directly via client session (avoids cookie-timing issues with fetch)
