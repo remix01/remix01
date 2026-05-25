@@ -1119,7 +1119,10 @@ export type Database = {
           icon_name: string | null
           id: string
           is_active: boolean
+          meta_description: string | null
+          meta_title: string | null
           name: string
+          name_slo: string | null
           slug: string
           sort_order: number | null
         }
@@ -1129,7 +1132,10 @@ export type Database = {
           icon_name?: string | null
           id?: string
           is_active?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
           name: string
+          name_slo?: string | null
           slug: string
           sort_order?: number | null
         }
@@ -1139,7 +1145,10 @@ export type Database = {
           icon_name?: string | null
           id?: string
           is_active?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
           name?: string
+          name_slo?: string | null
           slug?: string
           sort_order?: number | null
         }

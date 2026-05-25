@@ -8,23 +8,30 @@ import { Input } from '@/components/ui/input'
 type Category = {
   id: string
   name: string
-  name_slo?: string
-  slug?: string
-  description?: string
-  meta_title?: string
-  meta_description?: string
-  icon?: string
+  name_slo: string | null
+  slug: string
+  description: string | null
+  meta_title: string | null
+  meta_description: string | null
+  icon_name: string | null
   is_active: boolean
-  sort_order?: number
+  sort_order: number | null
 }
 
 const emptyForm = {
-  name: '', name_slo: '', slug: '', description: '', meta_title: '', meta_description: '', icon: '', sort_order: 0,
+  name: '',
+  name_slo: '',
+  slug: '',
+  description: '',
+  meta_title: '',
+  meta_description: '',
+  icon_name: '',
+  sort_order: 0,
 }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
-  const [form, setForm] = useState<any>(emptyForm)
+  const [form, setForm] = useState(emptyForm)
   const [seoInsights, setSeoInsights] = useState('')
 
   const load = async () => {
@@ -83,7 +90,7 @@ export default function CategoriesPage() {
           <Input placeholder="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input placeholder="name_slo" value={form.name_slo} onChange={(e) => setForm({ ...form, name_slo: e.target.value })} />
           <Input placeholder="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-          <Input placeholder="icon" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
+          <Input placeholder="icon_name" value={form.icon_name} onChange={(e) => setForm({ ...form, icon_name: e.target.value })} />
           <Input placeholder="meta_title" value={form.meta_title} onChange={(e) => setForm({ ...form, meta_title: e.target.value })} />
           <Input placeholder="meta_description" value={form.meta_description} onChange={(e) => setForm({ ...form, meta_description: e.target.value })} />
           <Input className="md:col-span-2" placeholder="description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
