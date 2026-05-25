@@ -282,13 +282,14 @@ export async function backfillEmbeddings(
   let quotaErrors = 0
   let providerConfigErrors = 0
 
-  // Get records that need embedding backfill.
-  // Primary signal: embedding_updated_at is null.
-  // Compatibility: also include rows where embedding is null.
+  // Only fetch rows that need a new embedding AND have non-null text.
+  // Filtering textColumn IS NOT NULL in the query avoids loading rows we would
+  // immediately skip in the loop (no text → nothing to embed).
   const { data, error } = await supabaseAdmin
     .from(table)
     .select(`id, ${textColumn}`)
     .or('embedding_updated_at.is.null,embedding.is.null')
+    .not(textColumn, 'is', null)
     .order('embedding_updated_at', { ascending: true, nullsFirst: true })
     .limit(batchSize)
   const records = data as Array<{ id: string } & Record<string, unknown>> | null

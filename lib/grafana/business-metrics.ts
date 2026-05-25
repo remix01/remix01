@@ -83,10 +83,12 @@ export async function collectBusinessMetrics(): Promise<MetricSample[]> {
   }))
 
   // ── AI usage ─────────────────────────────────────────────────────────────
+  // Bounded to 1000 rows — metrics are approximate; unbounded scan risks OOM on busy days.
   const { data: aiUsage } = await supabase
     .from('ai_usage_logs')
     .select('tokens_used, cost_eur')
     .gte('created_at', h24ago)
+    .limit(1000)
 
   const totalTokens = (aiUsage ?? []).reduce((sum: number, r: any) => sum + (r.tokens_used ?? 0), 0)
   const totalCostEur = (aiUsage ?? []).reduce((sum: number, r: any) => sum + (r.cost_eur ?? 0), 0)

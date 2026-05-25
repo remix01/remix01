@@ -6,40 +6,51 @@
  * Protected by CRON_SECRET + overlap lock via withCronGuard.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { withCronGuard } from '@/lib/cron/cronGuard'
 
-export const GET = withCronGuard(
-  { jobName: 'event-processor', lockTtlSeconds: 180 },
-  async (_req) => {
+async function _handler(req: NextRequest): Promise<NextResponse> {
+  // Configurable batch size — override via OUTBOX_BATCH_SIZE env var.
+  // Default 50; set lower in staging or if subscribers are slow.
+  const rawBatchSize = Number(process.env.OUTBOX_BATCH_SIZE)
+  const batchSize = Math.min(
+    Math.max(1, Number.isFinite(rawBatchSize) && rawBatchSize > 0 ? Math.floor(rawBatchSize) : 50),
+    200 // hard ceiling to prevent accidental overload
+  )
+
+  // Dry-run: ?dry_run=1 reports pending count without processing.
+  const dryRun = req.nextUrl.searchParams.get('dry_run') === '1'
+
   const start = Date.now()
   console.log(JSON.stringify({
     level: 'info',
     message: '[event-processor] start',
-    ranAt: new Date().toISOString()
+    ranAt: new Date().toISOString(),
+    batchSize,
+    dryRun,
   }))
 
   try {
     // STEP 1: Import and initialize event subscribers
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] importing subscribers' 
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] importing subscribers',
     }))
-    
+
     let initEventSubscribers: () => void
     try {
       const subscribers = await import('@/lib/events')
       initEventSubscribers = subscribers.initEventSubscribers
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] subscribers imported successfully' 
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] subscribers imported successfully',
       }))
     } catch (importErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to import subscribers', 
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] failed to import subscribers',
         error: String(importErr),
-        stack: importErr instanceof Error ? importErr.stack : undefined
+        stack: importErr instanceof Error ? importErr.stack : undefined,
       }))
       throw new Error(`Failed to import subscribers: ${importErr}`)
     }
@@ -47,73 +58,84 @@ export const GET = withCronGuard(
     // Initialize subscribers for this serverless execution context
     try {
       initEventSubscribers()
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] subscribers initialized' 
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] subscribers initialized',
       }))
     } catch (initErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to initialize subscribers', 
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] failed to initialize subscribers',
         error: String(initErr),
-        stack: initErr instanceof Error ? initErr.stack : undefined
+        stack: initErr instanceof Error ? initErr.stack : undefined,
       }))
       throw new Error(`Failed to initialize subscribers: ${initErr}`)
     }
 
     // STEP 2: Import outbox processor
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] importing outbox' 
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] importing outbox',
     }))
-    
+
     let outbox: any
     try {
       const outboxModule = await import('@/lib/events/outbox')
       outbox = outboxModule.outbox
-      console.log(JSON.stringify({ 
-        level: 'info', 
-        message: '[event-processor] outbox imported successfully' 
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] outbox imported successfully',
       }))
     } catch (importErr) {
-      console.error(JSON.stringify({ 
-        level: 'error', 
-        message: '[event-processor] failed to import outbox', 
+      console.error(JSON.stringify({
+        level: 'error',
+        message: '[event-processor] failed to import outbox',
         error: String(importErr),
-        stack: importErr instanceof Error ? importErr.stack : undefined
+        stack: importErr instanceof Error ? importErr.stack : undefined,
       }))
       throw new Error(`Failed to import outbox: ${importErr}`)
     }
 
-    // STEP 3: Process pending events
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] processing batch', 
-      batchSize: 50 
+    // STEP 3: Process pending events (or just report pending count for dry-run)
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] processing batch',
+      batchSize,
+      dryRun,
     }))
-    
-    const result = await outbox.processPendingBatch(50)
+
+    let result: { processed: number; failed: number }
+    if (dryRun) {
+      result = { processed: 0, failed: 0 }
+      console.log(JSON.stringify({
+        level: 'info',
+        message: '[event-processor] dry-run: skipping actual processing',
+      }))
+    } else {
+      result = await outbox.processPendingBatch(batchSize)
+    }
 
     // Heartbeat is implicit in the HTTP response – health-sweep cron handles
     // dead-man alerting via checkEventLag() if outbox backlog accumulates.
     // Do NOT insert into alert_log here: that table is for real alerts only.
 
     const durationMs = Date.now() - start
-    console.log(JSON.stringify({ 
-      level: 'info', 
-      message: '[event-processor] batch completed', 
-      processed: result.processed, 
-      failed: result.failed, 
-      durationMs 
+    console.log(JSON.stringify({
+      level: 'info',
+      message: '[event-processor] batch completed',
+      processed: result.processed,
+      failed: result.failed,
+      dryRun,
+      durationMs,
     }))
 
-    return NextResponse.json({ 
-      ok: true, 
-      processed: result.processed, 
-      failed: result.failed, 
-      durationMs 
+    return NextResponse.json({
+      ok: true,
+      processed: result.processed,
+      failed: result.failed,
+      dryRun,
+      durationMs,
     })
-
   } catch (err) {
     const durationMs = Date.now() - start
     console.error(JSON.stringify({
@@ -121,12 +143,18 @@ export const GET = withCronGuard(
       message: '[event-processor] fatal error',
       error: String(err),
       stack: err instanceof Error ? err.stack : undefined,
-      durationMs
+      durationMs,
     }))
-    return NextResponse.json({
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? String(err) : undefined
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? String(err) : undefined,
+      },
+      { status: 500 }
+    )
   }
-  },
-)
+}
+
+// lockTtlSeconds: 270s (4.5 min) — safely below the 15-min run interval
+export const GET = withCronGuard({ jobName: 'event-processor', lockTtlSeconds: 270 }, _handler)
+export const POST = GET

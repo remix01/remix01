@@ -46,8 +46,8 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/check-tier-upgrades",
-      "schedule": "0 0 * * *"
+      "path": "/api/cron/detect-anomalies",
+      "schedule": "15 * * * *"
     },
     {
       "path": "/api/cron/escrow-auto-release",
