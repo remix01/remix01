@@ -40,7 +40,7 @@ export default async function AiCostsPage({ searchParams }: { searchParams: Prom
     today_cost: ((todayData as any[]) ?? []).reduce((s, r) => s + Number(r.cost_usd), 0),
     today_messages: ((todayData as any[]) ?? []).reduce((s, r) => s + Number(r.messages), 0),
     by_agent: byAgent,
-    by_day: byDay ?? [],
+    by_day: (byDay as any[]) ?? [],
     recent_jobs: recentJobs ?? [],
     failed_count: failedCount ?? 0,
     days,
