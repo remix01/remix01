@@ -1,38 +1,35 @@
-import { env } from '@/lib/env'
+const PROD_CANONICAL_URL = 'https://liftgo.net'
 
-function parseBaseUrl(): URL {
-  const configured = env.NEXT_PUBLIC_APP_URL?.trim()
+function normalizeOrigin(input?: string | null): string | null {
+  if (!input) return null
+  const trimmed = input.trim()
+  if (!trimmed) return null
 
-  if (configured) {
-    try {
-      const parsed = new URL(configured)
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        return parsed
-      }
-    } catch {}
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    url.pathname = ''
+    url.search = ''
+    url.hash = ''
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return null
   }
-
-  return new URL('https://liftgo.net')
 }
 
-export function buildOAuthCallbackUrl(params?: { next?: string; intendedRole?: 'narocnik' | 'obrtnik' }): string {
-  const base = parseBaseUrl()
-  const callback = new URL('/auth/callback', base)
-
-  if (params?.next && params.next.startsWith('/') && !params.next.startsWith('//')) {
-    callback.searchParams.set('next', params.next)
-  }
-
-  if (params?.intendedRole === 'narocnik' || params?.intendedRole === 'obrtnik') {
-    callback.searchParams.set('role', params.intendedRole)
-  }
-
-  return callback.toString()
+export function getCanonicalAppOrigin(): string {
+  return normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL) ?? PROD_CANONICAL_URL
 }
 
-export function getSafeNextPath(value: string | null): string | null {
-  if (!value) return null
-  if (!value.startsWith('/') || value.startsWith('//')) return null
-  if (value.startsWith('/auth/callback')) return null
-  return value
+export function getOAuthRedirectTo(path = '/auth/callback'): string {
+  const canonicalOrigin = getCanonicalAppOrigin()
+  return new URL(path, `${canonicalOrigin}/`).toString()
+}
+
+export function getSafeInternalRedirect(target: string | null | undefined, fallback = '/dashboard'): string {
+  if (!target) return fallback
+  if (!target.startsWith('/')) return fallback
+  if (target.startsWith('//')) return fallback
+  if (target.startsWith('/prijava')) return fallback
+  return target
 }

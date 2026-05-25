@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { Search, Wrench } from 'lucide-react'
 import type { UserRole } from '@/types'
-import { buildOAuthCallbackUrl } from '@/lib/auth/oauth'
+import { getOAuthRedirectTo, getSafeInternalRedirect } from '@/lib/auth/oauth'
 
 export function RegistracijaForm() {
   const router = useRouter()
@@ -114,7 +114,7 @@ export function RegistracijaForm() {
         router.push('/partner-dashboard')
       } else {
         const redirect = searchParams?.get('redirect')
-        router.push(redirect || '/dashboard')
+        router.push(getSafeInternalRedirect(redirect))
       }
     } catch (err) {
       setError('Napaka pri registraciji. Poskusite znova.')
@@ -138,10 +138,13 @@ export function RegistracijaForm() {
       // can create the profiles row with the correct role.
       try { sessionStorage.setItem('oauth_intended_role', selectedRole) } catch {}
 
+      const role = selectedRole === 'obrtnik' ? 'obrtnik' : 'narocnik'
+      const next = role === 'obrtnik' ? '/partner-dashboard' : getSafeInternalRedirect(searchParams?.get('redirect'))
+
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: buildOAuthCallbackUrl({ intendedRole: selectedRole, next: '/dashboard' }),
+          redirectTo: getOAuthRedirectTo(`/${'auth/callback'}?provider=google&role=${role}&next=${encodeURIComponent(next)}`),
         },
       })
 
