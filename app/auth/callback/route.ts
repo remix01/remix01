@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       const adminOnlyPath = safeNext === '/admin' || safeNext.startsWith('/admin/')
       const obrtnikOnlyPath = safeNext === '/partner-dashboard' || safeNext.startsWith('/partner-dashboard/')
 
-      if (isAdmin || (isObrtnik && obrtnikOnlyPath) || (!isObrtnik && !adminOnlyPath && !obrtnikOnlyPath)) {
+      if ((isAdmin && adminOnlyPath) || (isObrtnik && obrtnikOnlyPath) || (!isAdmin && !isObrtnik && !adminOnlyPath && !obrtnikOnlyPath)) {
         destination = safeNext
       } else {
         logAuth('ignored_unsafe_next_for_role', { destination, safeNext })
