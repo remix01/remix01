@@ -4,12 +4,12 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { buildOAuthCallbackUrl, getSafeInternalRedirect } from '@/lib/auth/oauth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, Wrench } from 'lucide-react'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth'
 
 function PrijavaContent() {
   const router = useRouter()
@@ -78,7 +78,10 @@ function PrijavaContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: buildOAuthCallbackUrl({ provider: 'google', role, next, origin: window.location.origin }),
+          redirectTo: buildOAuthCallbackUrl({
+            next: searchParams.get('redirect') ?? searchParams.get('redirectTo') ?? '/dashboard',
+            intendedRole: 'narocnik',
+          }),
         },
       })
 

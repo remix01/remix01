@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { Search, Wrench } from 'lucide-react'
 import type { UserRole } from '@/types'
-import { buildOAuthCallbackUrl, getSafeInternalRedirect } from '@/lib/auth/oauth'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth'
 
 export function RegistracijaForm() {
   const router = useRouter()
@@ -144,7 +144,7 @@ export function RegistracijaForm() {
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: buildOAuthCallbackUrl({ provider: 'google', role, next, origin: window.location.origin }),
+          redirectTo: buildOAuthCallbackUrl({ intendedRole: selectedRole, next: '/dashboard' }),
         },
       })
 

@@ -1,80 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { ensureOAuthProfile } from '@/app/(auth)/actions'
-import { getSafeInternalRedirect } from '@/lib/auth/oauth'
+import { getSafeNextPath } from '@/lib/auth/oauth'
 
-type Role = 'narocnik' | 'obrtnik'
+const DEFAULT_REDIRECT = '/dashboard'
 
-function sanitizeRole(role: string | null): Role {
-  return role === 'obrtnik' ? 'obrtnik' : 'narocnik'
-}
-
-function safeCallbackRedirect(next: string | null): string | null {
-  if (!next) return null
-  const safe = getSafeInternalRedirect(next, '/dashboard')
-  if (safe.startsWith('/auth/callback')) return '/dashboard'
-  return safe
-}
-
-function redirectTo(path: string, request: NextRequest) {
-  return NextResponse.redirect(new URL(path, request.url))
-}
-
-async function resolvePostOAuthRoute(userId: string) {
-  const supabase = await createClient()
-
-  const { data: adminUser } = await supabase
-    .from('admin_users')
-    .select('id')
-    .eq('auth_user_id', userId)
-    .eq('aktiven', true)
-    .maybeSingle()
-
-  if (adminUser) return '/admin'
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (profile?.role === 'obrtnik') return '/partner-dashboard'
-  return '/dashboard'
+function logAuth(stage: string, details: Record<string, string | null | undefined> = {}) {
+  console.info('[auth.callback]', { stage, ...details })
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const code = searchParams.get('code')
-  const provider = searchParams.get('provider') ?? 'google'
-  const role = sanitizeRole(searchParams.get('role'))
-  const requestedNext = safeCallbackRedirect(searchParams.get('next'))
+  const url = new URL(request.url)
+  const code = url.searchParams.get('code')
+  const error = url.searchParams.get('error')
+  const errorDescription = url.searchParams.get('error_description')
+  const intendedRole = url.searchParams.get('role') === 'obrtnik' ? 'obrtnik' : 'narocnik'
+  const safeNext = getSafeNextPath(url.searchParams.get('next'))
+
+  if (error) {
+    logAuth('provider_error', { error })
+    return NextResponse.redirect(new URL('/prijava?error=oauth_failed', request.url))
+  }
 
   if (!code) {
-    console.warn('[oauth.callback] missing code', { provider, hasCode: false, next: requestedNext ?? null })
-    return redirectTo('/prijava?error=oauth_missing_code', request)
-  }
-
-  const supabase = await createClient()
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-  if (exchangeError) {
-    console.warn('[oauth.callback] exchange failed', { provider, hasCode: true, error: exchangeError.message, next: requestedNext ?? null })
-    return redirectTo('/prijava?error=oauth_exchange_failed', request)
-  }
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    console.warn('[oauth.callback] user missing after exchange', { provider, hasCode: true, next: requestedNext ?? null })
-    return redirectTo('/prijava?error=oauth_user_missing', request)
+    logAuth('missing_code')
+    return NextResponse.redirect(new URL('/prijava?error=oauth_missing_code', request.url))
   }
 
   try {
-    await ensureOAuthProfile(role)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown'
-    console.warn('[oauth.callback] profile bootstrap failed', { provider, hasCode: true, error: message, next: requestedNext ?? null })
-    return redirectTo('/prijava?error=oauth_profile_failed', request)
-  }
+    const supabase = await createClient()
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
-  const finalNext = requestedNext ?? await resolvePostOAuthRoute(user.id)
-  return redirectTo(finalNext, request)
+    if (exchangeError) {
+      logAuth('exchange_failed', { error: exchangeError.message })
+      return NextResponse.redirect(new URL('/prijava?error=oauth_exchange_failed', request.url))
+    }
+
+    await ensureOAuthProfile(intendedRole)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) {
+      logAuth('missing_session_after_exchange')
+      return NextResponse.redirect(new URL('/prijava?error=oauth_session_missing', request.url))
+    }
+
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('aktiven', true)
+      .maybeSingle()
+
+    let destination = safeNext ?? DEFAULT_REDIRECT
+
+    if (adminUser) {
+      destination = '/admin'
+    } else {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (profile?.role === 'obrtnik') destination = '/partner-dashboard'
+      else if (profile?.role === 'narocnik') destination = safeNext ?? '/dashboard'
+      else logAuth('role_mismatch', { userId: user.id })
+    }
+
+    logAuth('success', { destination })
+    return NextResponse.redirect(new URL(destination, request.url))
+  } catch (e) {
+    logAuth('unexpected_error', { error: e instanceof Error ? e.message : String(e), hint: errorDescription })
+    return NextResponse.redirect(new URL('/prijava?error=oauth_unexpected', request.url))
+  }
 }
