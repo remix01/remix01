@@ -1149,26 +1149,31 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
 export async function getStrankaActivity(userId: string) {
   await ensureAdminAccess()
 
-  const [inquiriesRes, offersRes, escrowRes] = await Promise.all([
-    supabaseAdmin
-      .from('povprasevanja')
-      .select('id, title, status, created_at')
-      .eq('narocnik_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20),
+  // Fetch povprasevanja first; use their IDs to filter escrow (no narocnik_id on escrow_transactions)
+  const inquiriesRes = await supabaseAdmin
+    .from('povprasevanja')
+    .select('id, title, status, created_at')
+    .eq('narocnik_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const inquiryIds = (inquiriesRes.data || []).map((r) => r.id)
+
+  const [offersRes, escrowRes] = await Promise.all([
     supabaseAdmin
       .from('ponudbe')
       .select('id, povprasevanje_id, status, price_estimate, created_at')
       .eq('narocnik_id', userId)
       .order('created_at', { ascending: false })
       .limit(20),
-    // Use canonical escrow_transactions instead of legacy payment table
-    supabaseAdmin
-      .from('escrow_transactions')
-      .select('id, amount, status, created_at')
-      .eq('narocnik_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20),
+    inquiryIds.length
+      ? supabaseAdmin
+          .from('escrow_transactions')
+          .select('id, amount_total_cents, status, created_at')
+          .in('inquiry_id', inquiryIds)
+          .order('created_at', { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] as { id: string; amount_total_cents: number; status: string; created_at: string }[] }),
   ])
 
   return {

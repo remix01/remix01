@@ -3356,6 +3356,7 @@ export type Database = {
           id: string
           lock_version: number
           message: string
+          narocnik_id: string | null
           notes: string | null
           obrtnik_id: string
           povprasevanje_id: string
@@ -3379,6 +3380,7 @@ export type Database = {
           id?: string
           lock_version?: number
           message: string
+          narocnik_id?: string | null
           notes?: string | null
           obrtnik_id: string
           povprasevanje_id: string
@@ -3402,6 +3404,7 @@ export type Database = {
           id?: string
           lock_version?: number
           message?: string
+          narocnik_id?: string | null
           notes?: string | null
           obrtnik_id?: string
           povprasevanje_id?: string
@@ -3599,6 +3602,8 @@ export type Database = {
           notified_at: string | null
           obrtnik_id: string | null
           preferred_date_from: string | null
+          admin_opomba: string | null
+          assigned_to: string | null
           preferred_date_to: string | null
           status: string
           stranka_email: string | null
@@ -3608,6 +3613,8 @@ export type Database = {
           urgency: string | null
         }
         Insert: {
+          admin_opomba?: string | null
+          assigned_to?: string | null
           attachments?: string[] | null
           budget_max?: number | null
           budget_min?: number | null
@@ -3635,6 +3642,8 @@ export type Database = {
           urgency?: string | null
         }
         Update: {
+          admin_opomba?: string | null
+          assigned_to?: string | null
           attachments?: string[] | null
           budget_max?: number | null
           budget_min?: number | null
