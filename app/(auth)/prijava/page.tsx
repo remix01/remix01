@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ensureOAuthProfile } from '@/app/(auth)/actions'
+import { getOAuthRedirectTo, getSafeInternalRedirect } from '@/lib/auth/oauth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,8 +33,9 @@ function PrijavaContent() {
     const supabase = createClient()
 
     const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
-    if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
-      router.push(redirectTarget)
+    const safeRedirect = getSafeInternalRedirect(redirectTarget)
+    if (safeRedirect !== '/dashboard') {
+      router.push(safeRedirect)
       return
     }
 
@@ -73,7 +75,7 @@ function PrijavaContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+          redirectTo: getOAuthRedirectTo(),
         },
       })
 

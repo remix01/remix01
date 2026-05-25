@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { Search, Wrench } from 'lucide-react'
 import type { UserRole } from '@/types'
+import { getOAuthRedirectTo, getSafeInternalRedirect } from '@/lib/auth/oauth'
 
 export function RegistracijaForm() {
   const router = useRouter()
@@ -113,7 +114,7 @@ export function RegistracijaForm() {
         router.push('/partner-dashboard')
       } else {
         const redirect = searchParams?.get('redirect')
-        router.push(redirect || '/dashboard')
+        router.push(getSafeInternalRedirect(redirect))
       }
     } catch (err) {
       setError('Napaka pri registraciji. Poskusite znova.')
@@ -140,7 +141,7 @@ export function RegistracijaForm() {
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+          redirectTo: getOAuthRedirectTo(),
         },
       })
 
