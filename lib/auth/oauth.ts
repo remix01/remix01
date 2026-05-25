@@ -21,7 +21,7 @@ export function getCanonicalAppOrigin(): string {
   return normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL) ?? PROD_CANONICAL_URL
 }
 
-export function getOAuthRedirectTo(path = '/prijava?oauth=google'): string {
+export function getOAuthRedirectTo(path = '/auth/callback'): string {
   const canonicalOrigin = getCanonicalAppOrigin()
   return new URL(path, `${canonicalOrigin}/`).toString()
 }

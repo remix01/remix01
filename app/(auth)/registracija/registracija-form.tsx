@@ -138,10 +138,13 @@ export function RegistracijaForm() {
       // can create the profiles row with the correct role.
       try { sessionStorage.setItem('oauth_intended_role', selectedRole) } catch {}
 
+      const role = selectedRole === 'obrtnik' ? 'obrtnik' : 'narocnik'
+      const next = role === 'obrtnik' ? '/partner-dashboard' : getSafeInternalRedirect(searchParams?.get('redirect'))
+
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: getOAuthRedirectTo(),
+          redirectTo: getOAuthRedirectTo(`/${'auth/callback'}?provider=google&role=${role}&next=${encodeURIComponent(next)}`),
         },
       })
 
