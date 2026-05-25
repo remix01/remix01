@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { buildOAuthCallbackUrl, getSafeInternalRedirect } from '@/lib/auth/oauth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,9 +33,12 @@ function PrijavaContent() {
     const supabase = createClient()
 
     const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
-    if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
-      router.push(redirectTarget)
-      return
+    if (redirectTarget) {
+      const safeRedirect = getSafeInternalRedirect(redirectTarget)
+      if (safeRedirect === redirectTarget) {
+        router.push(safeRedirect)
+        return
+      }
     }
 
     // Check admin status directly via client session (avoids cookie-timing issues with fetch)
@@ -70,13 +74,12 @@ function PrijavaContent() {
 
     try {
       const supabase = createClient()
+      const next = getSafeInternalRedirect(searchParams.get('redirect') ?? searchParams.get('redirectTo'))
+      const role = 'narocnik'
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: buildOAuthCallbackUrl({
-            next: searchParams.get('redirect') ?? searchParams.get('redirectTo') ?? '/dashboard',
-            intendedRole: 'narocnik',
-          }),
+          redirectTo: buildOAuthCallbackUrl({ provider: 'google', role, next }),
         },
       })
 
