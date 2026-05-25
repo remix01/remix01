@@ -136,8 +136,8 @@ export async function mergePreferences(
       .upsert(
         {
           user_id: userId,
-          preferences: merged,
-          recent_activity: existing?.recentActivity ?? [],
+          preferences: merged as unknown as import('@/types/supabase').Json,
+          recent_activity: (existing?.recentActivity ?? []) as unknown as import('@/types/supabase').Json,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
