@@ -22,7 +22,10 @@ export default async function StrankaDetailPage({ params }: PageProps) {
   if (!user) redirect('/login')
 
   const stranka = await getStranka(params.id)
-  if (!stranka) redirect('/admin/stranke')
+  if (!stranka) {
+    redirect('/admin/stranke')
+    return null
+  }
 
   const activity = await getStrankaActivity(params.id)
 
