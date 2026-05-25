@@ -334,7 +334,7 @@ export async function getStranka(id: string): Promise<Stranka | null> {
     email: user.email ?? '',
     telefon: user.phone || undefined,
     lokacija: user.location_city || undefined,
-    createdAt: new Date(user.created_at),
+    createdAt: new Date(user.created_at ?? Date.now()),
     status: user.is_suspended ? ('SUSPENDIRAN' as const) : ('AKTIVEN' as const),
     narocil: 0,
   }
