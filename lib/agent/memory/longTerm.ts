@@ -102,8 +102,8 @@ export async function appendActivity(
       .upsert(
         {
           user_id: userId,
-          preferences: currentPreferences,
-          recent_activity: updatedActivity,
+          preferences: currentPreferences as unknown as import('@/types/supabase').Json,
+          recent_activity: updatedActivity as unknown as import('@/types/supabase').Json,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
