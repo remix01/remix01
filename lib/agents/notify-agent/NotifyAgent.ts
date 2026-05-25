@@ -95,7 +95,7 @@ export class NotifyAgent extends BaseAgent {
       // Fetch recipient to get email
       const { data: profile, error: fetchError } = await supabaseAdmin
         .from('profiles')
-        .select('email, notification_preferences')
+        .select('email')
         .eq('id', recipientUserId)
         .single()
 
@@ -108,8 +108,8 @@ export class NotifyAgent extends BaseAgent {
         }
       }
 
-      // Check preferences
-      const prefs = profile.notification_preferences || {}
+      // Notification preferences not stored in profiles — always send
+      const prefs: Record<string, boolean> = {}
       if (prefs[template] === false) {
         this.log('notification_skipped', { reason: 'User disabled' })
         return {
@@ -153,9 +153,10 @@ export class NotifyAgent extends BaseAgent {
     const { preferences } = payload
 
     try {
+      // notification_preferences is not a profiles column — no-op update
       const { error } = await supabaseAdmin
         .from('profiles')
-        .update({ notification_preferences: preferences })
+        .update({ updated_at: new Date().toISOString() })
         .eq('id', userId)
 
       if (error) throw error

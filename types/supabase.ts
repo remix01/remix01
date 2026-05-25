@@ -922,13 +922,17 @@ export type Database = {
           agent_type: string | null
           cost_usd: number
           created_at: string | null
+          endpoint: string | null
+          error: string | null
           id: string
           inquiry_id: string | null
           led_to_inquiry: boolean | null
           message_hash: string | null
           model_used: string
+          provider: string | null
           rag_context_used: boolean | null
           rag_sources_count: number | null
+          request_id: string | null
           response_cached: boolean | null
           response_time_ms: number | null
           tokens_cached: number | null
@@ -942,13 +946,17 @@ export type Database = {
           agent_type?: string | null
           cost_usd?: number
           created_at?: string | null
+          endpoint?: string | null
+          error?: string | null
           id?: string
           inquiry_id?: string | null
           led_to_inquiry?: boolean | null
           message_hash?: string | null
           model_used: string
+          provider?: string | null
           rag_context_used?: boolean | null
           rag_sources_count?: number | null
+          request_id?: string | null
           response_cached?: boolean | null
           response_time_ms?: number | null
           tokens_cached?: number | null
@@ -962,13 +970,17 @@ export type Database = {
           agent_type?: string | null
           cost_usd?: number
           created_at?: string | null
+          endpoint?: string | null
+          error?: string | null
           id?: string
           inquiry_id?: string | null
           led_to_inquiry?: boolean | null
           message_hash?: string | null
           model_used?: string
+          provider?: string | null
           rag_context_used?: boolean | null
           rag_sources_count?: number | null
+          request_id?: string | null
           response_cached?: boolean | null
           response_time_ms?: number | null
           tokens_cached?: number | null
@@ -1672,26 +1684,107 @@ export type Database = {
         Row: {
           id: string
           job_id: string | null
-          amount: number
+          offer_id: string | null
+          customer_id: string | null
+          partner_id: string | null
+          customer_email: string | null
+          partner_email: string | null
+          amount: number | null
           status: string
+          released_at: string | null
+          refunded_at: string | null
           created_at: string | null
           updated_at: string | null
         }
         Insert: {
           id?: string
           job_id?: string | null
-          amount: number
+          offer_id?: string | null
+          customer_id?: string | null
+          partner_id?: string | null
+          customer_email?: string | null
+          partner_email?: string | null
+          amount?: number | null
           status?: string
+          released_at?: string | null
+          refunded_at?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
         Update: {
           id?: string
           job_id?: string | null
-          amount?: number
+          offer_id?: string | null
+          customer_id?: string | null
+          partner_id?: string | null
+          customer_email?: string | null
+          partner_email?: string | null
+          amount?: number | null
           status?: string
+          released_at?: string | null
+          refunded_at?: string | null
           created_at?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      refund_triggers: {
+        Row: {
+          id: string
+          request_id: string | null
+          triggered_at: string | null
+          reason: string | null
+          status: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          request_id?: string | null
+          triggered_at?: string | null
+          reason?: string | null
+          status?: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          request_id?: string | null
+          triggered_at?: string | null
+          reason?: string | null
+          status?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      notification_logs: {
+        Row: {
+          id: string
+          type: string
+          recipient_id: string
+          channel: string
+          request_id: string | null
+          sent_at: string | null
+          status: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          type: string
+          recipient_id: string
+          channel: string
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          type?: string
+          recipient_id?: string
+          channel?: string
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          created_at?: string | null
         }
         Relationships: []
       }
