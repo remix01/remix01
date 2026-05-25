@@ -7,6 +7,14 @@
 
 import { Job, JobType } from './queue'
 import { handleStripeCapture } from './workers/stripeCapture'
+import {
+  handleCraftsmanDiscovery,
+  handleCraftsmanInviteBatch,
+  handleCraftsmanInviteSingle,
+  handleCraftsmanVerify,
+  handleSupplyDemandRebalance,
+  handleDraftExpiryFollowup,
+} from './workers/onboardingWorkers'
 import { handleStripeRelease } from './workers/stripeRelease'
 import { handleStripeCancel } from './workers/stripeCancel'
 import { handleEmailJob } from './workers/emailWorker'
@@ -58,6 +66,13 @@ const jobHandlers: Record<JobType, JobHandler> = {
   stripe_release_payment: notImplementedHandler('stripe_release_payment'),
   send_payment_confirmed_email: (job) => handleEmailJob({ ...job, type: 'send_payment_confirmed_email' }),
   notify_dispute_resolved: (job) => handleEmailJob({ ...job, type: 'notify_dispute_resolved' }),
+  // ── Onboarding pipeline
+  craftsman_discovery_triggered: handleCraftsmanDiscovery,
+  craftsman_invite_batch:        handleCraftsmanInviteBatch,
+  craftsman_invite_single:       handleCraftsmanInviteSingle,
+  craftsman_verify:              handleCraftsmanVerify,
+  supply_demand_rebalance:       handleSupplyDemandRebalance,
+  draft_expiry_followup:         handleDraftExpiryFollowup,
 }
 
 /**

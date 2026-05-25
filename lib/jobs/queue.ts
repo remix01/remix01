@@ -44,6 +44,13 @@ export type JobType =
   | 'stripe_release_payment'
   | 'send_payment_confirmed_email'
   | 'notify_dispute_resolved'
+  // ── Onboarding pipeline
+  | 'craftsman_discovery_triggered'   // Supply: discover craftsmen in a city
+  | 'craftsman_invite_batch'          // Supply: send batch invites to prospects
+  | 'craftsman_invite_single'         // Supply: invite one specific prospect
+  | 'craftsman_verify'                // Supply: run 4-step verification
+  | 'supply_demand_rebalance'         // Feedback loop: rebalance supply/demand
+  | 'draft_expiry_followup'           // Demand: nudge visitors with expiring drafts
 
 export interface Job<T = any> {
   data: T
