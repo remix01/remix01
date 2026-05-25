@@ -1,15 +1,15 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ensureOAuthProfile } from '@/app/(auth)/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, Wrench } from 'lucide-react'
+import { buildOAuthCallbackUrl } from '@/lib/auth/oauth'
 
 function PrijavaContent() {
   const router = useRouter()
@@ -73,7 +73,10 @@ function PrijavaContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/prijava?oauth=google`,
+          redirectTo: buildOAuthCallbackUrl({
+            next: searchParams.get('redirect') ?? searchParams.get('redirectTo') ?? '/dashboard',
+            intendedRole: 'narocnik',
+          }),
         },
       })
 
@@ -86,54 +89,6 @@ function PrijavaContent() {
       setGoogleLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (searchParams.get('oauth') !== 'google') return
-
-    let active = true
-
-    const handleGoogleCallback = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (!session?.user?.id) {
-          return
-        }
-
-        if (!active) return
-        setStrankaLoading(true)
-
-        let intendedRole: 'narocnik' | 'obrtnik' = 'narocnik'
-        try {
-          const stored = sessionStorage.getItem('oauth_intended_role')
-          if (stored === 'obrtnik') intendedRole = 'obrtnik'
-          sessionStorage.removeItem('oauth_intended_role')
-        } catch {}
-
-        // Create the profiles row if this is a first Google OAuth sign-in.
-        await ensureOAuthProfile(intendedRole)
-
-        await routeAuthenticatedUser(session.user.id)
-      } catch {
-        if (!active) return
-        setStrankaError('Google prijava ni uspela. Poskusite znova.')
-      } finally {
-        if (active) {
-          setStrankaLoading(false)
-          setGoogleLoading(false)
-        }
-      }
-    }
-
-    void handleGoogleCallback()
-
-    return () => {
-      active = false
-    }
-  }, [searchParams])
 
   const handleStrankaSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
