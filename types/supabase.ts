@@ -1629,6 +1629,36 @@ export type Database = {
           },
         ]
       }
+      device_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          token: string
+          platform: string | null
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          token: string
+          platform?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          token?: string
+          platform?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       escrow_holds: {
         Row: {
           amount: number
@@ -5552,6 +5582,10 @@ export type Database = {
       start_task: {
         Args: { p_task_id: string; p_worker_id: string }
         Returns: boolean
+      }
+      get_ratings_summary: {
+        Args: Record<string, never>
+        Returns: { total: number; avg: number | null }
       }
       upsert_agent_cost_summary: {
         Args: {

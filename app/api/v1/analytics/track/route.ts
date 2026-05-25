@@ -33,15 +33,10 @@ export async function POST(request: NextRequest) {
     const platform = request.headers.get('x-platform') || 'web'
     const appVersion = request.headers.get('x-app-version') || null
 
-    // Insert events
+    // Insert events — map to analytics_events schema
     const records = events.map((event) => ({
-      user_id: userId,
-      session_id: event.sessionId,
-      event_name: event.name,
-      properties: event.properties || {},
-      platform,
-      app_version: appVersion,
-      created_at: event.timestamp || new Date().toISOString(),
+      event: event.name,
+      occurred_at: event.timestamp || new Date().toISOString(),
     }))
 
     const { error } = await supabaseAdmin

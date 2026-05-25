@@ -62,7 +62,7 @@ export async function loadLongTermMemory(
     return {
       userId: data.user_id,
       preferences: (data.preferences as Record<string, unknown>) ?? {},
-      recentActivity: (data.recent_activity as ActivityEntry[]) ?? [],
+      recentActivity: (data.recent_activity as unknown as ActivityEntry[]) ?? [],
       summary: data.summary ?? null,
       updatedAt: data.updated_at,
     }
