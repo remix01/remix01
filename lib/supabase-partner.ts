@@ -83,28 +83,28 @@ export async function getPartnerStats(partnerId: string) {
   ] = await Promise.all([
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('partner_id', partnerId),
+      .eq('obrtnik_id', partnerId),
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('partner_id', partnerId).eq('status', 'dodeljeno'),
+      .eq('obrtnik_id', partnerId).eq('status', 'dodeljeno'),
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('partner_id', partnerId)
+      .eq('obrtnik_id', partnerId)
       .in('status', ['sprejeto', 'v_izvajanju']),
     supabaseAdmin.from('povprasevanja')
       .select('*', { count: 'exact', head: true })
-      .eq('partner_id', partnerId).eq('status', 'zakljuceno'),
+      .eq('obrtnik_id', partnerId).eq('status', 'zakljuceno'),
     supabaseAdmin.from('povprasevanja')
       .select('created_at, status')
-      .eq('partner_id', partnerId)
+      .eq('obrtnik_id', partnerId)
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     supabaseAdmin.from('ocene')
-      .select('ocena')
-      .eq('partner_id', partnerId),
+      .select('rating')
+      .eq('obrtnik_id', partnerId),
   ])
 
   const povprecnaOcena = ocene && ocene.length > 0
-    ? (ocene.reduce((sum: number, o: any) => sum + o.ocena, 0) / ocene.length).toFixed(1)
+    ? (ocene.reduce((sum: number, o: any) => sum + (o.rating ?? 0), 0) / ocene.length).toFixed(1)
     : null
 
   return {
@@ -127,7 +127,7 @@ export async function getPartnerInquiries(partnerId: string, status?: string, pa
   let query = supabaseAdmin
     .from('povprasevanja')
     .select('*', { count: 'exact' })
-    .eq('partner_id', partnerId)
+    .eq('obrtnik_id', partnerId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -145,7 +145,7 @@ export async function getPartnerReviews(partnerId: string, limit = 10) {
   const { data, error } = await supabaseAdmin
     .from('ocene')
     .select('*')
-    .eq('partner_id', partnerId)
+    .eq('obrtnik_id', partnerId)
     .order('created_at', { ascending: false })
     .limit(limit)
 
