@@ -2037,7 +2037,6 @@ export type Database = {
           stripe_transfer_id?: string | null
           stripe_refund_id?: string | null
           stripe_charge_id?: string | null
-          stripe_charge_id?: string | null
           stripe_capture_status?: string | null
           stripe_capture_completed_at?: string | null
           stripe_release_status?: string | null
