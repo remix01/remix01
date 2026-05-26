@@ -19,7 +19,7 @@ interface EmailJobPayload {
   to?: string | string[]
   template?: string
   escrowId?: string
-  customData?: Record<string, any>
+  customData?: Record<string, unknown>
   transactionId?: string
   recipientEmail?: string
   recipientName?: string
@@ -27,7 +27,8 @@ interface EmailJobPayload {
   partnerName?: string
   amount?: number
   reason?: string
-  metadata?: Record<string, any>
+  templateData?: Record<string, unknown>
+  metadata?: Record<string, unknown>
   // povprasevanje fields
   jobType?: string
   povprasevanjeId?: string
@@ -43,7 +44,7 @@ interface EmailJobPayload {
 }
 
 export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string }): Promise<void> {
-  const type = (job as any).type
+  const type = job.type
   const payload = job.data
   const { to, template, escrowId, customData, jobType, povprasevanjeId, ponudbaId, narocnikId, narocnikEmail, narocnikName, title, category, location, urgency, budget, transactionId, recipientEmail, recipientName, recipientUserId, partnerName, amount, reason, metadata } = payload
 
@@ -59,13 +60,13 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       if (narocnikId && !emailAddress) {
         const { data: profile } = await supabaseAdmin
           .from('profiles')
-          .select('email, ime')
+          .select('email, full_name')
           .eq('id', narocnikId)
           .single()
 
         if (profile?.email) {
           emailAddress = profile.email
-          fullName = profile.ime || fullName
+          fullName = profile.full_name || fullName
         }
       }
 
@@ -97,13 +98,13 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
   }
 
   if (type === 'notify_dispute_resolved') {
-    const { recipientEmail: disputeEmail, templateData } = payload as any
+    const { recipientEmail: disputeEmail, templateData } = payload
     if (!disputeEmail) throw new Error('[EMAIL] notify_dispute_resolved: missing recipientEmail')
     const { disputeId, resolution, newStatus } = templateData || {}
     const html = buildDisputeResolvedEmail(
-      escapeHtml(resolution || 'Spor je bil rešen.'),
-      escapeHtml(newStatus || ''),
-      escapeHtml(disputeId || '')
+      escapeHtml(typeof resolution === 'string' ? resolution : 'Spor je bil rešen.'),
+      escapeHtml(typeof newStatus === 'string' ? newStatus : ''),
+      escapeHtml(typeof disputeId === 'string' ? disputeId : '')
     )
     const resolvedRecipients = resolveEmailRecipients(disputeEmail)
     if (!resolvedRecipients.to.length) throw new Error('[EMAIL] notify_dispute_resolved: no valid recipients')
@@ -130,7 +131,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     if (!recipient && narocnikEmail) recipient = narocnikEmail
     if (!recipient && narocnikId) {
       const { data: profile } = await supabaseAdmin.from('profiles').select('email').eq('id', narocnikId).single()
-      recipient = profile?.email
+      recipient = profile?.email ?? undefined
     }
     if (!recipient) throw new Error('[EMAIL] Missing recipient for sendEmail job')
     if (!effectiveTemplate) throw new Error('[EMAIL] Missing template/jobType for sendEmail job')
@@ -193,23 +194,23 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       htmlBody = buildReleaseEmail(
         escapeHtml(recipientName || 'Valued Customer'),
         escapeHtml(partnerName || 'Partner'),
-        amount || escrow.amount_cents
+        amount || escrow.amount_total_cents
       )
       notificationType = 'escrow_released'
       notificationTitle = 'Payment Released'
-      notificationBody = `Your payment of $${((amount || escrow.amount_cents) / 100).toFixed(2)} has been released.`
+      notificationBody = `Your payment of $${((amount || escrow.amount_total_cents) / 100).toFixed(2)} has been released.`
       break
 
     case 'send_refund_email':
       subject = `Refund Processed - Transaction ${transactionId.slice(0, 8)}`
       htmlBody = buildRefundEmail(
         escapeHtml(recipientName || 'Valued Customer'),
-        amount || escrow.amount_cents,
+        amount || escrow.amount_total_cents,
         escapeHtml(reason || 'Your request')
       )
       notificationType = 'escrow_released'
       notificationTitle = 'Refund Processed'
-      notificationBody = `Your refund of $${((amount || escrow.amount_cents) / 100).toFixed(2)} has been processed.`
+      notificationBody = `Your refund of $${((amount || escrow.amount_total_cents) / 100).toFixed(2)} has been processed.`
       break
 
     case 'send_dispute_email':
@@ -228,11 +229,11 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       htmlBody = buildPaymentConfirmedEmail(
         escapeHtml(recipientName || 'Valued Customer'),
         escapeHtml(partnerName || 'Partner'),
-        amount || escrow.amount_cents
+        amount || escrow.amount_total_cents
       )
       notificationType = 'escrow_captured'
       notificationTitle = 'Payment Confirmed'
-      notificationBody = `Your payment of $${((amount || escrow.amount_cents) / 100).toFixed(2)} has been confirmed.`
+      notificationBody = `Your payment of $${((amount || escrow.amount_total_cents) / 100).toFixed(2)} has been confirmed.`
       break
 
     default:

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import type { TextBlock } from '@anthropic-ai/sdk/resources/messages'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { estimateCost } from '@/lib/model-router'
 import type { Job, AgentScheduleProposePayload } from '../queue'
@@ -28,7 +29,7 @@ export async function handleAgentSchedulePropose(job: Job<AgentScheduleProposePa
 
     const dayNames = ['Nedelja','Ponedeljek','Torek','Sreda','Četrtek','Petek','Sobota']
     const availabilityText = availability?.length
-      ? availability.map((a: any) => `${dayNames[a.day_of_week]}: ${a.time_from}–${a.time_to}`).join('\n')
+      ? availability.map((a) => `${dayNames[a.day_of_week]}: ${a.time_from}–${a.time_to}`).join('\n')
       : 'Pon–Pet 8:00–17:00'
 
     const today = new Date()
@@ -37,7 +38,7 @@ export async function handleAgentSchedulePropose(job: Job<AgentScheduleProposePa
       const d = new Date(today)
       d.setDate(today.getDate() + i)
       const dow = d.getDay()
-      if (!availability?.length || availability.some((a: any) => a.day_of_week === dow && a.is_available)) {
+      if (!availability?.length || availability.some((a) => a.day_of_week === dow && a.is_available)) {
         nextDays.push(d.toLocaleDateString('sl-SI', { weekday: 'long', day: 'numeric', month: 'long' }))
       }
     }
@@ -53,7 +54,7 @@ export async function handleAgentSchedulePropose(job: Job<AgentScheduleProposePa
       }],
     })
 
-    const raw = response.content.filter((b: any) => b.type === 'text').map((b: any) => (b as any).text).join('')
+    const raw = response.content.filter((b): b is TextBlock => b.type === 'text').map((b) => b.text).join('')
     let result: Record<string, unknown>
     try { result = JSON.parse(raw) }
     catch { const m = raw.match(/\{[\s\S]*\}/); result = m ? JSON.parse(m[0]) : { raw } }
@@ -63,13 +64,13 @@ export async function handleAgentSchedulePropose(job: Job<AgentScheduleProposePa
     const costUsd = estimateCost(MODEL, inputTokens, outputTokens)
 
     await supabaseAdmin.from('agent_jobs').update({
-      status: 'completed', result_payload: result,
+      status: 'completed', result_payload: result as import('@/types/supabase').Json,
       tokens_input: inputTokens, tokens_output: outputTokens,
       cost_usd: costUsd, model_used: MODEL, completed_at: new Date().toISOString(),
     }).eq('id', job_id)
 
     try {
-      await supabaseAdmin.rpc('upsert_agent_cost_summary' as any, {
+      await supabaseAdmin.rpc('upsert_agent_cost_summary', {
         p_user_id: user_id, p_agent_type: 'scheduling_assistant',
         p_tokens_in: inputTokens, p_tokens_out: outputTokens, p_cost_usd: costUsd,
       })
@@ -80,7 +81,7 @@ export async function handleAgentSchedulePropose(job: Job<AgentScheduleProposePa
         user_id, model_used: 'haiku-4', tokens_input: inputTokens,
         tokens_output: outputTokens, cost_usd: costUsd, response_cached: false,
         agent_type: 'scheduling_assistant', user_message: `[async] ${preferences.raw.slice(0,200)}`,
-      } as any)
+      })
     } catch { /* ignore */ }
 
   } catch (error) {

@@ -61,7 +61,7 @@ export async function GET() {
 
     const { data: providerProfile, error: providerError } = await supabaseAdmin
       .from(CANONICAL_TABLES.provider)
-      .select('id, stripe_account_id, stripe_onboarded')
+      .select('id, stripe_account_id, stripe_onboarding_complete')
       .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
       .single()
     if (providerError || !providerProfile) {
@@ -94,29 +94,16 @@ export async function GET() {
       account.details_submitted === true &&
       account.payouts_enabled === true
 
-    const skippedFields: string[] = []
-    const updatePayloadBase = {
-      stripe_onboarded: isComplete,
-      stripe_charges_enabled: account.charges_enabled === true,
-      stripe_payouts_enabled: account.payouts_enabled === true,
-      stripe_details_submitted: account.details_submitted === true,
-      stripe_requirements_due: account.requirements?.currently_due ?? []
-    }
-    let updateError: { message?: string } | null = null
-    for (const [field, value] of Object.entries(updatePayloadBase)) {
-      const { error } = await supabaseAdmin
-        .from(CANONICAL_TABLES.provider)
-        .update({ [field]: value })
-        .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
-      if (error) {
-        if (isMissingColumnError(error, field)) {
-          skippedFields.push(field)
-          continue
-        }
-        updateError = error
-        break
-      }
-    }
+    const { error: updateError } = await supabaseAdmin
+      .from(CANONICAL_TABLES.provider)
+      .update({
+        stripe_onboarding_complete: isComplete,
+        stripe_charges_enabled: account.charges_enabled === true,
+        stripe_payouts_enabled: account.payouts_enabled === true,
+        stripe_details_submitted: account.details_submitted === true,
+        stripe_requirements_due: account.requirements?.currently_due ?? [],
+      })
+      .eq(CANONICAL_PROVIDER_RELATIONSHIP.key, user.id)
     if (updateError) throw new Error(updateError.message || 'Failed to persist Stripe status')
 
     try {
@@ -146,7 +133,7 @@ export async function GET() {
       restrictionReason,
       currentlyDue: account.requirements?.currently_due ?? [],
       pendingVerification: account.requirements?.pending_verification ?? [],
-      skippedPersistedFields: skippedFields
+      skippedPersistedFields: []
     })
 
   } catch (error) {

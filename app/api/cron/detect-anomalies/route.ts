@@ -21,7 +21,7 @@ export const GET = withCronGuard(
       .gte('created_at', since),
     supabaseAdmin
       .from('message')
-      .select('id, body, user_id, created_at')
+      .select('id, body, sender_user_id, created_at')
       .gte('created_at', since)
       .or('body.ilike.%@%,body.ilike.%+386%,body.ilike.%http%'),
   ])
@@ -51,7 +51,7 @@ export const GET = withCronGuard(
       severity: 'medium',
       title: 'Možen poskus off-platform komunikacije',
       description: `Sporočilo ${msg.id} vsebuje kontaktne podatke ali link.`,
-      metadata: { messageId: msg.id, userId: msg.user_id },
+      metadata: { messageId: msg.id, userId: msg.sender_user_id },
     })
   }
 

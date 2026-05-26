@@ -108,13 +108,8 @@ class Analytics {
 
     try {
       const records = eventsToFlush.map((event) => ({
-        user_id: event.userId || null,
-        session_id: event.sessionId,
-        event_name: event.eventName,
-        properties: event.properties,
-        platform: event.platform,
-        app_version: event.appVersion || null,
-        created_at: event.timestamp.toISOString(),
+        event: event.eventName,
+        occurred_at: event.timestamp.toISOString(),
       }))
 
       const { error } = await supabaseAdmin

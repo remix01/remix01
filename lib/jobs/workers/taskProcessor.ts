@@ -39,7 +39,7 @@ export async function handleMatchRequest(job: Job): Promise<void> {
 
     // Update task to 'matched' status
     await taskOrchestrator.updateTaskStatus(taskId, 'matched', {
-      matchIds: (matches.matches as any[])?.map((m: { id: string }) => m.id) || [],
+      matchIds: matches.matches?.map((m) => m.partnerId) || [],
     })
 
     console.log(`[TaskProcessor] Matched ${matches.matches?.length || 0} partners for task ${taskId}`)
@@ -73,21 +73,28 @@ export async function handleNotifyPartners(job: Job): Promise<void> {
     // Fetch matched partners
     if (matchIds && matchIds.length > 0) {
       const { data: partners } = await supabaseAdmin
-        .from('obrtniki')
-        .select('*')
+        .from('obrtnik_profiles')
+        .select('id')
         .in('id', matchIds)
 
-      // Enqueue email notifications for each partner
+      // Fetch emails from profiles and enqueue notifications (obrtnik_profiles.id = profiles.id)
       for (const partner of partners || []) {
-        await enqueue('sendEmail', {
-          to: partner.email,
-          template: 'new_match',
-          data: {
-            partnerName: partner.ime,
-            taskTitle: task.title,
-            taskId,
-          },
-        })
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', partner.id)
+          .maybeSingle()
+        if (profile?.email) {
+          await enqueue('sendEmail', {
+            to: profile.email,
+            template: 'new_match',
+            data: {
+              partnerName: profile.full_name ?? '',
+              taskTitle: task.title,
+              taskId,
+            },
+          })
+        }
       }
     }
 
@@ -125,12 +132,17 @@ export async function handleCreateEscrow(job: Job): Promise<void> {
       throw new Error(`Offer ${offerId} or Task ${taskId} not found`)
     }
 
+    // Look up customer email from profiles
+    const { data: customerProfile } = task.narocnik_id
+      ? await supabaseAdmin.from('profiles').select('email').eq('id', task.narocnik_id).maybeSingle()
+      : { data: null }
+
     // Enqueue Stripe capture to hold funds
     await enqueue('stripeCapture', {
       taskId,
       offerId,
       amount: amount || offer.price_estimate,
-      customerEmail: task.customer_email,
+      customerEmail: customerProfile?.email ?? '',
     })
 
     console.log(`[TaskProcessor] Escrow job enqueued for task ${taskId}`)
@@ -160,7 +172,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
 
     // Atomically claim the escrow by transitioning paid → releasing
     // This prevents concurrent release attempts from both proceeding
-    const { data: claimed, error: claimError } = await (supabaseAdmin as any)
+    const { data: claimed, error: claimError } = await supabaseAdmin
       .from('escrow_transactions')
       .update({ status: 'releasing' })
       .eq('id', escrowId)
@@ -172,7 +184,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     }
 
     if (!claimed || claimed.length === 0) {
-      const { data: current } = await (supabaseAdmin as any)
+      const { data: current } = await supabaseAdmin
         .from('escrow_transactions')
         .select('status')
         .eq('id', escrowId)
@@ -186,15 +198,15 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     const escrow = claimed[0]
 
     // Fetch partner's Stripe connected account
-    const { data: obrtnikProfile } = await (supabaseAdmin as any)
+    const { data: obrtnikProfile } = await supabaseAdmin
       .from('obrtnik_profiles')
       .select('stripe_account_id')
-      .eq('user_id', partnerId)
+      .eq('id', partnerId)
       .single()
 
     if (!obrtnikProfile?.stripe_account_id) {
       // Revert to paid — partner not onboarded on Stripe yet
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from('escrow_transactions')
         .update({ status: 'paid', notes: 'release_pending_stripe_onboarding' })
         .eq('id', escrowId)
@@ -205,7 +217,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       return
     }
 
-    let transfer: any
+    let transfer: { id: string }
     try {
       const { stripe } = await import('@/lib/stripe/client')
       transfer = await stripe.transfers.create({
@@ -217,7 +229,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       })
     } catch (stripeErr) {
       // Stripe transfer failed — revert to paid so it can be retried
-      await (supabaseAdmin as any)
+      await supabaseAdmin
         .from('escrow_transactions')
         .update({ status: 'paid' })
         .eq('id', escrowId)
@@ -226,7 +238,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     }
 
     // Stripe succeeded — finalize in DB
-    const { data: released, error: releaseError } = await (supabaseAdmin as any)
+    const { data: released, error: releaseError } = await supabaseAdmin
       .from('escrow_transactions')
       .update({
         status: 'released',
@@ -245,7 +257,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
       try {
         const { stripe: stripeClient } = await import('@/lib/stripe/client')
         await stripeClient.transfers.createReversal(transfer.id)
-        await (supabaseAdmin as any)
+        await supabaseAdmin
           .from('escrow_transactions')
           .update({ status: 'paid' })
           .eq('id', escrowId)
@@ -374,9 +386,14 @@ export async function handleRequestReview(job: Job): Promise<void> {
       throw new Error(`Task ${taskId} not found`)
     }
 
+    // Look up customer email
+    const { data: customerProfile } = task.narocnik_id
+      ? await supabaseAdmin.from('profiles').select('email').eq('id', task.narocnik_id).maybeSingle()
+      : { data: null }
+
     // Enqueue review request email
     await enqueue('sendEmail', {
-      to: task.customer_email,
+      to: customerProfile?.email ?? '',
       template: 'request_review',
       data: {
         taskId,

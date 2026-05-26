@@ -38,6 +38,9 @@ async function handler(request: NextRequest) {
 
     // 2. PREBERI TRANSAKCIJO ZA PREVERJANJE LASTNIŠTVA
     const escrow = await getEscrowTransaction(escrowId)
+    if (!escrow) {
+      return badRequest('Escrow transaction not found.')
+    }
 
     // 2.5 STATE MACHINE GUARD — enforce valid transitions
     // This runs AFTER permission checks (above), BEFORE DB writes
@@ -105,7 +108,7 @@ async function handler(request: NextRequest) {
     const { count: disputeCount } = await supabaseAdmin
       .from('escrow_disputes')
       .select('id', { count: 'exact', head: true })
-      .eq('transaction_id', escrowId)
+      .eq('hold_id', escrowId)
       .eq('status', 'open')
     if ((disputeCount ?? 0) > 0) {
       // Revert atomic claim
@@ -119,6 +122,14 @@ async function handler(request: NextRequest) {
       )
     }
 
+    if (!claimed.stripe_payment_intent_id) {
+      return NextResponse.json(
+        { success: false, message: 'Missing Stripe payment intent on this transaction.' },
+        { status: 400 }
+      )
+    }
+    const piId = claimed.stripe_payment_intent_id
+
     // 6. TRANSACTIONAL CONSISTENCY FIX
     // =====================================
     // IMPORTANT: Stripe capture must succeed BEFORE DB status is finalized
@@ -130,9 +141,9 @@ async function handler(request: NextRequest) {
     let stripeSuccess = false
     try {
       // Capture payment in Stripe (this must succeed)
-      await stripe.paymentIntents.capture(claimed.stripe_payment_intent_id)
+      await stripe.paymentIntents.capture(piId)
       stripeSuccess = true
-      console.log(`[ESCROW RELEASE] Successfully captured PI: ${claimed.stripe_payment_intent_id}`)
+      console.log(`[ESCROW RELEASE] Successfully captured PI: ${piId}`)
     } catch (stripeError: any) {
       // Stripe operation failed - revert status back to 'paid' for retry
       console.error(`[ESCROW RELEASE] Stripe capture failed: ${stripeError.message}`)
@@ -197,9 +208,8 @@ async function handler(request: NextRequest) {
       enqueue('send_release_email', {
         transactionId: escrow.id,
         recipientEmail: escrow.customer_email,
-        recipientName: escrow.customer_name,
-        partnerName: escrow.partner_name,
-        amount: escrow.amount_cents,
+        amount: escrow.amount_total_cents,
+        partnerId: escrow.partner_id,
       }),
       enqueue('webhook_escrow_status_changed', {
         transactionId: escrow.id,

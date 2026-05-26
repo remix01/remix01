@@ -6,7 +6,10 @@ import { PovprasevanjeEditForm } from '@/components/admin/PovprasevanjeEditForm'
 
 export default async function PovprasevanjeDetailPage({ params }: { params: { id: string } }) {
   const data = await getAdminPovprasevanjeDetail(params.id)
-  if (!data) redirect('/admin/povprasevanja')
+  if (!data) {
+    redirect('/admin/povprasevanja')
+    return null
+  }
 
   return <PovprasevanjeEditForm data={data} />
 }

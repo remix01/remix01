@@ -29,12 +29,12 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
 
     if (!recipientEmail && userId) {
       const { data: profile } = await supabaseAdmin
-        .from('obrtnik_profiles')
-        .select('email, ime, priimek')
-        .eq('user_id', userId)
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', userId)
         .maybeSingle()
       recipientEmail = profile?.email ?? null
-      recipientName = profile ? `${profile.ime ?? ''} ${profile.priimek ?? ''}`.trim() : ''
+      recipientName = profile?.full_name ?? ''
     }
 
     if (recipientEmail) {

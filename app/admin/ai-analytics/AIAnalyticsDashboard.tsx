@@ -15,17 +15,17 @@ import {
 } from 'recharts'
 
 type RawLog = {
-  created_at: string
+  created_at: string | null
   model_used: string
   cost_usd: number
   tokens_input?: number
   tokens_output?: number
-  response_cached: boolean
+  response_cached: boolean | null
 }
 
 type ModelLog = { model_used: string }
 type UserLog = { user_id: string; cost_usd: number }
-type SummaryLog = { cost_usd: number; response_cached: boolean; model_used: string }
+type SummaryLog = { cost_usd: number; response_cached: boolean | null; model_used: string }
 
 type Props = {
   data: {
@@ -45,7 +45,8 @@ const MODEL_COLORS: Record<string, string> = {
 function buildDailyData(logs: RawLog[]) {
   const byDay: Record<string, { date: string; cost: number; messages: number; cached: number }> = {}
   for (const log of logs) {
-    const date = log.created_at.slice(0, 10)
+    const date = (log.created_at ?? '').slice(0, 10)
+    if (!date) continue
     if (!byDay[date]) byDay[date] = { date, cost: 0, messages: 0, cached: 0 }
     byDay[date].cost += Number(log.cost_usd ?? 0)
     byDay[date].messages += 1

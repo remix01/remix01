@@ -132,10 +132,11 @@ export class EscrowAgent extends BaseAgent {
       const { data, error } = await supabaseAdmin
         .from('offers')
         .insert({
-          inquiry_id: payload.inquiryId,
+          request_id: payload.inquiryId,
           partner_id: userId,
-          price_cents: Math.round(payload.price * 100),
-          description: payload.description,
+          price: payload.price,
+          title: payload.description ?? 'Offer',
+          description: payload.description ?? '',
           status: 'pending',
           created_at: new Date().toISOString(),
         })

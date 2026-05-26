@@ -32,17 +32,10 @@ async function handler(request: NextRequest) {
 
     const { jobId } = validation.data
 
-    // 3. Fetch job with payment and craftworker info
+    // 3. Fetch job with payment only (no user joins — two FKs from job to user cause Supabase type ambiguity)
     const { data: job, error: jobError } = await supabaseAdmin
       .from('job')
-      .select(`
-        *,
-        payment:payment_id(*),
-        craftworker:craftworker_id(
-          *,
-          craftworker_profile(*)
-        )
-      `)
+      .select(`*, payment:payment_id(*)`)
       .eq('id', jobId)
       .single()
 
@@ -75,15 +68,20 @@ async function handler(request: NextRequest) {
       )
     }
 
-    // 7. Validate craftworker has Stripe account
-    if (!job.craftworker?.craftworker_profile?.stripe_account_id) {
+    // 7. Validate craftworker has Stripe account (separate query to avoid dual-FK ambiguity)
+    const craftworkerProfileResult = job.craftworker_id
+      ? await supabaseAdmin.from('craftworker_profile').select('stripe_account_id').eq('user_id', job.craftworker_id).maybeSingle()
+      : { data: null, error: null }
+    const craftworkerProfile = craftworkerProfileResult.data
+
+    if (!craftworkerProfile?.stripe_account_id) {
       return NextResponse.json(
         { error: 'Craftworker does not have Stripe account configured' },
         { status: 400 }
       )
     }
 
-    const stripeAccountId = job.craftworker.craftworker_profile.stripe_account_id
+    const stripeAccountId = craftworkerProfile.stripe_account_id
     const craftworkerPayoutAmount = Number(job.payment.craftworker_payout)
 
     // 8. Update job status to COMPLETED
@@ -109,19 +107,22 @@ async function handler(request: NextRequest) {
     if (paymentUpdateError) throw new Error(paymentUpdateError.message)
 
     // 10. Update craftworker profile metrics
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('craftworker_profile')
-      .select('total_jobs_completed')
-      .eq('user_id', job.craftworker_id)
-      .single()
-
-    if (!profileError && profile) {
-      await supabaseAdmin
+    if (job.craftworker_id) {
+      const craftworkerId = job.craftworker_id
+      const { data: profile, error: profileError } = await supabaseAdmin
         .from('craftworker_profile')
-        .update({
-          total_jobs_completed: (profile.total_jobs_completed || 0) + 1,
-        })
-        .eq('user_id', job.craftworker_id)
+        .select('total_jobs_completed')
+        .eq('user_id', craftworkerId)
+        .single()
+
+      if (!profileError && profile) {
+        await supabaseAdmin
+          .from('craftworker_profile')
+          .update({
+            total_jobs_completed: (profile.total_jobs_completed || 0) + 1,
+          })
+          .eq('user_id', craftworkerId)
+      }
     }
 
     // 11. Create Stripe payout (happens automatically with destination charges, but we log it)
@@ -129,31 +130,38 @@ async function handler(request: NextRequest) {
     // We don't need to create a separate transfer - it was created when the PaymentIntent succeeded
 
     // 12. Notify craftworker of completion and incoming payout
-    const craftsmanEmail = job.craftworker?.email as string | undefined
-    if (craftsmanEmail) {
-      const { getResendClient, getDefaultFrom, resolveEmailRecipients } = await import('@/lib/resend')
-      const resend = getResendClient()
-      if (resend) {
-        const { to: resolvedTo } = resolveEmailRecipients(craftsmanEmail)
-        await resend.emails.send({
-          from: getDefaultFrom(),
-          to: resolvedTo,
-          subject: '✅ Naročilo zaključeno — plačilo je na poti',
-          html: `
-            <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-              <h2 style="color:#0d9488;">Čestitamo — naročilo je zaključeno!</h2>
-              <p>Pozdravljeni ${job.craftworker?.name ?? ''},</p>
-              <p>Kupec je potrdil zaključek naročila. Vaše plačilo je na poti.</p>
-              <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-                <tr><td style="padding:8px;color:#64748b;width:40%;">Job ID:</td><td style="padding:8px;"><strong>${jobId}</strong></td></tr>
-                <tr><td style="padding:8px;color:#64748b;">Vaše plačilo:</td><td style="padding:8px;"><strong>${craftworkerPayoutAmount} EUR</strong></td></tr>
-                <tr><td style="padding:8px;color:#64748b;">Status:</td><td style="padding:8px;">Sproščeno na vaš Stripe račun</td></tr>
-              </table>
-              <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
-              <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="${process.env.NEXT_PUBLIC_APP_URL}/partner-dashboard" style="color:#0d9488;">Odpri dashboard</a></p>
-            </div>
-          `,
-        }).catch(err => console.error('[confirm-completion] Craftworker email failed:', err))
+    if (job.craftworker_id) {
+      const { data: craftworkerUser } = await supabaseAdmin
+        .from('user')
+        .select('email, name')
+        .eq('id', job.craftworker_id)
+        .maybeSingle()
+
+      if (craftworkerUser?.email) {
+        const { getResendClient, getDefaultFrom, resolveEmailRecipients } = await import('@/lib/resend')
+        const resend = getResendClient()
+        if (resend) {
+          const { to: resolvedTo } = resolveEmailRecipients(craftworkerUser.email)
+          await resend.emails.send({
+            from: getDefaultFrom(),
+            to: resolvedTo,
+            subject: '✅ Naročilo zaključeno — plačilo je na poti',
+            html: `
+              <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                <h2 style="color:#0d9488;">Čestitamo — naročilo je zaključeno!</h2>
+                <p>Pozdravljeni ${craftworkerUser.name ?? ''},</p>
+                <p>Kupec je potrdil zaključek naročila. Vaše plačilo je na poti.</p>
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                  <tr><td style="padding:8px;color:#64748b;width:40%;">Job ID:</td><td style="padding:8px;"><strong>${jobId}</strong></td></tr>
+                  <tr><td style="padding:8px;color:#64748b;">Vaše plačilo:</td><td style="padding:8px;"><strong>${craftworkerPayoutAmount} EUR</strong></td></tr>
+                  <tr><td style="padding:8px;color:#64748b;">Status:</td><td style="padding:8px;">Sproščeno na vaš Stripe račun</td></tr>
+                </table>
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+                <p style="color:#94a3b8;font-size:12px;">LiftGO — <a href="${process.env.NEXT_PUBLIC_APP_URL}/partner-dashboard" style="color:#0d9488;">Odpri dashboard</a></p>
+              </div>
+            `,
+          }).catch(err => console.error('[confirm-completion] Craftworker email failed:', err))
+        }
       }
     }
     console.log(`[confirm-completion] Job ${jobId} completed. Craftworker ${job.craftworker_id} will receive ${craftworkerPayoutAmount} EUR`)

@@ -53,8 +53,8 @@ export async function sendWebPushToUser(params: {
         {
           endpoint: subscription.endpoint,
           keys: {
-            p256dh: subscription.p256dh,
-            auth: subscription.auth,
+            p256dh: subscription.p256dh ?? '',
+            auth: subscription.auth ?? '',
           },
         },
         payload,

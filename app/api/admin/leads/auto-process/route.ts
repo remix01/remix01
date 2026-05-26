@@ -61,7 +61,15 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    const decision = await evaluateLeadWithAI(client, lead, 'leads/auto-process')
+    const decision = await evaluateLeadWithAI(client, {
+      id: lead.id,
+      business_name: lead.business_name ?? '',
+      description: lead.description,
+      location_city: lead.location_city ?? '',
+      avg_rating: lead.avg_rating,
+      total_reviews: lead.total_reviews,
+      source: lead.source,
+    }, 'leads/auto-process')
     if (decision === 'APPROVE') {
       approved.push(lead.id)
     } else if (decision === 'REJECT') {

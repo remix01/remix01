@@ -51,7 +51,7 @@ export class TokenService {
       throw new Error('Failed to register device token: no data returned')
     }
 
-    return data
+    return data as unknown as DeviceToken
   }
 
   /**
@@ -82,7 +82,7 @@ export class TokenService {
       throw new Error(`Failed to get user tokens: ${error.message}`)
     }
 
-    return data || []
+    return (data || []) as unknown as DeviceToken[]
   }
 
   /**
@@ -102,7 +102,7 @@ export class TokenService {
     // Group tokens by user_id
     const tokensByUser = new Map<string, DeviceToken[]>()
     
-    for (const token of data || []) {
+    for (const token of (data || []) as unknown as DeviceToken[]) {
       const existing = tokensByUser.get(token.user_id) || []
       tokensByUser.set(token.user_id, [...existing, token])
     }

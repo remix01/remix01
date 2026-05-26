@@ -331,10 +331,10 @@ export async function getStranka(id: string): Promise<Stranka | null> {
     id: user.id,
     ime: fullName.split(' ')[0] || user.email?.split('@')[0] || '',
     priimek: fullName.split(' ').slice(1).join(' ') || '',
-    email: user.email,
+    email: user.email ?? '',
     telefon: user.phone || undefined,
     lokacija: user.location_city || undefined,
-    createdAt: new Date(user.created_at),
+    createdAt: new Date(user.created_at ?? Date.now()),
     status: user.is_suspended ? ('SUSPENDIRAN' as const) : ('AKTIVEN' as const),
     narocil: 0,
   }
@@ -596,15 +596,19 @@ export async function getAdminPovprasevanjeDetail(id: string) {
     .single()
   if (!row) return null
 
-  const [{ data: narocnik }, { data: category }, { data: obrtniki }] = await Promise.all([
-    row.narocnik_id
-      ? supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()
-      : Promise.resolve({ data: null }),
-    row.category_id
-      ? supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()
-      : Promise.resolve({ data: null }),
-    supabaseAdmin.from('obrtnik_profiles').select('id, business_name').eq('is_verified', true).order('business_name'),
-  ])
+  const narocnik = row.narocnik_id
+    ? (await supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', row.narocnik_id).single()).data
+    : null
+
+  const category = row.category_id
+    ? (await supabaseAdmin.from('categories').select('name').eq('id', row.category_id).single()).data
+    : null
+
+  const { data: obrtniki } = await supabaseAdmin
+    .from('obrtnik_profiles')
+    .select('id, business_name')
+    .eq('is_verified', true)
+    .order('business_name')
 
   return {
     id: row.id,
@@ -613,19 +617,19 @@ export async function getAdminPovprasevanjeDetail(id: string) {
     status: row.status,
     location_city: row.location_city,
     category_id: row.category_id,
-    category_name: (category as any)?.name || '—',
+    category_name: category?.name ?? '—',
     urgency: row.urgency,
     budget_min: row.budget_min,
     budget_max: row.budget_max,
     preferred_date_from: row.preferred_date_from,
     preferred_date_to: row.preferred_date_to,
     assigned_to: row.assigned_to,
-    admin_opomba: row.admin_opomba || '',
+    admin_opomba: row.admin_opomba ?? '',
     narocnik_id: row.narocnik_id,
-    narocnik_ime: (narocnik as any)?.full_name || '—',
-    narocnik_email: (narocnik as any)?.email || '—',
-    narocnik_telefon: (narocnik as any)?.phone || '',
-    obrtniki: (obrtniki || []) as { id: string; business_name: string }[],
+    narocnik_ime: narocnik?.full_name ?? '—',
+    narocnik_email: narocnik?.email ?? '—',
+    narocnik_telefon: narocnik?.phone ?? '',
+    obrtniki: obrtniki ?? [],
   }
 }
 
@@ -957,10 +961,10 @@ export async function addAsZaposleni(
     .eq('id', id)
     .single()
 
-  if (!profile) return { success: false, error: 'Profil ne obstaja' }
+  if (!profile || !profile.email) return { success: false, error: 'Profil ne obstaja ali nima e-poštnega naslova' }
 
   const nameParts = (profile.full_name || '').trim().split(' ')
-  const ime = nameParts[0] || profile.email?.split('@')[0] || 'Zaposleni'
+  const ime = nameParts[0] || profile.email.split('@')[0] || 'Zaposleni'
   const priimek = nameParts.slice(1).join(' ') || '—'
 
   const { error } = await supabaseAdmin.from('admin_users').insert({
@@ -1149,26 +1153,31 @@ export async function getChartData(): Promise<{ stranke: ChartData[]; partnerji:
 export async function getStrankaActivity(userId: string) {
   await ensureAdminAccess()
 
-  const [inquiriesRes, offersRes, escrowRes] = await Promise.all([
-    supabaseAdmin
-      .from('povprasevanja')
-      .select('id, title, status, created_at')
-      .eq('narocnik_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20),
+  // Fetch povprasevanja first; use their IDs to filter escrow (no narocnik_id on escrow_transactions)
+  const inquiriesRes = await supabaseAdmin
+    .from('povprasevanja')
+    .select('id, title, status, created_at')
+    .eq('narocnik_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const inquiryIds = (inquiriesRes.data || []).map((r) => r.id)
+
+  const [offersRes, escrowRes] = await Promise.all([
     supabaseAdmin
       .from('ponudbe')
       .select('id, povprasevanje_id, status, price_estimate, created_at')
       .eq('narocnik_id', userId)
       .order('created_at', { ascending: false })
       .limit(20),
-    // Use canonical escrow_transactions instead of legacy payment table
-    supabaseAdmin
-      .from('escrow_transactions')
-      .select('id, amount, status, created_at')
-      .eq('narocnik_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20),
+    inquiryIds.length
+      ? supabaseAdmin
+          .from('escrow_transactions')
+          .select('id, amount_total_cents, status, created_at')
+          .in('inquiry_id', inquiryIds)
+          .order('created_at', { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] as { id: string; amount_total_cents: number; status: string; created_at: string }[] }),
   ])
 
   return {

@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
             type: eventType,
             status: STATUS_BY_EVENT[eventType] || 'received',
             resend_email_id: resendEmailId,
-            metadata: event,
+            metadata: event as unknown as import('@/types/supabase').Json,
             updated_at: now,
           },
           {

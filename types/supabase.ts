@@ -116,6 +116,111 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_audit_log: {
+        Row: {
+          id: string
+          povprasevanje_id: string | null
+          status: string | null
+          actor_type: string | null
+          actor_id: string | null
+          response_time_ms: number | null
+          conversion: boolean | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          povprasevanje_id?: string | null
+          status?: string | null
+          actor_type?: string | null
+          actor_id?: string | null
+          response_time_ms?: number | null
+          conversion?: boolean | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          povprasevanje_id?: string | null
+          status?: string | null
+          actor_type?: string | null
+          actor_id?: string | null
+          response_time_ms?: number | null
+          conversion?: boolean | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          id: string
+          event_type: string
+          actor: string
+          job_id: string | null
+          payment_id: string | null
+          stripe_event_id: string | null
+          metadata: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_type: string
+          actor: string
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_type?: string
+          actor?: string
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          table_name: string | null
+          record_id: string | null
+          action: string | null
+          new_data: Json | null
+          old_data: Json | null
+          changed_by: string | null
+          changed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          table_name?: string | null
+          record_id?: string | null
+          action?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          changed_by?: string | null
+          changed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           aktiven: boolean
@@ -165,28 +270,36 @@ export type Database = {
       }
       agent_alerts: {
         Row: {
+          count: number | null
           created_at: string
           details: string
           id: string
           resolved: boolean
+          resolved_at: string | null
+          session_id: string | null
           severity: string
           type: string
           user_id: string | null
         }
         Insert: {
+          count?: number | null
           created_at?: string
           details?: string
           id?: string
           resolved?: boolean
+          session_id?: string | null
           severity?: string
           type: string
           user_id?: string | null
         }
         Update: {
+          count?: number | null
           created_at?: string
           details?: string
           id?: string
           resolved?: boolean
+          resolved_at?: string | null
+          session_id?: string | null
           severity?: string
           type?: string
           user_id?: string | null
@@ -850,13 +963,17 @@ export type Database = {
           agent_type: string | null
           cost_usd: number
           created_at: string | null
+          endpoint: string | null
+          error: string | null
           id: string
           inquiry_id: string | null
           led_to_inquiry: boolean | null
           message_hash: string | null
           model_used: string
+          provider: string | null
           rag_context_used: boolean | null
           rag_sources_count: number | null
+          request_id: string | null
           response_cached: boolean | null
           response_time_ms: number | null
           tokens_cached: number | null
@@ -870,13 +987,17 @@ export type Database = {
           agent_type?: string | null
           cost_usd?: number
           created_at?: string | null
+          endpoint?: string | null
+          error?: string | null
           id?: string
           inquiry_id?: string | null
           led_to_inquiry?: boolean | null
           message_hash?: string | null
           model_used: string
+          provider?: string | null
           rag_context_used?: boolean | null
           rag_sources_count?: number | null
+          request_id?: string | null
           response_cached?: boolean | null
           response_time_ms?: number | null
           tokens_cached?: number | null
@@ -890,13 +1011,17 @@ export type Database = {
           agent_type?: string | null
           cost_usd?: number
           created_at?: string | null
+          endpoint?: string | null
+          error?: string | null
           id?: string
           inquiry_id?: string | null
           led_to_inquiry?: boolean | null
           message_hash?: string | null
           model_used?: string
+          provider?: string | null
           rag_context_used?: boolean | null
           rag_sources_count?: number | null
+          request_id?: string | null
           response_cached?: boolean | null
           response_time_ms?: number | null
           tokens_cached?: number | null
@@ -956,6 +1081,45 @@ export type Database = {
           resolved?: boolean | null
           resolved_at?: string | null
           severity?: string
+        }
+        Relationships: []
+      }
+      appointments: {
+        Row: {
+          id: string
+          ponudba_id: string | null
+          narocnik_id: string | null
+          obrtnik_id: string | null
+          scheduled_start: string | null
+          scheduled_end: string | null
+          narocnik_calendar_event_id: string | null
+          obrtnik_calendar_event_id: string | null
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ponudba_id?: string | null
+          narocnik_id?: string | null
+          obrtnik_id?: string | null
+          scheduled_start?: string | null
+          scheduled_end?: string | null
+          narocnik_calendar_event_id?: string | null
+          obrtnik_calendar_event_id?: string | null
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ponudba_id?: string | null
+          narocnik_id?: string | null
+          obrtnik_id?: string | null
+          scheduled_start?: string | null
+          scheduled_end?: string | null
+          narocnik_calendar_event_id?: string | null
+          obrtnik_calendar_event_id?: string | null
+          status?: string
+          created_at?: string
         }
         Relationships: []
       }
@@ -1119,7 +1283,10 @@ export type Database = {
           icon_name: string | null
           id: string
           is_active: boolean
+          meta_description: string | null
+          meta_title: string | null
           name: string
+          name_slo: string | null
           slug: string
           sort_order: number | null
         }
@@ -1129,7 +1296,10 @@ export type Database = {
           icon_name?: string | null
           id?: string
           is_active?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
           name: string
+          name_slo?: string | null
           slug: string
           sort_order?: number | null
         }
@@ -1139,7 +1309,10 @@ export type Database = {
           icon_name?: string | null
           id?: string
           is_active?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
           name?: string
+          name_slo?: string | null
           slug?: string
           sort_order?: number | null
         }
@@ -1147,36 +1320,69 @@ export type Database = {
       }
       commission_logs: {
         Row: {
+          captured_at: string | null
           commission_cents: number
+          commission_rate: number | null
           created_at: string | null
+          escrow_id: string | null
           gross_amount_cents: number
           id: string
           inquiry_id: string | null
           partner_id: string
           partner_payout_cents: number
           status: string
+          failed_at: string | null
+          last_error: string | null
+          last_attempted_at: string | null
+          notes: string | null
+          refunded_at: string | null
+          stripe_account_id: string | null
+          stripe_transfer_id: string | null
+          transfer_attempts: number | null
+          transferred_at: string | null
           updated_at: string | null
         }
         Insert: {
+          captured_at?: string | null
           commission_cents?: number
+          commission_rate?: number | null
           created_at?: string | null
+          escrow_id?: string | null
           gross_amount_cents?: number
           id?: string
           inquiry_id?: string | null
           partner_id: string
           partner_payout_cents?: number
           status?: string
+          notes?: string | null
+          refunded_at?: string | null
+          stripe_account_id?: string | null
+          stripe_transfer_id?: string | null
+          transfer_attempts?: number | null
+          transferred_at?: string | null
           updated_at?: string | null
         }
         Update: {
+          captured_at?: string | null
           commission_cents?: number
+          commission_rate?: number | null
           created_at?: string | null
+          escrow_id?: string | null
           gross_amount_cents?: number
           id?: string
           inquiry_id?: string | null
+          notes?: string | null
           partner_id?: string
           partner_payout_cents?: number
+          refunded_at?: string | null
           status?: string
+          stripe_account_id?: string | null
+          failed_at?: string | null
+          last_error?: string | null
+          last_attempted_at?: string | null
+          stripe_transfer_id?: string | null
+          transfer_attempts?: number | null
+          transferred_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1509,6 +1715,243 @@ export type Database = {
           },
         ]
       }
+      disputes: {
+        Row: {
+          id: string
+          escrow_id: string
+          opened_by: string
+          reason: string
+          description: string | null
+          status: string
+          resolution: string | null
+          resolved_by: string | null
+          resolved_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          escrow_id: string
+          opened_by: string
+          reason: string
+          description?: string | null
+          status?: string
+          resolution?: string | null
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          escrow_id?: string
+          opened_by?: string
+          reason?: string
+          description?: string | null
+          status?: string
+          resolution?: string | null
+          resolved_by?: string | null
+          resolved_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      escrows: {
+        Row: {
+          id: string
+          job_id: string | null
+          offer_id: string | null
+          customer_id: string | null
+          partner_id: string | null
+          customer_email: string | null
+          partner_email: string | null
+          amount: number | null
+          status: string
+          released_at: string | null
+          refunded_at: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          job_id?: string | null
+          offer_id?: string | null
+          customer_id?: string | null
+          partner_id?: string | null
+          customer_email?: string | null
+          partner_email?: string | null
+          amount?: number | null
+          status?: string
+          released_at?: string | null
+          refunded_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          job_id?: string | null
+          offer_id?: string | null
+          customer_id?: string | null
+          partner_id?: string | null
+          customer_email?: string | null
+          partner_email?: string | null
+          amount?: number | null
+          status?: string
+          released_at?: string | null
+          refunded_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      refund_triggers: {
+        Row: {
+          id: string
+          request_id: string | null
+          triggered_at: string | null
+          reason: string | null
+          status: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          request_id?: string | null
+          triggered_at?: string | null
+          reason?: string | null
+          status?: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          request_id?: string | null
+          triggered_at?: string | null
+          reason?: string | null
+          status?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      idempotency_keys: {
+        Row: {
+          key: string
+          status: string
+          response_status: number | null
+          response_body: Json | null
+          created_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          key: string
+          status?: string
+          response_status?: number | null
+          response_body?: Json | null
+          created_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          key?: string
+          status?: string
+          response_status?: number | null
+          response_body?: Json | null
+          created_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
+      onboarding_state: {
+        Row: {
+          user_id: string
+          state: string
+          blocked_reasons: Json | null
+          updated_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          user_id: string
+          state: string
+          blocked_reasons?: Json | null
+          updated_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          user_id?: string
+          state?: string
+          blocked_reasons?: Json | null
+          updated_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      notification_logs: {
+        Row: {
+          id: string
+          type: string
+          recipient_id: string
+          channel: string
+          request_id: string | null
+          sent_at: string | null
+          status: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          type: string
+          recipient_id: string
+          channel: string
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          type?: string
+          recipient_id?: string
+          channel?: string
+          request_id?: string | null
+          sent_at?: string | null
+          status?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      device_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          token: string
+          platform: string | null
+          app_version: string | null
+          device_name: string | null
+          last_seen_at: string | null
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          token: string
+          platform?: string | null
+          app_version?: string | null
+          device_name?: string | null
+          last_seen_at?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          token?: string
+          platform?: string | null
+          app_version?: string | null
+          device_name?: string | null
+          last_seen_at?: string | null
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       escrow_holds: {
         Row: {
           amount: number
@@ -1552,73 +1995,102 @@ export type Database = {
       }
       escrow_transactions: {
         Row: {
-          amount: number
-          created_at: string | null
-          currency: string
-          hold_id: string | null
           id: string
-          metadata: Json | null
-          processed_at: string | null
-          reference: string | null
-          status: string
+          created_at: string
+          updated_at: string
+          inquiry_id: string | null
+          partner_id: string | null
+          customer_email: string
+          amount_total_cents: number
+          commission_rate: number
+          commission_cents: number
+          payout_cents: number
           stripe_payment_intent_id: string | null
           stripe_transfer_id: string | null
-          task_id: string | null
-          type: string
-          user_id: string | null
+          stripe_refund_id: string | null
+          stripe_charge_id: string | null
+          stripe_capture_status: string | null
+          stripe_capture_completed_at: string | null
+          stripe_release_status: string | null
+          stripe_release_completed_at: string | null
+          status: string
+          paid_at: string | null
+          released_at: string | null
+          refunded_at: string | null
+          release_due_at: string | null
+          description: string | null
+          notes: string | null
+          lock_version: number
         }
         Insert: {
-          amount: number
-          created_at?: string | null
-          currency?: string
-          hold_id?: string | null
           id?: string
-          metadata?: Json | null
-          processed_at?: string | null
-          reference?: string | null
-          status?: string
+          created_at?: string
+          updated_at?: string
+          inquiry_id?: string | null
+          partner_id?: string | null
+          customer_email: string
+          amount_total_cents: number
+          commission_rate: number
+          commission_cents: number
+          payout_cents: number
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
-          task_id?: string | null
-          type: string
-          user_id?: string | null
+          stripe_refund_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_capture_status?: string | null
+          stripe_capture_completed_at?: string | null
+          stripe_release_status?: string | null
+          stripe_release_completed_at?: string | null
+          status?: string
+          paid_at?: string | null
+          released_at?: string | null
+          refunded_at?: string | null
+          release_due_at?: string | null
+          description?: string | null
+          notes?: string | null
+          lock_version?: number
         }
         Update: {
-          amount?: number
-          created_at?: string | null
-          currency?: string
-          hold_id?: string | null
           id?: string
-          metadata?: Json | null
-          processed_at?: string | null
-          reference?: string | null
-          status?: string
+          created_at?: string
+          updated_at?: string
+          inquiry_id?: string | null
+          partner_id?: string | null
+          customer_email?: string
+          amount_total_cents?: number
+          commission_rate?: number
+          commission_cents?: number
+          payout_cents?: number
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
-          task_id?: string | null
-          type?: string
-          user_id?: string | null
+          stripe_refund_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_capture_status?: string | null
+          stripe_capture_completed_at?: string | null
+          stripe_release_status?: string | null
+          stripe_release_completed_at?: string | null
+          status?: string
+          paid_at?: string | null
+          released_at?: string | null
+          refunded_at?: string | null
+          release_due_at?: string | null
+          description?: string | null
+          notes?: string | null
+          lock_version?: number
         }
         Relationships: [
           {
             foreignKeyName: "escrow_transactions_hold_id_fkey"
-            columns: ["hold_id"]
+            columns: ["inquiry_id"]
             isOneToOne: false
-            referencedRelation: "escrow_holds"
+            referencedRelation: "inquiries"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "escrow_transactions_task_id_fkey"
-            columns: ["task_id"]
+            foreignKeyName: "escrow_transactions_partner_id_fkey"
+            columns: ["partner_id"]
             isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "escrow_transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "obrtnik_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1735,25 +2207,31 @@ export type Database = {
           consumer: string
           entity_id: string
           event_name: string
+          failed_at: string | null
           id: string
           idempotency_key: string
           processed_at: string | null
+          status: string | null
         }
         Insert: {
           consumer: string
           entity_id: string
           event_name: string
+          failed_at?: string | null
           id?: string
           idempotency_key: string
           processed_at?: string | null
+          status?: string | null
         }
         Update: {
           consumer?: string
           entity_id?: string
           event_name?: string
+          failed_at?: string | null
           id?: string
           idempotency_key?: string
           processed_at?: string | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -2697,7 +3175,15 @@ export type Database = {
           updated_at: string | null
           verification_status: string
           verified_at: string | null
+          loyalty_points: number | null
+          referral_code: string | null
+          referred_by: string | null
+          stripe_charges_enabled: boolean | null
+          stripe_payouts_enabled: boolean | null
+          stripe_details_submitted: boolean | null
+          stripe_requirements_due: string[] | null
           visibility: string
+          webhook_url: string | null
           website_url: string | null
           working_since: string | null
           years_experience: number | null
@@ -2745,7 +3231,15 @@ export type Database = {
           updated_at?: string | null
           verification_status?: string
           verified_at?: string | null
+          loyalty_points?: number | null
+          referral_code?: string | null
+          referred_by?: string | null
+          stripe_charges_enabled?: boolean | null
+          stripe_payouts_enabled?: boolean | null
+          stripe_details_submitted?: boolean | null
+          stripe_requirements_due?: string[] | null
           visibility?: string
+          webhook_url?: string | null
           website_url?: string | null
           working_since?: string | null
           years_experience?: number | null
@@ -2791,9 +3285,17 @@ export type Database = {
           tagline?: string | null
           total_reviews?: number | null
           updated_at?: string | null
+          loyalty_points?: number | null
+          referral_code?: string | null
+          referred_by?: string | null
+          stripe_charges_enabled?: boolean | null
+          stripe_payouts_enabled?: boolean | null
+          stripe_details_submitted?: boolean | null
+          stripe_requirements_due?: string[] | null
           verification_status?: string
           verified_at?: string | null
           visibility?: string
+          webhook_url?: string | null
           website_url?: string | null
           working_since?: string | null
           years_experience?: number | null
@@ -3342,6 +3844,7 @@ export type Database = {
           id: string
           lock_version: number
           message: string
+          narocnik_id: string | null
           notes: string | null
           obrtnik_id: string
           povprasevanje_id: string
@@ -3365,6 +3868,7 @@ export type Database = {
           id?: string
           lock_version?: number
           message: string
+          narocnik_id?: string | null
           notes?: string | null
           obrtnik_id: string
           povprasevanje_id: string
@@ -3388,6 +3892,7 @@ export type Database = {
           id?: string
           lock_version?: number
           message?: string
+          narocnik_id?: string | null
           notes?: string | null
           obrtnik_id?: string
           povprasevanje_id?: string
@@ -3576,15 +4081,19 @@ export type Database = {
           id: string
           kategorija: string | null
           lat: number | null
+          lead_fingerprint: string | null
           lng: number | null
           location_city: string
           location_notes: string | null
           location_region: string | null
+          lead_status: string | null
           lock_version: number
           narocnik_id: string | null
           notified_at: string | null
           obrtnik_id: string | null
           preferred_date_from: string | null
+          admin_opomba: string | null
+          assigned_to: string | null
           preferred_date_to: string | null
           status: string
           stranka_email: string | null
@@ -3594,6 +4103,10 @@ export type Database = {
           urgency: string | null
         }
         Insert: {
+          admin_opomba?: string | null
+          assigned_to?: string | null
+          lead_fingerprint?: string | null
+          lead_status?: string | null
           attachments?: string[] | null
           budget_max?: number | null
           budget_min?: number | null
@@ -3621,6 +4134,10 @@ export type Database = {
           urgency?: string | null
         }
         Update: {
+          admin_opomba?: string | null
+          assigned_to?: string | null
+          lead_fingerprint?: string | null
+          lead_status?: string | null
           attachments?: string[] | null
           budget_max?: number | null
           budget_min?: number | null
@@ -3664,6 +4181,57 @@ export type Database = {
           },
         ]
       }
+      locations: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          is_active: boolean | null
+          is_auto_created: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          is_active?: boolean | null
+          is_auto_created?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          is_active?: boolean | null
+          is_auto_created?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          id: number
+          logo_url: string | null
+          hero_image_url: string | null
+          favicon_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          logo_url?: string | null
+          hero_image_url?: string | null
+          favicon_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          logo_url?: string | null
+          hero_image_url?: string | null
+          favicon_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ai_messages_reset_at: string | null
@@ -3686,6 +4254,7 @@ export type Database = {
           referral_code: string | null
           role: string | null
           stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           subscription_tier: string
           updated_at: string | null
         }
@@ -3710,6 +4279,7 @@ export type Database = {
           referral_code?: string | null
           role?: string | null
           stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           subscription_tier?: string
           updated_at?: string | null
         }
@@ -3734,6 +4304,7 @@ export type Database = {
           referral_code?: string | null
           role?: string | null
           stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           subscription_tier?: string
           updated_at?: string | null
         }
@@ -4063,9 +4634,14 @@ export type Database = {
           category_id: string | null
           created_at: string | null
           description: string | null
+          guarantee_activated: boolean | null
+          guarantee_activated_at: string | null
           id: string
           location_city: string
+          metadata: Json | null
           narocnik_id: string | null
+          povprasevanje_id: string | null
+          started_at: string | null
           status: string
           title: string
           updated_at: string | null
@@ -4074,9 +4650,14 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          guarantee_activated?: boolean | null
+          guarantee_activated_at?: string | null
           id?: string
           location_city: string
+          metadata?: Json | null
           narocnik_id?: string | null
+          povprasevanje_id?: string | null
+          started_at?: string | null
           status?: string
           title: string
           updated_at?: string | null
@@ -4085,9 +4666,14 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          guarantee_activated?: boolean | null
+          guarantee_activated_at?: string | null
           id?: string
           location_city?: string
+          metadata?: Json | null
           narocnik_id?: string | null
+          povprasevanje_id?: string | null
+          started_at?: string | null
           status?: string
           title?: string
           updated_at?: string | null
@@ -4382,6 +4968,9 @@ export type Database = {
           role: string
           stripe_customer_id: string | null
           updated_at: string
+          tos_accepted_at: string | null
+          tos_version: string | null
+          craftworker_agreement_accepted_at: string | null
         }
         Insert: {
           created_at?: string
@@ -4392,6 +4981,9 @@ export type Database = {
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
+          tos_accepted_at?: string | null
+          tos_version?: string | null
+          craftworker_agreement_accepted_at?: string | null
         }
         Update: {
           created_at?: string
@@ -4402,6 +4994,9 @@ export type Database = {
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string
+          tos_accepted_at?: string | null
+          tos_version?: string | null
+          craftworker_agreement_accepted_at?: string | null
         }
         Relationships: []
       }
@@ -5319,6 +5914,10 @@ export type Database = {
       start_task: {
         Args: { p_task_id: string; p_worker_id: string }
         Returns: boolean
+      }
+      get_ratings_summary: {
+        Args: Record<string, never>
+        Returns: { total: number; avg: number | null }
       }
       upsert_agent_cost_summary: {
         Args: {

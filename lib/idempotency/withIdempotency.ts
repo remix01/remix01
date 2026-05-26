@@ -136,13 +136,16 @@ async function getCachedResponse(key: string): Promise<{
 
   if (error || !data) return null
 
-  const createdAt = new Date(data.created_at).getTime()
+  const createdAt = new Date(data.created_at ?? 0).getTime()
   if (Date.now() - createdAt > KEY_TTL_MS) {
     await supabaseAdmin.from('idempotency_keys').delete().eq('key', key)
     return null
   }
 
-  return data
+  return {
+    response_status: data.response_status ?? 200,
+    response_body: data.response_body,
+  }
 }
 
 async function acquireLock(key: string): Promise<'ok' | 'duplicate' | 'error'> {
@@ -173,7 +176,7 @@ async function cacheResponse(
     .update({
       status: 'completed',
       response_status: status,
-      response_body: body as Record<string, unknown>,
+      response_body: body as unknown as import('@/types/supabase').Json,
       completed_at: new Date().toISOString(),
     })
     .eq('key', key)

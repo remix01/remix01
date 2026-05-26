@@ -40,15 +40,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = await request.json()
     const { resolution, splitPct, reason } = resolveSchema.parse(body)
 
-    // Fetch job and payment
+    // Fetch job and payment (no user joins — two FKs to user cause Supabase type ambiguity)
     const { data: job, error: jobError } = await supabaseAdmin
       .from('job')
-      .select(`
-        *,
-        payment:payment_id(*),
-        customer:customer_id(*),
-        craftworker:craftworker_id(*, craftworker_profile(*))
-      `)
+      .select('*, payment:payment_id(*)')
       .eq('id', jobId)
       .single()
 
@@ -57,6 +52,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
         { error: 'Job not found or not in disputed state' },
         { status: 404 }
       )
+    }
+
+    // Fetch customer, craftworker, and craftworker_profile as separate typed queries
+    const [customerResult, craftworkerResult, craftworkerProfileResult] = await Promise.all([
+      supabaseAdmin.from('user').select('id, name, email').eq('id', job.customer_id ?? '').maybeSingle(),
+      job.craftworker_id
+        ? supabaseAdmin.from('user').select('id, name, email').eq('id', job.craftworker_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      job.craftworker_id
+        ? supabaseAdmin.from('craftworker_profile').select('stripe_account_id').eq('user_id', job.craftworker_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ])
+
+    const customer = customerResult.data
+    const craftworker = craftworkerResult.data
+    const craftworkerProfile = craftworkerProfileResult.data
+
+    if (!customer) {
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
     }
 
     const payment = job.payment
@@ -89,11 +103,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
 
       // Transfer to craftworker if applicable
-      if (craftworkerPayout > 0 && job.craftworker?.craftworker_profile?.stripe_account_id) {
+      if (craftworkerPayout > 0 && craftworkerProfile?.stripe_account_id) {
         const transfer = await stripe.transfers.create({
           amount: Math.round(craftworkerPayout * 100),
           currency: 'eur',
-          destination: job.craftworker.craftworker_profile.stripe_account_id,
+          destination: craftworkerProfile.stripe_account_id,
           metadata: {
             jobId: job.id,
             resolution: 'dispute_resolved',
@@ -143,18 +157,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
         <p>${reason}</p>
         <h3>Končni zneski:</h3>
         <ul>
-          <li>Stranka (${job.customer.name}): €${customerRefund.toFixed(2)}</li>
-          <li>Obrtnik (${job.craftworker?.name}): €${craftworkerPayout.toFixed(2)}</li>
+          <li>Stranka (${customer.name}): €${customerRefund.toFixed(2)}</li>
+          <li>Obrtnik (${craftworker?.name ?? ''}): €${craftworkerPayout.toFixed(2)}</li>
         </ul>
         <p>Lep pozdrav,<br/>LiftGO Tim</p>
       `
 
       await Promise.all([
-        sendEmail(job.customer.email, {
+        sendEmail(customer.email, {
           subject: `Spor rešen: ${job.title}`,
           html: emailContent,
         }),
-        job.craftworker && sendEmail(job.craftworker.email, {
+        craftworker && sendEmail(craftworker.email, {
           subject: `Spor rešen: ${job.title}`,
           html: emailContent,
         })

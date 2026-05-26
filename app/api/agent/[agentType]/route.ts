@@ -138,7 +138,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       .limit(1)
       .maybeSingle()
 
-    const history: StoredMessage[] = Array.isArray(conv?.messages) ? conv.messages : []
+    const isStoredMessage = (m: unknown): m is StoredMessage =>
+      typeof m === 'object' && m !== null &&
+      'role' in m && 'content' in m && 'timestamp' in m
+    const history: StoredMessage[] = Array.isArray(conv?.messages)
+      ? conv.messages.filter(isStoredMessage)
+      : []
+    // Remap conv to typed shape so persistConversation receives StoredMessage[]
+    const typedConv = conv ? { id: conv.id, messages: history } : null
 
     // Keep last N messages for context window efficiency
     const claudeMessages = history.slice(-AI_CONFIG.HISTORY_CONTEXT_LIMIT).map(m => ({
@@ -154,7 +161,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (cacheKey) {
       const cached = await getCachedResponse(cacheKey)
       if (cached) {
-        await persistConversation(user.id, agentType, conv, history, message, cached)
+        await persistConversation(user.id, agentType, typedConv, history, message, cached)
         await logUsage(user.id, usedToday, agentType, 'cached', 0, 0, 0, 0, cacheKey, message)
         return success({
           message: cached,
@@ -196,7 +203,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const modelShortName = modelSelection.modelId.includes('haiku') ? 'haiku-4' : 'sonnet-4'
 
     if (cacheKey) await setCachedResponse(cacheKey, assistantText)
-    await persistConversation(user.id, agentType, conv, history, message, assistantText)
+    await persistConversation(user.id, agentType, typedConv, history, message, assistantText)
     await logUsage(user.id, usedToday, agentType, modelShortName, inputTokens, outputTokens, costUsd, responseMs, cacheKey, message)
 
     console.log(`[agent/${agentType}] model=${modelSelection.modelId} tokens=${inputTokens}+${outputTokens} cost=$${costUsd.toFixed(6)}`)

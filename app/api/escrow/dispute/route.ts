@@ -50,6 +50,9 @@ async function handler(request: NextRequest) {
 
     // 2. PREBERI TRANSAKCIJO
     const escrow = await getEscrowTransaction(escrowId)
+    if (!escrow) {
+      return badRequest('Escrow transaction not found.')
+    }
 
     // 2.5 STATE MACHINE GUARD — enforce valid transitions
     // This runs AFTER permission checks, BEFORE DB writes
@@ -73,7 +76,7 @@ async function handler(request: NextRequest) {
     const { count } = await supabaseAdmin
       .from('escrow_disputes')
       .select('id', { count: 'exact', head: true })
-      .eq('transaction_id', escrowId)
+      .eq('hold_id', escrowId)
     if ((count ?? 0) > 0) {
       return conflict('A dispute is already open for this transaction.')
     }
@@ -86,12 +89,12 @@ async function handler(request: NextRequest) {
     const { error: disputeErr } = await supabaseAdmin
       .from('escrow_disputes')
       .insert({
-        transaction_id: escrowId,
-        opened_by:      openedBy,
-        opened_by_id:   user.id,
-        reason:         trimmedReason,
-        description:    description?.trim() ?? null,
-        status:         'open',
+        hold_id:         escrowId,
+        opened_by:       user.id,
+        opened_by_role:  openedBy,
+        reason:          trimmedReason,
+        description:     description?.trim() ?? null,
+        status:          'open',
       })
 
     if (disputeErr) throw new Error(disputeErr.message)
@@ -115,20 +118,13 @@ async function handler(request: NextRequest) {
       enqueue('send_dispute_email', {
         transactionId: escrow.id,
         recipientEmail: escrow.customer_email,
-        recipientName: escrow.customer_name,
         reason: `${openedBy === 'partner' ? 'Partner' : 'Customer'} opened a dispute: ${reason}`,
-      }),
-      enqueue('send_dispute_email', {
-        transactionId: escrow.id,
-        recipientEmail: escrow.partner_email,
-        recipientName: escrow.partner_name,
-        reason: `${openedBy === 'partner' ? 'You' : 'Customer'} opened a dispute: ${reason}`,
       }),
       enqueue('webhook_escrow_status_changed', {
         transactionId: escrow.id,
         statusBefore: 'paid',
         statusAfter: 'disputed',
-        metadata: { openedBy, reason, description },
+        metadata: { openedBy, reason, description, partnerId: escrow.partner_id },
       }),
     ]).catch(err => {
       console.error('[ESCROW DISPUTE] Error enqueueing jobs:', err)

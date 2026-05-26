@@ -1,4 +1,7 @@
 import { getPartner } from "@/lib/supabase-partner";
+import type { Database } from "@/types/supabase";
+
+type PovprasevanjaUpdate = Database["public"]["Tables"]["povprasevanja"]["Update"];
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ok, fail } from "@/lib/api/response";
 import {
@@ -49,11 +52,11 @@ export async function PATCH(
     }
   }
 
-  const updates: Record<string, unknown> = {};
+  const updates: PovprasevanjaUpdate = {};
   if (status) updates.status = status;
-  if (cena_ocena_min) updates.cena_ocena_min = cena_ocena_min;
-  if (cena_ocena_max) updates.cena_ocena_max = cena_ocena_max;
-  if (opomba) updates.opomba = opomba;
+  if (cena_ocena_min) updates.budget_min = cena_ocena_min;
+  if (cena_ocena_max) updates.budget_max = cena_ocena_max;
+  if (opomba) updates.admin_opomba = opomba;
 
   const { data, error } = await supabaseAdmin
     .from("povprasevanja")
@@ -100,15 +103,12 @@ export async function PATCH(
           },
         });
 
-        const safePartnerName = escapeHtml(
-          sanitizeText(`${partner.ime} ${partner.priimek}`.trim(), 160),
-        );
-        const safePartnerFirstName = sanitizeText(
-          partner.ime || "Mojster",
-          120,
-        );
+        const partnerNamed = partner as { business_name?: string | null; company_name?: string | null }
+        const displayName = partnerNamed.business_name ?? partnerNamed.company_name ?? 'Mojster'
+        const safePartnerName = escapeHtml(sanitizeText(displayName, 160))
+        const safePartnerFirstName = sanitizeText(displayName.split(' ')[0] || 'Mojster', 120)
         const safeService = escapeHtml(
-          sanitizeText(inquiry.storitev || inquiry.title || "storitev", 120),
+          sanitizeText(inquiry.title ?? "storitev", 120),
         );
 
         const response = await resend.emails.send({
@@ -273,10 +273,11 @@ export async function PATCH(
   // Notify admin on rejection
   if (status === "zavrnjeno") {
     const { error: logError } = await supabaseAdmin.from("admin_log").insert({
+      admin_id: partner.id,
       akcija: "PARTNER_REJECTED",
       tabela: "povprasevanja",
       zapis_id: id,
-      novo_stanje: { partner_id: partner.id, opomba },
+      novo_stanje: { partner_id: partner.id, opomba } as import("@/types/supabase").Database["public"]["Tables"]["admin_log"]["Row"]["novo_stanje"],
     });
     if (logError) console.error("[admin_log]", logError);
   }

@@ -62,11 +62,11 @@ export function registerCommissionSubscriber() {
       // Create commission log
       const commission = await commissionService.createCommissionLog({
         escrowId: escrow.id,
-        partnerId: escrow.partner_id,
-        inquiryId: escrow.inquiry_id,
+        partnerId: escrow.partner_id ?? '',
+        inquiryId: escrow.inquiry_id ?? undefined,
         grossAmountCents: escrow.amount_total_cents,
         commissionRate: parseFloat(String(escrow.commission_rate)),
-        stripeAccountId: escrow.partner?.stripe_account_id,
+        stripeAccountId: escrow.partner?.stripe_account_id ?? undefined,
       })
 
       console.log(

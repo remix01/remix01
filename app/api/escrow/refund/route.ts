@@ -40,6 +40,9 @@ async function handler(request: NextRequest) {
 
     // 2. PREBERI TRANSAKCIJO
     const escrow = await getEscrowTransaction(escrowId)
+    if (!escrow) {
+      return badRequest('Escrow transaction not found.')
+    }
 
     // 2.5 STATE MACHINE GUARD — enforce valid transitions
     // This runs AFTER permission checks, BEFORE DB writes
@@ -57,6 +60,10 @@ async function handler(request: NextRequest) {
     // 3. SAMO 'paid' SE LAHKO VRNE
     if (escrow.status !== 'paid') {
       return badRequest(`Status '${escrow.status}' does not allow refunds.`)
+    }
+
+    if (!escrow.stripe_payment_intent_id) {
+      return badRequest('Missing Stripe payment intent on this transaction.')
     }
 
     // 4. PREKLICI PAYMENT INTENT (bo vrnil celotno rezervacijo)
@@ -86,8 +93,7 @@ async function handler(request: NextRequest) {
       enqueue('send_refund_email', {
         transactionId: escrow.id,
         recipientEmail: escrow.customer_email,
-        recipientName: escrow.customer_name,
-        amount: amountCents || escrow.amount_cents,
+        amount: amountCents || escrow.amount_total_cents,
         reason: reason || 'Admin refund',
       }),
       enqueue('webhook_escrow_status_changed', {

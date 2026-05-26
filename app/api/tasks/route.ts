@@ -49,10 +49,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'taskId and ponudbaId are required' }, { status: 400 })
       }
 
-      // Verify user owns the task via povprasevanja
+      // Verify user owns the task
       const { data: task, error: taskError } = await supabaseAdmin
         .from('service_requests')
-        .select('id, status, povprasevanje_id, povprasevanja(narocnik_id)')
+        .select('id, status, narocnik_id')
         .eq('id', taskId)
         .single()
 
@@ -60,21 +60,23 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
       }
 
-      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
-      if (!pov || pov.narocnik_id !== user.id) {
+      if (task.narocnik_id !== user.id) {
         return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
       }
 
-      // Fetch ponudba
+      // Fetch ponudba (validate narocnik_id for ownership)
       const { data: ponudba, error: ponudbaError } = await supabaseAdmin
         .from('ponudbe')
-.select('id, obrtnik_id, price_estimate, povprasevanje_id, status')
+        .select('id, obrtnik_id, price_estimate, povprasevanje_id, narocnik_id, status')
         .eq('id', ponudbaId)
-        .eq('povprasevanje_id', task.povprasevanje_id)
         .single()
 
       if (ponudbaError || !ponudba) {
         return NextResponse.json({ error: 'Ponudba ni bila najdena' }, { status: 404 })
+      }
+
+      if (ponudba.narocnik_id && ponudba.narocnik_id !== user.id) {
+        return NextResponse.json({ error: 'Nimate dostopa do te ponudbe' }, { status: 403 })
       }
 
       // Validate transition before mutating any offer rows.
@@ -105,7 +107,7 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from('ponudbe')
         .update({ status: 'zavrnjena' })
-        .eq('povprasevanje_id', task.povprasevanje_id)
+        .eq('povprasevanje_id', ponudba.povprasevanje_id)
         .neq('id', ponudbaId)
         .eq('status', 'poslana')
 
@@ -128,7 +130,7 @@ export async function POST(request: NextRequest) {
       // Verify user is the obrtnik assigned to this task
       const { data: task, error: taskError } = await supabaseAdmin
         .from('service_requests')
-        .select('id, status, povprasevanje_id')
+        .select('id, status, narocnik_id, povprasevanje_id')
         .eq('id', taskId)
         .single()
 
@@ -137,12 +139,19 @@ export async function POST(request: NextRequest) {
       }
 
       // Find the accepted ponudba to verify the user is the assigned obrtnik
-      const { data: ponudba } = await supabaseAdmin
-        .from('ponudbe')
-        .select('obrtnik_id')
-        .eq('povprasevanje_id', task.povprasevanje_id)
-        .eq('status', 'sprejeta')
-        .single()
+      const { data: ponudba } = task.povprasevanje_id
+        ? await supabaseAdmin
+            .from('ponudbe')
+            .select('obrtnik_id')
+            .eq('povprasevanje_id', task.povprasevanje_id)
+            .eq('status', 'sprejeta')
+            .maybeSingle()
+        : await supabaseAdmin
+            .from('ponudbe')
+            .select('obrtnik_id')
+            .eq('narocnik_id', task.narocnik_id ?? '')
+            .eq('status', 'sprejeta')
+            .maybeSingle()
 
       if (!ponudba || ponudba.obrtnik_id !== user.id) {
         return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
@@ -161,7 +170,7 @@ export async function POST(request: NextRequest) {
       // Verify user owns the task (narocnik confirms completion)
       const { data: task, error: taskError } = await supabaseAdmin
         .from('service_requests')
-        .select('id, status, povprasevanje_id, povprasevanja(narocnik_id)')
+        .select('id, status, narocnik_id, povprasevanje_id')
         .eq('id', taskId)
         .single()
 
@@ -169,18 +178,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
       }
 
-      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
-      if (!pov || pov.narocnik_id !== user.id) {
+      if (task.narocnik_id !== user.id) {
         return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
       }
 
       // Get accepted ponudba for partner + price info
-      const { data: ponudba } = await supabaseAdmin
-        .from('ponudbe')
-        .select('obrtnik_id, price_estimate')
-        .eq('povprasevanje_id', task.povprasevanje_id)
-        .eq('status', 'sprejeta')
-        .single()
+      const { data: ponudba } = task.povprasevanje_id
+        ? await supabaseAdmin
+            .from('ponudbe')
+            .select('obrtnik_id, price_estimate')
+            .eq('povprasevanje_id', task.povprasevanje_id)
+            .eq('status', 'sprejeta')
+            .maybeSingle()
+        : await supabaseAdmin
+            .from('ponudbe')
+            .select('obrtnik_id, price_estimate')
+            .eq('narocnik_id', task.narocnik_id ?? '')
+            .eq('status', 'sprejeta')
+            .maybeSingle()
 
       if (!ponudba) {
         return NextResponse.json({ error: 'Sprejeta ponudba ni bila najdena' }, { status: 400 })
@@ -202,7 +217,7 @@ export async function POST(request: NextRequest) {
 
       const { data: task, error } = await supabaseAdmin
         .from('service_requests')
-        .select('*, povprasevanja(narocnik_id, title, description)')
+        .select('*')
         .eq('id', taskId)
         .single()
 
@@ -210,8 +225,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Naloga ni bila najdena' }, { status: 404 })
       }
 
-      const pov = task.povprasevanja as unknown as { narocnik_id: string } | null
-      if (!pov || pov.narocnik_id !== user.id) {
+      if (task.narocnik_id !== user.id) {
         return NextResponse.json({ error: 'Nimate dostopa do te naloge' }, { status: 403 })
       }
 
@@ -221,8 +235,8 @@ export async function POST(request: NextRequest) {
     if (action === 'list_tasks') {
       const { data: tasks, error } = await supabaseAdmin
         .from('service_requests')
-        .select('*, povprasevanja(title, description)')
-        .eq('user_id', user.id)
+        .select('*')
+        .eq('narocnik_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) {

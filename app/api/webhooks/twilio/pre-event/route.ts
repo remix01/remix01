@@ -69,32 +69,40 @@ export async function POST(req: NextRequest) {
     // Analyze message content
     const detection = analyzeMessage(messageBody)
 
-    // Find conversation and related job
+    // Fetch conversation by twilio sid
     const { data: conversation, error: convoError } = await supabaseAdmin
       .from('conversation')
-      .select(`
-        *,
-        job:job_id(
-          *,
-          customer:customer_id(*),
-          craftworker:craftworker_id(craftworker_profile(*)),
-          payment:payment_id(*)
-        )
-      `)
+      .select('*')
       .eq('twilio_conversation_sid', conversationSid)
       .single()
 
     if (convoError || !conversation) {
       console.error('[v0] Conversation not found:', conversationSid)
-      // Allow message if conversation not found (fail open)
       return NextResponse.json({ action: 'ALLOW' })
     }
 
+    // Fetch job by twilio conversation sid (job has two FKs to user — avoid nested joins)
+    const { data: job } = await supabaseAdmin
+      .from('job')
+      .select('id, customer_id, craftworker_id, payment_id')
+      .eq('twilio_conversation_sid', conversationSid)
+      .maybeSingle()
+
+    if (!job) {
+      console.error('[v0] Job not found for conversation:', conversationSid)
+      return NextResponse.json({ action: 'ALLOW' })
+    }
+
+    // Fetch payment status separately if needed
+    const { data: payment } = job.payment_id
+      ? await supabaseAdmin.from('payment').select('status').eq('id', job.payment_id).maybeSingle()
+      : { data: null }
+
     // Determine sender (customer or craftworker)
-    const senderUserId = 
+    const senderUserId =
       participantSid === conversation.participant_customer_sid
-        ? conversation.job.customer_id
-        : conversation.job.craftworker_id
+        ? job.customer_id
+        : job.craftworker_id
 
     if (!senderUserId) {
       console.error('[v0] Could not determine sender')
@@ -102,9 +110,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if payment is confirmed (contact info allowed after payment)
-    const isPaymentConfirmed = 
-      conversation.job.payment?.status === 'HELD' ||
-      conversation.job.payment?.status === 'RELEASED'
+    const isPaymentConfirmed =
+      payment?.status === 'HELD' ||
+      payment?.status === 'RELEASED'
 
     // If payment confirmed, allow all messages
     if (isPaymentConfirmed && conversation.contact_revealed_at) {
@@ -149,7 +157,7 @@ export async function POST(req: NextRequest) {
         await supabaseAdmin
           .from('violation')
           .insert({
-            job_id: conversation.job_id,
+            job_id: job.id,
             user_id: senderUserId,
             message_id: message.id,
             type: detection.violationType!,
@@ -159,22 +167,27 @@ export async function POST(req: NextRequest) {
       }
 
       // Update craftworker warnings if sender is craftworker
-      if (senderUserId === conversation.job.craftworker_id && conversation.job.craftworker?.craftworker_profile) {
-        const craftworkerProfile = conversation.job.craftworker.craftworker_profile
-        const newWarnings = (craftworkerProfile.bypass_warnings || 0) + 1
-        
-        await supabaseAdmin
+      if (senderUserId === job.craftworker_id) {
+        const { data: craftworkerProfile } = await supabaseAdmin
           .from('craftworker_profile')
-          .update({
-            bypass_warnings: newWarnings,
-            // Suspend if 3+ warnings
-            is_suspended: newWarnings >= 3,
-            suspended_at: newWarnings >= 3 ? new Date().toISOString() : undefined,
-            suspended_reason: newWarnings >= 3 
-              ? 'Večkratne kršitve pravil proti izogibanju platformi'
-              : undefined,
-          })
-          .eq('id', craftworkerProfile.id)
+          .select('id, bypass_warnings')
+          .eq('user_id', senderUserId)
+          .maybeSingle()
+
+        if (craftworkerProfile) {
+          const newWarnings = (craftworkerProfile.bypass_warnings || 0) + 1
+          await supabaseAdmin
+            .from('craftworker_profile')
+            .update({
+              bypass_warnings: newWarnings,
+              is_suspended: newWarnings >= 3,
+              suspended_at: newWarnings >= 3 ? new Date().toISOString() : undefined,
+              suspended_reason: newWarnings >= 3
+                ? 'Večkratne kršitve pravil proti izogibanju platformi'
+                : undefined,
+            })
+            .eq('id', craftworkerProfile.id)
+        }
       }
 
       // Send warning message to conversation (async, don't wait)

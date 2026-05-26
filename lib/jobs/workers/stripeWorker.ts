@@ -20,7 +20,7 @@ interface StripeJobPayload {
 }
 
 export async function handleStripeJob(job: Job<StripeJobPayload> & { type?: string }): Promise<void> {
-  const type = (job as any).type
+  const type = job.type
   const payload = job.data
   const { transactionId, paymentIntentId, amountCents, reason, metadata } = payload
 
@@ -41,7 +41,7 @@ export async function handleStripeJob(job: Job<StripeJobPayload> & { type?: stri
         console.log(`[STRIPE] Capturing payment ${paymentIntentId}`)
         
         const captured = await stripe.paymentIntents.capture(paymentIntentId, {
-          amount_to_capture: amountCents || escrow.amount_cents,
+          amount_to_capture: amountCents || escrow.amount_total_cents,
         })
 
         console.log(`[STRIPE] Captured payment ${captured.id}`, {
@@ -57,7 +57,7 @@ export async function handleStripeJob(job: Job<StripeJobPayload> & { type?: stri
         const refund = await stripe.refunds.create({
           payment_intent: paymentIntentId,
           amount: amountCents,
-          reason: (reason as any) || 'requested_by_customer',
+          reason: (reason || 'requested_by_customer') as import('stripe').Stripe.RefundCreateParams.Reason,
           metadata,
         })
 

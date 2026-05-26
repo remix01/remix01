@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { slugify } from '@/lib/utils/slugify'
 import { publicInquirySchema } from '@/lib/validators/public-inquiry'
 import { geocodeLocation } from '@/lib/google/geocoding'
+import type { Database } from '@/types/supabase'
+
+type PovprasevanjaInsert = Database['public']['Tables']['povprasevanja']['Insert']
 import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/resend'
 import {
   checkEmailRateLimit,
@@ -119,7 +122,6 @@ async function resolveCategoryIdFromService(serviceName: string): Promise<string
       name: trimmedService,
       slug,
       is_active: true,
-      is_auto_created: true,
       sort_order: 999,
     })
     .select('id')
@@ -299,7 +301,7 @@ async function writeLeadAuditEvent(payload: {
     actor_type: payload.actorType,
     actor_id: payload.actorId ?? null,
     response_time_ms: payload.responseTimeMs ?? null,
-    metadata: payload.metadata ?? {},
+    metadata: (payload.metadata ?? null) as import('@/types/supabase').Json,
     conversion: payload.status === 'contacted' || payload.status === 'completed',
   })
 }
@@ -416,32 +418,24 @@ export async function POST(request: NextRequest) {
 
     const category_id = await resolveCategoryIdFromService(storitev)
 
-    const modernInsertData: Record<string, string | null> = {
+    const modernInsertData: PovprasevanjaInsert = {
       title: storitev,
-      description: opis,
+      description: opis ?? null,
       location_city: normalizedLocation,
       status: 'odprto',
       narocnik_id: null,
-      category_id,
+      category_id: category_id ?? null,
+      stranka_email: stranka_email ?? null,
+      stranka_telefon: normalizedPhone ?? null,
+      lead_status: 'new',
+      lead_fingerprint: leadFingerprint ?? null,
     }
-
-    if (stranka_email) modernInsertData.stranka_email = stranka_email
-    if (normalizedPhone) modernInsertData.stranka_telefon = normalizedPhone
-    if (stranka_ime) modernInsertData.stranka_ime = stranka_ime
 
     let { data, error } = await supabaseAdmin
       .from('povprasevanja')
       .insert(modernInsertData)
       .select('id')
       .single()
-
-    const shouldRetryWithModernPlusLeadColumns =
-      !error &&
-      !!data &&
-      (await supabaseAdmin
-        .from('povprasevanja')
-        .update({ lead_status: 'new', lead_fingerprint: leadFingerprint } as any)
-        .eq('id', data.id)).error === null
 
     const shouldRetryWithLegacySchema =
       !!error &&
@@ -460,16 +454,16 @@ export async function POST(request: NextRequest) {
         message: error?.message,
       })
 
-      const legacyInsertData: Record<string, string> = {
+      // Legacy fallback for old schema column names — cast required as types reflect modern schema only
+      const legacyInsertData = {
         storitev,
         lokacija: normalizedLocation,
         opis: opis || '',
         status: 'novo',
         stranka_ime: stranka_ime || 'Neznana stranka',
-      }
-
-      if (stranka_email) legacyInsertData.stranka_email = stranka_email
-      if (normalizedPhone) legacyInsertData.stranka_telefon = normalizedPhone
+        ...(stranka_email ? { stranka_email } : {}),
+        ...(normalizedPhone ? { stranka_telefon: normalizedPhone } : {}),
+      } as unknown as PovprasevanjaInsert
 
       const retryResult = await supabaseAdmin
         .from('povprasevanja')
@@ -617,7 +611,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('Napaka pri shranjevanju', 500, 'MISSING_INSERT_ROW')
     }
 
-    if (!shouldRetryWithModernPlusLeadColumns && data?.id) {
+    if (data?.id) {
       await updateLeadStatusSafe(data.id, 'new')
     }
 
@@ -654,15 +648,22 @@ export async function POST(request: NextRequest) {
           try {
             const { data: obrtniks } = await supabaseAdmin
               .from('obrtnik_profiles')
-              .select('user_id, profiles:profiles!obrtnik_profiles_user_id_fkey(email)')
+              .select('id')
               .eq('is_verified', true)
               .contains('service_category_ids', [category_id])
               .limit(50)
 
             if (!obrtniks?.length) return
+
+            const obrtnikIds = obrtniks.map((o) => o.id)
+            const { data: profileEmails } = await supabaseAdmin
+              .from('profiles')
+              .select('id, email')
+              .in('id', obrtnikIds)
+
             const template = newRequestMatchedEmail(storitev, data.id)
-            for (const op of obrtniks) {
-              const email = (op.profiles as any)?.email
+            for (const prof of (profileEmails ?? [])) {
+              const email = prof.email
               if (!email) continue
               resend.emails.send({
                 from: getDefaultFrom(),

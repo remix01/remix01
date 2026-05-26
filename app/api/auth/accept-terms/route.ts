@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const { craftworkerAgreement } = parsed.data
 
-    const updateData: Record<string, string> = {
+    const updateData: { tos_accepted_at: string; tos_version: string; craftworker_agreement_accepted_at?: string } = {
       tos_accepted_at: new Date().toISOString(),
       tos_version: CURRENT_TOS_VERSION,
     }

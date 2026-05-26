@@ -118,13 +118,12 @@ export class InquiryAgent extends BaseAgent {
       let { data, error } = await supabaseAdmin
         .from('povprasevanja')
         .insert({
-          created_by: userId,
           narocnik_id: userId,
           title: payload.title,
           description: payload.description,
-          location_city: locationCity,
+          location_city: locationCity ?? '',
           category_id: categoryId,
-          budget_cents: payload.budget ? Math.round(payload.budget * 100) : null,
+          budget_min: payload.budget ? payload.budget : null,
           status: 'odprto',
           created_at: new Date().toISOString(),
         })
@@ -136,10 +135,11 @@ export class InquiryAgent extends BaseAgent {
         const retry = await supabaseAdmin
           .from('povprasevanja')
           .insert({
-            created_by: userId,
+            narocnik_id: userId,
             title: payload.title,
             description: payload.description,
-            budget_cents: payload.budget ? Math.round(payload.budget * 100) : null,
+            location_city: locationCity ?? '',
+            budget_min: payload.budget ? payload.budget : null,
             status: 'odprto',
             created_at: new Date().toISOString(),
           })
@@ -167,7 +167,7 @@ export class InquiryAgent extends BaseAgent {
         to: 'notify' as AgentType,
         type: 'event' as const,
         action: 'inquiry_created',
-        payload: { inquiryId: data.id, userId, title: payload.title },
+        payload: { inquiryId: data?.id, userId, title: payload.title },
         correlationId,
         sessionId,
         userId,
@@ -182,11 +182,11 @@ export class InquiryAgent extends BaseAgent {
         // Don't fail the request, just log
       }
 
-      this.log('inquiry_created', { inquiryId: data.id, userId })
+      this.log('inquiry_created', { inquiryId: data?.id, userId })
 
       return {
         success: true,
-        data: { inquiryId: data.id },
+        data: { inquiryId: data?.id },
         handledBy: this.type,
         durationMs: Date.now() - startTime,
       }
@@ -241,7 +241,6 @@ export class InquiryAgent extends BaseAgent {
         name: normalized,
         slug,
         is_active: true,
-        is_auto_created: true,
         sort_order: 999,
       })
       .select('id')
@@ -257,7 +256,7 @@ export class InquiryAgent extends BaseAgent {
       const { data, error } = await supabaseAdmin
         .from('povprasevanja')
         .select('*')
-        .eq('created_by', userId)
+        .eq('narocnik_id', userId)
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -300,11 +299,11 @@ export class InquiryAgent extends BaseAgent {
       // Verify ownership
       const { data: inquiry } = await supabaseAdmin
         .from('povprasevanja')
-        .select('created_by, status')
+        .select('narocnik_id, status')
         .eq('id', payload.inquiryId)
         .single()
 
-      if (!inquiry || inquiry.created_by !== userId) {
+      if (!inquiry || inquiry.narocnik_id !== userId) {
         this.log('close_inquiry_forbidden', { inquiryId: payload.inquiryId, userId })
         return {
           success: false,

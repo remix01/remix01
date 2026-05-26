@@ -103,7 +103,7 @@ export async function loadSnapshot(userId: string): Promise<ProviderSnapshot> {
 
   const { data: provider, error: providerError } = await supabaseAdmin
     .from('obrtnik_profiles')
-    .select('id, business_name, description, is_verified, verification_status, stripe_account_id, stripe_onboarded')
+    .select('id, business_name, description, is_verified, verification_status, stripe_account_id, stripe_onboarding_complete')
     .eq('id', userId)
     .maybeSingle()
   if (providerError) throw providerError
@@ -117,7 +117,7 @@ export async function loadSnapshot(userId: string): Promise<ProviderSnapshot> {
     isVerified: provider?.is_verified ?? false,
     verificationStatus: (provider?.verification_status ?? null) as ProviderSnapshot['verificationStatus'],
     stripeAccountId: provider?.stripe_account_id ?? null,
-    stripeOnboarded: provider?.stripe_onboarded ?? false,
+    stripeOnboarded: provider?.stripe_onboarding_complete ?? false,
   }
 }
 

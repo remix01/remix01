@@ -103,10 +103,9 @@ export async function POST(req: Request) {
     const { data, error } = await supabaseAdmin
       .from("partners")
       .insert({
+        id: user_id,
         user_id,
-        podjetje: company_name,
-        email,
-        aktiven: true,
+        company_name,
       })
       .select()
       .single();

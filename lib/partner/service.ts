@@ -42,7 +42,7 @@ export const canonicalPartnerService = {
 
     const { data, error } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update(updates)
+      .update(updates as import('@/types/supabase').Database['public']['Tables']['obrtnik_profiles']['Update'])
       .eq('id', partnerId)
       .select()
       .single()
@@ -97,12 +97,12 @@ export const canonicalPartnerService = {
         .select('created_at, status')
         .eq('obrtnik_id', partnerId)
         .gte('created_at', since30d),
-      supabaseAdmin.from('ocene').select('ocena').eq('partner_id', partnerId),
+      supabaseAdmin.from('ocene').select('rating').eq('obrtnik_id', partnerId),
     ])
 
     const povprecnaOcena =
       ocene && ocene.length > 0
-        ? (ocene.reduce((sum: number, o: any) => sum + o.ocena, 0) / ocene.length).toFixed(1)
+        ? (ocene.reduce((sum: number, o: any) => sum + (o.rating ?? 0), 0) / ocene.length).toFixed(1)
         : null
 
     return {

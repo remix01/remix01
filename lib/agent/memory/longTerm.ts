@@ -62,7 +62,7 @@ export async function loadLongTermMemory(
     return {
       userId: data.user_id,
       preferences: (data.preferences as Record<string, unknown>) ?? {},
-      recentActivity: (data.recent_activity as ActivityEntry[]) ?? [],
+      recentActivity: (data.recent_activity as unknown as ActivityEntry[]) ?? [],
       summary: data.summary ?? null,
       updatedAt: data.updated_at,
     }
@@ -102,8 +102,8 @@ export async function appendActivity(
       .upsert(
         {
           user_id: userId,
-          preferences: currentPreferences,
-          recent_activity: updatedActivity,
+          preferences: currentPreferences as unknown as import('@/types/supabase').Json,
+          recent_activity: updatedActivity as unknown as import('@/types/supabase').Json,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
@@ -136,8 +136,8 @@ export async function mergePreferences(
       .upsert(
         {
           user_id: userId,
-          preferences: merged,
-          recent_activity: existing?.recentActivity ?? [],
+          preferences: merged as unknown as import('@/types/supabase').Json,
+          recent_activity: (existing?.recentActivity ?? []) as unknown as import('@/types/supabase').Json,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }

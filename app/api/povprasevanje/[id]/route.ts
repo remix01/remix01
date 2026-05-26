@@ -4,6 +4,9 @@ import { getDefaultFrom, getResendClient, resolveEmailRecipients } from '@/lib/r
 import { checkEmailRateLimit, escapeHtml, sanitizeText } from '@/lib/email/security'
 import { writeEmailLog } from '@/lib/email/email-logs'
 import { assertPovprasevanjeTransition } from '@/lib/state/povprasevanja-status'
+import type { Database } from '@/types/supabase'
+
+type PovprasevanjaUpdate = Database['public']['Tables']['povprasevanja']['Update']
 
 const resend = getResendClient()
 
@@ -59,9 +62,7 @@ export async function PATCH(
 
   const { id } = await params
   const body = await req.json()
-  const { status, obrtnik_id, admin_opomba,
-          termin_datum, termin_ura,
-          cena_ocena_min, cena_ocena_max } = body
+  const { status, obrtnik_id, admin_opomba, cena_ocena_min, cena_ocena_max } = body
 
   // Get current state for audit log
   const { data: current } = await supabaseAdmin
@@ -72,7 +73,7 @@ export async function PATCH(
 
   if (!current) return errorResponse('Not found', 404, 'NOT_FOUND')
 
-  const updates: Record<string, unknown> = {}
+  const updates: PovprasevanjaUpdate = {}
   if (status !== undefined) {
     try {
       assertPovprasevanjeTransition(current.status, status)
@@ -83,10 +84,8 @@ export async function PATCH(
   }
   if (obrtnik_id !== undefined) updates.obrtnik_id = obrtnik_id || null
   if (admin_opomba !== undefined) updates.admin_opomba = admin_opomba
-  if (termin_datum !== undefined) updates.termin_datum = termin_datum
-  if (termin_ura !== undefined) updates.termin_ura = termin_ura
-  if (cena_ocena_min !== undefined) updates.cena_ocena_min = cena_ocena_min
-  if (cena_ocena_max !== undefined) updates.cena_ocena_max = cena_ocena_max
+  if (cena_ocena_min !== undefined) updates.budget_min = cena_ocena_min
+  if (cena_ocena_max !== undefined) updates.budget_max = cena_ocena_max
 
   // Auto-set status when assigning obrtnik
   if (obrtnik_id && !status) {
@@ -112,23 +111,23 @@ export async function PATCH(
 
   // Notify obrtnik if newly assigned
   if (obrtnik_id && obrtnik_id !== current.obrtnik_id) {
-    const { data: obrtnik } = await supabaseAdmin
-      .from('obrtniki')
-      .select('email, ime')
+    const { data: obrtnikProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('email, full_name')
       .eq('id', obrtnik_id)
-      .single()
+      .maybeSingle()
 
-    if (obrtnik?.email && resend) {
+    if (obrtnikProfile?.email && resend) {
       const notificationRateLimit = await checkEmailRateLimit({
         request: req,
         action: 'admin_test',
-        email: obrtnik.email,
+        email: obrtnikProfile.email,
         userId: admin.id,
       })
 
       if (!notificationRateLimit.allowed) {
         await writeEmailLog({
-          email: obrtnik.email,
+          email: obrtnikProfile.email,
           type: 'partner_assignment_notification',
           status: 'rate_limited',
           userId: admin.id,
@@ -138,20 +137,20 @@ export async function PATCH(
       } else {
         try {
           await writeEmailLog({
-            email: obrtnik.email,
+            email: obrtnikProfile.email,
             type: 'partner_assignment_notification',
             status: 'pending',
             userId: admin.id,
             metadata: { endpoint: '/api/povprasevanje/[id]', inquiryId: id },
           })
 
-          const safeName = escapeHtml(sanitizeText(obrtnik.ime || '', 120))
-          const safeService = escapeHtml(sanitizeText(current.storitev || '', 120))
-          const safeLocation = escapeHtml(sanitizeText(current.lokacija || '', 120))
+          const safeName = escapeHtml(sanitizeText(obrtnikProfile.full_name || '', 120))
+          const safeService = escapeHtml(sanitizeText(current.title || '', 120))
+          const safeLocation = escapeHtml(sanitizeText(current.location_city || '', 120))
 
           const response = await resend.emails.send({
             from: getDefaultFrom(),
-            to: resolveEmailRecipients(obrtnik.email).to,
+            to: resolveEmailRecipients(obrtnikProfile.email).to,
             subject: 'LiftGO — Dodeljeno vam je novo povpraševanje',
             html: `
               <h2>Pozdravljeni ${safeName},</h2>
@@ -166,7 +165,7 @@ export async function PATCH(
 
           if (response.error) {
             await writeEmailLog({
-              email: obrtnik.email,
+              email: obrtnikProfile.email,
               type: 'partner_assignment_notification',
               status: 'failed',
               userId: admin.id,
@@ -175,22 +174,17 @@ export async function PATCH(
             })
           } else {
             await writeEmailLog({
-              email: obrtnik.email,
+              email: obrtnikProfile.email,
               type: 'partner_assignment_notification',
               status: 'sent',
               userId: admin.id,
               resendEmailId: response.data?.id,
               metadata: { endpoint: '/api/povprasevanje/[id]', inquiryId: id },
             })
-
-            await supabaseAdmin
-              .from('povprasevanja')
-              .update({ notifikacija_poslana: true, notifikacija_cas: new Date().toISOString() })
-              .eq('id', id)
           }
         } catch (emailError) {
           await writeEmailLog({
-            email: obrtnik.email,
+            email: obrtnikProfile.email,
             type: 'partner_assignment_notification',
             status: 'failed',
             userId: admin.id,

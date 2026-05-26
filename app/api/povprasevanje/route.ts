@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import type { Database } from '@/types/supabase'
+
+type PovprasevanjaInsert = Database['public']['Tables']['povprasevanja']['Insert']
 import { getOrCreateCategory } from '@/lib/dal/categories'
 import { getOrCreateLocation } from '@/lib/dal/locations'
 import { geocodeLocation } from '@/lib/google/geocoding'
@@ -227,28 +230,25 @@ async function postHandler(req: NextRequest) {
 
     // CRITICAL FIX: Always set narocnik_id from authenticated user
     // Never trust narocnik_id from request body
-    const insertData = {
+    const insertData: PovprasevanjaInsert = {
       narocnik_id: user.id,
-      title,
+      title: String(title),
       location_city: finalLocationCity,
-      description: description || null,
-      stranka_ime: stranka_ime || null,
-      stranka_email: stranka_email || null,
-      stranka_telefon: stranka_telefon || null,
-      obrtnik_id: obrtnik_id || null,
-      termin_datum: termin_datum || null,
-      termin_ura: termin_ura || null,
-      category_id: finalCategoryId || null,
-      urgency: urgency || 'normalno',
-      budget_min: budget_min || null,
-      budget_max: budget_max || null,
-      location_notes: location_notes || null,
-      preferred_date_from: preferred_date_from || null,
-      preferred_date_to: preferred_date_to || null,
-      attachment_urls: normalizedAttachmentUrls,
+      description: typeof description === 'string' ? description : null,
+      stranka_email: typeof stranka_email === 'string' ? stranka_email : null,
+      stranka_telefon: typeof stranka_telefon === 'string' ? stranka_telefon : null,
+      obrtnik_id: typeof obrtnik_id === 'string' ? obrtnik_id : null,
+      category_id: typeof finalCategoryId === 'string' ? finalCategoryId : null,
+      urgency: typeof urgency === 'string' ? urgency : 'normalno',
+      budget_min: typeof budget_min === 'number' ? budget_min : null,
+      budget_max: typeof budget_max === 'number' ? budget_max : null,
+      location_notes: typeof location_notes === 'string' ? location_notes : null,
+      preferred_date_from: typeof preferred_date_from === 'string' ? preferred_date_from : null,
+      preferred_date_to: typeof preferred_date_to === 'string' ? preferred_date_to : null,
+      attachments: normalizedAttachmentUrls,
       // CRITICAL FIX: Ensure status is 'odprto' so craftsmen can see it
       status: obrtnik_id ? 'dodeljeno' : 'odprto',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     }
 
     let { data, error } = await supabaseAdmin
@@ -257,24 +257,9 @@ async function postHandler(req: NextRequest) {
       .select()
       .single()
 
-    // Backward compatibility: some production DBs may not yet have `attachment_urls`.
-    // In that case retry insert without the column instead of failing with 500.
-    if (error && error.code === 'PGRST204' && error.message?.includes('attachment_urls')) {
-      console.warn('[v0] attachment_urls missing in schema, retrying insert without attachment_urls')
-      const { attachment_urls: _attachmentUrls, ...insertDataWithoutAttachments } = insertData
-      const retryResult = await supabaseAdmin
-        .from('povprasevanja')
-        .insert(insertDataWithoutAttachments)
-        .select()
-        .single()
-
-      data = retryResult.data
-      error = retryResult.error
-    }
-
-    if (error) {
+    if (error || !data) {
       console.error('[v0] Supabase insert error:', error)
-      return errorResponse(error.message, 500, 'DB_INSERT_FAILED')
+      return errorResponse(error?.message ?? 'Insert returned no data', 500, 'DB_INSERT_FAILED')
     }
 
     console.log('[v0] Povprasevanje created:', {
@@ -321,30 +306,37 @@ async function postHandler(req: NextRequest) {
 
       // Notify matched craftsmen by email and schedule reminders (24h/48h)
       if (finalCategoryId) {
-        const { data: matched } = await supabaseAdmin
+        const { data: matchedProfiles } = await supabaseAdmin
           .from('obrtnik_profiles')
-          .select('id, profile:profiles(email,ime,priimek)')
+          .select('id')
           .eq('category_id', finalCategoryId)
-          .eq('is_active', true)
+          .eq('is_verified', true)
 
-        const baseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
-        for (const m of matched || []) {
-          const email = (m as any)?.profile?.email
-          if (!email) continue
-          const payload = {
-            to: email,
-            template: 'marketplace_match_new_request',
-            povprasevanjeId: data.id,
-            customer_name: data.stranka_ime || 'Naročnik',
-            category: normalizedCategoryName || data.title,
-            location: data.location_city,
-            description: data.description || '',
-            budget: data.budget_max ? `€${data.budget_max}` : 'Po dogovoru',
-            link: `${baseUrl}/obrtnik/povprasevanja/${data.id}`,
+        if (matchedProfiles?.length) {
+          const profileIds = matchedProfiles.map((m) => m.id)
+          const { data: profileEmails } = await supabaseAdmin
+            .from('profiles')
+            .select('id, email, full_name')
+            .in('id', profileIds)
+
+          const baseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://liftgo.net'
+          for (const prof of (profileEmails ?? [])) {
+            if (!prof.email) continue
+            const payload = {
+              to: prof.email,
+              template: 'marketplace_match_new_request',
+              povprasevanjeId: data.id,
+              customer_name: 'Naročnik',
+              category: normalizedCategoryName || data.title,
+              location: data.location_city,
+              description: data.description || '',
+              budget: data.budget_max ? `€${data.budget_max}` : 'Po dogovoru',
+              link: `${baseUrl}/obrtnik/povprasevanja/${data.id}`,
+            }
+            enqueue('sendEmail', payload).catch(err => console.error('[EMAIL] match notify enqueue failed', err))
+            enqueue('sendEmail', { ...payload, customData: { reminder: '24h' } }, { delay: 24 * 60 * 60 }).catch(err => console.error('[EMAIL] 24h reminder enqueue failed', err))
+            enqueue('sendEmail', { ...payload, customData: { reminder: '48h' } }, { delay: 48 * 60 * 60 }).catch(err => console.error('[EMAIL] 48h reminder enqueue failed', err))
           }
-          enqueue('sendEmail', payload).catch(err => console.error('[EMAIL] match notify enqueue failed', err))
-          enqueue('sendEmail', { ...payload, customData: { reminder: '24h' } }, { delay: 24 * 60 * 60 }).catch(err => console.error('[EMAIL] 24h reminder enqueue failed', err))
-          enqueue('sendEmail', { ...payload, customData: { reminder: '48h' } }, { delay: 48 * 60 * 60 }).catch(err => console.error('[EMAIL] 48h reminder enqueue failed', err))
         }
       }
     } catch (notifyErr) {

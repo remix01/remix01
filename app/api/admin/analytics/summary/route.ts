@@ -24,7 +24,7 @@ async function countAnalyticsEvent(eventName: EventName, fromIso: string, toIso?
   let query = supabaseAdmin
     .from('analytics_events')
     .select('*', { count: 'exact', head: true })
-    .eq('event_name', eventName)
+    .eq('event', eventName)
     .gte('created_at', fromIso)
 
   if (toIso) {
@@ -177,22 +177,23 @@ export async function GET(request: NextRequest) {
 
     const activeUsersPromise = supabaseAdmin
       .from('analytics_events')
-      .select('user_id')
+      .select('partner_id')
       .gte('created_at', todayStart.toISOString())
       .lt('created_at', tomorrowStart.toISOString())
-      .not('user_id', 'is', null)
+      .not('partner_id', 'is', null)
 
     const trendPromise = supabaseAdmin
       .from('analytics_events')
-      .select('created_at, event_name')
+      .select('created_at, event')
       .gte('created_at', sevenDaysAgo.toISOString())
       .order('created_at', { ascending: true })
 
     const categoriesPromise = supabaseAdmin
       .from('analytics_events')
-      .select('properties')
-      .eq('event_name', 'inquiry_submitted')
+      .select('category_id')
+      .eq('event', 'inquiry_submitted')
       .gte('created_at', sevenDaysAgo.toISOString())
+      .not('category_id', 'is', null)
 
     const [activeUsersRes, trendRes, categoriesRes] = await Promise.all([
       activeUsersPromise,
@@ -200,7 +201,7 @@ export async function GET(request: NextRequest) {
       categoriesPromise,
     ])
 
-    const uniqueActiveUsers = new Set(activeUsersRes.data?.map((e) => e.user_id).filter(Boolean) || []).size
+    const uniqueActiveUsers = new Set(activeUsersRes.data?.map((e) => e.partner_id).filter(Boolean) || []).size
 
     const dailyStats: Record<string, { events: number; inquiries: number; conversions: number }> = {}
 
@@ -213,12 +214,13 @@ export async function GET(request: NextRequest) {
 
     if (useAnalyticsEvents && !trendRes.error && trendRes.data) {
       trendRes.data.forEach((event) => {
+        if (!event.created_at) return
         const key = event.created_at.split('T')[0]
         if (!dailyStats[key]) return
 
         dailyStats[key].events += 1
-        if (event.event_name === 'inquiry_submitted') dailyStats[key].inquiries += 1
-        if (event.event_name === 'payment_completed') dailyStats[key].conversions += 1
+        if (event.event === 'inquiry_submitted') dailyStats[key].inquiries += 1
+        if (event.event === 'payment_completed') dailyStats[key].conversions += 1
       })
     } else {
       // Build synthetic trend from core tables (fallback source)
@@ -254,7 +256,7 @@ export async function GET(request: NextRequest) {
 
     if (useAnalyticsEvents && !categoriesRes.error && categoriesRes.data && categoriesRes.data.length > 0) {
       categoriesRes.data.forEach((event) => {
-        const category = event.properties?.category
+        const category = event.category_id
         if (category) categoryCount[category] = (categoryCount[category] || 0) + 1
       })
     } else {

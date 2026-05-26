@@ -97,12 +97,10 @@ async function logRejectedTransition(
     if (resource === 'escrow') {
       await supabaseAdmin.from('escrow_audit_log').insert({
         transaction_id: resourceId,
-        event_type: 'transition_rejected',
-        actor: 'system',
-        actor_id: 'state-machine',
-        status_before: currentStatus,
-        status_after: targetStatus,
-        metadata: { reason },
+        action: 'transition_rejected',
+        performed_by: null,
+        old_state: { status: currentStatus } as import('@/types/supabase').Json,
+        new_state: { status: targetStatus, reason } as import('@/types/supabase').Json,
       })
     }
   } catch (err) {
