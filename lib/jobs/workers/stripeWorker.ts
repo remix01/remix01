@@ -57,7 +57,7 @@ export async function handleStripeJob(job: Job<StripeJobPayload> & { type?: stri
         const refund = await stripe.refunds.create({
           payment_intent: paymentIntentId,
           amount: amountCents,
-          reason: reason || 'requested_by_customer',
+          reason: (reason || 'requested_by_customer') as import('stripe').Stripe.RefundCreateParams.Reason,
           metadata,
         })
 

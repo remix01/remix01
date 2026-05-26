@@ -56,17 +56,15 @@ const PUSH_NOTIFICATION_TYPES: NotificationType[] = [
   'lead_escalation',
 ]
 
-function buildInsertRow(p: NotificationPayload): Record<string, unknown> {
+function buildInsertRow(p: NotificationPayload): import('@/types/supabase').Database['public']['Tables']['notifications']['Insert'] {
   return {
     user_id: p.userId,
     type: p.type,
     title: p.title,
     message: p.message,
     body: p.message,
-    link: p.link || null,
     action_url: p.link || null,
-    metadata: p.metadata || {},
-    data: p.metadata || {},
+    data: (p.metadata || null) as import('@/types/supabase').Json | null,
     read: false,
   }
 }

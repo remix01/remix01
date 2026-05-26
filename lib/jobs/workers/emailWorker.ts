@@ -131,7 +131,7 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
     if (!recipient && narocnikEmail) recipient = narocnikEmail
     if (!recipient && narocnikId) {
       const { data: profile } = await supabaseAdmin.from('profiles').select('email').eq('id', narocnikId).single()
-      recipient = profile?.email
+      recipient = profile?.email ?? undefined
     }
     if (!recipient) throw new Error('[EMAIL] Missing recipient for sendEmail job')
     if (!effectiveTemplate) throw new Error('[EMAIL] Missing template/jobType for sendEmail job')

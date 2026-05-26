@@ -270,28 +270,36 @@ export type Database = {
       }
       agent_alerts: {
         Row: {
+          count: number | null
           created_at: string
           details: string
           id: string
           resolved: boolean
+          resolved_at: string | null
+          session_id: string | null
           severity: string
           type: string
           user_id: string | null
         }
         Insert: {
+          count?: number | null
           created_at?: string
           details?: string
           id?: string
           resolved?: boolean
+          session_id?: string | null
           severity?: string
           type: string
           user_id?: string | null
         }
         Update: {
+          count?: number | null
           created_at?: string
           details?: string
           id?: string
           resolved?: boolean
+          resolved_at?: string | null
+          session_id?: string | null
           severity?: string
           type?: string
           user_id?: string | null
@@ -1312,7 +1320,9 @@ export type Database = {
       }
       commission_logs: {
         Row: {
+          captured_at: string | null
           commission_cents: number
+          commission_rate: number | null
           created_at: string | null
           escrow_id: string | null
           gross_amount_cents: number
@@ -1321,10 +1331,21 @@ export type Database = {
           partner_id: string
           partner_payout_cents: number
           status: string
+          failed_at: string | null
+          last_error: string | null
+          last_attempted_at: string | null
+          notes: string | null
+          refunded_at: string | null
+          stripe_account_id: string | null
+          stripe_transfer_id: string | null
+          transfer_attempts: number | null
+          transferred_at: string | null
           updated_at: string | null
         }
         Insert: {
+          captured_at?: string | null
           commission_cents?: number
+          commission_rate?: number | null
           created_at?: string | null
           escrow_id?: string | null
           gross_amount_cents?: number
@@ -1333,18 +1354,35 @@ export type Database = {
           partner_id: string
           partner_payout_cents?: number
           status?: string
+          notes?: string | null
+          refunded_at?: string | null
+          stripe_account_id?: string | null
+          stripe_transfer_id?: string | null
+          transfer_attempts?: number | null
+          transferred_at?: string | null
           updated_at?: string | null
         }
         Update: {
+          captured_at?: string | null
           commission_cents?: number
+          commission_rate?: number | null
           created_at?: string | null
           escrow_id?: string | null
           gross_amount_cents?: number
           id?: string
           inquiry_id?: string | null
+          notes?: string | null
           partner_id?: string
           partner_payout_cents?: number
+          refunded_at?: string | null
           status?: string
+          stripe_account_id?: string | null
+          failed_at?: string | null
+          last_error?: string | null
+          last_attempted_at?: string | null
+          stripe_transfer_id?: string | null
+          transfer_attempts?: number | null
+          transferred_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1818,6 +1856,30 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_state: {
+        Row: {
+          user_id: string
+          state: string
+          blocked_reasons: Json | null
+          updated_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          user_id: string
+          state: string
+          blocked_reasons?: Json | null
+          updated_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          user_id?: string
+          state?: string
+          blocked_reasons?: Json | null
+          updated_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       notification_logs: {
         Row: {
           id: string
@@ -1857,6 +1919,9 @@ export type Database = {
           user_id: string
           token: string
           platform: string | null
+          app_version: string | null
+          device_name: string | null
+          last_seen_at: string | null
           is_active: boolean
           created_at: string | null
           updated_at: string | null
@@ -1866,6 +1931,9 @@ export type Database = {
           user_id: string
           token: string
           platform?: string | null
+          app_version?: string | null
+          device_name?: string | null
+          last_seen_at?: string | null
           is_active?: boolean
           created_at?: string | null
           updated_at?: string | null
@@ -1875,6 +1943,9 @@ export type Database = {
           user_id?: string
           token?: string
           platform?: string | null
+          app_version?: string | null
+          device_name?: string | null
+          last_seen_at?: string | null
           is_active?: boolean
           created_at?: string | null
           updated_at?: string | null
@@ -1937,6 +2008,11 @@ export type Database = {
           stripe_payment_intent_id: string | null
           stripe_transfer_id: string | null
           stripe_refund_id: string | null
+          stripe_charge_id: string | null
+          stripe_capture_status: string | null
+          stripe_capture_completed_at: string | null
+          stripe_release_status: string | null
+          stripe_release_completed_at: string | null
           status: string
           paid_at: string | null
           released_at: string | null
@@ -1960,6 +2036,12 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
           stripe_refund_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_capture_status?: string | null
+          stripe_capture_completed_at?: string | null
+          stripe_release_status?: string | null
+          stripe_release_completed_at?: string | null
           status?: string
           paid_at?: string | null
           released_at?: string | null
@@ -1983,6 +2065,11 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
           stripe_refund_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_capture_status?: string | null
+          stripe_capture_completed_at?: string | null
+          stripe_release_status?: string | null
+          stripe_release_completed_at?: string | null
           status?: string
           paid_at?: string | null
           released_at?: string | null
@@ -3091,6 +3178,7 @@ export type Database = {
           stripe_details_submitted: boolean | null
           stripe_requirements_due: string[] | null
           visibility: string
+          webhook_url: string | null
           website_url: string | null
           working_since: string | null
           years_experience: number | null
@@ -3146,6 +3234,7 @@ export type Database = {
           stripe_details_submitted?: boolean | null
           stripe_requirements_due?: string[] | null
           visibility?: string
+          webhook_url?: string | null
           website_url?: string | null
           working_since?: string | null
           years_experience?: number | null
@@ -3201,6 +3290,7 @@ export type Database = {
           verification_status?: string
           verified_at?: string | null
           visibility?: string
+          webhook_url?: string | null
           website_url?: string | null
           working_since?: string | null
           years_experience?: number | null
@@ -4536,10 +4626,13 @@ export type Database = {
           category_id: string | null
           created_at: string | null
           description: string | null
+          guarantee_activated: boolean | null
+          guarantee_activated_at: string | null
           id: string
           location_city: string
           narocnik_id: string | null
           povprasevanje_id: string | null
+          started_at: string | null
           status: string
           title: string
           updated_at: string | null
@@ -4548,10 +4641,13 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          guarantee_activated?: boolean | null
+          guarantee_activated_at?: string | null
           id?: string
           location_city: string
           narocnik_id?: string | null
           povprasevanje_id?: string | null
+          started_at?: string | null
           status?: string
           title: string
           updated_at?: string | null
@@ -4560,10 +4656,13 @@ export type Database = {
           category_id?: string | null
           created_at?: string | null
           description?: string | null
+          guarantee_activated?: boolean | null
+          guarantee_activated_at?: string | null
           id?: string
           location_city?: string
           narocnik_id?: string | null
           povprasevanje_id?: string | null
+          started_at?: string | null
           status?: string
           title?: string
           updated_at?: string | null

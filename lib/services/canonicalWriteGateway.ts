@@ -33,7 +33,7 @@ export const canonicalWriteGateway = {
   async updateProviderProfile(id: string, payload: Record<string, any>, writeSource: WriteSource) {
     const { data, error } = await supabaseAdmin
       .from('obrtnik_profiles')
-      .update(payload)
+      .update(payload as import('@/types/supabase').Database['public']['Tables']['obrtnik_profiles']['Update'])
       .eq('id', id)
       .select('*')
       .single()
@@ -43,7 +43,7 @@ export const canonicalWriteGateway = {
   },
 
   async createOrUpdatePovprasevanje(id: string, payload: Record<string, any>, writeSource: WriteSource) {
-    const { data, error } = await supabaseAdmin.from('povprasevanja').update(payload).eq('id', id).select('*').single()
+    const { data, error } = await supabaseAdmin.from('povprasevanja').update(payload as import('@/types/supabase').Database['public']['Tables']['povprasevanja']['Update']).eq('id', id).select('*').single()
     if (error) throw error
     logCanonical('povprasevanje', id, writeSource, 'update')
     return data

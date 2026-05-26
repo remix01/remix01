@@ -73,21 +73,28 @@ export async function handleNotifyPartners(job: Job): Promise<void> {
     // Fetch matched partners
     if (matchIds && matchIds.length > 0) {
       const { data: partners } = await supabaseAdmin
-        .from('obrtniki')
-        .select('*')
+        .from('obrtnik_profiles')
+        .select('id')
         .in('id', matchIds)
 
-      // Enqueue email notifications for each partner
+      // Fetch emails from profiles and enqueue notifications (obrtnik_profiles.id = profiles.id)
       for (const partner of partners || []) {
-        await enqueue('sendEmail', {
-          to: partner.email,
-          template: 'new_match',
-          data: {
-            partnerName: partner.ime,
-            taskTitle: task.title,
-            taskId,
-          },
-        })
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', partner.id)
+          .maybeSingle()
+        if (profile?.email) {
+          await enqueue('sendEmail', {
+            to: profile.email,
+            template: 'new_match',
+            data: {
+              partnerName: profile.full_name ?? '',
+              taskTitle: task.title,
+              taskId,
+            },
+          })
+        }
       }
     }
 
@@ -125,12 +132,17 @@ export async function handleCreateEscrow(job: Job): Promise<void> {
       throw new Error(`Offer ${offerId} or Task ${taskId} not found`)
     }
 
+    // Look up customer email from profiles
+    const { data: customerProfile } = task.narocnik_id
+      ? await supabaseAdmin.from('profiles').select('email').eq('id', task.narocnik_id).maybeSingle()
+      : { data: null }
+
     // Enqueue Stripe capture to hold funds
     await enqueue('stripeCapture', {
       taskId,
       offerId,
       amount: amount || offer.price_estimate,
-      customerEmail: task.customer_email,
+      customerEmail: customerProfile?.email ?? '',
     })
 
     console.log(`[TaskProcessor] Escrow job enqueued for task ${taskId}`)
@@ -189,7 +201,7 @@ export async function handleReleaseEscrow(job: Job): Promise<void> {
     const { data: obrtnikProfile } = await supabaseAdmin
       .from('obrtnik_profiles')
       .select('stripe_account_id')
-      .eq('user_id', partnerId)
+      .eq('id', partnerId)
       .single()
 
     if (!obrtnikProfile?.stripe_account_id) {
@@ -374,9 +386,14 @@ export async function handleRequestReview(job: Job): Promise<void> {
       throw new Error(`Task ${taskId} not found`)
     }
 
+    // Look up customer email
+    const { data: customerProfile } = task.narocnik_id
+      ? await supabaseAdmin.from('profiles').select('email').eq('id', task.narocnik_id).maybeSingle()
+      : { data: null }
+
     // Enqueue review request email
     await enqueue('sendEmail', {
-      to: task.customer_email,
+      to: customerProfile?.email ?? '',
       template: 'request_review',
       data: {
         taskId,

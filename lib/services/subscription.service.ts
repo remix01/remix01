@@ -76,13 +76,14 @@ export const subscriptionService = {
       return
     }
 
+    const profileUpdate: import('@/types/supabase').Database['public']['Tables']['profiles']['Update'] = {
+      stripe_customer_id: customerId,
+      subscription_tier: tier,
+      stripe_subscription_id: stripeSubscriptionId ?? null,
+    }
     const { error } = await supabaseAdmin
       .from('profiles')
-      .update({
-        stripe_customer_id: customerId,
-        subscription_tier: tier,
-        ...(stripeSubscriptionId && { stripe_subscription_id: stripeSubscriptionId }),
-      })
+      .update(profileUpdate)
       .eq('id', profileId)
 
     if (error) {

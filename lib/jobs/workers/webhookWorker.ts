@@ -44,7 +44,7 @@ export async function handleWebhook(job: Job<WebhookJobPayload>): Promise<void> 
       transactionId,
       statusBefore,
       statusAfter,
-      amountCents: escrow.amount_cents,
+      amountCents: escrow.amount_total_cents,
       customerEmail: escrow.customer_email,
       metadata,
     },
