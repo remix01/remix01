@@ -2208,25 +2208,31 @@ export type Database = {
           consumer: string
           entity_id: string
           event_name: string
+          failed_at: string | null
           id: string
           idempotency_key: string
           processed_at: string | null
+          status: string | null
         }
         Insert: {
           consumer: string
           entity_id: string
           event_name: string
+          failed_at?: string | null
           id?: string
           idempotency_key: string
           processed_at?: string | null
+          status?: string | null
         }
         Update: {
           consumer?: string
           entity_id?: string
           event_name?: string
+          failed_at?: string | null
           id?: string
           idempotency_key?: string
           processed_at?: string | null
+          status?: string | null
         }
         Relationships: []
       }
