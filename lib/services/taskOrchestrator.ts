@@ -196,7 +196,7 @@ export const taskOrchestrator = {
       .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
-        ...(metadata && { metadata }),
+        metadata: (metadata ?? null) as import('@/types/supabase').Json | null,
       })
       .eq('id', taskId)
       .eq('status', currentStatus)

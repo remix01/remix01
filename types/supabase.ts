@@ -4633,6 +4633,7 @@ export type Database = {
           guarantee_activated_at: string | null
           id: string
           location_city: string
+          metadata: Json | null
           narocnik_id: string | null
           povprasevanje_id: string | null
           started_at: string | null
@@ -4648,6 +4649,7 @@ export type Database = {
           guarantee_activated_at?: string | null
           id?: string
           location_city: string
+          metadata?: Json | null
           narocnik_id?: string | null
           povprasevanje_id?: string | null
           started_at?: string | null
@@ -4663,6 +4665,7 @@ export type Database = {
           guarantee_activated_at?: string | null
           id?: string
           location_city?: string
+          metadata?: Json | null
           narocnik_id?: string | null
           povprasevanje_id?: string | null
           started_at?: string | null
