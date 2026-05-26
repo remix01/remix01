@@ -51,7 +51,7 @@ export async function logAction(
     akcija,
     tabela,
     zapis_id: zapisId,
-    staro_stanje: staroStanje,
-    novo_stanje: novoStanje,
+    staro_stanje: (staroStanje ?? null) as import('@/types/supabase').Json | null,
+    novo_stanje: (novoStanje ?? null) as import('@/types/supabase').Json | null,
   })
 }
