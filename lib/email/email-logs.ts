@@ -53,7 +53,7 @@ export async function writeEmailLog(params: {
       user_id: userId ?? null,
       resend_email_id: isValidUUID(resendEmailId) ? resendEmailId : null,
       error_message: errorMessage ?? null,
-      metadata: metadata ?? null,
+      metadata: (metadata ?? null) as import('@/types/supabase').Json | null,
     })
   } catch (error) {
     console.warn('[email-logs] Failed to write email_logs row (table missing or unavailable)', {

@@ -20,11 +20,10 @@ export async function handleAuditLog(job: Job) {
       .from('escrow_audit_log')
       .insert({
         transaction_id: escrowId,
-        event_type: event,
-        actor: userId ? 'user' : 'system',
-        actor_id: userId ?? 'system',
-        metadata: metadata ?? {},
-        created_at: new Date().toISOString(),
+        action: event,
+        performed_by: userId ?? null,
+        new_state: { actor: userId ?? 'system', ...(metadata ?? {}) } as import('@/types/supabase').Json,
+        performed_at: new Date().toISOString(),
       })
 
     if (error) {

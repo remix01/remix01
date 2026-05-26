@@ -60,13 +60,13 @@ export async function handleEmailJob(job: Job<EmailJobPayload> & { type?: string
       if (narocnikId && !emailAddress) {
         const { data: profile } = await supabaseAdmin
           .from('profiles')
-          .select('email, ime')
+          .select('email, full_name')
           .eq('id', narocnikId)
           .single()
 
         if (profile?.email) {
           emailAddress = profile.email
-          fullName = profile.ime || fullName
+          fullName = profile.full_name || fullName
         }
       }
 

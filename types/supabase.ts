@@ -152,6 +152,39 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          id: string
+          event_type: string
+          actor: string
+          job_id: string | null
+          payment_id: string | null
+          stripe_event_id: string | null
+          metadata: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_type: string
+          actor: string
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_type?: string
+          actor?: string
+          job_id?: string | null
+          payment_id?: string | null
+          stripe_event_id?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           id: string
@@ -1281,6 +1314,7 @@ export type Database = {
         Row: {
           commission_cents: number
           created_at: string | null
+          escrow_id: string | null
           gross_amount_cents: number
           id: string
           inquiry_id: string | null
@@ -1292,6 +1326,7 @@ export type Database = {
         Insert: {
           commission_cents?: number
           created_at?: string | null
+          escrow_id?: string | null
           gross_amount_cents?: number
           id?: string
           inquiry_id?: string | null
@@ -1303,6 +1338,7 @@ export type Database = {
         Update: {
           commission_cents?: number
           created_at?: string | null
+          escrow_id?: string | null
           gross_amount_cents?: number
           id?: string
           inquiry_id?: string | null
@@ -1752,6 +1788,33 @@ export type Database = {
           reason?: string | null
           status?: string
           created_at?: string | null
+        }
+        Relationships: []
+      }
+      idempotency_keys: {
+        Row: {
+          key: string
+          status: string
+          response_status: number | null
+          response_body: Json | null
+          created_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          key: string
+          status?: string
+          response_status?: number | null
+          response_body?: Json | null
+          created_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          key?: string
+          status?: string
+          response_status?: number | null
+          response_body?: Json | null
+          created_at?: string | null
+          completed_at?: string | null
         }
         Relationships: []
       }

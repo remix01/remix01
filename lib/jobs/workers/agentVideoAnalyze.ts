@@ -81,7 +81,7 @@ Vrni strukturiran JSON odgovor z naslednjimi polji:
 
     await supabaseAdmin.from('agent_jobs').update({
       status: 'completed',
-      result_payload: result,
+      result_payload: result as import('@/types/supabase').Json,
       tokens_input: inputTokens,
       tokens_output: outputTokens,
       cost_usd: costUsd,

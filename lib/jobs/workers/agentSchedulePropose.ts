@@ -64,7 +64,7 @@ export async function handleAgentSchedulePropose(job: Job<AgentScheduleProposePa
     const costUsd = estimateCost(MODEL, inputTokens, outputTokens)
 
     await supabaseAdmin.from('agent_jobs').update({
-      status: 'completed', result_payload: result,
+      status: 'completed', result_payload: result as import('@/types/supabase').Json,
       tokens_input: inputTokens, tokens_output: outputTokens,
       cost_usd: costUsd, model_used: MODEL, completed_at: new Date().toISOString(),
     }).eq('id', job_id)
