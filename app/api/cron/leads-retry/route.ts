@@ -45,7 +45,21 @@ export async function GET(req: NextRequest) {
     .limit(20)
 
   if (error) {
-    console.error('[leads-retry] Query error:', error.message)
+    const isSchemaError =
+      error.code === 'PGRST200' ||
+      error.message?.includes('relation') ||
+      error.message?.includes('schema cache')
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'leads_retry_query_error',
+      code: error.code,
+      message: error.message,
+    }))
+    // Return 200 so Vercel cron does not log repeated 500 alerts while
+    // the table is missing or the schema cache has not refreshed yet.
+    if (isSchemaError) {
+      return NextResponse.json({ ok: false, error: 'schema_unavailable', message: error.message }, { status: 200 })
+    }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

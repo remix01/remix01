@@ -208,6 +208,13 @@ const nextConfig: NextConfig = {
         destination: '/icons/icon-512x512.png',
         permanent: false,
       },
+      // /post-job/:city was a legacy public entry point for the lead form.
+      // Redirect to the canonical lead form with the city pre-filled.
+      {
+        source: '/post-job/:city',
+        destination: '/novo-povprasevanje?city=:city',
+        permanent: true,
+      },
     ]
   },
 
