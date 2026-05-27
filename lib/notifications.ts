@@ -26,6 +26,7 @@ export type NotificationType =
   | 'OFFER_ACCEPTED'
   | 'NEW_REVIEW_RECEIVED'
   | 'SUBSCRIPTION_EXPIRING_7D'
+  | 'profil_verificiran'
 
 export interface NotificationPayload {
   userId: string | null
@@ -54,6 +55,7 @@ const PUSH_NOTIFICATION_TYPES: NotificationType[] = [
   'nova_ocena',
   'termin_opomnik',
   'lead_escalation',
+  'profil_verificiran',
 ]
 
 function buildInsertRow(p: NotificationPayload): import('@/types/supabase').Database['public']['Tables']['notifications']['Insert'] {
