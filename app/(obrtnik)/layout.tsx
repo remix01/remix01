@@ -6,6 +6,7 @@ import { ObrtknikBottomNav } from '@/components/obrtnik/bottom-nav'
 import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
 import { AvailabilityToggle } from '@/components/obrtnik/availability-toggle'
 import { assertCanAccessProviderDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
+import { PushPermission } from '@/components/liftgo/PushPermission'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -70,6 +71,9 @@ export default async function ObrtknikLayout({
       <div className="fixed bottom-0 left-0 right-0 md:hidden border-t bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <ObrtknikBottomNav />
       </div>
+
+      {/* Push permission banner — shown after 30 s if not yet asked */}
+      <PushPermission userId={user.id} />
     </div>
   )
 }

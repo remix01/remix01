@@ -81,9 +81,10 @@ export async function POST(
     console.error('[admin-provider-approve] onboarding transition failed:', error)
   }
 
-  // Only notify if transitioning from a non-verified state (idempotency guard)
+  // Only notify if transitioning from a non-verified state (idempotency guard).
+  // Awaited so the in-app DB row is committed before the serverless function returns.
   if (current.verification_status !== 'verified') {
-    sendNotification({
+    await sendNotification({
       userId: id,
       type: 'profil_verificiran',
       title: 'Vaš profil je bil verificiran',

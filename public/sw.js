@@ -164,7 +164,7 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-72x72.png',
-      data: { url: data.url || '/' },
+      data: { url: data.data?.link || data.url || '/' },
       vibrate: [100, 50, 100],
       tag: data.tag || 'liftgo-notification',
       renotify: true
