@@ -104,7 +104,7 @@ async function subscribeToPush() {
     await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription),
+      body: JSON.stringify({ subscription }),
     })
 
     console.log('[Push] Naročnina uspešna')

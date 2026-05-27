@@ -6,6 +6,7 @@ import type { Stranka, Partner, AdminStats, ChartData } from '@/types/admin'
 import { requireAdmin } from '@/lib/admin-auth'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+import { sendNotification } from '@/lib/notifications'
 import { assertPovprasevanjeTransition } from '@/lib/state/povprasevanja-status'
 
 async function ensureAdminAccess() {
@@ -247,6 +248,16 @@ export async function odobriPartnerja(id: string): Promise<{ success: boolean; e
       transitionOnboardingState(id).catch((e) =>
         console.error('[odobriPartnerja] onboarding transition failed:', e)
       ),
+      // Only notify if transitioning from a non-verified state (idempotency guard)
+      current.verification_status !== 'verified' &&
+        sendNotification({
+          userId: id,
+          type: 'profil_verificiran',
+          title: 'Vaš profil je bil verificiran',
+          message: 'Čestitamo! Administrator je odobril vaš profil. Zdaj ste vidni naročnikom.',
+          link: '/obrtnik/dashboard',
+          metadata: { verified_by: admin.userId },
+        }).catch((e) => console.error('[odobriPartnerja] notification failed:', e)),
     ])
 
     revalidatePath('/admin/partnerji')

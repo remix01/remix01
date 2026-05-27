@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin, verifyAdmin, logAction } from '@/lib/supabase-admin'
 import { transitionOnboardingState } from '@/lib/onboarding/state-machine'
+import { sendNotification } from '@/lib/notifications'
 
 async function writeTransitionLog(input: {
   providerId: string
@@ -78,6 +79,19 @@ export async function POST(
     await transitionOnboardingState(id)
   } catch (error) {
     console.error('[admin-provider-approve] onboarding transition failed:', error)
+  }
+
+  // Only notify if transitioning from a non-verified state (idempotency guard).
+  // Awaited so the in-app DB row is committed before the serverless function returns.
+  if (current.verification_status !== 'verified') {
+    await sendNotification({
+      userId: id,
+      type: 'profil_verificiran',
+      title: 'Vaš profil je bil verificiran',
+      message: 'Čestitamo! Administrator je odobril vaš profil. Zdaj ste vidni naročnikom.',
+      link: '/obrtnik/dashboard',
+      metadata: { verified_by: admin.id },
+    }).catch((e) => console.error('[admin-provider-approve] notification failed:', e))
   }
 
   return NextResponse.json({ success: true, provider: updated })
