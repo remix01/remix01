@@ -58,36 +58,58 @@ export default function NovoPoVprasevanjePage() {
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
 
-  // Fetch user and categories on mount
+  // Fetch user and categories on mount.
+  // The form is intentionally public — unauthenticated visitors may fill all
+  // steps and are only asked to log in when they hit "Oddaj" (submit).
   useEffect(() => {
     const fetchData = async () => {
-      // Get user
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser()
-      if (!currentUser) {
-        router.push('/prijava')
-        return
+      // No redirect here — auth is checked at submit time.
+      setUser(currentUser ?? null)
+
+      if (currentUser) {
+        // Pre-fill city from the authenticated user's profile.
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('location_city')
+          .eq('id', currentUser.id)
+          .single()
+        const profile = profileData as { location_city: string | null } | null
+        if (profile?.location_city) {
+          setLocationCity(profile.location_city)
+        }
+
+        // Restore draft saved before the login redirect so the user lands
+        // back on step 4 with their data intact.
+        try {
+          const raw = sessionStorage.getItem('novo-povprasevanje-draft')
+          if (raw) {
+            const draft = JSON.parse(raw)
+            sessionStorage.removeItem('novo-povprasevanje-draft')
+            if (draft.selectedCategory) setSelectedCategory(draft.selectedCategory)
+            if (draft.customCategoryName) setCustomCategoryName(draft.customCategoryName)
+            if (draft.title) setTitle(draft.title)
+            if (draft.description) setDescription(draft.description)
+            if (draft.urgency) setUrgency(draft.urgency)
+            if (draft.locationCity) setLocationCity(draft.locationCity)
+            if (draft.locationNotes) setLocationNotes(draft.locationNotes)
+            if (draft.preferredDateFrom) setPreferredDateFrom(draft.preferredDateFrom)
+            if (draft.preferredDateTo) setPreferredDateTo(draft.preferredDateTo)
+            setBudgetUndetermined(draft.budgetUndetermined ?? true)
+            if (draft.budgetMin !== undefined) setBudgetMin(draft.budgetMin)
+            if (draft.budgetMax !== undefined) setBudgetMax(draft.budgetMax)
+            setStep(4)
+          }
+        } catch {}
       }
-      setUser(currentUser)
 
-      // Fetch user profile to get location
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('location_city')
-        .eq('id', currentUser.id)
-        .single()
-      const profile = profileData as { location_city: string | null } | null
-
-      if (profile?.location_city) {
-        setLocationCity(profile.location_city)
-      }
-
-      // Fetch categories (using public client since this is public data)
+      // Fetch categories (public data — no auth needed)
       const cats = await getActiveCategoriesPublic()
       setCategories(cats)
 
-      // Pre-select category from hero search
+      // Pre-select category from hero search (?kategorija=)
       const kategorijaParam = searchParams.get('kategorija')
       if (kategorijaParam) {
         const match = cats.find(
@@ -95,6 +117,12 @@ export default function NovoPoVprasevanjePage() {
                  c.slug.toLowerCase() === kategorijaParam.toLowerCase()
         )
         if (match) setSelectedCategory(match)
+      }
+
+      // Pre-fill city from /post-job/:city redirect (?city=)
+      const cityParam = searchParams.get('city')
+      if (cityParam) {
+        setLocationCity((prev) => prev || cityParam)
       }
     }
 
@@ -163,7 +191,18 @@ export default function NovoPoVprasevanjePage() {
 
   // Handle submit
   const handleSubmit = async () => {
-    if (!user) return
+    if (!user) {
+      // Persist form state so it can be restored after login.
+      try {
+        sessionStorage.setItem('novo-povprasevanje-draft', JSON.stringify({
+          selectedCategory, customCategoryName, title, description, urgency,
+          locationCity, locationNotes, preferredDateFrom, preferredDateTo,
+          budgetUndetermined, budgetMin, budgetMax,
+        }))
+      } catch {}
+      router.push('/prijava?redirect=/novo-povprasevanje')
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -706,8 +745,10 @@ export default function NovoPoVprasevanjePage() {
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Oddaja...
                   </>
-                ) : (
+                ) : user ? (
                   'Oddaj povpraševanje ✓'
+                ) : (
+                  'Prijava in oddaja →'
                 )}
               </Button>
             </div>
