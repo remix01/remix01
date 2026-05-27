@@ -103,10 +103,13 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   // ── NAROČNIK zaščita (/dashboard, /povprasevanja, ...) ──
+  // /novo-povprasevanje is intentionally excluded: the lead form must be
+  // publicly accessible so visitors from SEO landing pages and /post-job/:city
+  // redirects can start a request before being asked to authenticate.
+  // Auth is enforced at API submission time (/api/tasks POST).
   const narocnikPaths = [
     '/dashboard',
     '/povprasevanja',
-    '/novo-povprasevanje',
     '/profil',
     '/obvestila',
     '/ocena',
