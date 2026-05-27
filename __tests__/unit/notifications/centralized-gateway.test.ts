@@ -1,4 +1,5 @@
 const insertMock = jest.fn().mockReturnValue({ error: null })
+const sendWebPushMock = jest.fn().mockResolvedValue({ sent: 1, failed: 0 })
 
 jest.mock('@/lib/supabase-admin', () => ({
   supabaseAdmin: {
@@ -9,8 +10,8 @@ jest.mock('@/lib/supabase-admin', () => ({
   },
 }))
 
-jest.mock('@/lib/push-notifications', () => ({
-  sendPushToUser: jest.fn().mockResolvedValue(undefined),
+jest.mock('@/lib/push/web-subscription-service', () => ({
+  sendWebPushToUser: (...args: any[]) => sendWebPushMock(...args),
 }))
 
 import { sendNotification, sendNotificationBatch, type NotificationType } from '@/lib/notifications'
@@ -134,5 +135,71 @@ describe('centralized notification gateway', () => {
     await sendNotification(params)
     await sendNotification(params)
     expect(insertMock).toHaveBeenCalledTimes(2)
+  })
+
+  // --- push delivery ---
+
+  it('calls sendWebPushToUser for push-whitelisted type after DB insert', async () => {
+    await sendNotification({
+      userId: 'u-push',
+      type: 'nova_ponudba',
+      title: 'Nova',
+      message: 'Dobili ste ponudbo',
+      link: '/narocnik/povprasevanja/1',
+    })
+
+    // DB insert must always succeed first
+    expect(insertMock).toHaveBeenCalledTimes(1)
+
+    // Allow the fire-and-forget promise to settle
+    await Promise.resolve()
+
+    expect(sendWebPushMock).toHaveBeenCalledTimes(1)
+    expect(sendWebPushMock).toHaveBeenCalledWith({
+      userId: 'u-push',
+      title: 'Nova',
+      body: 'Dobili ste ponudbo',
+      data: { url: '/narocnik/povprasevanja/1' },
+    })
+  })
+
+  it('does NOT call sendWebPushToUser for non-whitelisted type', async () => {
+    await sendNotification({
+      userId: 'u1',
+      type: 'povprasevanje_oddano',
+      title: 'T',
+      message: 'M',
+    })
+
+    await Promise.resolve()
+    expect(sendWebPushMock).not.toHaveBeenCalled()
+  })
+
+  it('push failure does not prevent DB insert from succeeding', async () => {
+    sendWebPushMock.mockRejectedValueOnce(new Error('vapid key missing'))
+
+    const result = await sendNotification({
+      userId: 'u1',
+      type: 'nova_ponudba',
+      title: 'T',
+      message: 'M',
+    })
+
+    expect(result.success).toBe(true)
+    expect(insertMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends sendWebPushToUser with data.url undefined when no link provided', async () => {
+    await sendNotification({
+      userId: 'u1',
+      type: 'profil_verificiran',
+      title: 'Verified',
+      message: 'Your profile is verified',
+    })
+
+    await Promise.resolve()
+    expect(sendWebPushMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: undefined }),
+    )
   })
 })
