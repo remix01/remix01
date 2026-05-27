@@ -33,8 +33,8 @@ DROP POLICY IF EXISTS "Admins can read all inquiries" ON inquiries;
 
 CREATE POLICY "inquiries_select_combined" ON inquiries
 FOR SELECT USING (
-  -- User vidi svoje inquiries
-  (SELECT auth.uid()) = user_id
+  -- User vidi svoje inquiries (identified by email, no user_id column)
+  (SELECT auth.email()) = email
   OR
   -- Admin vidi vse
   (SELECT EXISTS (
