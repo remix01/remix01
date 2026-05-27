@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { sendPushToUser } from '@/lib/push-notifications'
+import { sendWebPushToUser } from '@/lib/push/web-subscription-service'
 
 export type NotificationType =
   | 'nova_ponudba'
@@ -58,16 +58,25 @@ const PUSH_NOTIFICATION_TYPES: NotificationType[] = [
   'profil_verificiran',
 ]
 
-function buildInsertRow(p: NotificationPayload): import('@/types/supabase').Database['public']['Tables']['notifications']['Insert'] {
+// Returns both new canonical columns and legacy aliases so old rows and new rows
+// are queryable regardless of which migration version the DB is on.
+// Return type is `any` because we intentionally write legacy compat columns
+// (link, metadata) that are not in the generated Supabase Insert type.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildInsertRow(p: NotificationPayload): any {
   return {
     user_id: p.userId,
     type: p.type,
     title: p.title,
-    message: p.message,
+    // canonical new columns
     body: p.message,
-    action_url: p.link || null,
-    data: (p.metadata || null) as import('@/types/supabase').Json | null,
+    action_url: p.link ?? null,
+    data: p.metadata ?? null,
     read: false,
+    // legacy column aliases preserved for backward compat
+    message: p.message,
+    link: p.link ?? null,
+    metadata: p.metadata ?? null,
   }
 }
 
@@ -88,12 +97,12 @@ export async function sendNotification(
     }
 
     if (params.userId && PUSH_NOTIFICATION_TYPES.includes(params.type)) {
-      sendPushToUser({
+      sendWebPushToUser({
         userId: params.userId,
         title: params.title,
-        message: params.message,
-        link: params.link,
-      }).catch((e) => console.error('[notifications] push error:', e))
+        body: params.message,
+        data: params.link ? { url: params.link } : undefined,
+      }).catch((e) => console.error('[notifications] web push error:', e))
     }
 
     return { success: true }
@@ -122,12 +131,12 @@ export async function sendNotificationBatch(
 
     for (const p of items) {
       if (p.userId && PUSH_NOTIFICATION_TYPES.includes(p.type)) {
-        sendPushToUser({
+        sendWebPushToUser({
           userId: p.userId,
           title: p.title,
-          message: p.message,
-          link: p.link,
-        }).catch((e) => console.error('[notifications] push error:', e))
+          body: p.message,
+          data: p.link ? { url: p.link } : undefined,
+        }).catch((e) => console.error('[notifications] web push error:', e))
       }
     }
 
@@ -246,8 +255,8 @@ export async function getRecentNotifications(
       type: n.type,
       title: n.title || '',
       message: n.message || n.body || '',
-      link: n.action_url || undefined,
-      read: !!n.read,
+      link: n.action_url || n.link || undefined,
+      read: !!(n.read ?? n.is_read),
       metadata: (n.data as Record<string, unknown>) || {},
       created_at: n.created_at || new Date().toISOString(),
     })) as Notification[]
@@ -294,8 +303,8 @@ export async function getAllNotifications(
       type: n.type,
       title: n.title || '',
       message: n.message || n.body || '',
-      link: n.action_url || undefined,
-      read: !!n.read,
+      link: n.action_url || n.link || undefined,
+      read: !!(n.read ?? n.is_read),
       metadata: (n.data as Record<string, unknown>) || {},
       created_at: n.created_at || new Date().toISOString(),
     })) as Notification[], total: count || 0 }
