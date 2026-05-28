@@ -68,7 +68,7 @@ export async function sendPushToUser(params: SendPushToUserParams): Promise<{ se
       userId: params.userId,
       title: params.title,
       body: params.message,
-      data: params.link ? { url: params.link } : undefined,
+      data: params.link ? { link: params.link } : undefined,
     })
   } catch (error) {
     console.error('[v0] Error sending push notification:', error)

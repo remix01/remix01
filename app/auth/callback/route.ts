@@ -127,13 +127,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Determine destination
+    // Determine destination — priority: admin > obrtnik > narocnik > registration
     const { data: adminUser } = await adminClient
       .from('admin_users')
       .select('id')
       .eq('auth_user_id', user.id)
       .eq('aktiven', true)
       .maybeSingle()
+
+    logAuth('admin_check', { userId: user.id, found: adminUser ? 'yes' : 'no' })
 
     let destination = DEFAULT_REDIRECT
 
@@ -148,16 +150,45 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle()
 
+      logAuth('profile_check_final', {
+        userId: user.id,
+        found: profile ? 'yes' : 'no',
+        role: profile?.role ?? null,
+      })
+
       if (!profile) {
-        // Profile still absent (creation failed earlier) — send to registration
         logAuth('profile_still_missing', { userId: user.id })
         destination = '/registracija'
       } else if (profile.role === 'obrtnik') {
         destination = '/partner-dashboard'
+        logAuth('role_obrtnik_from_profile', { userId: user.id })
+      } else if (!profile.role) {
+        // Legacy users may have no role set but a valid obrtnik_profiles row.
+        // Check obrtnik_profiles as fallback before defaulting to customer dashboard.
+        const { data: obrtnikRow } = await adminClient
+          .from('obrtnik_profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        logAuth('obrtnik_fallback_check', { userId: user.id, found: obrtnikRow ? 'yes' : 'no' })
+
+        if (obrtnikRow) {
+          // Backfill the missing role so future logins/proxy checks don't repeat this
+          await adminClient
+            .from('profiles')
+            .update({ role: 'obrtnik' })
+            .eq('id', user.id)
+          destination = '/partner-dashboard'
+          logAuth('role_obrtnik_from_fallback', { userId: user.id })
+        } else {
+          destination = '/dashboard'
+          logAuth('role_narocnik_default', { userId: user.id })
+        }
       } else {
-        // 'narocnik', null (legacy users without explicit role), or any unknown value
-        // all route to the customer dashboard
+        // 'narocnik' or any other explicit value → customer dashboard
         destination = '/dashboard'
+        logAuth('role_narocnik', { userId: user.id, role: profile.role })
       }
 
       logAuth('role_resolved', { userId: user.id, role: profile?.role ?? null, destination })

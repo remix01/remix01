@@ -103,7 +103,7 @@ export async function sendNotification(
         userId: params.userId,
         title: params.title,
         body: params.message,
-        data: params.link ? { url: params.link } : undefined,
+        data: params.link ? { link: params.link } : undefined,
       }).catch((e) => console.error('[notifications] web push error:', e))
     }
 
