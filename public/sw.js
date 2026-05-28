@@ -2,6 +2,17 @@
 // Import Workbox from CDN (no build step needed)
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js')
 
+// Bump this version any time you need to force-evict all cached assets.
+// On activate the SW deletes every cache not in CURRENT_CACHES, so stale
+// bundles from previous deployments are cleared on the user's next visit.
+const CACHE_VERSION = 'v2'
+const CURRENT_CACHES = [
+  `liftgo-precache-${CACHE_VERSION}`,
+  `liftgo-static-${CACHE_VERSION}`,
+  `liftgo-api-lists-${CACHE_VERSION}`,
+  `liftgo-user-data-${CACHE_VERSION}`,
+]
+
 // CRITICAL: prevent page reload when coming back online - this prevents losing form data
 workbox.core.skipWaiting()
 workbox.core.clientsClaim()
@@ -14,13 +25,13 @@ const { Queue } = workbox.backgroundSync
 
 // ─── 1. CACHE FIRST — Static assets (JS, CSS, fonts, icons) ────────────────
 registerRoute(
-  ({ request }) => 
+  ({ request }) =>
     request.destination === 'script' ||
     request.destination === 'style' ||
     request.destination === 'font' ||
     request.destination === 'image',
   new CacheFirst({
-    cacheName: 'liftgo-static-v1',
+    cacheName: `liftgo-static-${CACHE_VERSION}`,
     plugins: [
       new ExpirationPlugin({
         maxEntries: 100,
@@ -37,7 +48,7 @@ registerRoute(
     url.pathname.startsWith('/api/search') ||
     url.pathname.startsWith('/api/obrtniki'),
   new StaleWhileRevalidate({
-    cacheName: 'liftgo-api-lists-v1',
+    cacheName: `liftgo-api-lists-${CACHE_VERSION}`,
     plugins: [
       new ExpirationPlugin({
         maxEntries: 50,
@@ -54,7 +65,7 @@ registerRoute(
     url.pathname.startsWith('/api/povprasevanje') ||
     url.pathname.startsWith('/api/partner'),
   new NetworkFirst({
-    cacheName: 'liftgo-user-data-v1',
+    cacheName: `liftgo-user-data-${CACHE_VERSION}`,
     networkTimeoutSeconds: 3,
     plugins: [
       new ExpirationPlugin({
@@ -125,7 +136,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing...')
   event.waitUntil(
-    caches.open('liftgo-precache-v1').then((cache) =>
+    caches.open(`liftgo-precache-${CACHE_VERSION}`).then((cache) =>
       cache.addAll([
         '/',
         '/offline.html',
@@ -139,14 +150,17 @@ self.addEventListener('install', (event) => {
 })
 
 // ─── 7. CLEANUP old cache versions ───────────────────────────────────────────
+// Delete every cache that is NOT in CURRENT_CACHES, including old liftgo-v1
+// caches from previous deployments. This prevents stale JS bundles from
+// poisoning new page loads after a deployment.
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating...')
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Clear old caches that might have stale responses
-          if (!cacheName.includes('liftgo-')) {
+          if (!CURRENT_CACHES.includes(cacheName)) {
+            console.log('[SW] Deleting stale cache:', cacheName)
             return caches.delete(cacheName)
           }
         })
