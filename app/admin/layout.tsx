@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { AdminAuthProvider } from '@/lib/auth/AdminAuthContext'
@@ -25,7 +26,7 @@ export default async function AdminLayout({
   }
 
   // Check if user is an active admin in database
-  const { data: adminUser, error: adminError } = await supabase
+  const { data: adminUser, error: adminError } = await supabaseAdmin
     .from('admin_users')
     .select('*')
     .eq('auth_user_id', user.id)

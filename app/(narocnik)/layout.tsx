@@ -9,6 +9,7 @@ import { ProjectAssistant } from '@/components/customer/ProjectAssistant'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { assertCanAccessBuyerDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
+import { ensureCustomerProfile } from '@/lib/auth/profiles'
 import { PushPermission } from '@/components/liftgo/PushPermission'
 
 export const metadata: Metadata = {
@@ -28,12 +29,9 @@ export default async function NarocnikLayout({
     redirect('/prijava?redirectTo=/dashboard')
   }
 
-  // Check profiles table (new schema) — narocniki table is legacy and unused
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, full_name')
-    .eq('id', user.id)
-    .maybeSingle()
+  // Check profiles table (new schema) with service role so RLS cannot
+  // incorrectly send authenticated customers back to /prijava?error=no-profile.
+  const profile = await ensureCustomerProfile(user, 'narocnik.layout.ensureProfile')
 
   // Obrtniki ne sodijo sem
   if (profile?.role === 'obrtnik') {

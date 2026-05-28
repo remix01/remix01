@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/dashboard/stranka/Sidebar'
+import { ensureCustomerProfile } from '@/lib/auth/profiles'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -24,16 +25,9 @@ export default async function DashboardLayout({
     redirect('/prijava')
   }
 
-  // Get user's role from profiles table
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile) {
-    redirect('/prijava?error=no-profile')
-  }
+  // Get or create the user's profile with service role to avoid false
+  // no-profile redirects when RLS blocks the session client.
+  const profile = await ensureCustomerProfile(user, 'dashboard.stranka.layout.ensureProfile')
   if (profile.role === 'obrtnik') {
     redirect('/partner-dashboard')
   }
