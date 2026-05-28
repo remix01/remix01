@@ -1,3 +1,4 @@
+import 'server-only'
 import { randomUUID } from 'crypto'
 import { NotificationService, type NotificationType } from './notification-service'
 import { TokenService } from '@/lib/push/token-service'

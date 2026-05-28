@@ -1,3 +1,4 @@
+import 'server-only'
 import webpush from 'web-push'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
