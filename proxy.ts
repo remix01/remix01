@@ -186,12 +186,17 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Preusmeritev prijavljenih od /prijava ──────────────────
-  // /registracija ostane dostopna — prijavljeni z nepopolnimi profili jo potrebujejo
   if (path === '/prijava') {
     if (!user) return NextResponse.next()
 
-    const redirectTo = request.nextUrl.searchParams.get('redirectTo')
-    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
+    // If there's an error param (e.g., no-profile from dashboard), allow through
+    // to avoid a redirect loop: /prijava?error=... → /dashboard → /prijava?error=...
+    if (request.nextUrl.searchParams.get('error')) return NextResponse.next()
+
+    const redirectTo =
+      request.nextUrl.searchParams.get('redirectTo') ||
+      request.nextUrl.searchParams.get('redirect')
+    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.startsWith('/prijava')) {
       return NextResponse.redirect(new URL(redirectTo, request.url))
     }
 
@@ -225,6 +230,29 @@ export async function proxy(request: NextRequest) {
     }
 
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // ── Preusmeritev prijavljenih od /registracija ──────────────────────────
+  // Prijavljeni uporabniki z obstoječim profilom ne smejo biti prisiljeni v
+  // novo registracijo. Preusmerimo jih na njihov portal.
+  // Prijavljeni brez profila ali brez vloge so še vedno dobrodošli (onboarding).
+  if (path === '/registracija') {
+    if (!user) return supabaseResponse
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles').select('role').eq('id', user.id).maybeSingle()
+
+      if (profile?.role === 'obrtnik') {
+        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+      }
+      if (profile?.role) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+      // role is null / no profile → allow onboarding
+    } catch (e) {
+      console.error('[proxy] Registracija profile check error:', e instanceof Error ? e.message : String(e))
+    }
   }
 
   return supabaseResponse

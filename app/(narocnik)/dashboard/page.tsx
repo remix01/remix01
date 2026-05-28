@@ -35,7 +35,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     } | null }
 
   if (!profile) {
-    redirect('/registracija')
+    redirect('/prijava?error=no-profile')
   }
   if (profile.role === 'obrtnik') {
     redirect('/partner-dashboard')

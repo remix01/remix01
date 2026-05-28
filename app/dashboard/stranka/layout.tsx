@@ -31,8 +31,11 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile || profile.role !== 'narocnik') {
-    redirect('/registracija')
+  if (!profile) {
+    redirect('/prijava?error=no-profile')
+  }
+  if (profile.role === 'obrtnik') {
+    redirect('/partner-dashboard')
   }
 
   return (
