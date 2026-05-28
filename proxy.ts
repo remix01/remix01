@@ -196,7 +196,7 @@ export async function proxy(request: NextRequest) {
     const redirectTo =
       request.nextUrl.searchParams.get('redirectTo') ||
       request.nextUrl.searchParams.get('redirect')
-    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('/prijava')) {
+    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.startsWith('/prijava')) {
       return NextResponse.redirect(new URL(redirectTo, request.url))
     }
 
