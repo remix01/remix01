@@ -114,10 +114,13 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
-  // Native binaries that must never be bundled by Turbopack/webpack.
+  // Native binaries and server-only packages that must never be bundled by
+  // Turbopack/webpack. web-push uses Node.js crypto/https internals; bundling
+  // it into any client or edge chunk causes "page couldn't load" crashes.
   // All @vscode/ripgrep-* optional platform packages ship a native `rg`
   // binary; list every variant so builds on any architecture stay clean.
   serverExternalPackages: [
+    'web-push',
     '@vscode/ripgrep',
     '@vscode/ripgrep-darwin-x64',
     '@vscode/ripgrep-darwin-arm64',
