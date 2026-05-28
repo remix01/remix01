@@ -212,6 +212,13 @@ export async function proxy(request: NextRequest) {
         .from('profiles').select('role').eq('id', user.id).maybeSingle()
       if (profile?.role === 'obrtnik') {
         return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+      } else if (!profile?.role) {
+        // Legacy: null role — preverimo obrtnik_profiles kot fallback
+        const { data: obrtnikRow } = await supabaseAdmin
+          .from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle()
+        if (obrtnikRow) {
+          return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+        }
       }
     } catch (e) {
       console.error('[proxy] Profile check error in prijava:', e instanceof Error ? e.message : String(e))
