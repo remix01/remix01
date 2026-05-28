@@ -10,6 +10,7 @@ import { badRequest, unauthorized, forbidden, internalError, apiSuccess, conflic
 import { assertEscrowTransition } from '@/lib/agent/state-machine'
 import { enqueue } from '@/lib/jobs/queue'
 import { withIdempotency } from '@/lib/idempotency/withIdempotency'
+import { sendNotification } from '@/lib/notifications'
 
 async function handler(request: NextRequest) {
   try {
@@ -198,6 +199,19 @@ async function handler(request: NextRequest) {
         releasedBy: isAdmin ? 'admin' : 'partner',
       },
     })
+
+    // 8b. NOTIFY PARTNER — placilo_prejeto (non-blocking)
+    if (escrow.partner_id) {
+      const payoutEur = ((escrow.payout_cents ?? 0) / 100).toFixed(2)
+      sendNotification({
+        userId: escrow.partner_id,
+        type: 'placilo_prejeto',
+        title: 'Plačilo prejeto! 💶',
+        message: `Izplačilo €${payoutEur} bo obdelano v 2–5 delovnih dneh.`,
+        link: '/obrtnik/ponudbe',
+        metadata: { escrowId: escrow.id, payoutCents: escrow.payout_cents },
+      }).catch((err: any) => console.error('[v0] placilo_prejeto notification error:', err))
+    }
 
     // 9. ENQUEUE ASYNC SIDE EFFECTS
     // - Notify customer of release

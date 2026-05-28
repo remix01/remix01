@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
+import { sendWebPushToUser } from '@/lib/push/web-subscription-service'
 
-// Note: web-push import is kept in API routes only to avoid bundling Node.js modules
-// This file only handles database operations
+// Note: web-push import is kept in web-subscription-service only to avoid bundling Node.js modules
+// This file handles database operations and server-side push dispatch
 
 interface PushSubscriptionKeys {
   p256dh: string
@@ -114,15 +115,15 @@ export async function sendPushToObrtnikiByCategory(params: SendPushToObrtnikiPar
       return { sent: 0 }
     }
 
-    // Send push to each obrtnik via API
+    // Send push to each obrtnik directly via web-push (server-safe, no self-call)
     let totalSent = 0
     for (const oc of obrtnikiCategories) {
-      const result = await sendPushToUser({
+      const result = await sendWebPushToUser({
         userId: oc.obrtnik_id,
         title: params.title,
-        message: params.message,
-        link: params.link
-      })
+        body: params.message,
+        data: { link: params.link },
+      }).catch(() => ({ sent: 0, failed: 0 }))
       totalSent += result.sent
     }
 

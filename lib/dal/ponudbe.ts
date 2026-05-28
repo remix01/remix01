@@ -396,6 +396,16 @@ export async function acceptPonudbaFull(
  */
 export async function rejectPonudba(id: string): Promise<boolean> {
   const result = await updatePonudba(id, { status: 'zavrnjena' })
+  if (result?.obrtnik_id) {
+    sendNotification({
+      userId: result.obrtnik_id,
+      type: 'ponudba_zavrnjena',
+      title: 'Ponudba zavrnjena',
+      message: 'Vaša ponudba žal ni bila izbrana. Prijavite se na druga povpraševanja.',
+      link: '/obrtnik/ponudbe',
+      metadata: { ponudbaId: id },
+    }).catch((err: any) => console.error('[v0] ponudba_zavrnjena notification error:', err))
+  }
   return result !== null
 }
 

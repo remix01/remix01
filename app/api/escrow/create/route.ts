@@ -6,6 +6,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { validateEmail, validateAmount, validateRequiredString, validateUUID, collectErrors } from '@/lib/validation'
 import { apiSuccess, badRequest, notFound, tooManyRequests, internalError } from '@/lib/api-response'
 import { withIdempotency } from '@/lib/idempotency/withIdempotency'
+import { sendNotification } from '@/lib/notifications'
 
 async function handler(request: NextRequest) {
   try {
@@ -119,7 +120,30 @@ async function handler(request: NextRequest) {
       metadata: { paymentIntentId: paymentIntent.id },
     })
 
-    // 6. VRNI CLIENT SECRET (za Stripe.js na frontendu)
+    // 6. NOTIFY NAROCNIK — placilo_zahtevano (non-blocking)
+    if (inquiryId) {
+      ;(async () => {
+        const { data: task } = await supabaseAdmin
+          .from('tasks')
+          .select('customer_id, created_by')
+          .eq('id', inquiryId)
+          .maybeSingle()
+        const narocnikId = (task as any)?.customer_id ?? (task as any)?.created_by
+        if (narocnikId) {
+          const amountEur = (amountCents / 100).toFixed(2)
+          await sendNotification({
+            userId: narocnikId,
+            type: 'placilo_zahtevano',
+            title: 'Zahtevano plačilo',
+            message: `Plačilo v višini €${amountEur} čaka na vašo potrditev.`,
+            link: `/narocnik/povprasevanja/${inquiryId}`,
+            metadata: { escrowId: escrow.id, amountCents },
+          })
+        }
+      })().catch((err: any) => console.error('[v0] placilo_zahtevano notification error:', err))
+    }
+
+    // 7. VRNI CLIENT SECRET (za Stripe.js na frontendu)
     return apiSuccess({
       escrowId:      escrow.id,
       clientSecret:  paymentIntent.client_secret,

@@ -9,6 +9,7 @@ import { ProjectAssistant } from '@/components/customer/ProjectAssistant'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { assertCanAccessBuyerDashboard, redirectForOnboardingGuard } from '@/lib/onboarding/guards'
+import { PushPermission } from '@/components/liftgo/PushPermission'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -79,6 +80,9 @@ export default async function NarocnikLayout({
         </main>
       </div>
       <ProjectAssistant context={`Naročniški portal uporabnika ${user.id}. Odgovarjaj v slovenščini in vodi uporabnika skozi naslednje korake projekta.`} />
+
+      {/* Push permission banner — shown after 30 s if not yet asked */}
+      <PushPermission userId={user.id} />
 
       {/* Mobile Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 border-t bg-background md:hidden">
