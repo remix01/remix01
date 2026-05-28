@@ -175,6 +175,11 @@ function PrijavaContent() {
         return
       }
 
+      const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
+      if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('//') && !redirectTarget.startsWith('/prijava')) {
+        router.push(redirectTarget)
+        return
+      }
       router.push('/partner-dashboard')
     } catch {
       setObrtnikError('Napaka pri prijavi. Poskusite znova.')

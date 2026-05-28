@@ -132,7 +132,7 @@ export async function proxy(request: NextRequest) {
   // ── OBRTNIK zaščita (/partner-dashboard in /obrtnik/*) ──
   if (path.startsWith('/partner-dashboard') || path.startsWith('/obrtnik')) {
     if (!user) {
-      return NextResponse.redirect(new URL('/prijava?redirect=/partner-dashboard', request.url))
+      return NextResponse.redirect(new URL(`/prijava?redirect=${encodeURIComponent(path)}`, request.url))
     }
     try {
       const { data: profile } = await supabase
