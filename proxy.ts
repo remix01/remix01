@@ -196,40 +196,64 @@ export async function proxy(request: NextRequest) {
     const redirectTo =
       request.nextUrl.searchParams.get('redirectTo') ||
       request.nextUrl.searchParams.get('redirect')
-    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.startsWith('/prijava')) {
-      return NextResponse.redirect(new URL(redirectTo, request.url))
-    }
 
-    // Admin ima prednost
+    let destination = '/dashboard'
+    let isAdmin = false
+    let isObrtnik = false
+
+    // Admin ima prednost; use service role and aktiven=true so admin RLS cannot
+    // cause /admin ↔ /prijava redirect loops.
     try {
       const { data: adminUser } = await supabaseAdmin
-        .from('admin_users').select('id').eq('auth_user_id', user.id).maybeSingle()
+        .from('admin_users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .eq('aktiven', true)
+        .maybeSingle()
       if (adminUser) {
-        return NextResponse.redirect(new URL('/admin', request.url))
+        isAdmin = true
+        destination = '/admin'
       }
     } catch (e) {
       console.error('[proxy] Admin check error in prijava:', e instanceof Error ? e.message : String(e))
     }
 
-    // Obrtnik ali naročnik
-    try {
-      const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (profile?.role === 'obrtnik') {
-        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
-      } else if (!profile?.role) {
-        // Legacy: null role — preverimo obrtnik_profiles kot fallback
-        const { data: obrtnikRow } = await supabaseAdmin
-          .from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle()
-        if (obrtnikRow) {
-          return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+    // Obrtnik ali naročnik. Skip if already resolved as admin.
+    if (!isAdmin) {
+      try {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles').select('role').eq('id', user.id).maybeSingle()
+        if (profile?.role === 'obrtnik') {
+          isObrtnik = true
+          destination = '/partner-dashboard'
+        } else if (!profile?.role) {
+          // Legacy: null role — preverimo obrtnik_profiles kot fallback
+          const { data: obrtnikRow } = await supabaseAdmin
+            .from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle()
+          if (obrtnikRow) {
+            isObrtnik = true
+            destination = '/partner-dashboard'
+          }
         }
+      } catch (e) {
+        console.error('[proxy] Profile check error in prijava:', e instanceof Error ? e.message : String(e))
       }
-    } catch (e) {
-      console.error('[proxy] Profile check error in prijava:', e instanceof Error ? e.message : String(e))
     }
 
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (redirectTo?.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.startsWith('/prijava')) {
+      const adminOnlyPath = redirectTo === '/admin' || redirectTo.startsWith('/admin/')
+      const obrtnikOnlyPath = redirectTo === '/partner-dashboard' || redirectTo.startsWith('/partner-dashboard/')
+
+      if (
+        (isAdmin && adminOnlyPath) ||
+        (isObrtnik && obrtnikOnlyPath) ||
+        (!isAdmin && !isObrtnik && !adminOnlyPath && !obrtnikOnlyPath)
+      ) {
+        destination = redirectTo
+      }
+    }
+
+    return NextResponse.redirect(new URL(destination, request.url))
   }
 
   // ── Preusmeritev prijavljenih od /registracija ──────────────────────────

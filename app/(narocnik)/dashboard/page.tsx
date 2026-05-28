@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { getLeadStatusLabelSl, type CanonicalLeadStatus } from '@/lib/lead-status'
 import { DashboardCardActions } from '@/components/narocnik/dashboard-card-actions'
 import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
+import { ensureCustomerProfile } from '@/lib/auth/profiles'
 
 export const metadata = {
   title: 'Dashboard | LiftGO',
@@ -23,20 +24,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     redirect('/prijava')
   }
 
-  // Fetch user profile — profiles.id matches auth user id
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, role, subscription_tier')
-    .eq('id', user.id)
-    .maybeSingle() as { data: {
-      full_name: string | null
-      role: string | null
-      subscription_tier: 'start' | 'pro' | 'elite' | null
-    } | null }
-
-  if (!profile) {
-    redirect('/prijava?error=no-profile')
-  }
+  // Fetch or create user profile — profiles.id matches auth user id.
+  // Use service-role lookup to avoid false no-profile redirects caused by RLS.
+  const profile = await ensureCustomerProfile(user, 'narocnik.dashboard.ensureProfile')
   if (profile.role === 'obrtnik') {
     redirect('/partner-dashboard')
   }
