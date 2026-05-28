@@ -197,6 +197,12 @@ function PrijavaContent() {
         </div>
       )}
 
+      {(searchParams.get('error') === 'no-profile' || searchParams.get('error') === 'profile_missing') && (
+        <div className="bg-amber-500/10 text-amber-700 border border-amber-500/20 p-4 rounded-md">
+          Vaš profil ni bil najden. Prijavite se znova ali se registrirajte.
+        </div>
+      )}
+
       {searchParams.get('reset') === 'success' && (
         <div className="bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 p-4 rounded-md">
           Povezava za ponastavitev gesla je bila poslana. Preverite svoj email.

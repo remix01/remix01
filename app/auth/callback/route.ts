@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
 
       if (!profile) {
         logAuth('profile_still_missing', { userId: user.id })
-        destination = '/registracija'
+        destination = '/prijava?error=profile_missing'
       } else if (profile.role === 'obrtnik') {
         destination = '/partner-dashboard'
         logAuth('role_obrtnik_from_profile', { userId: user.id })
