@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { User } from '@supabase/supabase-js'
 import { env } from '../env'
+import { resolveAuthState } from '@/lib/auth/role-resolver'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -52,8 +53,7 @@ export async function updateSession(request: NextRequest) {
       const isPartnerArea =
         request.nextUrl.pathname.startsWith('/partner-dashboard') ||
         request.nextUrl.pathname.startsWith('/obrtnik')
-      const loginPath = isPartnerArea ? '/partner-auth/login' : '/prijava'
-      const response = NextResponse.redirect(new URL(loginPath, request.url))
+      const response = NextResponse.redirect(new URL('/prijava', request.url))
       response.cookies.delete('sb-access-token')
       response.cookies.delete('sb-refresh-token')
       return response
@@ -68,41 +68,28 @@ export async function updateSession(request: NextRequest) {
   if (!user) {
     if (request.nextUrl.pathname.startsWith('/partner-dashboard')) {
       const url = request.nextUrl.clone()
-      url.pathname = '/partner-auth/login'
+      url.pathname = '/prijava'
       return NextResponse.redirect(url)
     }
   }
 
-  // Verify partner access for /partner-dashboard
+  // Verify partner access for /partner-dashboard using shared resolver
   if (user && request.nextUrl.pathname.startsWith('/partner-dashboard')) {
     try {
-      // Check for partner record in old system
-      const { data: partner } = await supabase
-        .from('partners')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      // If no old system partner, check new system profiles/obrtnik table
-      if (!partner) {
-        const { data: obrtnikProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .maybeSingle()
-
-        // If neither partner nor obrtnik profile exists, redirect to signup
-        if (!obrtnikProfile) {
-          const url = request.nextUrl.clone()
-          url.pathname = '/partner-auth/sign-up'
-          return NextResponse.redirect(url)
-        }
-        // Has obrtnik profile in new system - allow access
+      const resolved = await resolveAuthState(user)
+      if (!resolved.hasProfile) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/registracija'
+        return NextResponse.redirect(url)
       }
-      // Has partner record in old system - allow access
+      if (resolved.role !== 'obrtnik' && resolved.role !== 'admin') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/prijava'
+        url.searchParams.set('error', 'not_obrtnik')
+        return NextResponse.redirect(url)
+      }
     } catch (e) {
       console.error('[v0] Partner check error:', e instanceof Error ? e.message : String(e))
-      // Allow access on error — don't block user
     }
   }
 

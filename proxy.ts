@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { type NextRequest, NextResponse } from 'next/server'
 import { validateCsrfOrigin, isCsrfExempt, csrfForbidden } from '@/lib/csrf'
 import type { User } from '@supabase/supabase-js'
+import { resolveAuthState } from '@/lib/auth/role-resolver'
 
 const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
   'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard',
@@ -102,11 +103,20 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
+
+  let resolved: Awaited<ReturnType<typeof resolveAuthState>> | null = null
+  if (user) {
+    try {
+      resolved = await resolveAuthState(user)
+      if (resolved.role === 'obrtnik' && !resolved.profileRole) {
+        await supabaseAdmin.from('profiles').update({ role: 'obrtnik' }).eq('id', user.id)
+      }
+    } catch (e) {
+      console.error('[proxy] Role resolver error:', e instanceof Error ? e.message : String(e))
+    }
+  }
+
   // ── NAROČNIK zaščita (/dashboard, /povprasevanja, ...) ──
-  // /novo-povprasevanje is intentionally excluded: the lead form must be
-  // publicly accessible so visitors from SEO landing pages and /post-job/:city
-  // redirects can start a request before being asked to authenticate.
-  // Auth is enforced at API submission time (/api/tasks POST).
   const narocnikPaths = [
     '/dashboard',
     '/povprasevanja',
@@ -118,75 +128,43 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL(`/prijava?redirect=${path}`, request.url))
     }
-    try {
-      const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (profile?.role === 'obrtnik') {
-        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
-      }
-    } catch (e) {
-      console.error('[proxy] Naročnik profile check error:', e instanceof Error ? e.message : String(e))
+    if (!resolved?.hasProfile) {
+      return NextResponse.redirect(new URL('/registracija', request.url))
+    }
+    if (resolved.role === 'obrtnik') {
+      return NextResponse.redirect(new URL('/partner-dashboard', request.url))
+    }
+    if (resolved.role === 'admin') {
+      return NextResponse.redirect(new URL('/admin', request.url))
     }
   }
 
-  // ── OBRTNIK zaščita (/partner-dashboard in /obrtnik/*) ──
   if (path.startsWith('/partner-dashboard') || path.startsWith('/obrtnik')) {
     if (!user) {
       return NextResponse.redirect(new URL('/prijava?redirect=/partner-dashboard', request.url))
     }
-    try {
-      const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (profile?.role === 'obrtnik') {
-        // role is correctly set — allow through
-      } else if (!profile?.role) {
-        // Legacy session: role not set. Check obrtnik_profiles as fallback.
-        // (The auth callback will backfill the role on the user's next full login.)
-        const { data: obrtnikRow } = await supabaseAdmin
-          .from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle()
-        if (!obrtnikRow) {
-          return NextResponse.redirect(new URL('/prijava?error=not_obrtnik', request.url))
-        }
-        // Valid obrtnik_profiles row — allow through
-      } else {
-        // Explicit non-obrtnik role (e.g. 'narocnik') — block
-        return NextResponse.redirect(new URL('/prijava?error=not_obrtnik', request.url))
-      }
-    } catch (e) {
-      console.error('[proxy] Obrtnik profile check error:', e instanceof Error ? e.message : String(e))
-      return NextResponse.redirect(new URL('/prijava?error=auth_failed', request.url))
+    if (!resolved?.hasProfile) {
+      return NextResponse.redirect(new URL('/registracija', request.url))
+    }
+    if (resolved.role !== 'obrtnik' && resolved.role !== 'admin') {
+      return NextResponse.redirect(new URL('/prijava?error=not_obrtnik', request.url))
     }
   }
 
-  // ── ADMIN zaščita ───────────────────────────────────────
   if (path.startsWith('/admin')) {
     if (!user) {
       const loginUrl = new URL('/prijava', request.url)
       loginUrl.searchParams.set('redirectTo', path)
       return NextResponse.redirect(loginUrl)
     }
-    try {
-      const { data: adminUser } = await supabaseAdmin
-        .from('admin_users')
-        .select('id, vloga, aktiven')
-        .eq('auth_user_id', user.id)
-        .maybeSingle()
-
-      if (!adminUser || !adminUser.aktiven) {
-        const loginUrl = new URL('/prijava', request.url)
-        loginUrl.searchParams.set('redirectTo', path)
-        return NextResponse.redirect(loginUrl)
-      }
-
-      return supabaseResponse
-    } catch (e) {
-      console.error('[proxy] Admin check error:', e instanceof Error ? e.message : String(e))
-      return NextResponse.redirect(new URL('/', request.url))
+    if (resolved?.role !== 'admin') {
+      const loginUrl = new URL('/prijava', request.url)
+      loginUrl.searchParams.set('redirectTo', path)
+      return NextResponse.redirect(loginUrl)
     }
+    return supabaseResponse
   }
 
-  // ── Preusmeritev prijavljenih od /prijava ──────────────────
-  // /registracija ostane dostopna — prijavljeni z nepopolnimi profili jo potrebujejo
   if (path === '/prijava') {
     if (!user) return NextResponse.next()
 
@@ -195,32 +173,14 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL(redirectTo, request.url))
     }
 
-    // Admin ima prednost
-    try {
-      const { data: adminUser } = await supabaseAdmin
-        .from('admin_users').select('id').eq('auth_user_id', user.id).maybeSingle()
-      if (adminUser) {
-        return NextResponse.redirect(new URL('/admin', request.url))
-      }
-    } catch (e) {
-      console.error('[proxy] Admin check error in prijava:', e instanceof Error ? e.message : String(e))
-    }
-
-    // Obrtnik ali naročnik
-    try {
-      const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (profile?.role === 'obrtnik') {
-        return NextResponse.redirect(new URL('/partner-dashboard', request.url))
-      }
-    } catch (e) {
-      console.error('[proxy] Profile check error in prijava:', e instanceof Error ? e.message : String(e))
-    }
-
+    if (!resolved?.hasProfile) return NextResponse.redirect(new URL('/registracija', request.url))
+    if (resolved.role === 'admin') return NextResponse.redirect(new URL('/admin', request.url))
+    if (resolved.role === 'obrtnik') return NextResponse.redirect(new URL('/partner-dashboard', request.url))
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return supabaseResponse
+
 }
 
 export const config = {

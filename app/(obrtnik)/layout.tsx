@@ -39,7 +39,7 @@ export default async function ObrtknikLayout({
 
   if (profileError || !profile) {
     console.log(`[v0] Obrtnik layout: Profile not found for user ${user.id}, redirecting`)
-    redirect('/partner-auth/login')
+    redirect('/prijava?redirect=/partner-dashboard')
   }
 
   console.log(`[v0] Obrtnik layout: User ${user.id} has obrtnik profile, allowing access`)

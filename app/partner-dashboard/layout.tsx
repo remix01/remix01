@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { resolveAuthState } from '@/lib/auth/role-resolver'
 import { redirect } from 'next/navigation'
 import { PartnerSidebar } from '@/components/partner/sidebar'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
@@ -13,7 +14,12 @@ export default async function PartnerDashboardLayout({ children }: { children: R
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/partner-auth/login')
+  if (!user) redirect('/prijava?redirect=/partner-dashboard')
+
+  const resolved = await resolveAuthState(user)
+  if (!resolved.hasProfile) redirect('/registracija')
+  if (resolved.role === 'admin') redirect('/admin')
+  if (resolved.role !== 'obrtnik') redirect('/prijava?error=not_obrtnik')
 
   const { data: partner } = await supabase
     .from('obrtnik_profiles')
@@ -21,7 +27,7 @@ export default async function PartnerDashboardLayout({ children }: { children: R
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!partner) redirect('/partner-auth/login')
+  if (!partner) redirect('/prijava?error=not_obrtnik')
 
   const tier =
     partner.subscription_tier === 'elite'
