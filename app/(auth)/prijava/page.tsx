@@ -158,14 +158,18 @@ function PrijavaContent() {
       // Wait for session to be established before checking DB
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      // Preveri da ima obrtniški profil
-      const { data: obrtnikProfile } = await supabase
-        .from('obrtnik_profiles')
-        .select('id')
+      // Preverimo profiles.role namesto obrtnik_profiles: RLS SELECT policy
+      // na obrtnik_profiles je is_verified=true, zato nepreverjen obrtnik
+      // svojega zapisa ne more brati prek session clienta.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
         .eq('id', data.user.id)
         .maybeSingle()
 
-      if (!obrtnikProfile) {
+      // Prepreči naročnike (ekspliciten role !== 'obrtnik' in ni null).
+      // Null role dopustimo – proxy/layout ga razreši kot legacy obrtnik.
+      if (profile?.role && profile.role !== 'obrtnik') {
         await supabase.auth.signOut()
         setObrtnikError('Ta račun nima obrtniških pravic. Registrirajte se kot obrtnik.')
         return

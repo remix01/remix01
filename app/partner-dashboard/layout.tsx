@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PartnerSidebar } from '@/components/partner/sidebar'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
@@ -13,15 +13,18 @@ export default async function PartnerDashboardLayout({ children }: { children: R
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/partner-auth/login')
+  if (!user) redirect('/prijava?redirect=/partner-dashboard')
 
-  const { data: partner } = await supabase
+  // Use admin client: RLS SELECT policy on obrtnik_profiles is is_verified=true,
+  // so unverified obrtniks cannot read their own row via session client.
+  const adminClient = createAdminClient()
+  const { data: partner } = await adminClient
     .from('obrtnik_profiles')
     .select('business_name, subscription_tier, avg_rating, is_verified')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!partner) redirect('/partner-auth/login')
+  if (!partner) redirect('/prijava?redirect=/partner-dashboard')
 
   const tier =
     partner.subscription_tier === 'elite'
