@@ -1,6 +1,7 @@
 import { createAppointmentEvent } from '@/lib/mcp/calendar'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendNotification } from '@/lib/notifications'
 
 export async function POST(request: Request) {
   try {
@@ -63,6 +64,29 @@ export async function POST(request: Request) {
       endDateTime,
       ponudbaId
     })
+
+    // Notify both parties on successful appointment creation (non-blocking)
+    if (!result.error) {
+      const dateLabel = new Date(startDateTime).toLocaleDateString('sl-SI', { day: 'numeric', month: 'long', year: 'numeric' })
+      Promise.all([
+        sendNotification({
+          userId: povprasevanje.narocnik_id,
+          type: 'termin_potrjen',
+          title: 'Termin potrjen',
+          message: `Vaš termin za ${ponudba.povprasevanje.title} je potrjen za ${dateLabel}.`,
+          link: `/narocnik/povprasevanja/${ponudba.povprasevanje_id}`,
+          metadata: { ponudbaId, startDateTime },
+        }),
+        sendNotification({
+          userId: ponudba.obrtnik_id,
+          type: 'termin_potrjen',
+          title: 'Termin potrjen',
+          message: `Naročnik je potrdil termin za ${dateLabel}.`,
+          link: '/obrtnik/ponudbe',
+          metadata: { ponudbaId, startDateTime },
+        }),
+      ]).catch((err: any) => console.error('[v0] termin_potrjen notification error:', err))
+    }
 
     return NextResponse.json({
       success: !result.error,

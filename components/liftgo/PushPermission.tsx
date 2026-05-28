@@ -72,7 +72,13 @@ export function PushPermission({ userId }: PushPermissionProps) {
       setShowBanner(false)
     } catch (error) {
       console.error('[v0] Error requesting push permission:', error)
-      localStorage.setItem('push_permission_asked', 'true')
+      // NotAllowedError on iOS Safari/PWA can fire without user interaction
+      // (e.g. app not installed as PWA yet). Don't permanently suppress in that case
+      // so the prompt can re-appear once the user installs the app.
+      const isNotAllowedWithoutDialog = error instanceof Error && error.name === 'NotAllowedError'
+      if (!isNotAllowedWithoutDialog) {
+        localStorage.setItem('push_permission_asked', 'true')
+      }
       setShowBanner(false)
     } finally {
       setIsSubscribing(false)

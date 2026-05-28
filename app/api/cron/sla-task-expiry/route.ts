@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { env } from '@/lib/env'
 import { withCronGuard } from '@/lib/cron/cronGuard'
+import { sendNotification } from '@/lib/notifications'
 
 function serializeError(error: unknown) {
   if (error instanceof Error) {
@@ -82,7 +83,7 @@ async function _handler(req: NextRequest) {
       .from('tasks')
       // Keep the projection minimal: selecting non-existent columns on Supabase
       // causes PostgREST to fail the whole query with a 500 response upstream.
-      .select('id, sla_expires_at, status')
+      .select('id, sla_expires_at, status, customer_id, created_by')
       .in('status', ['open', 'has_ponudbe', 'in_progress'])
       .not('sla_expires_at', 'is', null)
       .lt('sla_expires_at', now)
@@ -130,6 +131,19 @@ async function _handler(req: NextRequest) {
 
           // Log audit event
           await logAuditEvent(task.id, 'SLA expiry by cron job')
+
+          // Notify narocnik of task expiry (non-blocking)
+          const narocnikId = (task as any).customer_id ?? (task as any).created_by
+          if (narocnikId) {
+            sendNotification({
+              userId: narocnikId,
+              type: 'rok_izteka',
+              title: 'Povpraševanje je poteklo',
+              message: 'Vaše povpraševanje je poteklo brez izbire ponudnika. Ustvarite novo.',
+              link: '/narocnik/novo-povprasevanje',
+              metadata: { taskId: task.id },
+            }).catch((err: any) => console.error('[v0] rok_izteka notification error:', err))
+          }
         }
       } catch (err) {
         console.error(`[v0] Error expiring task ${task.id}:`, err)
