@@ -13,7 +13,6 @@ import { CheckCircle2, Circle, Moon, Sun } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import type { Offer } from '@/lib/types/offer'
-import { createClient } from '@/lib/supabase/client'
 import { getPartnerDashboardSummary } from '@/lib/partner/dashboard-summary'
 import { parseDashboardFilters, serializeDashboardFilters } from '@/lib/dashboard/filters'
 
@@ -95,21 +94,16 @@ function PartnerDashboardInner() {
 
   useEffect(() => {
     const getPartner = async () => {
-      const sb = createClient()
-      const {
-        data: { user },
-      } = await sb.auth.getUser()
+      // Fetch via API route: admin client bypasses RLS (is_verified=true policy
+      // blocks unverified obrtniks from reading their own row via session client).
+      const res = await fetch('/api/partner/me')
 
-      if (!user) {
-        router.push('/partner-auth/login')
+      if (res.status === 401) {
+        router.push('/prijava?redirect=/partner-dashboard')
         return
       }
 
-      const { data: partnerData } = await sb
-        .from('obrtnik_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
+      const partnerData = res.ok ? await res.json() : null
 
       if (partnerData) {
         setPartner(partnerData)
