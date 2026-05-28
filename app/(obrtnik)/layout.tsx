@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { ObrtknikSidebar } from '@/components/obrtnik/sidebar'
 import { ObrtknikBottomNav } from '@/components/obrtnik/bottom-nav'
 import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
@@ -27,8 +27,11 @@ export default async function ObrtknikLayout({
     redirect('/prijava?redirect=/partner-dashboard')
   }
 
-  // Get obrtnik profile (id = auth user id, no separate user_id column)
-  const { data: profile, error: profileError } = await supabase
+  // Use admin client for obrtnik_profiles: the RLS SELECT policy only allows
+  // reading verified rows (is_verified = true). Using the session client would
+  // cause unverified obrtnik to be redirected in a loop. Admin client bypasses RLS.
+  const adminClient = createAdminClient()
+  const { data: profile, error: profileError } = await adminClient
     .from('obrtnik_profiles')
     .select('*')
     .eq('id', user.id)

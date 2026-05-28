@@ -137,7 +137,19 @@ export async function proxy(request: NextRequest) {
     try {
       const { data: profile } = await supabase
         .from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (!profile || profile.role !== 'obrtnik') {
+      if (profile?.role === 'obrtnik') {
+        // role is correctly set — allow through
+      } else if (!profile?.role) {
+        // Legacy session: role not set. Check obrtnik_profiles as fallback.
+        // (The auth callback will backfill the role on the user's next full login.)
+        const { data: obrtnikRow } = await supabaseAdmin
+          .from('obrtnik_profiles').select('id').eq('id', user.id).maybeSingle()
+        if (!obrtnikRow) {
+          return NextResponse.redirect(new URL('/prijava?error=not_obrtnik', request.url))
+        }
+        // Valid obrtnik_profiles row — allow through
+      } else {
+        // Explicit non-obrtnik role (e.g. 'narocnik') — block
         return NextResponse.redirect(new URL('/prijava?error=not_obrtnik', request.url))
       }
     } catch (e) {

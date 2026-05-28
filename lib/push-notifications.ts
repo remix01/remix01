@@ -59,33 +59,19 @@ interface SendPushToUserParams {
 }
 
 /**
- * Send push notification to a specific user
- * This function makes an internal API call to avoid importing web-push in client bundles
+ * Send push notification to a specific user.
+ * Uses sendWebPushToUser directly — no server-side self-call via fetch.
  */
 export async function sendPushToUser(params: SendPushToUserParams): Promise<{ sent: number; failed: number }> {
   try {
-    // Make internal API call to push/send endpoint
-    const response = await fetch('/api/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: params.userId,
-        title: params.title,
-        message: params.message,
-        link: params.link,
-        icon: params.icon
-      })
+    return await sendWebPushToUser({
+      userId: params.userId,
+      title: params.title,
+      body: params.message,
+      data: params.link ? { link: params.link } : undefined,
     })
-
-    if (!response.ok) {
-      console.error('[v0] Push API call failed:', response.statusText)
-      return { sent: 0, failed: 0 }
-    }
-
-    const result = await response.json()
-    return { sent: result.sent || 0, failed: result.failed || 0 }
   } catch (error) {
-    console.error('[v0] Error calling push API:', error)
+    console.error('[v0] Error sending push notification:', error)
     return { sent: 0, failed: 0 }
   }
 }
