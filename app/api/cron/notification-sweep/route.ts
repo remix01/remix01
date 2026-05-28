@@ -12,6 +12,13 @@ function deterministicReminderNotificationId(userId: string, povprasevanjeId: st
   return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-${variant.toString(16)}${h.slice(17,20)}-${h.slice(20,32)}`
 }
 
+function deterministicTerminOpomnikId(userId: string, appointmentId: string) {
+  const seed = `termin_opomnik:${userId}:${appointmentId}`
+  const h = createHash('sha1').update(seed).digest('hex')
+  const variant = (parseInt(h[16], 16) & 0x3) | 0x8
+  return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-${variant.toString(16)}${h.slice(17,20)}-${h.slice(20,32)}`
+}
+
 async function _handler(request: NextRequest) {
   const sweepId = randomUUID()
   const start = Date.now()
@@ -133,7 +140,55 @@ async function _handler(request: NextRequest) {
       reminderOffset += reminderBatchSize
     }
 
-    return NextResponse.json({ success: true, sweepId, total: pending.length, notified, skipped, reminders, durationMs: Date.now() - start })
+    // ── termin_opomnik: 24h appointment reminders ─────────────────────────────
+    // Dedup: deterministic notification ID (same pattern as izbira_ponudbe_reminder).
+    // DB primary key uniqueness rejects duplicate inserts (23505) — no extra column needed.
+    // The cron lock (withCronGuard) prevents concurrent runs; deterministic ID is the
+    // secondary guard for webhook retries / manual re-runs.
+    const now = Date.now()
+    const windowStart = new Date(now + 22 * 60 * 60 * 1000).toISOString()
+    const windowEnd = new Date(now + 26 * 60 * 60 * 1000).toISOString()
+
+    const { data: upcomingAppointments } = await supabase
+      .from('appointments')
+      .select('id, narocnik_id, obrtnik_id, scheduled_start')
+      .eq('status', 'scheduled')
+      .gte('scheduled_start', windowStart)
+      .lte('scheduled_start', windowEnd)
+      .limit(50)
+
+    let terminReminders = 0
+    for (const appt of upcomingAppointments || []) {
+      const apptDate = new Date(appt.scheduled_start as string).toLocaleString('sl-SI', { timeZone: 'Europe/Ljubljana' })
+
+      const notifyTargets: Array<{ userId: string; role: 'narocnik' | 'obrtnik' }> = []
+      if (appt.narocnik_id) notifyTargets.push({ userId: appt.narocnik_id as string, role: 'narocnik' })
+      if (appt.obrtnik_id) notifyTargets.push({ userId: appt.obrtnik_id as string, role: 'obrtnik' })
+
+      for (const target of notifyTargets) {
+        try {
+          await canonicalWriteGateway.appendNotification({
+            id: deterministicTerminOpomnikId(target.userId, appt.id as string),
+            user_id: target.userId,
+            type: 'termin_opomnik',
+            title: 'Opomnik: termin jutri',
+            body: `Imate dogovorjen termin ${apptDate}.`,
+            message: `Imate dogovorjen termin ${apptDate}.`,
+            link: target.role === 'narocnik' ? '/narocnik/sporocila' : '/obrtnik/sporocila',
+            read: false,
+            metadata: { appointment_id: appt.id, sweep_id: sweepId },
+          }, 'api.cron.notification-sweep.termin')
+        } catch (e: unknown) {
+          const code = (e as { code?: string })?.code || (e as { details?: { code?: string } })?.details?.code
+          if (code === '23505') continue // already sent this cycle — idempotent skip
+          // Notification failure must not fail the cron
+          console.error('[notification-sweep] termin_opomnik send failed:', e)
+        }
+      }
+      terminReminders++
+    }
+
+    return NextResponse.json({ success: true, sweepId, total: pending.length, notified, skipped, reminders, terminReminders, durationMs: Date.now() - start })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

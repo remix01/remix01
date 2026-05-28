@@ -50,13 +50,14 @@ export interface Notification {
   created_at: string
 }
 
-const PUSH_NOTIFICATION_TYPES: NotificationType[] = [
+export const PUSH_NOTIFICATION_TYPES: NotificationType[] = [
   'nova_ponudba',
   'ponudba_sprejeta',
   'nova_ocena',
   'termin_opomnik',
   'lead_escalation',
   'profil_verificiran',
+  'SUBSCRIPTION_EXPIRING_7D',
 ]
 
 // Returns both new canonical columns and legacy aliases so old rows and new rows
