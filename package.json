@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "next dev",
-    "build": "rm -f middleware.ts && next build && node scripts/report-build-success.mjs",
+    "build": "next build && node scripts/report-build-success.mjs",
     "start": "next start",
     "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --skipLibCheck",
     "typecheck:mcp": "cd resend-mcp && pnpm run typecheck",

@@ -34,9 +34,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       subscription_tier: 'start' | 'pro' | 'elite' | null
     } | null }
 
-  if (!profile || profile.role !== 'narocnik') {
-    redirect(profile?.role === 'obrtnik' ? '/partner-dashboard' : '/registracija')
+  if (!profile) {
+    redirect('/registracija')
   }
+  if (profile.role === 'obrtnik') {
+    redirect('/partner-dashboard')
+  }
+  // null role treated as narocnik (legacy users without explicit role set)
 
   const filters = parseDashboardFilters(await searchParams)
   const filterQuery = serializeDashboardFilters(filters)
