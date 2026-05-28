@@ -148,19 +148,19 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle()
 
-      const resolvedRole = profile?.role ?? null
-
-      if (resolvedRole === 'obrtnik') {
-        destination = '/partner-dashboard'
-      } else if (resolvedRole === 'narocnik' || resolvedRole === null) {
-        // null role treated as narocnik (legacy users without explicit role)
-        destination = '/dashboard'
-      } else if (!profile) {
+      if (!profile) {
+        // Profile still absent (creation failed earlier) — send to registration
         logAuth('profile_still_missing', { userId: user.id })
         destination = '/registracija'
+      } else if (profile.role === 'obrtnik') {
+        destination = '/partner-dashboard'
+      } else {
+        // 'narocnik', null (legacy users without explicit role), or any unknown value
+        // all route to the customer dashboard
+        destination = '/dashboard'
       }
 
-      logAuth('role_resolved', { userId: user.id, role: resolvedRole, destination })
+      logAuth('role_resolved', { userId: user.id, role: profile?.role ?? null, destination })
     }
 
     // Apply safeNext override (role-aware)
