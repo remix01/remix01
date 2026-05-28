@@ -37,26 +37,20 @@ function PrijavaContent() {
       return
     }
 
-    // Check admin status directly via client session (avoids cookie-timing issues with fetch)
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', userId)
-      .eq('aktiven', true)
-      .maybeSingle()
+    const response = await fetch('/api/auth/resolve-role', { cache: 'no-store' })
+    const resolved = response.ok ? await response.json() : null
 
-    if (adminUser) {
+    if (resolved?.hasProfile === false) {
+      router.push('/registracija')
+      return
+    }
+
+    if (resolved?.role === 'admin') {
       router.push('/admin')
       return
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (profile?.role === 'obrtnik') {
+    if (resolved?.role === 'obrtnik') {
       router.push('/partner-dashboard')
       return
     }

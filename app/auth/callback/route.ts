@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createAdminClient } from '@/lib/supabase/server'
 import { canonicalWriteGateway } from '@/lib/services/canonicalWriteGateway'
+import { resolveAuthState } from '@/lib/auth/role-resolver'
 import { getSafeNextPath } from '@/lib/auth/oauth'
 import type { Database } from '@/types/supabase'
 
@@ -127,71 +128,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Determine destination — priority: admin > obrtnik > narocnik > registration
-    const { data: adminUser } = await adminClient
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .eq('aktiven', true)
-      .maybeSingle()
+    // Determine destination via shared resolver — priority: admin > obrtnik > narocnik > registration
+    const resolved = await resolveAuthState(user)
 
-    logAuth('admin_check', { userId: user.id, found: adminUser ? 'yes' : 'no' })
+    logAuth('role_resolver', {
+      userId: user.id,
+      role: resolved.role,
+      hasProfile: resolved.hasProfile ? 'yes' : 'no',
+      usedLegacyObrtnikUserId: resolved.usedLegacyObrtnikUserId ? 'yes' : 'no',
+    })
 
     let destination = DEFAULT_REDIRECT
 
-    if (adminUser) {
+    if (!resolved.hasProfile) {
+      destination = '/registracija'
+    } else if (resolved.role === 'admin') {
       destination = '/admin'
-      logAuth('role_admin', { userId: user.id })
-    } else {
-      // Re-read profile to capture freshly created rows
-      const { data: profile } = await adminClient
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      logAuth('profile_check_final', {
-        userId: user.id,
-        found: profile ? 'yes' : 'no',
-        role: profile?.role ?? null,
-      })
-
-      if (!profile) {
-        logAuth('profile_still_missing', { userId: user.id })
-        destination = '/registracija'
-      } else if (profile.role === 'obrtnik') {
-        destination = '/partner-dashboard'
-        logAuth('role_obrtnik_from_profile', { userId: user.id })
-      } else if (!profile.role) {
-        // Legacy users may have no role set but a valid obrtnik_profiles row.
-        // Check obrtnik_profiles as fallback before defaulting to customer dashboard.
-        const { data: obrtnikRow } = await adminClient
-          .from('obrtnik_profiles')
-          .select('id')
+    } else if (resolved.role === 'obrtnik') {
+      destination = '/partner-dashboard'
+      if (!resolved.profileRole) {
+        await adminClient
+          .from('profiles')
+          .update({ role: 'obrtnik' })
           .eq('id', user.id)
-          .maybeSingle()
-
-        logAuth('obrtnik_fallback_check', { userId: user.id, found: obrtnikRow ? 'yes' : 'no' })
-
-        if (obrtnikRow) {
-          // Backfill the missing role so future logins/proxy checks don't repeat this
-          await adminClient
-            .from('profiles')
-            .update({ role: 'obrtnik' })
-            .eq('id', user.id)
-          destination = '/partner-dashboard'
-          logAuth('role_obrtnik_from_fallback', { userId: user.id })
-        } else {
-          destination = '/dashboard'
-          logAuth('role_narocnik_default', { userId: user.id })
-        }
-      } else {
-        // 'narocnik' or any other explicit value → customer dashboard
-        destination = '/dashboard'
-        logAuth('role_narocnik', { userId: user.id, role: profile.role })
       }
-
-      logAuth('role_resolved', { userId: user.id, role: profile?.role ?? null, destination })
+    } else {
+      destination = '/dashboard'
     }
 
     // Apply safeNext override (role-aware)
