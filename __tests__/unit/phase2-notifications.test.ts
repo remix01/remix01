@@ -173,7 +173,7 @@ describe('Phase 2 — Notification coverage', () => {
   it('backfill migration SQL file exists and is idempotent', async () => {
     const fs = await import('fs')
     const path = await import('path')
-    const migrationPath = path.join(process.cwd(), 'supabase/migrations/20260527_notifications_read_backfill.sql')
+    const migrationPath = path.join(process.cwd(), 'supabase/migrations/20260528_notifications_read_backfill.sql')
     const content = fs.readFileSync(migrationPath, 'utf-8')
 
     // Must have WHERE read IS NULL to be idempotent

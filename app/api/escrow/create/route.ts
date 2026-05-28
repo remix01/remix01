@@ -122,26 +122,25 @@ async function handler(request: NextRequest) {
 
     // 6. NOTIFY NAROCNIK — placilo_zahtevano (non-blocking)
     if (inquiryId) {
-      supabaseAdmin
-        .from('tasks')
-        .select('customer_id, created_by')
-        .eq('id', inquiryId)
-        .maybeSingle()
-        .then(({ data: task }) => {
-          const narocnikId = task?.customer_id ?? task?.created_by
-          if (narocnikId) {
-            const amountEur = (amountCents / 100).toFixed(2)
-            return sendNotification({
-              userId: narocnikId,
-              type: 'placilo_zahtevano',
-              title: 'Zahtevano plačilo',
-              message: `Plačilo v višini €${amountEur} čaka na vašo potrditev.`,
-              link: `/narocnik/povprasevanja/${inquiryId}`,
-              metadata: { escrowId: escrow.id, amountCents },
-            })
-          }
-        })
-        .catch((err: any) => console.error('[v0] placilo_zahtevano notification error:', err))
+      ;(async () => {
+        const { data: task } = await supabaseAdmin
+          .from('tasks')
+          .select('customer_id, created_by')
+          .eq('id', inquiryId)
+          .maybeSingle()
+        const narocnikId = (task as any)?.customer_id ?? (task as any)?.created_by
+        if (narocnikId) {
+          const amountEur = (amountCents / 100).toFixed(2)
+          await sendNotification({
+            userId: narocnikId,
+            type: 'placilo_zahtevano',
+            title: 'Zahtevano plačilo',
+            message: `Plačilo v višini €${amountEur} čaka na vašo potrditev.`,
+            link: `/narocnik/povprasevanja/${inquiryId}`,
+            metadata: { escrowId: escrow.id, amountCents },
+          })
+        }
+      })().catch((err: any) => console.error('[v0] placilo_zahtevano notification error:', err))
     }
 
     // 7. VRNI CLIENT SECRET (za Stripe.js na frontendu)
