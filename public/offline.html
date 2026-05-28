@@ -104,7 +104,12 @@
     // Load cached API data
     async function loadCachedData() {
       try {
-        const cache = await caches.open('liftgo-user-data-v1')
+        // Find the active user-data cache by prefix so this page stays correct
+        // when sw.js bumps CACHE_VERSION without a matching edit here.
+        const cacheNames = await caches.keys()
+        const userDataCacheName = cacheNames.find(n => n.startsWith('liftgo-user-data-'))
+        if (!userDataCacheName) return
+        const cache = await caches.open(userDataCacheName)
         const requests = await cache.keys()
         const container = document.getElementById('cached-data')
         
