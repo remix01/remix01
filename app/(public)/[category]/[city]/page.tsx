@@ -15,6 +15,7 @@ import { buildSeoContent, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTOR
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback, resolveCitySlugOrFallback } from '@/lib/seo/directory-routing'
 import { resolveMarketplaceIntent } from '@/lib/marketplace/resolve-marketplace-intent'
 import { notFound } from 'next/navigation'
+import { CATEGORY_TRANSLATIONS } from '@/lib/seo/i18n'
 
 interface Props {
   params: Promise<{ category: string; city: string }>
@@ -81,7 +82,19 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       title: meta.title,
       description: meta.description,
       keywords: meta.keywords,
-      alternates: { canonical: `https://liftgo.net/${category.slug}/${city.slug}` },
+      alternates: {
+        canonical: `https://liftgo.net/${category.slug}/${city.slug}`,
+        languages: {
+          'sl-SI': `https://liftgo.net/${category.slug}/${city.slug}`,
+          ...(CATEGORY_TRANSLATIONS[category.slug]?.de
+            ? { 'de-AT': `https://liftgo.net/de/${CATEGORY_TRANSLATIONS[category.slug].de.slug}` }
+            : {}),
+          ...(CATEGORY_TRANSLATIONS[category.slug]?.hr
+            ? { 'hr-HR': `https://liftgo.net/hr/${CATEGORY_TRANSLATIONS[category.slug].hr.slug}` }
+            : {}),
+          'x-default': `https://liftgo.net/${category.slug}/${city.slug}`,
+        },
+      },
       openGraph: {
         title: meta.openGraph.title,
         description: meta.openGraph.description,

@@ -25,6 +25,7 @@ import {
   Bot,
   SlidersHorizontal,
   Target,
+  Globe,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -76,6 +77,7 @@ const navItems: NavItem[] = [
   { icon: BrainCircuit, label: 'AI Stroški', href: '/admin/ai-costs', section: 'growth', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: Bot, label: 'Agent', href: '/admin/agent', section: 'growth', roles: ['SUPER_ADMIN', 'MODERATOR'] },
 
+  { icon: Globe, label: 'SEO strani', href: '/admin/seo', section: 'system', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: Briefcase, label: 'Kategorije', href: '/admin/categories', section: 'system', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: Database, label: 'Data Quality', href: '/admin/data-quality', section: 'system', roles: ['SUPER_ADMIN', 'MODERATOR'] },
   { icon: Eye, label: 'Observability', href: '/admin/observability', section: 'system', roles: ['SUPER_ADMIN'] },

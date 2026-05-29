@@ -13,6 +13,7 @@ import { RelatedCategories } from '@/components/seo/related-categories'
 import { getPricingForCategory } from '@/lib/agent/skills/pricing-rules'
 import { normalizeDirectoryParams, resolveCategorySlugOrFallback } from '@/lib/seo/directory-routing'
 import { buildSeoContent, getCatalogLink, getInquiryLink, getRelatedCityLinks, RESERVED_DIRECTORY_SLUGS } from '@/lib/seo/programmatic-content'
+import { CATEGORY_TRANSLATIONS } from '@/lib/seo/i18n'
 
 interface Props {
   params: Promise<{ category: string }>
@@ -67,7 +68,17 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
       url: `https://liftgo.net/${category.slug}`
     },
     alternates: {
-      canonical: `https://liftgo.net/${category.slug}`
+      canonical: `https://liftgo.net/${category.slug}`,
+      languages: {
+        'sl-SI': `https://liftgo.net/${category.slug}`,
+        ...(CATEGORY_TRANSLATIONS[category.slug]?.de
+          ? { 'de-AT': `https://liftgo.net/de/${CATEGORY_TRANSLATIONS[category.slug].de.slug}` }
+          : {}),
+        ...(CATEGORY_TRANSLATIONS[category.slug]?.hr
+          ? { 'hr-HR': `https://liftgo.net/hr/${CATEGORY_TRANSLATIONS[category.slug].hr.slug}` }
+          : {}),
+        'x-default': `https://liftgo.net/${category.slug}`,
+      },
     }
   }
 }

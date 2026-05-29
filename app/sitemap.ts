@@ -8,6 +8,7 @@ import {
   AUSTRIAN_CITIES,
   CROATIAN_CITIES,
 } from '@/lib/seo/i18n'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const BASE_URL = 'https://liftgo.net'
 
@@ -100,5 +101,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }))
 
-  return [...staticEntries, ...categoryEntries, ...internationalEntries, ...postEntries]
+  // ── Custom seo_pages overrides (admin-managed content) ────────────────────
+  const { data: seoPages } = await supabaseAdmin
+    .from('seo_pages')
+    .select('locale, category_slug, city_slug, updated_at')
+    .eq('is_indexed', true)
+    .catch(() => ({ data: null }))
+
+  const seoPagesEntries: MetadataRoute.Sitemap = (seoPages ?? []).map((p) => {
+    const path = p.city_slug
+      ? p.locale === 'sl'
+        ? `/${p.category_slug}/${p.city_slug}`
+        : `/${p.locale}/${p.category_slug}/${p.city_slug}`
+      : p.locale === 'sl'
+        ? `/${p.category_slug}`
+        : `/${p.locale}/${p.category_slug}`
+    return {
+      url: `${BASE_URL}${path}`,
+      lastModified: p.updated_at ? new Date(p.updated_at) : now,
+      changeFrequency: 'weekly' as const,
+      priority: 0.75,
+    }
+  })
+
+  return [...staticEntries, ...categoryEntries, ...internationalEntries, ...postEntries, ...seoPagesEntries]
 }
