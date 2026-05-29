@@ -102,11 +102,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   // ── Custom seo_pages overrides (admin-managed content) ────────────────────
-  const { data: seoPages } = await supabaseAdmin
-    .from('seo_pages')
-    .select('locale, category_slug, city_slug, updated_at')
-    .eq('is_indexed', true)
-    .catch(() => ({ data: null }))
+  let seoPages: { locale: string; category_slug: string; city_slug: string | null; updated_at: string }[] | null = null
+  try {
+    const { data } = await supabaseAdmin
+      .from('seo_pages')
+      .select('locale, category_slug, city_slug, updated_at')
+      .eq('is_indexed', true)
+    seoPages = data
+  } catch {
+    // table may not exist yet
+  }
 
   const seoPagesEntries: MetadataRoute.Sitemap = (seoPages ?? []).map((p) => {
     const path = p.city_slug

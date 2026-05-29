@@ -5354,6 +5354,57 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_pages: {
+        Row: {
+          id: string
+          locale: string
+          category_slug: string
+          sl_category_slug: string
+          city_slug: string | null
+          meta_title: string | null
+          meta_description: string | null
+          h1_override: string | null
+          intro_text: string | null
+          faq_items: Json | null
+          is_indexed: boolean
+          custom_canonical: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          locale: string
+          category_slug: string
+          sl_category_slug: string
+          city_slug?: string | null
+          meta_title?: string | null
+          meta_description?: string | null
+          h1_override?: string | null
+          intro_text?: string | null
+          faq_items?: Json | null
+          is_indexed?: boolean
+          custom_canonical?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          locale?: string
+          category_slug?: string
+          sl_category_slug?: string
+          city_slug?: string | null
+          meta_title?: string | null
+          meta_description?: string | null
+          h1_override?: string | null
+          intro_text?: string | null
+          faq_items?: Json | null
+          is_indexed?: boolean
+          custom_canonical?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       ai_usage_analytics: {
