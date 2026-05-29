@@ -286,7 +286,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/:category((?!api|_next|icons|images|fonts|admin|dashboard|partner-dashboard|obrtnik|prijava|registracija)[^/]+)/:city',
+    '/:category((?!api|_next|icons|images|fonts|admin|dashboard|partner-dashboard|obrtnik|prijava|registracija|de|hr)[^/]+)/:city',
     '/dashboard',
     '/dashboard/:path*',
     '/povprasevanja/:path*',

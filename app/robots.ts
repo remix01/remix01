@@ -37,12 +37,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: 'Googlebot',
         allow: ['/'],
-        disallow: PRIVATE_PATHS,
+        disallow: [...PRIVATE_PATHS, ...USER_PRIVATE_PATHS],
       },
       {
         userAgent: 'Bingbot',
         allow: ['/'],
-        disallow: PRIVATE_PATHS,
+        disallow: [...PRIVATE_PATHS, ...USER_PRIVATE_PATHS],
       },
       {
         userAgent: '*',
