@@ -7,6 +7,8 @@ import type { User } from '@supabase/supabase-js'
 const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
   'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard',
   'partner-dashboard', 'obrtnik', 'prijava', 'registracija',
+  // Locale prefixes — handled by dedicated app/de/ and app/hr/ routes
+  'de', 'hr',
 ])
 
 function isCategoryCityPath(pathname: string) {
