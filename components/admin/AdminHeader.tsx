@@ -8,6 +8,9 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { AdminSidebar } from './AdminSidebar'
+import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 type Vloga = 'SUPER_ADMIN' | 'MODERATOR' | 'OPERATER'
 
@@ -21,6 +24,15 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ user }: AdminHeaderProps) {
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null)
+    })
+  }, [])
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
       <Sheet>
@@ -37,8 +49,9 @@ export function AdminHeader({ user }: AdminHeaderProps) {
 
       <div className="flex flex-1 items-center justify-between">
         <div className="flex-1" />
-        
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
+          <NotificationBellClient userId={userId} />
           {user && (
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium">{user.ime} {user.priimek}</p>
