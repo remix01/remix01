@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PartnerSidebar } from '@/components/partner/sidebar'
 import { PartnerBottomNav } from '@/components/partner/bottom-nav'
+import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -43,7 +44,12 @@ export default async function PartnerDashboardLayout({ children }: { children: R
           is_verified: partner.is_verified ?? false,
         }}
       />
-      <main className="min-w-0 flex flex-1 flex-col overflow-y-auto pb-20 md:pb-0">{children}</main>
+      <main className="min-w-0 flex flex-1 flex-col overflow-y-auto pb-20 md:pb-0">
+        <div className="flex items-center justify-end border-b px-4 py-2 lg:px-6">
+          <NotificationBellClient userId={user.id} />
+        </div>
+        {children}
+      </main>
       <PartnerBottomNav paket={{ paket: tier }} />
     </div>
   )

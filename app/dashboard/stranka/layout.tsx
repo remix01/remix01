@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/dashboard/stranka/Sidebar'
 import { ensureCustomerProfile } from '@/lib/auth/profiles'
+import { NotificationBellClient } from '@/components/liftgo/NotificationBellClient'
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -41,6 +42,9 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <div className="lg:ml-64">
+        <div className="flex items-center justify-end border-b border-slate-200 px-4 py-2 lg:px-8">
+          <NotificationBellClient userId={user.id} />
+        </div>
         <main className="min-h-screen">
           {children}
         </main>
