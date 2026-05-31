@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { Eye, Edit, Ban, Trash2, Users, Download } from 'lucide-react'
+import { Eye, Edit, Ban, Trash2, Users, Download, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +18,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -24,7 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from './StatusBadge'
-import { exportStrankeCSV, bulkSuspendStranke, bulkDeleteStranke, deleteStranka, updateStrankaStatus } from '@/app/admin/actions'
+import { exportStrankeCSV, bulkSuspendStranke, bulkDeleteStranke, deleteStranka, updateStrankaStatus, updateStranka } from '@/app/admin/actions'
 import type { Stranka } from '@/types/admin'
 
 interface StrankeTableProps {
@@ -39,6 +49,45 @@ export function StrankeTable({ stranke, currentPage, totalPages, searchTerm = ''
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [editDialog, setEditDialog] = useState<{ open: boolean; stranka: Stranka | null }>({
+    open: false,
+    stranka: null,
+  })
+  const [editIme, setEditIme] = useState('')
+  const [editPriimek, setEditPriimek] = useState('')
+  const [editTelefon, setEditTelefon] = useState('')
+  const [editLokacija, setEditLokacija] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editSuccess, setEditSuccess] = useState(false)
+
+  const openEditDialog = (stranka: Stranka) => {
+    setEditIme(stranka.ime)
+    setEditPriimek(stranka.priimek)
+    setEditTelefon(stranka.telefon ?? '')
+    setEditLokacija(stranka.lokacija ?? '')
+    setEditError(null)
+    setEditSuccess(false)
+    setEditDialog({ open: true, stranka })
+  }
+
+  const handleEditSave = async () => {
+    if (!editDialog.stranka) return
+    setEditSaving(true)
+    setEditError(null)
+    setEditSuccess(false)
+    try {
+      const result = await updateStranka(editDialog.stranka.id, {
+        ime: editIme,
+        priimek: editPriimek,
+        telefon: editTelefon,
+        lokacija: editLokacija,
+      })
+      if (!result.success) { setEditError(result.error ?? 'Napaka pri shranjevanju'); return }
+      setEditSuccess(true)
+      setTimeout(() => { setEditDialog({ open: false, stranka: null }); window.location.reload() }, 800)
+    } catch { setEditError('Napaka pri shranjevanju.') } finally { setEditSaving(false) }
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -161,10 +210,13 @@ export function StrankeTable({ stranke, currentPage, totalPages, searchTerm = ''
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" asChild title="Uredi">
-                      <Link href={`/admin/stranke/${stranka.id}`}>
-                        <Edit className="h-4 w-4" />
-                      </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Uredi"
+                      onClick={() => openEditDialog(stranka)}
+                    >
+                      <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -268,6 +320,49 @@ export function StrankeTable({ stranke, currentPage, totalPages, searchTerm = ''
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => { if (!open) setEditDialog({ open: false, stranka: null }) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Uredi stranko</DialogTitle>
+            <DialogDescription>
+              Spremenite podatke stranke {editDialog.stranka?.ime} {editDialog.stranka?.priimek}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="edit-ime">Ime</Label>
+                <Input id="edit-ime" value={editIme} onChange={(e) => setEditIme(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-priimek">Priimek</Label>
+                <Input id="edit-priimek" value={editPriimek} onChange={(e) => setEditPriimek(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-telefon">Telefon</Label>
+                <Input id="edit-telefon" type="tel" value={editTelefon} onChange={(e) => setEditTelefon(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-lokacija">Mesto</Label>
+                <Input id="edit-lokacija" value={editLokacija} onChange={(e) => setEditLokacija(e.target.value)} />
+              </div>
+            </div>
+            {editError && <p className="text-xs text-destructive">{editError}</p>}
+            {editSuccess && <p className="text-xs text-green-600">Shranjeno.</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog({ open: false, stranka: null })}>
+              Prekliči
+            </Button>
+            <Button disabled={editSaving} onClick={handleEditSave} className="gap-2">
+              <Save className="h-4 w-4" />
+              {editSaving ? 'Shranjujem...' : 'Shrani'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

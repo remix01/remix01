@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, Edit, Ban, Trash2, Star, Building2 } from 'lucide-react'
+import { Eye, Edit, Ban, Trash2, Star, Building2, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
@@ -22,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from './StatusBadge'
-import { zavrniPartnerja, suspendiranjPartnerja, reaktivirajPartnerja, deletePartner } from '@/app/admin/actions'
+import { zavrniPartnerja, suspendiranjPartnerja, reaktivirajPartnerja, deletePartner, updatePartner } from '@/app/admin/actions'
 import type { Partner } from '@/types/admin'
 
 interface PartnerjiTableProps {
@@ -31,6 +33,12 @@ interface PartnerjiTableProps {
   totalPages: number
 }
 
+const SUBSCRIPTION_TIERS = [
+  { value: 'start', label: 'START' },
+  { value: 'pro', label: 'PRO' },
+  { value: 'elite', label: 'ELITE' },
+]
+
 export function PartnerjiTable({ partnerji, currentPage, totalPages }: PartnerjiTableProps) {
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; partnerId: string | null }>({
     open: false,
@@ -38,6 +46,42 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
   })
   const [razlog, setRazlog] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
+  const [editDialog, setEditDialog] = useState<{ open: boolean; partner: Partner | null }>({
+    open: false,
+    partner: null,
+  })
+  const [editBusinessName, setEditBusinessName] = useState('')
+  const [editTelefon, setEditTelefon] = useState('')
+  const [editTier, setEditTier] = useState('start')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editSuccess, setEditSuccess] = useState(false)
+
+  const openEditDialog = (partner: Partner) => {
+    setEditBusinessName(partner.podjetje ?? partner.ime)
+    setEditTelefon(partner.telefon ?? '')
+    setEditTier('start')
+    setEditError(null)
+    setEditSuccess(false)
+    setEditDialog({ open: true, partner })
+  }
+
+  const handleEditSave = async () => {
+    if (!editDialog.partner) return
+    setEditSaving(true)
+    setEditError(null)
+    setEditSuccess(false)
+    try {
+      const result = await updatePartner(editDialog.partner.id, {
+        business_name: editBusinessName,
+        telefon: editTelefon,
+        subscription_tier: editTier,
+      })
+      if (!result.success) { setEditError(result.error ?? 'Napaka pri shranjevanju'); return }
+      setEditSuccess(true)
+      setTimeout(() => { setEditDialog({ open: false, partner: null }); window.location.reload() }, 800)
+    } catch { setEditError('Napaka pri shranjevanju.') } finally { setEditSaving(false) }
+  }
 
   const handleReject = async () => {
     if (!rejectDialog.partnerId || razlog.trim().length < 3) return
@@ -117,10 +161,13 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" asChild title="Uredi">
-                      <Link href={`/admin/partnerji/${partner.id}`}>
-                        <Edit className="h-4 w-4" />
-                      </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Uredi"
+                      onClick={() => openEditDialog(partner)}
+                    >
+                      <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -231,6 +278,61 @@ export function PartnerjiTable({ partnerji, currentPage, totalPages }: Partnerji
               onClick={handleReject}
             >
               Zavrni
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => { if (!open) setEditDialog({ open: false, partner: null }) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Uredi partnerja</DialogTitle>
+            <DialogDescription>
+              Spremenite podatke partnerja {editDialog.partner?.ime}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="edit-business-name">Ime podjetja</Label>
+              <Input
+                id="edit-business-name"
+                value={editBusinessName}
+                onChange={(e) => setEditBusinessName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-telefon">Telefon</Label>
+              <Input
+                id="edit-telefon"
+                type="tel"
+                value={editTelefon}
+                onChange={(e) => setEditTelefon(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-tier">Paket</Label>
+              <select
+                id="edit-tier"
+                value={editTier}
+                onChange={(e) => setEditTier(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {SUBSCRIPTION_TIERS.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            {editError && <p className="text-xs text-destructive">{editError}</p>}
+            {editSuccess && <p className="text-xs text-green-600">Shranjeno.</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog({ open: false, partner: null })}>
+              Prekliči
+            </Button>
+            <Button disabled={editSaving} onClick={handleEditSave} className="gap-2">
+              <Save className="h-4 w-4" />
+              {editSaving ? 'Shranjujem...' : 'Shrani'}
             </Button>
           </DialogFooter>
         </DialogContent>
