@@ -5357,9 +5357,9 @@ export type Database = {
       seo_pages: {
         Row: {
           id: string
+          slug: string
           locale: string
-          category_slug: string
-          sl_category_slug: string
+          category_slug: string | null
           city_slug: string | null
           meta_title: string | null
           meta_description: string | null
@@ -5367,15 +5367,14 @@ export type Database = {
           intro_text: string | null
           faq_items: Json | null
           is_indexed: boolean
-          custom_canonical: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          locale: string
-          category_slug: string
-          sl_category_slug: string
+          slug: string
+          locale?: string
+          category_slug?: string | null
           city_slug?: string | null
           meta_title?: string | null
           meta_description?: string | null
@@ -5383,15 +5382,14 @@ export type Database = {
           intro_text?: string | null
           faq_items?: Json | null
           is_indexed?: boolean
-          custom_canonical?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
+          slug?: string
           locale?: string
-          category_slug?: string
-          sl_category_slug?: string
+          category_slug?: string | null
           city_slug?: string | null
           meta_title?: string | null
           meta_description?: string | null
@@ -5399,7 +5397,6 @@ export type Database = {
           intro_text?: string | null
           faq_items?: Json | null
           is_indexed?: boolean
-          custom_canonical?: string | null
           created_at?: string
           updated_at?: string
         }
