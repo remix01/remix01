@@ -7,6 +7,8 @@ import type { User } from '@supabase/supabase-js'
 const DYNAMIC_ROUTE_EXCLUSIONS = new Set([
   'api', '_next', 'icons', 'images', 'fonts', 'admin', 'dashboard',
   'partner-dashboard', 'obrtnik', 'prijava', 'registracija',
+  // Locale prefixes — handled by dedicated app/de/ and app/hr/ routes
+  'de', 'hr',
 ])
 
 function isCategoryCityPath(pathname: string) {
@@ -284,7 +286,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/:category((?!api|_next|icons|images|fonts|admin|dashboard|partner-dashboard|obrtnik|prijava|registracija)[^/]+)/:city',
+    '/:category((?!api|_next|icons|images|fonts|admin|dashboard|partner-dashboard|obrtnik|prijava|registracija|de|hr)[^/]+)/:city',
     '/dashboard',
     '/dashboard/:path*',
     '/povprasevanja/:path*',

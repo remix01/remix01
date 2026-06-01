@@ -3,6 +3,12 @@ import { getActiveCategoriesPublic } from '@/lib/dal/categories'
 import { SLOVENIAN_CITIES } from '@/lib/seo/locations'
 import { getAllPosts } from '@/lib/blog'
 import { buildSeoContent, isSeoIndexablePage } from '@/lib/seo/programmatic-content'
+import {
+  CATEGORY_TRANSLATIONS,
+  AUSTRIAN_CITIES,
+  CROATIAN_CITIES,
+} from '@/lib/seo/i18n'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 const BASE_URL = 'https://liftgo.net'
 
@@ -25,13 +31,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getAllPosts().catch(() => []),
   ])
 
+  // ── Slovenian category + city pages ────────────────────────────────────────
   const categoryEntries: MetadataRoute.Sitemap = categories.flatMap((category) => {
     const categorySeo = buildSeoContent({ categoryName: category.name, categorySlug: category.slug })
-    const base = {
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-    }
-
+    const base = { lastModified: now, changeFrequency: 'daily' as const }
     const entries: MetadataRoute.Sitemap = []
 
     if (isSeoIndexablePage({
@@ -57,6 +60,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return entries
   })
 
+  // ── International pages (Austria DE + Croatia HR) ─────────────────────────
+  const intlBase = { lastModified: now, changeFrequency: 'weekly' as const }
+  const internationalEntries: MetadataRoute.Sitemap = []
+
+  for (const [, translations] of Object.entries(CATEGORY_TRANSLATIONS)) {
+    // Austrian category + city pages
+    internationalEntries.push({
+      url: `${BASE_URL}/de/${translations.de.slug}`,
+      priority: 0.7,
+      ...intlBase,
+    })
+    for (const city of AUSTRIAN_CITIES) {
+      internationalEntries.push({
+        url: `${BASE_URL}/de/${translations.de.slug}/${city.slug}`,
+        priority: 0.6,
+        ...intlBase,
+      })
+    }
+
+    // Croatian category + city pages
+    internationalEntries.push({
+      url: `${BASE_URL}/hr/${translations.hr.slug}`,
+      priority: 0.7,
+      ...intlBase,
+    })
+    for (const city of CROATIAN_CITIES) {
+      internationalEntries.push({
+        url: `${BASE_URL}/hr/${translations.hr.slug}/${city.slug}`,
+        priority: 0.6,
+        ...intlBase,
+      })
+    }
+  }
+
   const postEntries: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${BASE_URL}/blog/${post.slug}`,
     lastModified: post.date ? new Date(post.date) : now,
@@ -64,5 +101,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }))
 
-  return [...staticEntries, ...categoryEntries, ...postEntries]
+  // ── Custom seo_pages overrides (admin-managed content) ────────────────────
+  let seoPages: { locale: string; category_slug: string; city_slug: string | null; updated_at: string }[] | null = null
+  try {
+    const { data } = await supabaseAdmin
+      .from('seo_pages')
+      .select('locale, category_slug, city_slug, updated_at')
+      .eq('is_indexed', true)
+    seoPages = data
+  } catch {
+    // table may not exist yet
+  }
+
+  const seoPagesEntries: MetadataRoute.Sitemap = (seoPages ?? []).map((p) => {
+    const path = p.city_slug
+      ? p.locale === 'sl'
+        ? `/${p.category_slug}/${p.city_slug}`
+        : `/${p.locale}/${p.category_slug}/${p.city_slug}`
+      : p.locale === 'sl'
+        ? `/${p.category_slug}`
+        : `/${p.locale}/${p.category_slug}`
+    return {
+      url: `${BASE_URL}${path}`,
+      lastModified: p.updated_at ? new Date(p.updated_at) : now,
+      changeFrequency: 'weekly' as const,
+      priority: 0.75,
+    }
+  })
+
+  return [...staticEntries, ...categoryEntries, ...internationalEntries, ...postEntries, ...seoPagesEntries]
 }
