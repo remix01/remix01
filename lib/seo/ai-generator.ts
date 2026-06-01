@@ -74,7 +74,6 @@ export async function generateSeoContent(
 export async function generateAndStorePage(params: {
   locale: string
   categorySlug: string
-  slCategorySlug: string
   categoryName: string
   citySlug?: string
   cityName?: string
@@ -82,13 +81,17 @@ export async function generateAndStorePage(params: {
   try {
     const content = await generateSeoContent(params.locale, params.categoryName, params.cityName)
 
+    const slug = params.citySlug
+      ? `${params.locale}/${params.categorySlug}/${params.citySlug}`
+      : `${params.locale}/${params.categorySlug}`
+
     const { error } = await supabaseAdmin
       .from('seo_pages')
       .upsert(
         {
+          slug,
           locale: params.locale,
           category_slug: params.categorySlug,
-          sl_category_slug: params.slCategorySlug,
           city_slug: params.citySlug ?? null,
           meta_title: content.meta_title,
           meta_description: content.meta_description,
@@ -97,7 +100,7 @@ export async function generateAndStorePage(params: {
           faq_items: content.faq_items,
           is_indexed: true,
         },
-        { onConflict: 'locale,category_slug,city_slug' },
+        { onConflict: 'slug' },
       )
 
     if (error) return { success: false, error: error.message }

@@ -9,9 +9,9 @@ import { CATEGORY_TRANSLATIONS } from '@/lib/seo/i18n'
 
 type SeoPage = {
   id: string
+  slug: string
   locale: string
-  category_slug: string
-  sl_category_slug: string
+  category_slug: string | null
   city_slug: string | null
   meta_title: string | null
   meta_description: string | null
@@ -25,7 +25,6 @@ const LOCALES = ['de', 'hr', 'sl']
 const emptyForm = {
   locale: 'de',
   categorySlug: '',
-  slCategorySlug: '',
   categoryName: '',
   citySlug: '',
   cityName: '',
@@ -52,7 +51,7 @@ export default function AdminSeoPage() {
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000) }
 
   const generate = async () => {
-    if (!form.locale || !form.categorySlug || !form.slCategorySlug || !form.categoryName) {
+    if (!form.locale || !form.categorySlug || !form.categoryName) {
       flash('Izpolni vsa obvezna polja')
       return
     }
@@ -65,7 +64,6 @@ export default function AdminSeoPage() {
         body: JSON.stringify({
           locale: form.locale,
           categorySlug: form.categorySlug,
-          slCategorySlug: form.slCategorySlug,
           categoryName: form.categoryName,
           citySlug: form.citySlug || undefined,
           cityName: form.cityName || undefined,
@@ -117,7 +115,7 @@ export default function AdminSeoPage() {
     if (!t) return
     const slug = t[locale as 'de' | 'hr']?.slug || ''
     const name = t[locale as 'de' | 'hr']?.name || ''
-    setForm(f => ({ ...f, locale, slCategorySlug: slSlug, categorySlug: slug, categoryName: name }))
+    setForm(f => ({ ...f, locale, categorySlug: slug, categoryName: name }))
   }
 
   return (
@@ -146,10 +144,9 @@ export default function AdminSeoPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">SL slug *</label>
+              <label className="text-xs text-gray-500 mb-1 block">SL slug (za prevod)</label>
               <select
                 className="w-full border rounded px-2 py-1.5 text-sm"
-                value={form.slCategorySlug}
                 onChange={e => autoFillFromLocale(form.locale, e.target.value)}
               >
                 <option value="">Izberi...</option>
@@ -233,7 +230,7 @@ export default function AdminSeoPage() {
                       <td className="py-2 pr-3">
                         <Badge variant="outline" className="text-xs">{p.locale.toUpperCase()}</Badge>
                       </td>
-                      <td className="py-2 pr-3 font-mono text-xs">{p.category_slug}</td>
+                      <td className="py-2 pr-3 font-mono text-xs">{p.slug}</td>
                       <td className="py-2 pr-3 text-xs text-gray-500">{p.city_slug || '—'}</td>
                       <td className="py-2 pr-3 max-w-xs truncate text-xs">{p.meta_title || '—'}</td>
                       <td className="py-2 pr-3">

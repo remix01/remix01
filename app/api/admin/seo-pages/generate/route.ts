@@ -21,16 +21,15 @@ export async function POST(req: Request) {
   if (!await requireAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!hasAnthropicAI()) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 })
 
-  const { locale, categorySlug, slCategorySlug, categoryName, citySlug, cityName } = await req.json()
+  const { locale, categorySlug, categoryName, citySlug, cityName } = await req.json()
 
-  if (!locale || !categorySlug || !slCategorySlug || !categoryName) {
+  if (!locale || !categorySlug || !categoryName) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
   const result = await generateAndStorePage({
     locale,
     categorySlug,
-    slCategorySlug,
     categoryName,
     citySlug,
     cityName,

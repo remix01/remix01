@@ -1,63 +1,51 @@
--- Centralized SEO page metadata override table
--- Auto-generated programmatic content is the default; rows here override it.
--- locale: 'sl', 'de', 'hr', etc.
--- category_slug: slug in the locale's language (e.g. 'installation' for de)
--- sl_category_slug: original SL slug for DB category lookups
--- city_slug: null = category-level page, set = category+city page
+-- ============================================================================
+-- SEO PAGES TABLE
+-- Admin-managed per-page SEO overrides; falls back to auto-generated content
+-- when empty. Public-readable, admin-writable only.
+-- slug: unique identifier, e.g. 'sl/elektriki/ljubljana' or 'de/installation'
+-- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.seo_pages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  locale TEXT NOT NULL,
-  category_slug TEXT NOT NULL,
-  sl_category_slug TEXT NOT NULL,
-  city_slug TEXT,
-  meta_title TEXT,
-  meta_description TEXT,
-  h1_override TEXT,
-  intro_text TEXT,
-  faq_items JSONB,           -- array of {question, answer}
-  is_indexed BOOLEAN NOT NULL DEFAULT TRUE,
-  custom_canonical TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug         text NOT NULL UNIQUE,
+  locale       text NOT NULL DEFAULT 'sl',
+  category_slug text,
+  city_slug    text,
 
-  CONSTRAINT seo_pages_unique_page UNIQUE (locale, category_slug, city_slug)
+  meta_title        text,
+  meta_description  text,
+  h1_override       text,
+  intro_text        text,
+  faq_items         jsonb DEFAULT '[]'::jsonb,
+
+  is_indexed   boolean NOT NULL DEFAULT true,
+
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS seo_pages_lookup_idx
-  ON public.seo_pages (locale, category_slug, city_slug);
-
--- Update updated_at on every row change
-CREATE OR REPLACE FUNCTION public.set_seo_pages_updated_at()
+CREATE OR REPLACE FUNCTION public.seo_pages_set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at = now();
   RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS seo_pages_updated_at ON public.seo_pages;
-CREATE TRIGGER seo_pages_updated_at
+DROP TRIGGER IF EXISTS trg_seo_pages_updated_at ON public.seo_pages;
+CREATE TRIGGER trg_seo_pages_updated_at
   BEFORE UPDATE ON public.seo_pages
-  FOR EACH ROW EXECUTE FUNCTION public.set_seo_pages_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION public.seo_pages_set_updated_at();
 
--- RLS: public read, admin write
+CREATE INDEX IF NOT EXISTS idx_seo_pages_slug        ON public.seo_pages(slug);
+CREATE INDEX IF NOT EXISTS idx_seo_pages_locale      ON public.seo_pages(locale);
+CREATE INDEX IF NOT EXISTS idx_seo_pages_category    ON public.seo_pages(category_slug);
+CREATE INDEX IF NOT EXISTS idx_seo_pages_is_indexed  ON public.seo_pages(is_indexed) WHERE is_indexed = true;
+
 ALTER TABLE public.seo_pages ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "seo_pages_public_read" ON public.seo_pages
-  FOR SELECT USING (TRUE);
+  FOR SELECT USING (true);
 
-CREATE POLICY "seo_pages_admin_write" ON public.seo_pages
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.admin_users
-      WHERE auth_user_id = auth.uid() AND aktiven = TRUE
-    )
-  );
-
-COMMENT ON TABLE public.seo_pages IS
-  'Optional per-page SEO metadata overrides. Auto-generated content is used when no row matches.';
-COMMENT ON COLUMN public.seo_pages.faq_items IS
-  'JSON array of {question: string, answer: string} objects';
-COMMENT ON COLUMN public.seo_pages.is_indexed IS
-  'Set to FALSE to add noindex to a specific page without code changes';
+CREATE POLICY "seo_pages_admin_all" ON public.seo_pages
+  FOR ALL USING (public.is_admin());
