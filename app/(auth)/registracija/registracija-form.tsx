@@ -114,7 +114,7 @@ export function RegistracijaForm() {
         router.push('/partner-dashboard')
       } else {
         const redirect = searchParams?.get('redirect')
-        router.push(redirect || '/dashboard')
+        router.push(getSafeInternalRedirect(redirect))
       }
     } catch (err) {
       setError('Napaka pri registraciji. Poskusite znova.')
@@ -137,6 +137,9 @@ export function RegistracijaForm() {
       // Persist the role choice across the OAuth redirect so the callback
       // can create the profiles row with the correct role.
       try { sessionStorage.setItem('oauth_intended_role', selectedRole) } catch {}
+
+      const role = selectedRole === 'obrtnik' ? 'obrtnik' : 'narocnik'
+      const next = role === 'obrtnik' ? '/partner-dashboard' : getSafeInternalRedirect(searchParams?.get('redirect'))
 
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: 'google',

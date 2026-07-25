@@ -32,9 +32,12 @@ function PrijavaContent() {
     const supabase = createClient()
 
     const redirectTarget = searchParams.get('redirect') ?? searchParams.get('redirectTo')
-    if (redirectTarget?.startsWith('/') && !redirectTarget.startsWith('/prijava')) {
-      router.push(redirectTarget)
-      return
+    if (redirectTarget) {
+      const safeRedirect = getSafeInternalRedirect(redirectTarget)
+      if (safeRedirect === redirectTarget) {
+        router.push(safeRedirect)
+        return
+      }
     }
 
     // Check admin status directly via client session (avoids cookie-timing issues with fetch)
@@ -70,6 +73,8 @@ function PrijavaContent() {
 
     try {
       const supabase = createClient()
+      const next = getSafeInternalRedirect(searchParams.get('redirect') ?? searchParams.get('redirectTo'))
+      const role = 'narocnik'
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
